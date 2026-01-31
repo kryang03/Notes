@@ -1,4 +1,31 @@
-你好！我是你的AI导师。这篇论文 **"Weight-sparse transformers have interpretable circuits"** 来自OpenAI，它直击深度学习理论中最迷人也最困难的领域——**机械可解释性（Mechanistic Interpretability）**。
+---
+tags:
+  - paper
+  - interpretability
+  - sparsity
+  - transformer
+aliases:
+  - Sparse Transformers Interpretability
+  - Weight Sparsity Circuits
+paper-year: 2024
+venue: OpenAI
+related:
+  - "[[RepresentationLearning]]"
+  - "[[Optimization]]"
+  - "[[InformationTheory]]"
+---
+
+# Weight-sparse Transformers Have Interpretable Circuits
+
+> [!note] Foundation 关联
+> - **[[RepresentationLearning]]**: 本文核心关于表征的可解释性与解耦 (Section 6: 流形学习与解耦)
+> - **[[Optimization]]**: $L_0$ 约束优化与投影梯度下降 (Section 2.4: 稀疏优化)
+> - **[[InformationTheory]]**: 信息瓶颈与稀疏表示
+
+> [!abstract] 核心概要
+> 通过在训练中强制 Transformer 保持极高的**权重稀疏性**（仅 0.1%-1% 非零权重），迫使模型学习出**解耦的、人类可读的计算回路**，避免稠密模型中的"叠加态"现象，开辟了"事中干预"式可解释性研究路径。
+
+这篇论文 **"Weight-sparse transformers have interpretable circuits"** 来自OpenAI，它直击深度学习理论中最迷人也最困难的领域——**机械可解释性（Mechanistic Interpretability）**。
 
 目前的深度模型像是一个"黑盒"，我们知道它能工作，但不知道*为什么*。这篇论文提出了一种激进的假设：**极度的稀疏性（Sparsity）是解开神经网络内部复杂纠缠的钥匙。**
 

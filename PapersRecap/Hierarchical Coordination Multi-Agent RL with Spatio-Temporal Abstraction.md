@@ -6,9 +6,16 @@ tags:
   - GraphNeuralNetwork
   - LowRelevance
 date: 2026-02-01
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[RepresentationLearning]]"
 ---
 
 # Hierarchical Coordination Multi-Agent RL with Spatio-Temporal Abstraction (HSTCN)
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning]]**: 层次化 RL 与时间抽象
+> - **[[RepresentationLearning]]**: 时空图神经网络
 
 ## 元信息
 - **作者**: Tinghuai Ma, Kexing Peng, et al.

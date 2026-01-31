@@ -1,6 +1,6 @@
 ---
 tags:
-  - paper-recap
+  - paper
   - reinforcement-learning
   - off-policy-evaluation
   - lipschitz
@@ -9,9 +9,9 @@ tags:
 aliases:
   - Lipschitz Value Iteration
   - Off-Policy Interval Estimation
-created: 2026-02-01
+read-date: 2026-02-01
 venue: NeurIPS 2020
-year: 2020
+paper-year: 2020
 authors:
   - Ziyang Tang
   - Yihao Feng
@@ -19,9 +19,16 @@ authors:
   - Jian Peng
   - Qiang Liu
 institution: UT Austin, Tsinghua, UIUC
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[Optimization]]"
 ---
 
 # Off-Policy Interval Estimation with Lipschitz Value Iteration
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning#5. 离线强化学习 (Offline RL)]]**: Off-Policy 评估问题
+> - **[[Optimization]]**: Lipschitz 函数空间约束优化
 
 > [!abstract] 核心贡献
 > 提出 **Lipschitz Value Iteration** 算法，为 Off-Policy Evaluation (OPE) 提供**可证明正确的上下界区间估计**。在 Lipschitz 函数空间中搜索与观测一致的 Q 函数的最大最小值，算法具有闭式更新、单调收敛、线性收敛率。

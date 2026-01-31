@@ -6,9 +6,18 @@ tags:
   - Neuroevolution
   - Robotics
 date: 2026-02-01
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[SignalProcessing]]"
 ---
 
 # EvoControl: Evolved High Frequency Control for Continuous Control Tasks
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning#2.3 策略梯度方法]]**: PPO 高层策略
+> - **[[ControlTheory]]**: 高低频分层控制架构
+> - **[[SignalProcessing]]**: 500Hz 高频控制信号处理
 
 ## 元信息
 - **作者**: Samuel Holt, Atil Iscen, Todor Davchev, et al.

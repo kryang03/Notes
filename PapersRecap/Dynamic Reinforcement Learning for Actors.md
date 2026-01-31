@@ -1,14 +1,29 @@
 ---
 tags:
-  - PaperRecap
-  - RL/Exploration
-  - RL/DynamicSystems
-  - ChaosTheory
-  - Speculative
+  - paper
+  - exploration
+  - chaos-theory
+  - speculative
 date: 2026-02-01
+paper-year: 2025
+aliases:
+  - Dynamic RL for Actors
+  - Chaos Exploration RL
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[StochasticProcess]]"
+  - "[[Dynamics]]"
 ---
 
 # Dynamic Reinforcement Learning for Actors
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning#3. 探索策略]]**: 探索机制设计
+> - **[[StochasticProcess]]**: 混沌动力系统与随机性
+> - **[[Dynamics]]**: 网络动力学与稳定性
+
+> [!abstract] 核心概要
+> 提出 **Dynamic RL**：将探索能力内嵌于 Actor 网络的混沌动力学中，而非依赖外部噪声。通过调控网络的 Lyapunov 敏感度，实现状态依赖的自适应探索策略。
 
 ## 元信息
 - **作者**: Katsunari Shibata

@@ -518,7 +518,7 @@ Tishby 等人提出的**信息平面 (Information Plane)** 假说认为，深度
 
 在许多灵巧操作任务中，外部奖励（External Reward）是稀疏的（Sparse）甚至缺失的。例如，让机器人“玩”一个魔方，如果只在魔方复原时给奖励，机器人可能永远学不会。信息论提供了**内在动机（Intrinsic Motivation）**的数学形式，驱动机器人像婴儿一样自主学习操作技能。
 
-### 5.1 赋能 (Empowerment)：最大化信道容量
+### 6.1 赋能 (Empowerment)：最大化信道容量
 
 **赋能**是一个极其深刻的概念，它定义了代理（Agent）对其环境的潜在控制能力。数学上，赋能被量化为当前动作 $A$ 与未来状态 $S_{t+k}$ 之间的互信息最大值：
 
@@ -528,8 +528,39 @@ $$\mathcal{E}(s_t) = \max_{\pi(a|s_t)} I(A_t; S_{t+k} | s_t)$$
 - **操作中的物理意义**：
   - **高赋能状态**：灵巧手稳定抓持一个物体。此时，微小的指尖动作 $A$ 都能精确地改变物体位姿 $S$（高相关性）。机器人“掌控”了物体。
   - **低赋能状态**：物体即将滑落，或者手指被卡住。此时，无论机器人如何努力改变动作 $A$，物体状态 $S$ 几乎不可控或随机演化（噪音大）。
-  - **结论**：追求最大化赋能，本质上是在追求**可操作性（Manipulability）\**和\**稳定性（Stability）**。即使不需要定义“抓取”为目标，仅通过最大化 $I(A; S)$，机器人就会自动学会抓取物体，因为抓取赋予了它对物体状态最大的控制权 。
-#### 5.1.1 变分下界与实际计算 (Variational Lower Bound for Empowerment)
+  - **结论**：追求最大化赋能，本质上是在追求**可操作性（Manipulability）**和**稳定性（Stability）**。即使不需要定义"抓取"为目标，仅通过最大化 $I(A; S)$，机器人就会自动学会抓取物体，因为抓取赋予了它对物体状态最大的控制权 。
+
+#### 6.1.1 Empowerment 的理论根基 (Theoretical Foundations)
+
+> [!note] 教科书参考
+> Empowerment 概念最早由 Klyubin, Polani & Nehaniv (2005) 在"All Else Being Equal Be Empowered"中提出，源于信息论中**信道容量 (Channel Capacity)** 的概念。
+
+**信道容量视角**：将 Agent-环境交互建模为通信系统：
+- **发射机**：策略 $\pi(a|s)$
+- **信道**：环境动力学 $p(s'|s, a)$
+- **接收机**：未来状态 $s'$
+
+信道容量定义为：
+$$C = \max_{p(a)} I(A; S' | s)$$
+
+**与控制论的深层联系**：
+
+> [!important] Empowerment 与可控性的等价性
+> 对于确定性线性系统 $s' = As + Ba$，Empowerment 与控制论中的**可控性 Gramian** 的行列式成正比：
+> 
+> $$\mathcal{E}(s) \propto \log \det(BB^T)$$
+> 
+> 这建立了信息论与经典控制理论之间的桥梁：**高 Empowerment 等价于高可控性**。
+
+**灵巧操作的物理直觉**：
+
+| 状态 | Empowerment | 控制论解释 | 物理表现 |
+|-----|-------------|-----------|---------|
+| 稳定抓取 | **高** | 完全可控 | 微小动作 → 精确状态变化 |
+| 物体滑落边缘 | **低** | 丧失可控性 | 动作无法阻止状态漂移 |
+| 手指卡死 | **极低** | 约束导致奇异 | 动作空间被约束到低维流形 |
+
+#### 6.1.2 变分下界与实际计算 (Variational Lower Bound for Empowerment)
 
 精确计算 $I(A; S')$ 需要遍历所有可能的动作序列和未来状态，在连续空间中是不可行的。我们需要一个可优化的下界。
 
@@ -555,7 +586,8 @@ $$\max_{\theta, \phi} \mathbb{E}_{a \sim \pi_\theta, s' \sim p}[\log \omega_\phi
 
 > [!tip] 与 DIAYN 的联系
 > DIAYN 可以看作是**离散化的 Empowerment**。在 DIAYN 中，$z \in \{1, ..., K\}$ 是离散技能 ID，鉴别器 $q(z|s)$ 正是 $\omega(a|s')$ 的离散版本。最大化 $I(Z; S)$ 等价于在离散技能空间中最大化赋能。
-### 5.2 变分信息最大化探索 (VIME)
+
+### 6.2 变分信息最大化探索 (VIME)
 
 在深度强化学习（RL）中，计算精确的互信息是不可行的。**VIME (Variational Information Maximizing Exploration)** 提出利用变分推断来最大化信息增益。
 
@@ -577,7 +609,7 @@ $$r_{int} = D_{KL}(p(\theta | \xi_{1:t}) \| p(\theta | \xi_{1:t-1}))$$
 | **Empowerment**                       | 互信息 $I(A; S)$                                 | 寻找最大化控制权的区域   | 计算极其昂贵，但在操作任务中产生的行为最自然。 |
 | **RND (Random Network Distillation)** | 蒸馏误差                                         | 寻找未访问过的状态       | 实现简单，但缺乏对物理动力学的理解。           |
 
-### 5.3 多样性就是一切 (Diversity Is All You Need, DIAYN)
+### 6.3 多样性就是一切 (Diversity Is All You Need, DIAYN)
 
 DIAYN  是一种无监督学习方法，通过最大化状态 $S$ 和潜变量（技能ID）$Z$ 之间的互信息来学习多样的技能。
 
@@ -684,5 +716,22 @@ def compute_diayn_rewards(discriminator, states, skills):
 2. **熵的物理对应**：熵对应着接触空间（Contact Space）的可行域体积。操作过程本质上就是将这一体积压缩到足以满足任务约束（如力闭合条件）的过程。
 3. **双重控制的统一**：控制不再仅仅是执行，控制也是感知。刚度调节（Stiffness Modulation）是信念不确定性在力学层面的直接投射。
 4. **内在动机的潜力**：赋能（Empowerment）理论证明了，即使没有具体任务，追求“对未来的控制力”也能自发产生稳定的抓取和操作行为。这为通用机器人的预训练提供了坚实的理论基础。
+------
 
+## 9. 相关论文 (PapersRecap)
+
+以下论文涉及本 Foundation 中的信息论概念：
+
+### 熵与探索策略
+- [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]: 熵引导的示教加速，信息论采样
+- [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]: 信息论视角的探索-利用权衡
+- [[EUREKA - Human-Level Reward Design via Coding Large Language Models|EUREKA]]: LLM引导的奖励信息编码
+
+### 互信息与表示学习
+- [[Weight-sparse transformers have interpretable circuits|Weight-sparse Transformers]]: 信息瓶颈与稀疏表示
+- [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing|Robot Synesthesia]]: 跨模态信息融合
+
+### 主动感知与信念更新
+- [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|Curriculum Sensing Reduction]]: 传感信息的课程式简化
+- [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]: 触觉信息的 Sim-to-Real 对齐
 未来的研究方向将聚焦于**高频触觉信息流的实时互信息估计**，以及如何将**因果推断（Causal Inference）**引入主动探索，使机器人不仅知道“是什么”（关联性），还能理解“为什么”（因果性）——从而实现真正意义上的认知灵巧操作（Cognitive Dexterous Manipulation）。

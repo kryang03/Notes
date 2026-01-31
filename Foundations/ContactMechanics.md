@@ -421,6 +421,29 @@ $$\frac{\partial z^*}{\partial \theta} = - \left( \frac{\partial R}{\partial z} 
 
 ------
 
+## 相关论文 (PapersRecap)
+
+> [!abstract] 知识图谱反向链接
+> 以下论文在其研究中涉及接触力学的核心主题
+
+### 手内操作与接触建模
+- [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] — 重力无关旋转
+- [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] — 纯触觉旋转
+- [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]] — 视触觉联觉
+- [[Learning Human-like Finger Gaiting on an Anthropomorphic Hand]] — 手指步态
+
+### 接触丰富的学习
+- [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization]] — 物理驱动数据生成
+- [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation]] — 残差 DMP
+- [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] — 接触丰富任务的阻抗控制
+
+### 触觉感知与抓取
+- [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)]] — 视触觉遥操作
+- [[Proximity Perception-Based Grasping Intelligence (P2GI)]] — 近距离感知抓取
+- [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation]] — 触觉反馈与课程学习
+
+------
+
 ## 7. 结论与建议
 
 接触力学是机器人灵巧操作的基石。从Montana方程揭示的几何演化规律，到MuJoCo和XPBD提供的强大计算工具，再到可微物理开启的学习新范式，这一领域正在经历深刻的变革。

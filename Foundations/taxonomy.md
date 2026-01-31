@@ -29,6 +29,7 @@ created: 2026-01-31
 | [[ComputationalGeometry\|Comp. Geometry]] | 空间推理 | SDFs / Voronoi / trimesh | 隐式神经表示 (Neural Fields) |
 | [[StochasticProcess\|Stochastic Proc.]] | 随机建模 | Gaussian Processes / SDEs | 扩散策略 (Diffusion Policies) |
 | [[RepresentationLearning\|Representation]] | 特征提取 | VAE / Contrastive Learning | 多模态融合, 流形学习 |
+| [[EmbodiedAI\|Embodied AI]] | 端到端系统 | VLA / Isaac Lab / Diffusion Policy | 从感知到动作的统一建模 |
 
 ---
 
@@ -63,10 +64,19 @@ created: 2026-01-31
               │   交叉领域     │
               └───────┬───────┘
                       │
-         ┌────────────┼────────────┐
-         ▼            ▼            ▼
-    ┌─────────┐  ┌─────────┐  ┌─────────┐
-    │ Comp.   │  │ Info.   │  │Stochast.│
+     ┌────────────────┼────────────────┐
+     ▼                ▼                ▼
+┌─────────┐     ┌─────────┐     ┌─────────┐
+│ Comp.   │     │ Info.   │     │Stochast.│
+│Geometry │     │ Theory  │     │ Process │
+└─────────┘     └─────────┘     └─────────┘
+     │                │                │
+     └────────────────┼────────────────┘
+                      ▼
+              ┌─────────────┐
+              │ Embodied AI │
+              │   VLA/E2E   │
+              └─────────────┘
     │Geometry │  │ Theory  │  │ Process │
     └─────────┘  └─────────┘  └─────────┘
 ```
@@ -92,6 +102,9 @@ created: 2026-01-31
 | [[ComputationalGeometry]] | [[ReinforcementLearning]] | 神经场表示用于RL |
 | [[InformationTheory]] | [[ReinforcementLearning]] | 内在动机探索 |
 | [[SignalProcessing]] | [[RepresentationLearning]] | 触觉特征提取 |
+| [[EmbodiedAI]] | [[ControlTheory]] | 分层VLA中的低层控制 |
+| [[EmbodiedAI]] | [[ReinforcementLearning]] | Robot Learning范式 |
+| [[EmbodiedAI]] | [[RepresentationLearning]] | Vision Foundation Models |
 
 ---
 
@@ -129,6 +142,9 @@ created: 2026-01-31
 
 ### [[RepresentationLearning|表征学习]]
 多模态融合与流形学习。
+
+### [[EmbodiedAI|具身智能]]
+从感知到动作的端到端系统，VLA模型将视觉-语言-动作统一建模。仿真器生态和Sim-to-Real是关键挑战。
 
 ---
 

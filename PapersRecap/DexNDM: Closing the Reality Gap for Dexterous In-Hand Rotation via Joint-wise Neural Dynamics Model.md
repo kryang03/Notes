@@ -22,8 +22,18 @@ related:
 > [!abstract] 核心概要
 > 提出 **DexNDM** 框架：通过**关节级神经动力学模型**（joint-wise neural dynamics model）弥合 sim-to-real gap，实现前所未有的通用灵巧手内旋转——包括高长宽比物体（5.33:1）、复杂形状、多样腕部姿态和旋转轴。
 
+> [!note] 教科书背景
+> **动力学分解的理论根源**：本论文的"关节级动力学分解"思想源于 [[Dynamics#3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)|RNEA 递归思想]]——将整体系统分解为关节-连杆级别的局部力学关系，利用运动链的**连通性**实现 $O(N)$ 计算。
+> 
+> **与教科书的 Delta**：
+> - **经典 RNEA**：假设精确已知的刚体惯量参数和接触模型
+> - **DexNDM**：用神经网络隐式学习"未建模动力学"（肌腱摩擦、关节间耦合、接触变形）
+> 
+> 详见 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Ch.4 中关于 **Lagrangian 分解** 和 **Newton-Euler 递推** 的理论推导。
+
 > [!tip] 与理论基础的关联
-> - [[Dynamics#6.2 Newton-Euler 公式]] - 整手动力学的分解
+> - [[Dynamics#2.4 刚体变换与指数坐标]] - 关节运动学基础
+> - [[Dynamics#3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)]] - 分解式动力学的理论根源
 > - [[ReinforcementLearning#6.2 Sim-to-Real]] - 域随机化的替代方案
 > - [[ContactMechanics#3.2 接触力建模]] - 手指-物体接触的复杂性
 > - [[ControlTheory#5.2 Residual Policy Learning]] - 残差策略适应

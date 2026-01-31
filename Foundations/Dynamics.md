@@ -71,6 +71,114 @@ $$C(q, \dot{q})\dot{q}$$
 - **Non-holonomic Constraints**: $f(q, \dot{q}) = 0$。例如指尖在物体表面的 Rolling without slipping（纯滚动）。它限制了瞬时速度方向，但不降低 C-Space 的维数。
   - *Dexterity Insight*: 纯滚动约束导致了路径规划的复杂性——就像平行泊车一样，你不能直接侧向移动手指接触点，必须通过一系列复杂的滚动机动来实现接触点的重定位（Finger Gaiting）。这种几何约束与动力学的耦合，使得 Friction Force 的计算变得异常敏感。
 
+#### 2.3.1 Pfaffian 约束与约束动力学 (详见 Murray Ch.6)
+
+> [!note] 教科书参考
+> 本节基于 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Chapter 6, Section 6.1
+
+**Pfaffian 约束的形式化定义**：
+
+一般的速度约束具有形式：
+$$A(q) \dot{q} = 0, \quad A(q) \in \mathbb{R}^{k \times n}$$
+
+这种形式称为 **Pfaffian 约束**。对于多指灵巧手，约束矩阵具有特殊结构：
+$$A(q) = \begin{bmatrix} J_h(q) & -G^T(q) \end{bmatrix}$$
+
+其中 $J_h$ 是手的雅可比，$G$ 是抓取矩阵。
+
+**可积性与完整/非完整分类**：
+
+> [!definition] 可积 Pfaffian 约束
+> Pfaffian 约束 $A(q)\dot{q} = 0$ 称为**可积的 (integrable)**，如果存在函数 $h: Q \to \mathbb{R}^k$ 使得：
+> $$A(q)\dot{q} = 0 \iff \frac{\partial h}{\partial q} \dot{q} = 0$$
+> 
+> 可积约束等价于完整约束 $h(q) = 0$。不可积的 Pfaffian 约束是**非完整约束**的典型例子。
+
+**约束动力学的 Lagrange-d'Alembert 方程**：
+
+对于受 Pfaffian 约束的机械系统，运动方程为：
+$$M(q) \ddot{q} + C(q, \dot{q}) \dot{q} + N(q, \dot{q}) + A^T(q) \lambda = F$$
+
+其中 $\lambda \in \mathbb{R}^k$ 是 **Lagrange 乘子**（约束力的相对大小）。
+
+**Lagrange 乘子的显式解**：
+
+对约束方程求时间导数并代入运动方程：
+$$\lambda = (A M^{-1} A^T)^{-1} \left[ A M^{-1}(F - C\dot{q} - N) + \dot{A} \dot{q} \right]$$
+
+> [!important] 灵巧操作解读
+> - **矩阵 $AM^{-1}A^T$**：约束空间中的有效质量矩阵
+> - **$\lambda$ 的物理意义**：接触力（或内力）的大小
+> - **d'Alembert 原则**：约束力不做功，即 $\lambda^T A \dot{q} = 0$
+>
+> 在抓取控制中，我们通常需要**同时控制位置和力**——沿约束表面移动（位置控制）的同时调节法向力（力控制）。这正是**混合位置/力控制 (Hybrid Position/Force Control)** 的数学基础。
+
+### 2.4 刚体变换与指数坐标 (Rigid Body Transformations & Exponential Coordinates)
+
+> [!note] 教科书参考
+> 本节基于 Murray, Li & Sastry "A Mathematical Introduction to Robotic Manipulation" Chapter 2
+
+刚体运动的数学表示是动力学建模的几何基础。指数坐标提供了一种优雅的方式来统一表示旋转与平移，为机器人运动学和动力学提供了现代数学框架。
+
+#### 2.4.1 旋转群 $SO(3)$ 与李代数 $so(3)$
+
+**物理直觉**: 旋转矩阵 $R \in SO(3)$ 描述了刚体方向的改变。$SO(3)$ 是一个 **李群（Lie Group）**——它既是群（旋转可以复合），又是光滑流形。
+
+**形式化定义**:
+
+$$SO(3) = \{R \in \mathbb{R}^{3\times 3} : R^T R = I, \det(R) = +1\}$$
+
+对应的 **李代数** $so(3)$ 是所有 $3 \times 3$ 反对称矩阵的集合：
+
+$$so(3) = \{S \in \mathbb{R}^{3 \times 3} : S^T = -S\}$$
+
+**关键洞见**: $so(3)$ 可以与 $\mathbb{R}^3$ 一一对应——任何向量 $\omega = (\omega_1, \omega_2, \omega_3)^T$ 都对应一个反对称矩阵 $\hat{\omega}$（skew-symmetric）：
+
+$$\hat{\omega} = \begin{bmatrix} 0 & -\omega_3 & \omega_2 \\ \omega_3 & 0 & -\omega_1 \\ -\omega_2 & \omega_1 & 0 \end{bmatrix} \quad \text{满足} \quad \hat{\omega} v = \omega \times v$$
+
+#### 2.4.2 Rodrigues 公式：从旋转轴到旋转矩阵
+
+> [!theorem] Rodrigues 旋转公式
+> 设 $\omega \in \mathbb{R}^3$ 为单位旋转轴 ($\|\omega\|=1$)，$\theta \in \mathbb{R}$ 为旋转角度，则绕 $\omega$ 旋转 $\theta$ 的旋转矩阵为：
+> $$R = e^{\hat{\omega}\theta} = I + \hat{\omega} \sin\theta + \hat{\omega}^2 (1 - \cos\theta)$$
+> 
+> **证明思路**: 从微分方程 $\dot{q}(t) = \omega \times q(t)$ 出发，利用 $\hat{\omega}^3 = -\|\omega\|^2 \hat{\omega}$ 的代数性质展开 Taylor 级数。
+
+**物理意义**: 指数映射 $\exp: so(3) \to SO(3)$ 将"旋转轴 × 角度"这一直观参数化转换为旋转矩阵。这是 **等轴角表示（Axis-Angle Representation）** 的数学基础。
+
+**逆映射（对数）**: 给定旋转矩阵 $R$，可以恢复旋转轴和角度：
+
+$$\theta = \cos^{-1}\left(\frac{\text{trace}(R) - 1}{2}\right), \quad \omega = \frac{1}{2\sin\theta}\begin{bmatrix} r_{32} - r_{23} \\ r_{13} - r_{31} \\ r_{21} - r_{12} \end{bmatrix}$$
+
+#### 2.4.3 齐次变换与 $SE(3)$
+
+刚体运动 = 旋转 + 平移。**特殊欧几里得群** $SE(3)$ 统一描述了两者：
+
+$$SE(3) = \left\{ g = \begin{bmatrix} R & p \\ 0 & 1 \end{bmatrix} : R \in SO(3), p \in \mathbb{R}^3 \right\}$$
+
+对应的李代数 $se(3)$ 由 **twist（旋量/螺旋）** 组成：
+
+$$\hat{\xi} = \begin{bmatrix} \hat{\omega} & v \\ 0 & 0 \end{bmatrix} \in se(3), \quad \xi = \begin{bmatrix} v \\ \omega \end{bmatrix} \in \mathbb{R}^6$$
+
+**指数映射** $\exp: se(3) \to SE(3)$ 给出：
+
+$$e^{\hat{\xi}\theta} = \begin{bmatrix} e^{\hat{\omega}\theta} & (I - e^{\hat{\omega}\theta})(\omega \times v) + \omega \omega^T v \theta \\ 0 & 1 \end{bmatrix}$$
+
+#### 2.4.4 为什么指数坐标对灵巧操作至关重要
+
+1. **运动学建模**: 指积公式（Product of Exponentials, PoE）用 twist 参数化机器人运动学，比 DH 参数更简洁：
+   $$g_{st}(\theta) = e^{\hat{\xi}_1 \theta_1} e^{\hat{\xi}_2 \theta_2} \cdots e^{\hat{\xi}_n \theta_n} g_{st}(0)$$
+
+2. **雅可比计算**: 空间雅可比和物体雅可比可以直接从 twist 导出，见 [[ControlTheory#2.2 手雅可比矩阵]]
+
+3. **接触约束建模**: Montana 接触运动学方程（见 [[ContactMechanics#2.2 Montana接触运动学方程]]）使用相对旋量描述接触点演化
+
+4. **轨迹插值**: 在 $SE(3)$ 上进行测地线插值（SLERP 的 6D 推广）保证了刚体运动的物理合理性
+
+> [!tip] 与空间向量代数的关系
+> Featherstone 的空间向量代数（见 [[#4.1 空间向量代数 (Spatial Vector Algebra) 基础]]）是 $se(3)$ 李代数的工程实现。
+> 空间速度 $\nu = [\omega^T, v^T]^T$ 对应于 twist，空间惯量张量 $I$ 对应于李代数上的度量。
+
 ------
 
 ## 3. Evolution & Insights: 动力学算法的演进脉络 (The Evolutionary Chain of Algorithms)
@@ -89,6 +197,45 @@ $$\frac{d}{dt} \left( \frac{\partial L}{\partial \dot{q}} \right) - \frac{\parti
   - 计算 Coriolis 项更是灾难性的，涉及大量的三角函数求导。
   - 对于像 Shadow Hand 这样有 24 个 DoF 的系统，如果使用纯 Lagrangian 形式展开，符号方程项数将以指数级爆炸。在 80 年代以前，这意味着实时解算（<1ms）是不可能的。
 - **Value-add**: 尽管计算效率低，Lagrangian 形式提供了最严谨的结构分析视角，适用于推导理论性质（如 Passivity-based Control 中的无源性证明），但在实时工程实现上，它已被递归算法取代。
+
+#### 3.1.1 开链机器人的 Lagrangian 推导 (详见 Murray Ch.4)
+
+> [!note] 教科书参考
+> 本节基于 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Chapter 4, Theorem 4.1
+
+**动能的组成**：对于 $n$ 连杆的开链机械手，总动能为每个连杆动能之和。设第 $i$ 连杆的 body-frame Jacobian 为 $J_i(\theta)$，惯性矩阵为 $M_i$：
+
+$$T = \frac{1}{2} \dot{\theta}^T M(\theta) \dot{\theta}, \quad M(\theta) = \sum_{i=1}^{n} J_i^T(\theta) M_i J_i(\theta)$$
+
+**势能**：设第 $i$ 连杆质心高度为 $h_i(\theta)$（沿重力反方向）：
+
+$$V(\theta) = \sum_{i=1}^{n} m_i g h_i(\theta)$$
+
+**Lagrangian**：
+
+$$L(\theta, \dot{\theta}) = \frac{1}{2} \dot{\theta}^T M(\theta) \dot{\theta} - V(\theta)$$
+
+**代入 Lagrange 方程**得到**操作器方程 (Manipulator Equation)**：
+
+$$M(\theta) \ddot{\theta} + C(\theta, \dot{\theta}) \dot{\theta} + N(\theta) = \tau$$
+
+其中：
+- $M(\theta) \in \mathbb{R}^{n \times n}$：**惯性矩阵**（对称正定）
+- $C(\theta, \dot{\theta}) \dot{\theta}$：**科里奥利与离心项**（源自 $\dot{M}$）
+- $N(\theta) = \frac{\partial V}{\partial \theta}$：**重力项**
+- $\tau \in \mathbb{R}^n$：关节力矩
+
+> [!theorem] Christoffel 符号形式
+> 科里奥利矩阵 $C$ 可通过 Christoffel 符号表示：
+> $$C_{ij} = \sum_{k=1}^{n} \Gamma_{ijk} \dot{\theta}_k, \quad \Gamma_{ijk} = \frac{1}{2} \left( \frac{\partial M_{ij}}{\partial \theta_k} + \frac{\partial M_{ik}}{\partial \theta_j} - \frac{\partial M_{kj}}{\partial \theta_i} \right)$$
+> 
+> **物理意义**：$\Gamma_{ijk} \dot{\theta}_j \dot{\theta}_k$ 项中，$j = k$ 时为离心力，$j \neq k$ 时为科里奥利力。
+
+> [!important] 反对称性质 ($\dot{M} - 2C$)
+> 对于适当选取的 $C(\theta, \dot{\theta})$，矩阵 $\dot{M}(\theta) - 2C(\theta, \dot{\theta})$ 是**反对称的**（skew-symmetric）。
+> 
+> 这是 **Passivity-based Control** 的数学基础：对于 Lyapunov 函数 $V = \frac{1}{2} \dot{\theta}^T M \dot{\theta}$，有：
+> $$\dot{V} = \dot{\theta}^T (\tau - N) \quad \text{（能量守恒结构）}$$
 
 ### 3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)
 
@@ -629,7 +776,209 @@ $$\tau = J_1^T F_1 + (I - J_1^T \bar{J}_1^T)[J_2^T F_2 + (I - J_2^T \bar{J}_2^T)
 
 ------
 
-## 8. Future Outlook: Differentiable Physics (可微物理)
+## 8. 腱驱动动力学 (Tendon-Driven Dynamics)
+
+> [!tip] 参考资料
+> 详见 [[Books/A Mathematical Introduction to Robotic Manipulation.pdf]] Chapter 6, Section 4。
+
+腱驱动（Tendon-Driven）是灵巧手的主流传动方式，特别是类人灵巧手（如 Shadow Hand, LEAP Hand）。与直驱不同，腱驱动通过柔性绳索将远端执行器与近端电机解耦，从而实现紧凑的指尖设计和良好的后向可驱动性。
+
+### 8.1 腱网络运动学 (Tendon Network Kinematics)
+
+#### 8.1.1 伸长函数 (Extension Function)
+
+对于第 $i$ 根腱，其**伸长量** $h_i(\theta)$ 是关节角度的函数：
+
+$$h_i(\theta) = l_i + \sum_{j=1}^{n} r_{ij} \theta_j$$
+
+其中：
+- $l_i$ 是初始腱长（$\theta = 0$ 时）
+- $r_{ij}$ 是第 $i$ 根腱在第 $j$ 个关节处的**力臂半径**（滑轮半径），可正可负取决于绕线方向
+
+**物理意义**：当关节 $\theta_j$ 旋转时，腱 $i$ 的伸长量变化为 $r_{ij} \theta_j$。
+
+#### 8.1.2 耦合矩阵 (Coupling Matrix)
+
+**耦合矩阵** $P(\theta)$ 建立腱力与关节力矩的映射：
+
+$$P(\theta) = \left(\frac{\partial h}{\partial \theta}\right)^T \in \mathbb{R}^{n \times p}$$
+
+其中 $n$ 是关节数，$p$ 是腱数。
+
+**关节力矩与腱力的关系**：
+
+$$\tau = P(\theta) f$$
+
+其中 $f \in \mathbb{R}^p$ 是腱张力向量。
+
+**对偶性**：由虚功原理，$P^T$ 将关节速度映射为腱速度：
+
+$$\dot{h} = P^T \dot{\theta}$$
+
+> [!note] 与抓取矩阵的类比
+> 腱驱动的耦合矩阵 $P$ 与抓取力学的抓取矩阵 $G$ 具有完全相同的数学结构：
+> - 抓取：$F_{object} = G f_{contact}$
+> - 腱驱：$\tau_{joint} = P f_{tendon}$
+> 
+> 这意味着抓取分析的所有工具（力封闭、冗余、零空间）都可直接用于分析腱网络。
+
+### 8.2 弹性腱与位置控制 (Elastic Tendons)
+
+#### 8.2.1 弹性腱模型
+
+当腱具有弹性时，其张力由位移决定：
+
+$$f_i = k_i (e_i + h_i(0) - h_i(\theta))$$
+
+其中：
+- $k_i$ 是第 $i$ 根腱的刚度
+- $e_i$ 是执行器端的位置指令（腱伸出量）
+- $h_i(0) - h_i(\theta)$ 是由于关节运动导致的腱伸长
+
+令 $K = \text{diag}(k_1, \ldots, k_p)$ 为刚度矩阵，弹性腱动力学：
+
+$$M(\theta)\ddot{\theta} + C(\theta,\dot{\theta})\dot{\theta} + N(\theta) + S(\theta) = Q e$$
+
+其中：
+- **刚度函数** $S(\theta) = PK(h(\theta) - h(0))$：描述腱网络对关节偏离平衡位置的回复力
+- **新耦合矩阵** $Q = PK$：将执行器位置映射为关节力矩
+
+#### 8.2.2 示例：两关节手指的耦合矩阵
+
+考虑四腱二关节手指（如图 6.10 Murray）：
+
+伸长函数：
+$$h_1 = l_1 + r_{11}\theta_1 - r_{12}\theta_2, \quad h_2 = l_2 - r_{21}\theta_1$$
+$$h_3 = l_3 + r_{31}\theta_1, \quad h_4 = l_4 - r_{41}\theta_1 + r_{42}\theta_2$$
+
+耦合矩阵（常数）：
+$$P = \begin{bmatrix} r_{11} & -r_{21} & r_{31} & -r_{41} \\ -r_{12} & 0 & 0 & r_{42} \end{bmatrix}$$
+
+关节刚度矩阵：
+$$S(\theta) = \begin{bmatrix} k_1r_{11}^2 + k_2r_{21}^2 + k_3r_{31}^2 + k_4r_{41}^2 & -k_1r_{11}r_{12} - k_4r_{41}r_{42} \\ -k_1r_{11}r_{12} - k_4r_{41}r_{42} & k_1r_{12}^2 + k_4r_{42}^2 \end{bmatrix} \theta$$
+
+### 8.3 腱网络的力封闭性 (Force-Closure)
+
+> [!warning] 腱的单向性约束
+> 腱只能拉不能推：$f_i > 0$（张力必须为正）。这是与刚性连杆系统的根本区别。
+
+**力封闭定义**：腱网络是**力封闭**的，如果对任意关节力矩 $\tau \in \mathbb{R}^n$，存在腱力 $f \in \mathbb{R}^p$ 满足：
+
+$$P(\theta) f = \tau \quad \text{且} \quad f_i > 0, \forall i$$
+
+**充要条件**（与抓取力封闭完全类比）：
+1. $P(\theta)$ 是**满秩**的（行满秩）
+2. 存在**严格正的内力** $f_N \in \mathbb{R}^p$，$f_{N,i} > 0$ 使得 $P(\theta) f_N = 0$
+
+**腱数量界限**（Carathéodory & Steinitz 定理）：
+- **下界**：$n$ 关节至少需要 $n+1$ 根腱
+- **上界**：超过 $2n$ 根腱是冗余的
+
+**两种典型配置**：
+| 配置 | 腱数 | 结构特点 |
+|------|------|----------|
+| **N+1** | $n+1$ | 1根共享腱 + $n$ 根拮抗腱 |
+| **2N** | $2n$ | 每关节2根拮抗腱 |
+
+### 8.4 腱力控制 (Tendon Force Control)
+
+**求解腱力**：给定期望关节力矩 $\tau$，腱力有无穷多解：
+
+$$f = P^+ \tau + f_N$$
+
+其中：
+- $P^+ = P^T(PP^T)^{-1}$ 是伪逆
+- $f_N \in \ker(P) \cap \mathbb{R}_+^p$ 是保证所有腱张力为正的内力
+
+**最小张力优化**：
+
+$$\min_{f_N} \|f_N\|^2 \quad \text{s.t.} \quad f = P^+ \tau + f_N \geq \epsilon \mathbf{1}$$
+
+------
+
+## 9. 冗余机械手动力学 (Redundant Manipulator Dynamics)
+
+> [!tip] 参考资料
+> 详见 [[Books/A Mathematical Introduction to Robotic Manipulation.pdf]] Chapter 6, Section 3。
+
+### 9.1 运动学冗余与执行器冗余 (Kinematic vs. Actuator Redundancy)
+
+**运动学冗余**：当关节数 $n$ 大于任务空间维数 $p$ 时，雅可比 $J_h \in \mathbb{R}^{p \times n}$ 不满秩。
+- 零空间 $\ker(J_h)$ 代表**不影响末端执行器**的关节运动
+- 典型例子：7-DOF 机械臂（6D 任务空间 + 1D 冗余）
+
+**执行器冗余**：当执行器数 $m$ 大于关节数 $n$ 时（如腱驱动系统）。
+- 前一节讨论的腱网络属于此类
+
+### 9.2 动力学一致性雅可比 ($\bar{J}$ Formulation)
+
+对于冗余系统，标准伪逆 $J^+ = J^T(JJ^T)^{-1}$ 不考虑动力学耦合。**动态一致性逆** $\bar{J}$ 保证零空间运动不产生末端力：
+
+$$\bar{J} = M^{-1}J^T(JM^{-1}J^T)^{-1}$$
+
+**性质**：
+1. $J\bar{J} = I$（左逆）
+2. $(I - \bar{J}J)\dot{q}$ 在**操作空间动力学下解耦**
+
+**冗余机械手的完整动力学**：
+
+$$M(q)\ddot{q} + C(q,\dot{q})\dot{q} + N(q) = J_h^T F + \tau_{null}$$
+
+其中 $\tau_{null} = (I - J_h^T \bar{J}_h^T) \tau_0$ 是零空间力矩。
+
+### 9.3 内部运动与自运动 (Internal Motions & Self-Motion)
+
+> [!abstract] 核心洞察
+> 冗余机械手在固定末端位置时仍可运动——这称为**自运动 (Self-Motion)**。
+
+设 $J_h$ 的零空间维数为 $k = n - p$，令 $N(q)$ 为零空间的正交基矩阵。
+
+**自运动参数化**：
+
+$$\dot{q} = \bar{J} v_x + N \alpha$$
+
+其中：
+- $v_x \in \mathbb{R}^p$ 是末端速度
+- $\alpha \in \mathbb{R}^k$ 是零空间速度参数
+
+**示例：三连杆平面机械手 (Murray Example 6.3)**
+
+对于 $n=3$ 关节、$p=2$ 任务空间（平面位置）的机械手：
+
+$$J_h = \begin{bmatrix} -s_1 - s_{12} - s_{123} & -s_{12} - s_{123} & -s_{123} \\ c_1 + c_{12} + c_{123} & c_{12} + c_{123} & c_{123} \end{bmatrix}$$
+
+其中 $s_{12} = \sin(\theta_1+\theta_2)$，$c_{12} = \cos(\theta_1+\theta_2)$。
+
+零空间（1D）：
+$$\ker(J_h) = \text{span}\{(-c_{23}, c_3 + c_{23}, -c_3)\}$$
+
+**物理意义**：沿零空间方向运动时，末端位置不变但手臂形状改变。这可用于：
+- 避障
+- 关节限位回避
+- 能量最小化
+
+### 9.4 不可操作性与任务可行性 (Nonmanipulability)
+
+当 $J_h$ 秩亏时，机械手在某些方向上**无法产生末端运动或力**。
+
+**可操作度椭球 (Manipulability Ellipsoid)**：
+
+$$\mathcal{E} = \{v_x \mid \|\dot{q}\| \leq 1\} = \{v_x \mid v_x^T (J_h J_h^T)^{-1} v_x \leq 1\}$$
+
+**可操作度指标**：
+$$w = \sqrt{\det(J_h J_h^T)}$$
+
+当 $w \to 0$ 时，接近奇异位形。
+
+**与力能力的对偶**：
+
+$$\mathcal{F} = \{F \mid \|\tau\| \leq 1\} = \{F \mid F^T (J_h J_h^T) F \leq 1\}$$
+
+运动椭球与力椭球互为转置——这是对偶性的又一体现。
+
+------
+
+## 10. Future Outlook: Differentiable Physics (可微物理)
 
 传统的物理引擎是不可微的（Non-differentiable），因为接触和摩擦引入了不连续性。然而，Sim-to-Real 的核心痛点在于 System Identification（系统辨识）。
 
@@ -655,5 +1004,30 @@ $$\tau = J_1^T F_1 + (I - J_1^T \bar{J}_1^T)[J_2^T F_2 + (I - J_2^T \bar{J}_2^T)
 > **与残差策略的结合**：
 > $$\pi_{real}(s) = \pi_{sim}(s) + \Delta\pi(s)$$
 > 仿真策略 $\pi_{sim}$ 提供基线，残差 $\Delta\pi$ 补偿动力学误差。
+
+------
+
+## 相关论文 (PapersRecap)
+
+> [!abstract] 知识图谱反向链接
+> 以下论文在其研究中涉及动力学的核心主题
+
+### 神经动力学与模型学习
+- [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]] — 关节级神经动力学
+- [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] — 快速电机自适应
+- [[Lessons from Learning to Spin Pens]] — 笔旋转经验教训
+
+### 轨迹优化与规划
+- [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization]] — 轨迹优化数据生成
+- [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References]] — 轨迹跟踪
+- [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations]] — 演示数据生成
+
+### 物理角色动画
+- [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills]] — 物理角色模仿
+- [[Learning Human-like Finger Gaiting on an Anthropomorphic Hand]] — 仿人手指步态
+
+### Sim-to-Real 与动力学迁移
+- [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation]] — 残差动力学补偿
+- [[Reinforcement Learning for Control with Multiple Frequencies]] — 多频率动力学控制
 
 **结论**: 灵巧操作的动力学不再是简单的 $F=ma$。它是一门关于如何在计算资源受限、接触状态高度不确定、系统拓扑动态变化的条件下，寻找最优控制策略的艺术。掌握 RNEA/ABA 是入门，理解 Contact Solver 是进阶，而能够驾驭 Differentiable Physics 或 Neural Dynamics 则是通向未来的钥匙。

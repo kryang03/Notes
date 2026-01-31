@@ -11,32 +11,16 @@
             "id": "a2bda358afde2f94",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "bases",
               "state": {
-                "file": "PapersRecap/Weight-sparse transformers have interpretable circuits.md",
-                "mode": "source",
-                "source": false
+                "file": "Foundations/_FoundationsIndex.base",
+                "viewName": "📖 Foundation 概览"
               },
-              "icon": "lucide-file",
-              "title": "Weight-sparse transformers have interpretable circuits"
-            }
-          },
-          {
-            "id": "73ae8715565c2bd2",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "PapersRecap/Weight-sparse transformers have interpretable circuits.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Weight-sparse transformers have interpretable circuits"
+              "icon": "lucide-table",
+              "title": "_FoundationsIndex"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -186,6 +170,7 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "bases:新建数据库": false,
       "markdown-importer:打开 Markdown 格式转换器": false,
       "zk-prefixer:创建时间戳笔记": false,
       "random-note:开始漫游笔记": false,
@@ -196,32 +181,37 @@
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
       "command-palette:打开命令面板": false,
-      "bases:创建新数据库": false,
       "open-vscode:VSCode": false
     }
   },
-  "active": "73ae8715565c2bd2",
+  "active": "a2bda358afde2f94",
   "lastOpenFiles": [
+    "PapersRecap/_PapersIndex.base",
+    "MergeBuffer/_MergeIndex.md",
+    "Foundations/_FoundationsIndex.base",
+    "Foundations/ContactMechanics.md",
+    "PapersRecap/Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.md",
+    "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL.md",
+    "Foundations/RepresentationLearning.md",
+    "Foundations/ReinforcementLearning.md",
+    "PapersRecap/Weight-sparse transformers have interpretable circuits.md",
+    "P2GI - Part-Guided 3D RL for Contact-Rich Bimanual Manipulation.md",
+    "README.md",
+    "未命名.base",
     "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
     "Projects/Dynamic Non-Prehensile Manipulation/Elastic Time Step Reinforcement Learning, VTS-RL.md",
     "Projects/Dynamic Non-Prehensile Manipulation/RSS26.pdf",
     "Projects/RSS26.pdf",
     "Projects/Dynamic Non-Prehensile Manipulation",
-    "PapersRecap/Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.md",
     "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL copy.md",
-    "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL.md",
     "PapersRecap/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control copy.md",
     "PapersRecap/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control.md",
     "PapersRecap/Weight-sparse transformers have interpretable circuits copy.md",
-    "PapersRecap/Weight-sparse transformers have interpretable circuits.md",
     "PapersRecap",
     "Papers/Weight-sparse transformers have interpretable circuits.pdf",
     "Papers/未确认 348889.crdownload",
     "Backups/Variable Time Step Reinforcement Learning for Robotic Applications.pdf",
     "未命名.md",
-    "MergeBuffer/deep-research-thinking-20260129-153156.md",
-    "Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.pdf",
-    "Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective,pdf",
-    "On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks.pdf"
+    "MergeBuffer/deep-research-thinking-20260129-153156.md"
   ]
 }

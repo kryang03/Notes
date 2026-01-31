@@ -21,6 +21,7 @@ related:
 > 提出**课程学习**范式：像人类教育一样，从简单样本开始训练，逐渐增加难度。这是一种**延续方法 (Continuation Method)** 的实例，能帮助非凸优化找到更好的局部极小值，并加速收敛。
 
 > [!tip] 与理论基础的关联
+> - [[Optimization#2.5 非凸优化景观理论]] - 课程学习与非凸景观的深层联系
 > - [[Optimization#3.1 阶段一：模态预设与几何规划]] - 课程学习与优化的continuation方法
 > - [[ReinforcementLearning]] - RL中的课程学习应用
 > - [[RepresentationLearning#2.1 模仿学习的复兴]] - 分布偏移问题

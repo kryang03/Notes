@@ -1,0 +1,79 @@
+filters:
+  and:
+    - file.folder == "PapersRecap"
+    - file.hasTag("paper")
+formulas:
+  word_count: file.content.length / 5
+  has_foundation: 'related.length > 0 ? "✅" : "❌"'
+properties:
+  file.name:
+    displayName: 📄 论文标题
+  paper-year:
+    displayName: 📅 年份
+  aliases:
+    displayName: 🏷️ 简称
+  tags:
+    displayName: 🔖 标签
+  related:
+    displayName: 🔗 Foundation
+  formula.has_foundation:
+    displayName: 关联状态
+views:
+  - type: table
+    name: 📚 全部论文（按年份）
+    groupBy:
+      property: paper-year
+      direction: DESC
+    order:
+      - file.name
+      - paper-year
+      - aliases
+      - related
+  - type: table
+    name: 🔗 按 Foundation 领域
+    filters:
+      and:
+        - related.length > 0
+    order:
+      - file.name
+      - paper-year
+      - related
+  - type: cards
+    name: 🤖 灵巧操作核心
+    filters:
+      or:
+        - file.hasTag("dexterous-manipulation")
+        - file.hasTag("in-hand-manipulation")
+        - file.hasTag("tactile-sensing")
+    order:
+      - file.name
+      - paper-year
+      - aliases
+  - type: table
+    name: 🎮 强化学习相关
+    filters:
+      or:
+        - file.hasTag("reinforcement-learning")
+        - file.hasTag("safe-RL")
+        - file.hasTag("model-based-RL")
+    order:
+      - file.name
+      - paper-year
+      - aliases
+      - related
+  - type: table
+    name: 🔄 Sim-to-Real
+    filters:
+      or:
+        - file.hasTag("sim-to-real")
+        - file.hasTag("domain-randomization")
+    order:
+      - file.name
+      - paper-year
+      - related
+  - type: list
+    name: 📖 最近添加
+    order:
+      - file.name
+      - paper-year
+    limit: 10

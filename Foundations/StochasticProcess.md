@@ -801,4 +801,25 @@ $$\lambda \approx \frac{1}{\epsilon} \ln(1 + \exp(-\epsilon \phi(q)))$$
 
    无论是 MPPI 需要的大规模并行轨迹采样，还是 Domain Randomization 需要的海量仿真训练，都在证明一个趋势：我们正通过消耗大量的计算资源（GPU/TPU），来换取对物理世界不确定性的鲁棒性。算法的演进方向，是如何更高效地利用这些计算资源（例如从全量 GP 到 Sparse GP，从 LCP 到 Differentiable Physics）。
 
+------
+
+## 10. 相关论文 (PapersRecap)
+
+以下论文涉及本 Foundation 中的随机过程理论：
+
+### 扩散模型与生成式策略
+- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]: 规划引导的扩散策略，Score-based 随机微分方程
+- [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization|Physics-Driven Data]]: 基于物理的数据生成，轨迹优化的随机采样
+- [[Dynamic Reinforcement Learning for Actors|Dynamic RL for Actors]]: 动态随机策略学习
+
+### MPPI与采样轨迹优化
+- [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|Autoregressive Policies]]: 自回归随机策略，动作链式采样
+- [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]: 熵引导采样加速
+- [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]: 随机控制视角下的探索-利用权衡
+
+### 安全约束与不确定性量化
+- [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints|Latent CBF]]: 潜空间中的随机安全边界
+- [[Safe Model-based Reinforcement Learning with Stability Guarantees|Safe MBRL]]: 基于模型的RL与不确定性传播
+- [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)|HATO]]: 双手协调中的随机性建模
+
 你的 Obsidian 知识库应当反映这种范式转移：不仅记录公式，更要记录这些公式背后的物理直觉——即如何在混乱、嘈杂的物理世界中，通过概率与统计的透镜，寻找确定的最优解。

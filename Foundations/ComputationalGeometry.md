@@ -422,4 +422,23 @@ $$\mathbf{v}_{c, \text{virtual}} = G^T \mathbf{v}_{obj}$$
 
 ------
 
+## 8. 相关论文 (PapersRecap)
+
+以下论文涉及本 Foundation 中的计算几何技术：
+
+### SDF与距离场表示
+- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]: SDF引导的双臂避障规划
+- [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing|Robot Synesthesia]]: 视觉触觉几何重建
+- [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction|TRANSIC]]: 几何对齐的迁移学习
+
+### 点云与3D表示
+- [[Proximity Perception-Based Grasping Intelligence (P2GI)|P2GI]]: 部件级点云分割与几何推理
+- [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]: 点云状态估计与旋转表示
+
+### 接触几何与抓取分析
+- [[Lessons from Learning to Spin Pens|Lessons from Spin Pens]]: 几何形状对操作可行性的影响
+- [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation|RialTo]]: 接触几何的 Sim-to-Real 对齐
+
+------
+
 **References Citations:** Minkowski Sums & C-Space. GJK Algorithm details. EPA Algorithm & Penetration Depth. SDF, CHOMP, TrajOpt & Optimization. DeepSDF, NGDF & Neural Implicit. Contact Manifolds, Grasp Matrix & Kinematics. Convex Decomposition (V-HACD, CoACD).

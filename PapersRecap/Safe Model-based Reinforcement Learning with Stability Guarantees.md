@@ -1,6 +1,6 @@
 ---
 tags:
-  - paper-recap
+  - paper
   - safe-RL
   - lyapunov-stability
   - gaussian-process
@@ -10,18 +10,27 @@ aliases:
   - Safe Model-based RL
   - Lyapunov RL
   - SafeOpt-RL
-created: 2026-01-31
+read-date: 2026-01-31
 venue: NeurIPS 2017
-year: 2017
+paper-year: 2017
 authors:
   - Felix Berkenkamp
   - Matteo Turchetta
   - Angela P. Schoellig
   - Andreas Krause
 institution: ETH Zurich, University of Toronto
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[StochasticProcess]]"
 ---
 
 # Safe Model-based Reinforcement Learning with Stability Guarantees
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning#4. Model-Based RL]]**: 基于模型的 RL 框架
+> - **[[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control)]]**: CBF/Lyapunov 安全约束（CLF-CBF 对偶表）
+> - **[[StochasticProcess#5. 高斯过程 (Gaussian Process)]]**: GP 不确定性建模
 
 > [!abstract] 核心贡献
 > 首次提出具有**可证明稳定性保证**的安全 RL 算法。利用 **Lyapunov 函数** 定义安全区域，结合 **Gaussian Process** 建模动力学不确定性，实现在不离开吸引域的前提下安全学习和策略优化。

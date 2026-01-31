@@ -1,0 +1,31 @@
+filters:
+  and:
+    - file.folder == "Foundations"
+    - file.ext == "md"
+formulas:
+  content_size: (file.content.length / 1000).round(1) + "k"
+properties:
+  file.name:
+    displayName: 📚 领域
+  tags:
+    displayName: 🔖 标签
+  formula.content_size:
+    displayName: 📊 内容量
+  file.mtime:
+    displayName: 🕐 最后更新
+views:
+  - type: table
+    name: 📖 Foundation 概览
+    filters:
+      not:
+        - file.name == "taxonomy"
+    order:
+      - file.name
+      - formula.content_size
+      - file.mtime
+  - type: list
+    name: 🕐 最近更新
+    order:
+      - file.name
+      - file.mtime
+    limit: 5

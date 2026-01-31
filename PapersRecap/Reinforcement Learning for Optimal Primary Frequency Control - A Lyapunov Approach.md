@@ -1,6 +1,6 @@
 ---
 tags:
-  - paper-recap
+  - paper
   - reinforcement-learning
   - lyapunov-stability
   - frequency-control
@@ -9,17 +9,26 @@ tags:
 aliases:
   - Lyapunov RL
   - Stable Frequency Control
-created: 2026-02-01
+read-date: 2026-02-01
 venue: IEEE Trans. Power Systems (arXiv 2009.05654)
-year: 2021
+paper-year: 2021
 authors:
   - Wenqi Cui
   - Yan Jiang
   - Baosen Zhang
 institution: University of Washington
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[Optimization]]"
 ---
 
 # Reinforcement Learning for Optimal Primary Frequency Control: A Lyapunov Approach
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning]]**: RL 训练框架
+> - **[[ControlTheory]]**: Lyapunov 稳定性嵌入网络结构
+> - **[[Optimization]]**: 单调性约束的凸优化
 
 > [!abstract] 核心贡献
 > 将 **Lyapunov 稳定性**直接嵌入神经网络控制器的**结构设计**中。证明若控制器是**单调递增函数**（过原点），则系统具有唯一平衡点且局部指数稳定。用 Stacked-ReLU 网络实现单调性，并设计 RNN 框架高效训练。

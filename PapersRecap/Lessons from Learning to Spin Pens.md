@@ -1,6 +1,6 @@
 ---
 tags:
-  - paper-recap
+  - paper
   - dexterous-manipulation
   - pen-spinning
   - sim-to-real
@@ -9,9 +9,9 @@ tags:
 aliases:
   - Lessons from Pen Spinning
   - Pen Spinning
-created: 2026-01-31
+read-date: 2026-01-31
 venue: CoRL 2024
-year: 2024
+paper-year: 2024
 authors:
   - Jun Wang
   - Ying Yuan
@@ -21,9 +21,20 @@ authors:
   - Jitendra Malik
   - Xiaolong Wang
 institution: UC San Diego, CMU, UC Berkeley
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ContactMechanics]]"
+  - "[[Dynamics]]"
+  - "[[EmbodiedAI]]"
 ---
 
 # Lessons from Learning to Spin "Pens"
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning#6. Sim-to-Real 与 Domain Randomization]]**: 三阶段 Sim-to-Real 流程
+> - **[[ContactMechanics#3. 接触模型的演进]]**: 动态接触与 finger gaiting
+> - **[[Dynamics]]**: 笔状物体的动态平衡控制
+> - **[[EmbodiedAI]]**: 灵巧操作系统集成
 
 > [!abstract] 核心贡献
 > 首个实现**连续旋转笔状物体**的学习系统。通过 Oracle Policy + Open-loop Replay + Real-world Fine-tuning 的三阶段流程，仅用 **<50 条真实轨迹** 成功跨越 sim-to-real gap，实现 10+ 种不同物理属性的笔状物体多圈旋转。

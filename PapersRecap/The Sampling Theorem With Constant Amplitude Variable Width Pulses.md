@@ -5,9 +5,14 @@ tags:
   - PWM
   - LowRelevance
 date: 2026-02-01
+related:
+  - "[[SignalProcessing]]"
 ---
 
 # The Sampling Theorem With Constant Amplitude Variable Width Pulses
+
+> [!note] Foundation 关联
+> - **[[SignalProcessing]]**: 采样定理与 PWM 信号处理
 
 ## 元信息
 - **作者**: Jing Huang, Krishnan Padmanabhan, Oliver M. Collins

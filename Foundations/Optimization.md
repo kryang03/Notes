@@ -115,6 +115,231 @@ $$Q_{FC} = \min_{w_{ext}, \|w_{ext}\|=1} \max_{\lambda \in FC} \alpha \quad \tex
 
 近期的研究致力于构建**可微的抓取质量评估（Differentiable Grasp Quality）**。例如，通过 Log-Barrier 近似摩擦锥，或者学习一个 Neural Signed Distance Field (SDF) 来平滑地引导手指走向稳定构型。这使得我们能够计算 $\nabla_q Q_{FC}$，从而在轨迹优化中直接优化抓取稳定性 。
 
+### 2.4 优化算法的复杂度理论基础
+
+> [!tip] 参考资料
+> 详见 [[Books/Optimization in Theory and Practice.pdf]] (Wright 2025)。
+
+本小节建立优化算法复杂度分析的理论框架，这些概念对于理解 MPC 和轨迹优化的计算瓶颈至关重要。
+
+#### 2.4.1 近似最优性条件 (Approximate Optimality)
+
+对于无约束优化 $\min_x f(x)$：
+
+**一阶必要条件**：$\nabla f(x^*) = 0$（驻点）
+
+**近似一阶条件**：$\|\nabla f(x^*)\| \leq \epsilon_g$
+
+**近似二阶条件**：额外要求 $\nabla^2 f(x^*) \succeq -\epsilon_H I$
+
+**Oracle 复杂度模型**：定义"信息单元"（oracle）如 $(f(x), \nabla f(x))$，算法复杂度用达到 $\epsilon$-近似解所需的 oracle 调用次数衡量。
+
+#### 2.4.2 梯度下降的收敛率
+
+设 $f$ 是 $L$-Lipschitz 光滑函数（$\|\nabla f(x) - \nabla f(y)\| \leq L \|x - y\|$）。
+
+**凸函数收敛率**：
+
+$$f(x_k) - f^* \leq \frac{L \|x_0 - x^*\|^2}{2k} = O(1/k)$$
+
+**强凸函数 ($\mu$-强凸) 收敛率**：
+
+$$f(x_k) - f^* \leq \left(1 - \frac{\mu}{L}\right)^k (f(x_0) - f^*) = O\left((1 - \kappa^{-1})^k\right)$$
+
+其中 $\kappa = L/\mu$ 是**条件数 (Condition Number)**。
+
+| 问题类型 | 收敛率 | Oracle 复杂度 |
+|----------|--------|---------------|
+| 凸，光滑 | $O(1/k)$ | $O(L/\epsilon)$ |
+| 强凸，光滑 | 线性 $(1-\mu/L)^k$ | $O(\kappa \log(1/\epsilon))$ |
+| 非凸，光滑 | $O(1/\sqrt{k})$ → 驻点 | $O(1/\epsilon^2)$ |
+
+#### 2.4.3 Nesterov 加速与下界
+
+> [!important] Nesterov 加速梯度法
+> 对于凸光滑函数，最优一阶方法的复杂度为：
+> $$f(x_k) - f^* \leq O\left(\frac{L \|x_0 - x^*\|^2}{k^2}\right) = O(1/k^2)$$
+> 
+> 这是**最优的**：存在匹配的下界，证明任何一阶方法都不能做得更好。
+
+**灵巧操作应用**：轨迹优化中的代价函数通常是非凸的（由于接触约束），但在接触模式固定的局部区域内近似强凸。加速方法在这些局部区域内能显著加速收敛。
+
+#### 2.4.4 线性规划：单纯形法 vs 内点法
+
+> [!abstract] LP 复杂度对比
+> | 方法 | 最坏情况复杂度 | 典型实践性能 |
+> |------|---------------|-------------|
+> | **单纯形法** | 指数级 $O(2^n)$ | 多项式（$\sim n$ 次迭代） |
+> | **椭球法** | $O(m^2 \log(1/\epsilon))$ | 理论意义大于实用 |
+> | **内点法** | $O(\sqrt{n} \log(1/\epsilon))$ 迭代 | 大规模问题首选 |
+
+**内点法核心**：每次迭代求解 $O(n)$ 维线性系统，总复杂度 $O(n^{3.5} \log(1/\epsilon))$。
+
+**平滑分析 (Spielman-Teng)**：单纯形法在随机扰动下的期望迭代次数是多项式的，解释了其实践中的良好表现。
+
+#### 2.4.4.1 原始-对偶内点法详解 (Primal-Dual Interior Point Methods)
+
+> [!note] 教科书参考
+> 本节基于 Wright "Optimization in Theory and Practice" (2025) Section 4
+
+**LP 标准形式与最优性条件 (KKT)**:
+
+$$\min_x c^T x \quad \text{s.t.} \quad Ax = b, \; x \geq 0$$
+
+KKT 条件（充要）:
+$$A^T \lambda + s = c, \quad Ax = b, \quad (x, s) \geq 0, \quad x_i s_i = 0, \; \forall i$$
+
+其中 $\lambda$ 是等式约束的拉格朗日乘子，$s$ 是对偶松弛变量。
+
+**中心路径 (Central Path)**:
+
+内点法的核心思想是追踪**中心路径**——满足以下条件的点的集合：
+$$A^T \lambda + s = c, \quad Ax = b, \quad (x, s) > 0, \quad x_i s_i = \mu, \; \forall i$$
+
+参数 $\mu > 0$ 称为**屏障参数**。当 $\mu \to 0$ 时，中心路径收敛到最优解。
+
+**路径追踪算法 (Path-Following)**:
+
+每次迭代求解牛顿系统：
+$$\begin{pmatrix} 0 & A^T & I \\ A & 0 & 0 \\ S & 0 & X \end{pmatrix} \begin{pmatrix} \Delta x \\ \Delta \lambda \\ \Delta s \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ \mu \mathbf{1} - XS\mathbf{1} \end{pmatrix}$$
+
+其中 $X = \text{diag}(x)$，$S = \text{diag}(s)$。
+
+> [!theorem] 内点法复杂度定理
+> 长步路径追踪算法 (LPF) 在 $O(n \log(1/\epsilon))$ 次迭代内找到 $\epsilon$-近似解，每次迭代代价为 $O(n^3)$ 的线性系统求解。
+> 
+> **Mehrotra 预测-校正法**：通过自适应参数选择和二阶校正，在实践中显著快于理论界。
+
+> **灵巧操作应用**：内点法在求解抓取规划的二次规划子问题（如力分配 QP）中是首选方法。其对初始点不敏感、收敛快速的特性非常适合 MPC 的实时需求。
+
+#### 2.4.5 接触优化的复杂度困境
+
+**为什么接触优化特别难？**
+
+1. **非凸性**：互补约束 $\phi(q) \lambda = 0$ 定义的可行域是非凸的
+2. **非光滑性**：接触力关于位置的梯度在接触瞬间不连续
+3. **组合性**：$N$ 个接触点有 $3^N$ 种模式（分离/粘滞/滑动）
+
+**松弛策略的复杂度-精度权衡**：
+
+| 松弛方法 | 光滑性 | 精度损失 | 计算开销 |
+|----------|--------|----------|----------|
+| **Sigmoid 松弛** | $C^\infty$ | $O(\epsilon)$ | 低 |
+| **Fischer-Burmeister** | $C^1$ | 精确（极限） | 中 |
+| **Randomized Smoothing** | 期望意义 | $O(\sigma)$ | 高 |
+
+### 2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)
+
+> [!note] 教科书参考
+> 本节基于 Arora et al. "Theory of Deep Learning" Chapter 6-7
+
+深度学习和轨迹优化都涉及非凸损失函数。理解非凸景观的几何结构对于设计高效算法和分析收敛性至关重要。
+
+#### 2.5.1 关键障碍的形式化定义
+
+**全局/局部极小值 (Global/Local Minimum)**:
+
+设 $f(w): \mathbb{R}^d \to \mathbb{R}$ 为目标函数：
+- **全局极小值**: $w^*$ 使得 $\forall w: f(w^*) \leq f(w)$
+- **局部极小值**: $\exists \epsilon > 0$ 使得 $\forall \|w' - w\| \leq \epsilon: f(w) \leq f(w')$
+- **临界点 (Critical Point)**: $\nabla f(w) = 0$ 的点
+
+**虚假局部极小值 (Spurious Local Minimum)**:
+
+$$w \text{ 是虚假局部极小 } \Leftrightarrow w \text{ 是局部极小且 } f(w) > f(w^*)$$
+
+这是基于局部搜索的优化算法（如梯度下降）无法逃离的陷阱。
+
+**鞍点 (Saddle Point)**:
+
+$$w \text{ 是鞍点 } \Leftrightarrow \nabla f(w) = 0 \text{ 且 } \nabla^2 f(w) \text{ 有正负特征值}$$
+
+> [!example] 最简鞍点示例
+> $f(w_1, w_2) = w_1^2 - w_2^2$ 在原点 $(0, 0)$ 是鞍点：
+> - 沿 $(±1, 0)$ 方向函数值增加
+> - 沿 $(0, ±1)$ 方向函数值减少
+
+**二阶充分条件 (Hessian 判据)**:
+
+设 $w$ 是临界点 ($\nabla f(w) = 0$)：
+- $\nabla^2 f(w) \succ 0$ $\Rightarrow$ 局部极小
+- $\nabla^2 f(w) \prec 0$ $\Rightarrow$ 局部极大
+- $\nabla^2 f(w)$ 有正负特征值 $\Rightarrow$ 鞍点
+
+#### 2.5.2 良好景观的特征：无虚假局部极小
+
+许多非凸目标函数虽然不是凸的，但具有"良好"的景观结构——所有局部极小都是全局极小。
+
+**Polyak-Łojasiewicz (PL) 条件**:
+
+$$\|\nabla f(w)\|^2 \geq \mu (f(w) - f(w^*))$$
+
+PL 条件意味着：梯度非零 $\Rightarrow$ 距最优仍有差距。满足 PL 条件的函数可用梯度下降以线性速率收敛。
+
+**弱拟凸 (Weakly-Quasi-Convex)**:
+
+$$\langle \nabla f(w), w - w^* \rangle \geq \tau (f(w) - f(w^*))$$
+
+梯度方向与"指向最优解"的方向正相关。
+
+**受限割线不等式 (RSI, Restricted Secant Inequality)**:
+
+$$\langle \nabla f(w), w - w^* \rangle \geq \mu \|w - w^*\|^2$$
+
+> [!theorem] 收敛性定理
+> 若目标函数满足 PL、弱拟凸或 RSI 条件之一，且 $L$-光滑，则梯度下降以**几何（线性）速率**收敛到全局极小。
+
+**灵巧操作应用**：在接触模式固定的局部区域内，轨迹优化目标函数通常满足 RSI 条件，这解释了为什么 iLQR 在"模式内"收敛很快。
+
+#### 2.5.3 对称性与鞍点的必然性
+
+神经网络和许多物理系统具有**置换对称性**。考虑两层网络 $h_\theta(x) = \sum_{i=1}^k \sigma(\langle w_i, x \rangle)$：
+
+- 对任意神经元置换 $\pi$，有 $f(\theta) = f(\pi(\theta))$
+- 若全局极小 $\theta^*$ 的神经元权重不全相同，则 $\pi(\theta^*)$ 也是全局极小
+
+> [!important] 对称性导致非凸性
+> 设 $\bar{\theta} = \frac{1}{k!} \sum_{\pi} \pi(\theta^*)$ 是所有置换的平均。
+> 若 $f$ 是凸的，则 $\bar{\theta}$ 也应是全局极小。但 $\bar{\theta}$ 等价于单神经元网络，通常不能达到最优——矛盾！
+> 
+> **结论**：具有对称性的函数必然是非凸的，且必然有鞍点。
+
+**二阶驻点 (Second-Order Stationary Point, SOSP)**:
+
+$$\nabla f(w) = 0 \text{ 且 } \nabla^2 f(w) \succeq 0$$
+
+这是"好的"临界点——不是鞍点。优化目标应是找 SOSP 而非任意临界点。
+
+#### 2.5.4 鞍点逃逸：扰动梯度下降
+
+> [!theorem] 鞍点逃逸定理 (Ge et al. 2015)
+> **扰动梯度下降 (Perturbed GD)**：
+> $$w_{t+1} = w_t - \eta \nabla f(w_t) + \xi_t, \quad \xi_t \sim \mathcal{N}(0, \sigma^2 I)$$
+> 
+> 对于 $L$-光滑、$\rho$-Hessian Lipschitz 的函数，扰动 GD 在 $\tilde{O}(1/\epsilon^2)$ 迭代内找到 $\epsilon$-近似 SOSP：
+> $$\|\nabla f(w)\| \leq \epsilon, \quad \lambda_{\min}(\nabla^2 f(w)) \geq -\sqrt{\rho \epsilon}$$
+
+**逃逸机制的物理直觉**：
+
+在鞍点附近，Hessian 有负特征值对应的"逃逸方向"。随机扰动有 $\Omega(1/d)$ 概率落在逃逸方向的锥内，使迭代沿负曲率方向快速逃离。
+
+**Stuck Region 的有限宽度**：
+
+设 $\lambda_{\min}(\nabla^2 f(w)) = -\gamma < 0$（负曲率），则轨迹在该区域停留不超过 $O(\log(d)/\gamma)$ 步后必然逃离。
+
+> **灵巧操作应用**：在 RL for manipulation 中，策略梯度方法经常遇到鞍点（如对称抓取姿态）。熵正则化（如 SAC 的 $-\alpha \mathcal{H}(\pi)$）相当于隐式添加了扰动，有助于鞍点逃逸。
+
+#### 2.5.5 深度学习景观的经验发现
+
+虽然深度网络的损失景观理论分析仍是开放问题，实验发现了以下规律：
+
+| 现象 | 描述 | 对灵巧操作的启示 |
+|------|------|-----------------|
+| **无虚假局部极小** | 过参数化网络几乎所有局部极小都是全局极小 | 策略网络足够大时，RL 训练更稳定 |
+| **鞍点占主导** | 高维空间中驻点几乎都是鞍点 | 随机初始化 + 噪声很重要 |
+| **连通性** | 不同全局极小通过低损失路径连接 | 模式平均 (Mode Averaging) 有效 |
+| **平坦极小泛化好** | $\nabla^2 f$ 特征值小的极小泛化性能更好 | SAM (Sharpness-Aware Minimization) |
+
 ------
 
 ## 3. 技术演进脉络与深度洞察 (Evolution & Insights)
@@ -569,5 +794,29 @@ def optimize_grasp_pose(hand_model, object_sdf, initial_q):
 3. **硬件与算力**：随着 GPU 物理仿真（如 Isaac Gym, Brax, Dojo）的普及，能够并行求解数万个优化问题的能力将彻底改变 MPC 的实时性瓶颈。我们正从 Single-Shooting 走向 Massive-Parallel-Shooting。
 
 **首席科学家视角的最终建议**：
+
+------
+
+## 相关论文 (PapersRecap)
+
+> [!abstract] 知识图谱反向链接
+> 以下论文在其研究中涉及优化理论的核心主题
+
+### 轨迹优化与 MPC
+- [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References]] — 同伦优化轨迹跟踪
+- [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization]] — 轨迹优化数据生成
+- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation]] — 规划引导扩散
+
+### 阻抗参数优化
+- [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking]] — 凸阻抗辨识
+- [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] — 阻抗空间优化
+
+### 奖励与课程优化
+- [[EUREKA: Human-Level Reward Design via Coding Large Language Models]] — LLM 奖励设计
+- [[Curriculum Learning]] — 课程学习理论
+- [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration]] — 熵引导示范加速
+
+### 稀疏与可解释优化
+- [[Weight-sparse transformers have interpretable circuits]] — $L_0$ 稀疏优化
 
 在构建 Obsidian 知识库时，不要被复杂的数学名词（如 Complementarity Constraints, Variational Integrators）吓倒。核心要抓住“梯度是如何穿过接触点”这一物理图像。所有的算法变体（Soft Contact, Randomized Smoothing, Implicit Differentiation）本质上都是为了修复断裂的梯度流，使得优化器能够“感觉”到接触的存在。理解了这一点，你就掌握了灵巧操作优化的钥匙。

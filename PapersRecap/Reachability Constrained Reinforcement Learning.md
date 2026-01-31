@@ -22,7 +22,7 @@ related:
 > 提出 **RCRL (Reachability Constrained RL)**：用可达性分析定义**最大可行集**，作为持续安全的约束。不同于 CBF 等保守估计，RCRL 学习理论最优的可行集边界，实现最小性能牺牲的安全 RL。ICML 2022。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#5.3 安全集与不变性]] - 控制不变集的理论基础
+> - [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control)]] - CBF 形式化定义（安全集、Lie 导数、HJ 可达性联系）
 > - [[ReinforcementLearning#5.2 约束强化学习]] - CMDP 与 Lagrangian 方法
 > - [[Optimization#4.2 约束优化]] - 拉格朗日对偶与可行性
 >

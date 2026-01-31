@@ -14,6 +14,7 @@ related:
   - "[[Optimization]]"
   - "[[ContactMechanics]]"
   - "[[ReinforcementLearning]]"
+  - "[[EmbodiedAI]]"
 ---
 
 # 灵巧操作控制理论深度研究报告：从位置控制范式到接触隐式非线性动力学
@@ -25,6 +26,7 @@ related:
 > - [[ContactMechanics]] - 接触力学决定了力控制的约束
 > - [[Optimization]] - MPC 与轨迹优化是现代控制的核心工具
 > - [[ReinforcementLearning]] - 数据驱动控制的替代范式
+> - [[EmbodiedAI]] - 分层 VLA 系统中低层控制器的设计
 
 ## 1. 引言：灵巧操作的物理本质与控制挑战
 
@@ -355,6 +357,60 @@ $$M_d (\ddot{x} - \ddot{x}_d) + B_d (\dot{x} - \dot{x}_d) + K_d (x - x_d) = F_{e
 > 1. **解耦**：任务学习与底层动力学补偿分离
 > 2. **迁移性**：策略可迁移到不同机器人（同样的"软/硬"语义）
 > 3. **安全性**：低刚度设置自然限制接触力
+
+> [!note] 教科书参考
+> Control Barrier Function 理论源自 Ames et al. (2017) 和控制理论经典文献。
+> 参考 [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints|LatentCBF 论文]] 的数学背景部分。
+
+> [!important] Control Barrier Function (CBF) 形式化定义
+> **CBF 是 Lyapunov 方法在安全约束上的对偶**——Lyapunov 保证稳定性（吸引到目标），CBF 保证安全性（不进入危险集）。
+> 
+> #### 安全集与屏障函数
+> 
+> **安全集定义**：设连续可微函数 $h: \mathbb{R}^n \to \mathbb{R}$，定义安全集：
+> $$\mathcal{C} = \{x \in \mathbb{R}^n : h(x) \geq 0\}$$
+> 
+> 其中 $h(x) > 0$ 在安全集内部，$h(x) = 0$ 在边界，$h(x) < 0$ 在危险区域。
+> 
+> #### Control Barrier Function 定义
+> 
+> 对于控制仿射系统 $\dot{x} = f(x) + g(x)u$，函数 $h(x)$ 是 **Control Barrier Function** 当且仅当存在扩展类 $\mathcal{K}_\infty$ 函数 $\alpha$ 使得：
+> 
+> $$\sup_{u \in \mathcal{U}} \left[ L_f h(x) + L_g h(x) \cdot u \right] \geq -\alpha(h(x)), \quad \forall x \in \mathcal{C}$$
+> 
+> 其中 $L_f h = \nabla h \cdot f$ 和 $L_g h = \nabla h \cdot g$ 是 Lie 导数。
+> 
+> #### CBF-QP 安全滤波器
+> 
+> 给定名义控制器 $u^{\text{nom}}$，CBF 安全过滤求解：
+> 
+> $$u^* = \argmin_{u \in \mathcal{U}} \|u - u^{\text{nom}}\|^2$$
+> $$\text{s.t.} \quad L_f h(x) + L_g h(x) \cdot u \geq -\alpha(h(x))$$
+> 
+> 这是一个 **QP (Quadratic Program)**，可实时求解。
+> 
+> #### CBF 与 Lyapunov 的对偶性
+> 
+> | | Lyapunov (CLF) | Barrier (CBF) |
+> |---|---|---|
+> | 保证 | 收敛到目标 | 永不进入危险 |
+> | 不变集 | 吸引域 | 安全集 $\mathcal{C}$ |
+> | 约束 | $\dot{V} \leq -\alpha(V)$ | $\dot{h} \geq -\alpha(h)$ |
+> | 方向 | 能量下降 | 屏障函数上升/不下降 |
+> 
+> #### Hamilton-Jacobi 可达性与 CBF 的联系
+> 
+> HJ 可达性分析求解值函数：
+> $$V(x, t) = \min_u \max_d \left[ \ell(x) + \int_t^T L(x, u, d) ds \right]$$
+> 
+> 其中 $\ell(x)$ 是边界代价（margin function）。零等值面 $V(x) = 0$ 定义了**后向可达管道**的边界。
+> 
+> **关键洞察**（来自 LatentCBF）：
+> - 值函数的光滑性**线性依赖**于 margin function 的光滑性
+> - 分类器作为 margin function 会导致梯度饱和，CBF 无法区分动作安全性
+> - WGAN 梯度惩罚可学习光滑 margin function
+> 
+> **灵巧操作应用**：在手内操作中，安全约束可定义为"不掉落物体"——但这难以解析表达。LatentCBF 在 world model 的潜空间中学习 CBF，无需显式状态表示。
 
 ### 3.3 解决方案 II：导纳控制 (Admittance Control) —— 位置内环的策略
 
@@ -718,6 +774,137 @@ $$\text{sat}\left(\frac{s}{\phi}\right) = \begin{cases} \text{sgn}(s) & |s| > \p
 
 这实际上将边界层内的控制律变成了一个高增益的PD控制器。虽然消除了抖振，但我们也牺牲了完美的滑模不变性（Invariance），最终误差不再收敛到零，而是收敛到以 $\phi$ 为界的各种小区域内。这在工程上通常是可以接受的妥协。
 
+### 7.2 接触状态机与控制模式切换
+
+> [!abstract] 混合系统视角
+> 灵巧操作是典型的**混合动力系统 (Hybrid Dynamical System)**，其动力学在不同接触模式间离散切换。
+
+#### 7.2.1 接触状态定义
+
+灵巧操作中指尖与物体的交互可划分为以下离散状态：
+
+| 状态 | 物理条件 | 动力学特征 |
+|------|----------|------------|
+| **Free (游离)** | $\phi(q) > 0$ | 自由运动，无接触力 |
+| **Contact (接触)** | $\phi(q) = 0, \dot{\phi} = 0$ | 法向约束激活 |
+| **Sliding (滑移)** | $\|f_t\| = \mu f_n$ | 切向力达摩擦锥边界 |
+| **Rolling (滚动)** | $v_{contact} = 0, \omega \neq 0$ | 纯滚动无滑移 |
+| **Sticking (粘滞)** | $\|f_t\| < \mu f_n$ | 摩擦锥内部，静摩擦 |
+
+#### 7.2.2 状态机与控制切换
+
+**状态转移图**：
+
+```
+         approach           contact           increase f_t
+  Free ──────────► Contact ──────────► Sticking ──────────► Sliding
+    ▲                 │                    │                    │
+    │                 │ release            │ reduce f_t         │
+    └─────────────────┴────────────────────┴────────────────────┘
+```
+
+**切换触发条件**：
+
+| 转移 | 触发条件 | 检测方法 |
+|------|----------|----------|
+| Free → Contact | $\phi(q) \leq \epsilon$ 且 $f_n > f_{th}$ | 距离 + 力传感器 |
+| Contact → Sliding | $\|f_t\| \geq (\mu - \delta) f_n$ | 摩擦锥余量监测 |
+| Sliding → Free | $f_n < f_{th}$ | 力下降检测 |
+
+**控制律切换策略**：
+
+```python
+if state == FREE:
+    # 位置控制模式：快速接近目标
+    u = K_p * (x_d - x) + K_d * (v_d - v)
+elif state == CONTACT:
+    # 阻抗控制模式：顺应性接触
+    u = K_imp * (x_d - x) + B_imp * (v_d - v) + f_d
+elif state == SLIDING:
+    # 力控制模式：维持法向力，限制切向速度
+    u = K_f * (f_d - f) + damping_tangent
+```
+
+> [!warning] Bumpless Transfer
+> 模式切换瞬间必须保证控制量连续，否则会产生冲击力导致物体掉落或硬件损坏。
+
+### 7.3 滑移检测与闭环防滑控制
+
+> [!tip] 灵巧操作的核心安全约束
+> 稳定夹持的本质是保持接触力始终在**摩擦锥内部**，滑移意味着接触约束即将失效。
+
+#### 7.3.1 滑移检测方法
+
+**1. 基于触觉传感器的直接检测**
+
+| 传感器类型 | 检测原理 | 典型信号 |
+|------------|----------|----------|
+| **视触觉 (DIGIT/GelSight)** | 标记点位移 / 光流 | 切向形变场 |
+| **6D 力矩传感器** | 摩擦锥余量计算 | $\gamma = \mu f_n - \|f_t\|$ |
+| **压阻/电容阵列** | 接触面积变化率 | $\dot{A}_{contact}$ |
+
+**2. 摩擦锥余量 (Friction Cone Margin)**
+
+定义滑移风险指标：
+
+$$\gamma = \mu f_n - \|f_t\| = \mu f_n - \sqrt{f_x^2 + f_y^2}$$
+
+- $\gamma > 0$：安全（摩擦锥内部）
+- $\gamma \approx 0$：临界滑移
+- $\gamma < 0$：已滑移（物理上不可能，力模型失效）
+
+**滑移概率估计**：
+
+$$P_{slip} = \sigma\left(\frac{\gamma_{th} - \gamma}{\tau}\right)$$
+
+其中 $\sigma$ 是 Sigmoid 函数，$\gamma_{th}$ 是安全阈值，$\tau$ 是温度参数。
+
+#### 7.3.2 闭环防滑策略
+
+**分层防滑架构**：
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  高层策略 (RL/MPC, 10-50Hz)                              │
+│  • 接触状态机管理                                        │
+│  • 操作相位规划（接触→稳定→操作→再抓）                   │
+│  • 损失函数加入接触保持项                                 │
+└───────────────────────────┬─────────────────────────────┘
+                            │ 目标力/位姿
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│  低层控制 (阻抗/力控, 100-1000Hz)                        │
+│  • 维持法向力: f_n ≥ f_{n,min}                           │
+│  • 限制切向速度: |v_t| ≤ v_{t,max}                       │
+│  • 限制切向加速度/jerk 防止冲击                          │
+└───────────────────────────┬─────────────────────────────┘
+                            │ γ < γ_th 触发
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│  紧急响应 (Reflex, <1ms)                                 │
+│  • 立即增加法向力 Δf_n                                   │
+│  • 短时提高摩擦裕度                                      │
+│  • 触发再定位/再抓策略                                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**法向力自适应律**：
+
+当检测到滑移风险上升时，自适应增加夹持力：
+
+$$\dot{f}_n^{ref} = K_{adapt} \cdot \max(0, \gamma_{th} - \gamma)$$
+
+**材质自适应**：
+
+不同材质（玻璃/金属/纸盒）的摩擦系数差异显著，需要在线估计或查表：
+
+| 材质 | 典型 $\mu$ | $\gamma_{th}$ 建议 |
+|------|------------|-------------------|
+| 橡胶-橡胶 | 0.8-1.2 | 0.3 $f_n$ |
+| 硅胶-塑料 | 0.5-0.8 | 0.2 $f_n$ |
+| 硅胶-玻璃 | 0.3-0.5 | 0.15 $f_n$ |
+| 硅胶-金属 | 0.2-0.4 | 0.1 $f_n$ |
+
 ------
 
 ## 8. 现代前沿：接触隐式模型预测控制
@@ -764,7 +951,194 @@ $$F_{contact} \approx \frac{F_{max}}{1 + e^{-k \phi(q)}}$$
 
 ------
 
-## 9. 结论 (Conclusion)
+## 9. 数据驱动控制理论：从模型到数据的范式转移
+
+## 9. Data-Driven Control Theory: The Paradigm Shift from Models to Data
+
+> [!abstract] 核心洞察
+> 传统控制依赖于精确的系统模型。**数据驱动控制**的革命性在于：直接从输入-输出数据设计控制器，绕过系统辨识步骤。其理论基石是 **Willems 基本引理 (Fundamental Lemma)**，它建立了数据与所有可能轨迹之间的等价关系。
+
+### 9.1 Willems 基本引理 (The Fundamental Lemma)
+
+> [!tip] 参考资料
+> 详见 [[Books/Data-based linear systems and control theory.pdf]] Chapter 1.2.1 与 Chapter 11。
+
+#### 9.1.1 问题设置
+
+考虑线性时不变 (LTI) 系统：
+
+$$x(t+1) = A_{true} x(t) + B_{true} u(t)$$
+$$y(t) = C_{true} x(t) + D_{true} u(t)$$
+
+其中 $x \in \mathbb{R}^{n_{true}}$ 是状态，$u \in \mathbb{R}^m$ 是输入，$y \in \mathbb{R}^p$ 是输出。**系统矩阵 $(A, B, C, D)$ 未知**，但我们有状态维度的上界 $N \geq n_{true}$。
+
+**目标**：仅用输入-输出数据 $(u_{[0,T-1]}, y_{[0,T-1]})$ 来仿真或控制系统。
+
+#### 9.1.2 Hankel 矩阵
+
+给定长度为 $T$ 的数据序列，构造深度为 $L$ 的 **Hankel 矩阵**：
+
+$$\mathcal{H}_L\begin{pmatrix} u_{[0,T-1]} \\ y_{[0,T-1]} \end{pmatrix} = \begin{bmatrix} u(0) & u(1) & \cdots & u(T-L) \\ \vdots & \vdots & \ddots & \vdots \\ u(L-1) & u(L) & \cdots & u(T-1) \\ y(0) & y(1) & \cdots & y(T-L) \\ \vdots & \vdots & \ddots & \vdots \\ y(L-1) & y(L) & \cdots & y(T-1) \end{bmatrix}$$
+
+**物理意义**：Hankel 矩阵的每一列是长度为 $L$ 的受限输入-输出轨迹。由于系统的线性性，列向量的任意线性组合也是合法轨迹。
+
+#### 9.1.3 持续激励 (Persistent Excitation)
+
+**定义 (PE of order $k$)**：输入序列 $u_{[0,T-1]}$ 称为 **$k$ 阶持续激励**，如果其 Hankel 矩阵 $\mathcal{H}_k(u_{[0,T-1]})$ 行满秩。
+
+**数据长度要求**：为满足 $(N+L)$ 阶 PE，需要：
+
+$$T \geq (m+1)(N+L) - 1$$
+
+#### 9.1.4 基本引理 (Theorem 1.2, Willems et al. 2005)
+
+> [!important] Willems 基本引理
+> 假设 $(A_{true}, B_{true})$ 可控，且输入 $u_{[0,T-1]}$ 是 $(N+L)$ 阶持续激励。则：
+> 
+> **(a) 秩条件**：矩阵 $\begin{bmatrix} X_{[0,T-L]} \\ \mathcal{H}_L(u_{[0,T-1]}) \end{bmatrix}$ 行满秩。
+> 
+> **(b) 轨迹表示**：$(\bar{u}_{[0,L-1]}, \bar{y}_{[0,L-1]})$ 是系统在 $[0, L-1]$ 上的合法轨迹 **当且仅当** 存在 $g \in \mathbb{R}^{T-L+1}$ 使得：
+> $$\begin{pmatrix} \bar{u}_{[0,L-1]} \\ \bar{y}_{[0,L-1]} \end{pmatrix} = \begin{pmatrix} \mathcal{H}_L(u_{[0,T-1]}) \\ \mathcal{H}_L(y_{[0,T-1]}) \end{pmatrix} g$$
+
+**核心洞察**：Hankel 矩阵的列空间**精确等于**所有长度为 $L$ 的合法轨迹空间。数据本身就是系统行为的非参数化表示。
+
+### 9.2 数据信息性框架 (Data Informativity Framework)
+
+> [!tip] 参考资料
+> 详见 [[Books/Data-based linear systems and control theory.pdf]] Chapter 2。
+
+#### 9.2.1 核心概念
+
+**模型类 $\mathcal{M}$**：所有可能的系统模型集合（如所有 $n$ 阶 LTI 系统）。
+
+**数据一致集 $\Sigma_D$**：给定数据 $D$，所有能生成该数据的系统：
+
+$$\Sigma_D := \{(A, B) \in \mathcal{M} \mid X_+ = A X_- + B U_-\}$$
+
+**性质集 $\Sigma_P$**：具有某性质 $P$（如稳定性、可镇定性）的系统集合。
+
+#### 9.2.2 分析问题的信息性 (Informativity for Analysis)
+
+**定义**：数据 $D$ 对性质 $P$ 是**信息充分的 (informative)**，如果 $\Sigma_D \subseteq \Sigma_P$。
+
+即：所有与数据一致的系统都具有性质 $P$ → 可以从数据断言真实系统具有性质 $P$。
+
+```
+┌───────────────────────────────────────┐
+│  模型类 M                              │
+│    ┌─────────────────┐                │
+│    │  Σ_P (稳定系统)  │                │
+│    │   ┌───────┐     │                │
+│    │   │ Σ_D   │     │  ← 数据信息充分 │
+│    │   │  (S)  │     │    Σ_D ⊆ Σ_P   │
+│    │   └───────┘     │                │
+│    └─────────────────┘                │
+└───────────────────────────────────────┘
+```
+
+#### 9.2.3 控制问题的信息性 (Informativity for Control)
+
+**定义**：数据 $D$ 对控制目标 $O$ 是**信息充分的**，如果存在控制器 $K$ 使得 $\Sigma_D(K) \subseteq \Sigma_O$。
+
+即：存在一个**单一控制器**能镇定所有与数据一致的系统。
+
+**状态反馈镇定示例**：
+
+控制目标 $O$："闭环系统稳定"
+$$\Sigma_O = \{A' \in \mathbb{R}^{n \times n} \mid A' \text{ 是稳定的}\}$$
+
+对于状态反馈 $K$，闭环系统集合：
+$$\Sigma_D(K) = \{A + BK \mid (A, B) \in \Sigma_D\}$$
+
+数据信息充分 ⟺ 存在 $K$ 使得 $A + BK$ 对所有 $(A, B) \in \Sigma_D$ 稳定。
+
+### 9.3 数据驱动 LQR 与镇定
+
+> [!note] 直接数据驱动控制
+> 不需要先辨识系统，直接从数据计算控制器。
+
+#### 9.3.1 无噪声情形的数据驱动镇定
+
+给定输入-状态数据 $(U_-, X)$，定义：
+
+$$X_- = X_{[0,T-1]}, \quad X_+ = X_{[1,T]}$$
+
+则有 $X_+ = A_{true} X_- + B_{true} U_-$。
+
+**定理 (数据驱动镇定)**：如果 $\begin{bmatrix} X_- \\ U_- \end{bmatrix}$ 行满秩（数据信息充分），则存在镇定状态反馈。控制器可通过求解 LMI 获得：
+
+存在 $G \in \mathbb{R}^{(T) \times n}$ 和 $P \succ 0$ 使得：
+
+$$\begin{bmatrix} P & X_+ G \\ G^T X_+^T & P \end{bmatrix} \succ 0$$
+
+镇定控制器为 $K = U_- G P^{-1}$。
+
+#### 9.3.2 带噪声数据的鲁棒镇定
+
+当数据受扰动 $w(t)$ 影响且满足逐点能量界 $\|w(t)\|_2^2 \leq \epsilon$ 时，数据一致集变为：
+
+$$\Sigma_D = \{(A, B) \mid X_+ = A X_- + B U_- + W_-, \; \|w(t)\|^2 \leq \epsilon\}$$
+
+**二次镇定**：寻找使所有一致系统具有共同 Lyapunov 函数 $V(x) = x^T Q x$ 的控制器。
+
+### 9.4 Data-Enabled Predictive Control (DeePC)
+
+> [!abstract] 核心思想
+> 将 Willems 引理嵌入 MPC 框架：用数据 Hankel 矩阵替代显式系统模型。
+
+**DeePC 优化问题**：
+
+$$\min_{g, \sigma} \sum_{k=0}^{N-1} \|\bar{y}(k) - y_{ref}\|_Q^2 + \|\bar{u}(k)\|_R^2 + \lambda_\sigma \|\sigma\|^2$$
+
+约束：
+$$\begin{pmatrix} U_p \\ Y_p \\ U_f \\ Y_f \end{pmatrix} g = \begin{pmatrix} u_{ini} \\ y_{ini} + \sigma \\ \bar{u} \\ \bar{y} \end{pmatrix}$$
+
+其中 $U_p, Y_p$ 是过去数据的 Hankel 矩阵（用于匹配初始条件），$U_f, Y_f$ 是未来预测的 Hankel 矩阵。
+
+**松弛项 $\sigma$**：处理测量噪声导致的不一致性。
+
+### 9.5 与灵巧操作的联系
+
+> [!warning] 局限性
+> 数据驱动控制主要针对 **LTI 系统**。灵巧操作涉及非线性、混合动力学，需要扩展：
+> - **Koopman 算子提升**：将非线性系统提升到无限维线性空间
+> - **分段线性逼近**：在不同接触模式下分别应用
+> - **与 RL 结合**：数据驱动提供初始策略，RL 在线精调
+
+**潜在应用**：
+1. **接触力学的线性化区域**：小变形下的阻抗模型近似 LTI
+2. **遥操作数据的利用**：人类示教数据构建行为 Hankel 矩阵
+3. **安全约束嵌入**：在 DeePC 约束中加入摩擦锥约束
+
+------
+
+## 相关论文 (PapersRecap)
+
+> [!abstract] 知识图谱反向链接
+> 以下论文在其研究中涉及控制理论的核心主题
+
+### 阻抗控制与变刚度
+- [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] — 阻抗控制作为 RL 动作空间
+- [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking]] — 数据驱动阻抗辨识
+
+### Safe RL 与稳定性
+- [[Reachability Constrained Reinforcement Learning]] — 可达性约束
+- [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints]] — 潜在空间 CBF
+- [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] — Lipschitz 约束网络
+- [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks]] — 鲁棒 RL
+
+### 控制频率与时间步
+- [[Elastic Time Step Reinforcement Learning, VTS-RL]] — 弹性时间步
+- [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks]] — 高频控制进化
+- [[Reinforcement Learning for Control with Multiple Frequencies]] — 多速率采样
+
+### 轨迹跟踪与模仿
+- [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References]] — 神经跟踪控制
+- [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills]] — 物理角色动画
+
+------
+
+## 10. 结论 (Conclusion)
 
 从早期的高增益位置控制，到引入顺应性的阻抗控制，再到处理冗余度的操作空间公式化，控制理论的演进主线是对**物理交互本质的尊重**。我们不再试图强行命令机器人去违反物理约束，而是通过数学工具（如抓取矩阵、动态一致性逆、Montana方程）去建模和利用这些约束。
 

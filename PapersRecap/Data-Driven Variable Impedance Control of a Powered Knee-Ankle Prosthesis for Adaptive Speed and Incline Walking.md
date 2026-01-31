@@ -22,9 +22,9 @@ related:
 > 提出**数据驱动的可变阻抗控制器**用于下肢假肢：从健康人步态数据通过**凸优化**学习阻抗参数（刚度、阻尼、平衡角）作为步态相位、速度、坡度的连续函数。消除人工调参，实现多任务自适应行走。IEEE TRO。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3.2 阻抗控制]] - 阻抗控制的理论基础
-> - [[Dynamics#5.2 步态动力学]] - 人体步态的生物力学
-> - [[Optimization#2.3 凸优化]] - 阻抗参数的凸优化辨识
+> - [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]] - 阻抗控制的理论基础
+> - [[Dynamics]] - 人体步态的生物力学
+> - [[Optimization]] - 阻抗参数的凸优化辨识
 >
 > **核心技术**: Phase-based Control, Convex Impedance Identification, Task Adaptation
 

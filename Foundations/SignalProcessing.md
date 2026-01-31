@@ -275,7 +275,102 @@ $$\mathcal{L}(x) = \sum_{p \in PC} \left[ 1 - \exp\left(-\frac{d(p, \mathcal{M})
 
 ------
 
-## 6. 技术比较与选型指南
+## 6. 近距离传感与接触力预处理 (Proximity Sensing and Contact Force Pre-processing)
+
+> [!note] 论文参考
+> 本节基于 **P2GI (Heo & Park, 2023)** 和 **Finger Gaiting (Yang et al., 2025)** 的信号处理方法。
+> 相关笔记: [[Proximity Perception-Based Grasping Intelligence (P2GI)]], [[Learning Human-like Finger Gaiting on an Anthropomorphic Hand]]
+
+### 6.1 近距离传感器信号处理 (Proximity Sensor Signal Processing)
+
+近距离传感器（如 VL6180X 飞行时间传感器）为机器人提供了"第六感"——在物理接触发生之前感知环境。这种传感模态在假肢手和灵巧抓取中展现出独特价值。
+
+#### 6.1.1 传感器物理特性
+
+**飞行时间 (Time-of-Flight) 原理**：
+$$d = \frac{c \cdot \Delta t}{2}$$
+
+其中 $c$ 为光速，$\Delta t$ 为光往返时间。
+
+**信号特性**：
+- 感知范围：~10cm
+- 噪声水平：~2mm
+- 对表面颜色和环境光敏感度低（相比红外反射式）
+
+#### 6.1.2 实时点云映射
+
+将分布式近距离传感器阵列的测量转换为目标物体的点云表示：
+
+**坐标变换**：
+$$p_i^{world} = T_{hand}^{world} \cdot T_{sensor_i}^{hand} \cdot \begin{bmatrix} 0 \\ 0 \\ d_i \\ 1 \end{bmatrix}$$
+
+其中 $T_{hand}^{world}$ 来自位姿追踪（如 Intel T265），$T_{sensor_i}^{hand}$ 为传感器安装标定。
+
+**点云优化规则**：
+1. **最小点距规则**：避免过密采样，维持均匀密度
+2. **可抓取空间规则**：过滤非目标区域点云
+3. **地面分离规则**：基于高度阈值区分物体与支撑面
+
+#### 6.1.3 基于 PCA 的手-物关系特征提取
+
+点云的主成分分析（PCA）提供紧凑的几何描述：
+
+$$\Sigma = \frac{1}{N}\sum_{i=1}^N (p_i - \bar{p})(p_i - \bar{p})^T$$
+
+**特征向量**：
+- 第一主成分：物体的主轴方向和尺度
+- 主成分比值：揭示物体对称性（球体 vs 棒状）
+- 点云中心相对手掌位置：编码抓握意图
+
+**物理直觉**：
+- Power grasp → 手掌靠近点云中心
+- Precision pinch → 指尖靠近点云中心
+- Lateral pinch → 侧面接近点云
+
+### 6.2 接触力归一化与预处理 (Contact Force Normalization)
+
+在手指步态（Finger Gaiting）等动态非抓持操作中，接触力的精细处理是策略学习的关键。
+
+#### 6.2.1 3D 净接触力向量
+
+仿真环境中可获取每个指尖的 3D 净接触力：
+$$\mathbf{f}_{tip,i} = (F_x, F_y, F_z)_i \in \mathbb{R}^3$$
+
+**为什么需要 3D 力而非二值接触**：
+- 二值接触信息不足以区分"支撑"vs"推进"vs"引导"
+- 力的方向对动态操作至关重要
+- 力幅度指示接触稳定性
+
+#### 6.2.2 力归一化方案
+
+**线性裁剪归一化**：
+$$F'_c = \frac{\text{clip}(F_c, F_{min}, F_{max}) - F_{min}}{F_{max} - F_{min}}$$
+
+映射到 $[0, 1]$ 范围。
+
+**Tanh 归一化**：
+$$F_{norm,i} = \tanh(k \cdot F_i)$$
+
+映射到 $[-1, 1]$ 范围，缩放因子 $k$ 通过经验确定。
+
+**归一化参数的迭代优化**：
+- 基于训练性能反馈调整 $F_{min}$, $F_{max}$, $k$
+- 不同任务可能需要不同的归一化范围
+
+#### 6.2.3 异常值检测与滤波
+
+**Isolation Forest 异常检测**：
+- 对力/熵时间序列检测异常值
+- 用相邻正常值替换异常点
+- 提高后续聚类/学习的鲁棒性
+
+**时序平滑**：
+- 移动平均或指数移动平均
+- 平衡响应速度与噪声抑制
+
+---
+
+## 7. 技术比较与选型指南
 
 针对不同的操作任务，选择合适的信号处理架构至关重要。下表总结了各模态的核心差异：
 
@@ -289,7 +384,7 @@ $$\mathcal{L}(x) = \sum_{p \in PC} \left[ 1 - \exp\left(-\frac{d(p, \mathcal{M})
 
 ------
 
-## 7. 结论与展望
+## 8. 结论与展望
 
 本报告深入解构了机器人灵巧操作中触觉信号处理的全貌。我们不再将触觉传感器视为简单的“按钮”，而是视其为需要复杂物理建模和概率推理的高维信息源。
 
@@ -305,7 +400,26 @@ $$\mathcal{L}(x) = \sum_{p \in PC} \left[ 1 - \exp\left(-\frac{d(p, \mathcal{M})
 未来的研究应聚焦于**边缘计算（Edge Computing）**，将FEM和泊松求解器硬件加速化（FPGA/GPU），以实现kHz级的触觉伺服。同时，**可微分物理引擎**与**隐式神经表示（NeRF/SDF）**的结合，有望解决软体接触建模中的Sim-to-Real难题，使机器人真正具备“触手可及”的智能。
 
 ------
+## 9. 相关论文 (PapersRecap)
 
+以下论文涉及本 Foundation 中的信号处理技术：
+
+### 触觉信号处理与传感融合
+- [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]: 触觉 Sim-to-Real，信号对齐与噪声建模
+- [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]]: 纯触觉策略中的接触信号处理
+- [[Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture|Dextrous Tactile]]: 模块化触觉信号流架构
+- [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]: 触觉/本体感觉融合的滤波与同步
+
+### 时序信号与频率域
+- [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|Autoregressive Policies]]: 自回归时序建模在控制中的应用
+- [[The Sampling Theorem With Constant Amplitude Variable Width Pulses|Sampling Theorem]]: 机器人信号采样的基础理论
+- [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]: 时序示教数据的熵引导采样
+
+### 多模态信号融合
+- [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)|HATO]]: 视觉-触觉多模态信号融合
+- [[Proximity Perception-Based Grasping Intelligence (P2GI)|P2GI]]: 部件级多模态感知信号处理
+
+------
 **(正文结束，字数统计约 16,500 字)**
 
 *注：本报告基于提供的研究片段进行综合分析，部分数学参数和算法细节参考了具体的文献引用。*

@@ -1,6 +1,6 @@
 ---
 tags:
-  - paper-recap
+  - paper
   - reinforcement-learning
   - control-frequency
   - action-persistence
@@ -10,9 +10,9 @@ aliases:
   - PFQI
   - Persistent FQI
   - Action Persistence
-created: 2026-01-31
+read-date: 2026-01-31
 venue: ICML 2020
-year: 2020
+paper-year: 2020
 authors:
   - Alberto Maria Metelli
   - Flavio Mazzolini
@@ -20,9 +20,18 @@ authors:
   - Luca Sabbioni
   - Marcello Restelli
 institution: Politecnico di Milano
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[SignalProcessing]]"
 ---
 
 # Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning#5. 离线强化学习 (Offline RL)]]**: Batch RL / FQI 算法基础
+> - **[[ControlTheory]]**: 控制频率与采样定理
+> - **[[SignalProcessing]]**: 信号采样与 Nyquist 频率
 
 > [!abstract] 核心贡献
 > 提出 **Action Persistence**（动作持续）的形式化框架：在 $k$ 个决策步内重复同一动作，等价于修改控制频率。证明了持续算子的收缩性质，导出最优性能损失界，并提出 **PFQI** (Persistent Fitted Q-Iteration) 算法。

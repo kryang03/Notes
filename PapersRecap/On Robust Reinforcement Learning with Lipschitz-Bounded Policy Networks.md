@@ -1,6 +1,6 @@
 ---
 tags:
-  - paper-recap
+  - paper
   - reinforcement-learning
   - robustness
   - lipschitz-networks
@@ -9,17 +9,26 @@ tags:
 aliases:
   - Lipschitz-Bounded Policy
   - Robust Policy Networks
-created: 2026-02-01
+read-date: 2026-02-01
 venue: arXiv 2405.11432
-year: 2025
+paper-year: 2025
 authors:
   - Nicholas H. Barbara
   - Ruigang Wang
   - Ian R. Manchester
 institution: University of Sydney
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[RepresentationLearning]]"
+  - "[[Optimization]]"
 ---
 
 # On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks
+
+> [!note] Foundation 关联
+> - **[[ReinforcementLearning]]**: 策略网络架构
+> - **[[RepresentationLearning]]**: 神经网络正则化与泛化
+> - **[[Optimization]]**: Lipschitz 约束与谱归一化
 
 > [!abstract] 核心贡献
 > 系统研究了 **Lipschitz-bounded policy networks** 在深度 RL 中的鲁棒性优势。发现小 Lipschitz 界的策略网络对扰动、噪声和对抗攻击显著更鲁棒，且 **Sandwich Layer** 比谱归一化更具表达力，能更好地控制性能-鲁棒性权衡。

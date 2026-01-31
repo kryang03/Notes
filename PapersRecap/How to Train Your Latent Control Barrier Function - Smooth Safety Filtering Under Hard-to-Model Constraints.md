@@ -1,6 +1,6 @@
 ---
 tags:
-  - paper-recap
+  - paper
   - control-barrier-function
   - safety-filtering
   - world-model
@@ -9,9 +9,9 @@ tags:
 aliases:
   - LatentCBF
   - Latent Control Barrier Function
-created: 2026-01-31
+read-date: 2026-01-31
 venue: arXiv 2511.18606
-year: 2025
+paper-year: 2025
 authors:
   - Kensuke Nakamura
   - Arun L. Bishop
@@ -20,9 +20,20 @@ authors:
   - Zachary Manchester
   - Andrea Bajcsy
 institution: Carnegie Mellon University
+related:
+  - "[[ControlTheory]]"
+  - "[[ReinforcementLearning]]"
+  - "[[RepresentationLearning]]"
+  - "[[StochasticProcess]]"
 ---
 
 # How to Train Your Latent Control Barrier Function
+
+> [!note] Foundation 关联
+> - **[[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control)]]**: CBF 形式化定义（安全集、Lie 导数、CBF-QP）
+> - **[[ReinforcementLearning#4. Model-Based RL]]**: World Model 预测
+> - **[[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]]**: 视觉运动策略的潜空间
+> - **[[StochasticProcess]]**: Hamilton-Jacobi 可达性与值函数
 
 > [!abstract] 核心贡献
 > 提出 **LatentCBF**，解决了在隐空间中进行基于优化的安全过滤（CBF-style filtering）的两个关键挑战：(1) 分类器生成的 margin function 梯度饱和；(2) 安全策略与任务策略的分布失配导致值函数估计不准。
