@@ -1,6 +1,38 @@
+---
+tags:
+  - foundation
+  - reinforcement-learning
+  - dexterous-manipulation
+  - sim-to-real
+aliases:
+  - 强化学习
+  - RL
+  - PPO
+  - SAC
+created: 2026-01-31
+related:
+  - "[[ControlTheory]]"
+  - "[[Dynamics]]"
+  - "[[Optimization]]"
+  - "[[StochasticProcess]]"
+  - "[[RepresentationLearning]]"
+---
+
 # 灵巧操作中的强化学习：接触动力学、流形几何与算法演进
 
 # Reinforcement Learning in Dexterous Manipulation: Contact Dynamics, Manifold Geometry, and Algorithmic Evolution
+
+> [!tip] 相关领域
+> - [[ControlTheory]] - RL 与经典控制的交叉（Safe RL, Stability-Certified RL）
+> - [[Dynamics]] - 动力学模型是 Model-Based RL 的基础
+> - [[Optimization]] - RL 本质上是序贯决策优化
+> - [[StochasticProcess]] - 扩散策略的理论基础
+> - [[RepresentationLearning]] - 状态表征与多模态融合
+>
+> **相关论文**:
+> - [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]] - 稳定性证书方法
+> - [[Elastic Time Step Reinforcement Learning, VTS-RL]] - 弹性时间步
+> - [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] - Lipschitz 约束网络
 
 ## 摘要 (Abstract)
 
@@ -111,15 +143,36 @@ $$a_{safe} = \text{Exp}_q( \pi(s) )$$
 
 **Insights**: 单纯的模仿是不够的，机器人需要一种机制在“未见过的状态”下通过试错（Trial-and-Error）来自我修正。这引入了 **Reinforcement Learning**。
 
-### 2.3 Model-Free RL (MFRL): 从DDPG到SAC的演进
+### 2.3 深度强化学习的奠基：从 DQN 到连续控制
+
+在进入机器人控制领域之前，我们需要理解深度 RL 本身的演进，因为这决定了哪些算法适合灵巧操作。
+
+#### Phase 0: Deep Q-Network (DQN) — 深度 RL 的起点 (2013-2015)
+
+**历史背景**: DeepMind 的 DQN 首次证明了深度神经网络可以稳定地学习价值函数。
+
+**核心创新**:
+1. **Experience Replay**: 打破样本相关性，允许样本重用
+2. **Target Network**: 分离当前网络和目标网络，减少 bootstrap 的不稳定性
+
+**为什么不能直接用于机器人**:
+- DQN 只能处理**离散动作空间**（如 Atari 的按键）
+- 灵巧手的关节是**连续**的，无法枚举所有可能动作
+
+> [!note] 从离散到连续的桥梁
+> 如何将 DQN 的稳定训练机制扩展到连续动作空间？这催生了两条演进路线：
+> - **Actor-Critic 路线** → DDPG → TD3 → SAC
+> - **Policy Gradient 路线** → TRPO → PPO
+
+### 2.4 Off-Policy 演进线：从 DDPG 到 SAC
 
 这是灵巧操作领域最活跃的研究方向。我们见证了算法从不稳定到鲁棒的进化。
 
-#### Phase 1: Deep Deterministic Policy Gradient (DDPG)
+#### Phase 1: Deep Deterministic Policy Gradient (DDPG) (2015)
 
 **Mechanism**: Actor-Critic架构，使用确定性策略 $a = \mu(s)$。 **Why it failed in Dexterous Manipulation**: DDPG 存在严重的 **Overestimation Bias（Q值高估）**。在操作任务中，由于接触的不稳定性，偶尔的剧烈碰撞可能导致观测值的异常波动，Critic网络错误地认为这是高价值状态。由于使用的是 $\max Q$ 的更新逻辑，这种误差被快速放大，导致策略崩溃 。
 
-#### Phase 2: Twin Delayed DDPG (TD3)
+#### Phase 2: Twin Delayed DDPG (TD3) (2018)
 
 **Value-add**: 针对DDPG的缺陷，引入了三个关键改进，使其在机器人控制中变得可用 。
 
@@ -140,6 +193,37 @@ $$a_{safe} = \text{Exp}_q( \pi(s) )$$
 2. **Robustness**: 熵项鼓励探索，防止策略过早收敛到局部最优（例如：只是简单地握住物体不动，而不去尝试旋转它）。
 3. **Stability**: 相比于PPO（On-policy），SAC（Off-policy）利用Replay Buffer，样本效率高出一个数量级，这对实机训练至关重要 。
 
+> [!abstract] 策略约束与熵正则化的统一视角
+> SAC 的最大熵目标实际上是一个更一般框架的特例。考虑带正则化的策略优化目标：
+> 
+> $$\max_\pi Q(s,a) - \beta \cdot D_{KL}(\pi(\cdot|s) \| \pi_0(\cdot|s))$$
+> 
+> 其中 $\pi_0$ 是**参考分布（Reference Distribution）**，$\beta$ 是温度参数。通过变分推导，最优策略具有 **Boltzmann 形式**：
+> 
+> $$\pi^*(a|s) = \frac{\pi_0(a|s) \cdot \exp(Q(s,a)/\beta)}{Z(s)}$$
+> 
+> **关键洞见**：当 $\pi_0$ 是**均匀分布**时，KL 散度退化为负熵：
+> $$D_{KL}(\pi \| \text{Uniform}) = -H(\pi) + \text{const}$$
+> 
+> 因此，**SAC 的熵正则化实际上是 KL 约束到均匀先验的特例**。这一统一视角揭示了不同 RL 算法的本质差异仅在于：
+> - **SAC**: $\pi_0 = \text{Uniform}$ （不对动作有先验偏好）
+> - **PPO with KL penalty**: $\pi_0 = \pi_{old}$ （信任旧策略）
+> - **π₀ (Physical Intuition AI)**: $\pi_0$ 来自物理直觉或人类演示
+> 
+> 这为设计新算法提供了清晰的设计空间：**选择什么样的参考分布 + 如何调节温度 $\beta$**。
+
+> [!tip] Gaussian 探索的理论最优性（来自 [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach]]）
+> Wang et al. (2019) 用**连续时间随机控制**框架证明了一个深刻结果：对于 **Linear-Quadratic 问题**，熵正则化下的最优探索分布是 **Gaussian**：
+> $$\pi^*(a|s) = \mathcal{N}(\mu^*(s), (\sigma^*)^2)$$
+> 
+> **分离原则**：
+> - **均值** $\mu^*(s)$：仅依赖状态，与温度 $\lambda$ 无关 → 负责**利用**（exploitation）
+> - **方差** $(\sigma^*)^2 \propto \lambda$：与状态无关，与温度成正比 → 负责**探索**（exploration）
+> 
+> 这意味着 SAC 使用 Gaussian 策略不只是"方便采样"，而是在 LQ 近似下的**理论最优选择**。
+> 
+> **额外洞见**：环境噪声越大，最优探索方差**越小**——因为随机环境本身就提供了"免费"的探索机会。
+
 **Comparison Table: DDPG vs TD3 vs SAC**
 
 | **Feature**           | **DDPG**                 | **TD3**       | **SAC**                | **Relevance to Manipulation**                                |
@@ -150,19 +234,78 @@ $$a_{safe} = \text{Exp}_q( \pi(s) )$$
 | **Sample Efficiency** | High                     | High          | Very High              | Critical for reducing robot wear and tear.                   |
 | **Stability**         | Low (Brittle)            | Medium        | High                   | SAC is the robust choice for contact-rich tasks.             |
 
-### 2.4 Model-Based RL (MBRL): 样本效率与世界模型
+> [!tip] 时间一致探索：从白噪声到自回归过程（来自 [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning]]）
+> 标准 Gaussian 探索的一个被忽视的问题是**时间不一致性**：
+> $$a_t = \mu(s_t) + \epsilon_t, \quad \epsilon_t \sim \mathcal{N}(0, \sigma^2)$$
+> 
+> 连续两步的噪声 $\epsilon_t, \epsilon_{t+1}$ 独立同分布，导致：
+> - **高频抖动**：探索轨迹像"原地震动"，无法有效覆盖状态空间
+> - **硬件损伤**：jerky 运动对机械关节造成冲击
+> 
+> **解决方案**：自回归探索（AR-p Process）
+> $$\epsilon_t = \sum_{i=1}^{p} \phi_i \epsilon_{t-i} + \eta_t, \quad \eta_t \sim \mathcal{N}(0, \sigma_\eta^2)$$
+> 
+> 通过选择系数 $\{\phi_i\}$ 满足 Yule-Walker 方程，可以保持：
+> - **边缘分布不变**：仍然是标准正态 → 不影响策略梯度
+> - **可调时间相关性**：$\phi$ 越大 → 轨迹越平滑 → 探索越"坚持方向"
+> 
+> **灵巧操作应用**：高精度位置控制（如精密装配）需要高 $\phi$；快速反应任务（如接球）需要低 $\phi$。
+
+### 2.5 On-Policy 演进线：从 TRPO 到 PPO
+
+与 Off-Policy 路线并行发展的是 On-Policy 路线，它在某些场景下仍有独特价值。
+
+#### Phase 1: Trust Region Policy Optimization (TRPO) (2015)
+
+**核心问题**: Policy Gradient 方法的步长很难调节。步长太大 → 策略崩溃；步长太小 → 学习缓慢。
+
+**解决方案**: 约束策略更新的 KL 散度在信任域内：
+$$\max_\theta \mathbb{E}\left[\frac{\pi_\theta(a|s)}{\pi_{\theta_{old}}(a|s)} A(s,a)\right] \quad \text{s.t.} \quad D_{KL}(\pi_{\theta_{old}} \| \pi_\theta) \leq \delta$$
+
+**局限性**: 需要计算 Fisher 信息矩阵的逆，计算复杂度高。
+
+#### Phase 2: Proximal Policy Optimization (PPO) (2017)
+
+**核心创新**: 用 Clipping 替代硬性 KL 约束：
+
+$$L^{CLIP}(\theta) = \mathbb{E}\left[\min\left(r_t(\theta)A_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)A_t\right)\right]$$
+
+> [!tip] PPO Clipping 的物理直觉
+> Clipping 意味着：**"如果新策略与旧策略差异过大，就不要再往那个方向更新了"**。
+> - 防止策略突变导致的"手抖"
+> - $\epsilon = 0.2$ 意味着策略概率比最多变化 20%
+
+**PPO vs SAC 选择指南**:
+
+| 场景 | 推荐 | 原因 |
+|------|-----|------|
+| 仿真大规模并行 | PPO | IsaacGym 数千并行环境弥补样本低效 |
+| 真机训练 | SAC | Replay Buffer 允许重用历史数据 |
+| 高维连续动作 | SAC | 最大熵探索更有效 |
+
+### 2.6 Model-Based RL (MBRL): 样本效率与世界模型
 
 **Problem**: 即使是SAC，也需要百万级的步数才能收敛。在真机上这需要几周时间。 **Evolution**: DreamerV3 。 **Insights**:
 
 - **Learning in Imagination**: 在学习到的动力学模型（World Model）中进行规划，大大减少与物理世界的交互。
 - **Handling Occlusion**: 灵巧操作中，手指经常遮挡物体。Dreamer 使用 RNN (Recurrent State-Space Model, RSSM) 来维护隐状态（Latent State），具有记忆功能，能够推断被遮挡物体的状态。相比之下，基于单帧图像的 SAC 经常因为遮挡而丢失目标 。
 
-### 2.5 Offline RL & Diffusion Policies: 新范式
+### 2.7 Offline RL 演进：从保守估计到生成式策略
 
-**Problem**: 即使有大量离线数据（Offline Data），标准的 Off-policy RL 也会因为 OOD (Out-of-Distribution) 动作的高估而失败。 **Solution 1: CQL (Conservative Q-Learning)** 
+**Problem**: 即使有大量离线数据（Offline Data），标准的 Off-policy RL 也会因为 OOD (Out-of-Distribution) 动作的高估而失败。
+
+#### Phase 1: Conservative Q-Learning (CQL) (2020)
 
 - **Logic**: 显式地压低数据集中未出现动作的Q值。
-- **Insight**: 在灵巧操作中，这是“安全第一”的体现。只在已知安全的动作空间附近微调，严禁盲目探索导致的硬件损坏。
+- **Insight**: 在灵巧操作中，这是"安全第一"的体现。只在已知安全的动作空间附近微调，严禁盲目探索导致的硬件损坏。
+
+#### Phase 2: Implicit Q-Learning (IQL) (2021)
+
+- **创新**: 避免对 OOD 动作的 Q 值估计，只使用 Expectile 回归。
+
+#### Phase 3: Decision Transformer (2021)
+
+- **范式转变**: 将 RL 重构为序列建模问题。
 
 **Solution 2: Diffusion Policy** 
 
@@ -392,7 +535,124 @@ $$\xi \sim U[\xi_{low}, \xi_{high}]$$
 | **Domain Randomization**  | Train across random physics parameters  | Robustness to unmodeled dynamics        | Conservative policies; harder to train | General robotic manipulation                 |
 | **Adaptive DR (ADR)**     | Curriculum learning on parameter ranges | Finds feasible boundaries automatically | Computationally expensive              | Complex dexterous tasks (e.g., Rubik's Cube) |
 
-### 5.2 Offline RL: 从静态数据中学习
+> [!abstract] 课程学习比触觉更重要？（来自 [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation]]）
+> 一个反直觉的发现：**课程设计对灵巧操作学习的影响大于触觉传感器的有无**。
+> 
+> **实验设置**：三指手向下抓取 + 旋转球体（对抗重力）
+> - 变量 1：课程策略（先 Lift → 后 Rotate、先 Rotate → 后 Lift、同时学习等）
+> - 变量 2：触觉信息（无触觉 vs 3D 力向量）
+> 
+> **关键发现**：
+> 1. 不同课程策略导致的性能差异 **>>** 有无触觉的差异
+> 2. **无触觉也能学会**：某些课程下，仅凭本体感知即可成功
+> 3. 课程像"Waddington Landscape"——引导学习向特定技能组合发展
+> 
+> **启示**：
+> - 在设计 RL 训练时，**优先设计好课程**，而不是堆传感器
+> - 课程隐含了对任务的先验知识——**课程即 inductive bias**
+> - 触觉可能是"锦上添花"而非"必需品"（至少对某些任务）
+
+> [!abstract] 数据飞轮：从演示到策略的闭环迭代（来自 [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]）
+> **核心问题**：人类手部演示数据通常有噪声且不完美，直接模仿效果差。
+> 
+> **数据飞轮（Data Flywheel）框架**：
+> ```
+> 人类运动捕捉 → 重定向到机器人 → 挖掘可跟踪演示
+>      ↑                                    ↓
+>      ←←← 用改进的策略挖掘更难的演示 ←←←←←
+> ```
+> 
+> **关键机制**：
+> 1. **同伦优化（Homotopy）**：从简化任务（如无重力）逐步过渡到完整任务
+> 2. **RL + IL 协同**：高质量演示指导探索，RL 处理未覆盖状态
+> 3. **迭代改进**：更好的策略 → 能跟踪更难的演示 → 更多训练数据 → 更好的策略
+> 
+> **技术细节**：
+> - 运动重定向：$\hat{s}^{robot}_n = \mathcal{R}(s^{human}_n; \phi)$
+> - 演示质量评估：跟踪误差低于阈值才保留
+> - 课程权重：随训练进度逐步提升 IL 损失权重
+> 
+> **灵巧操作启发**：解决了"人类演示有噪声→策略学不好→需要更好演示"的鸡蛋问题。
+
+> [!tip] 观测空间课程适应（来自 [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|CSR]]）
+> **Sim2Real 矛盾**：仿真可获取"上帝视角"信息（精确物体位姿、完整触觉），真实世界难以复现。
+> 
+> **标准 Asymmetric Actor-Critic (AAC) 的问题**：
+> - Critic 用完整观测，Actor 用受限观测
+> - **一步裁剪**：训练不稳定，性能下降严重
+> 
+> **CSR 课程式解决方案**：
+> 1. **特征重要性排序**：$I_i = \mathbb{E}[|\partial \pi / \partial o_i|]$
+> 2. **渐进移除**：从最不重要的特征开始
+> 3. **Deep Random Generator**：用随机网络输出替代被移除特征（防止策略学会"零=某状态"）
+> 
+> **课程设计**：
+> ```
+> Stage 0: 全部特征（精确物体位姿 + 触觉力 + 关节状态）
+> Stage 1: 移除物体姿态（最不重要）
+> Stage 2: 移除触觉力
+> Stage 3: 仅保留关节本体感知
+> ```
+> 
+> **启示**：
+> - **渐进优于突变**：策略有时间适应每次缩减
+> - **随机替代优于置零**：防止新的虚假依赖
+> - **特征重要性可自动发现**：无需人工猜测
+
+### 5.2 真实世界高效 RL: SERL 与 Human-in-the-Loop
+
+> [!tip] 论文参考
+> - [[SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning]] - 真实世界 RL 系统
+> - [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning]] - 人在回路校正
+
+#### RLPD: 演示增强的 Off-Policy RL
+
+**核心创新**: 在每个训练步，从**演示数据**和**在线数据**各采样 50%
+
+$$\mathcal{B}_{\text{train}} = \text{sample}(\mathcal{B}_{\text{demo}}, 50\%) \cup \text{sample}(\mathcal{B}_{\text{online}}, 50\%)$$
+
+**为什么有效**:
+- 演示提供初始探索方向
+- 在线数据允许超越演示
+- 50% 比例经验证最优
+
+#### Human-in-the-Loop 校正机制
+
+**关键洞察**: 人类校正 ≠ 人类演示
+
+| 类型 | 数据内容 | 学习信号 |
+|-----|---------|---------|
+| 演示 | 成功轨迹 | 正样本模仿 |
+| **校正** | **失败边缘的挽救** | **从错误中学习** |
+
+**校正机制**:
+```
+策略执行中...
+    ↓
+人类观察到即将失败
+    ↓
+人类通过 SpaceMouse 接管
+    ↓
+(s_t, a_human, r, s_{t+1}) → Buffer
+    ↓
+策略学习: "在 s_t, 应该做 a_human, 不是 a_policy"
+```
+
+**实验结果** (HIL-SERL):
+- 训练时间: 1-2.5 小时
+- 成功率: 相比 BC 提升 **101%**
+- 任务: 首次实现双臂 RL + 动态 Jenga 抽取 + 时序带装配
+
+#### 真实世界 RL 系统设计要点
+
+| 组件 | SERL 方案 | 原因 |
+|-----|----------|------|
+| 算法 | RLPD (SAC 变体) | 高 update-to-data ratio |
+| 奖励 | 二值分类器 | 避免手工设计 |
+| 重置 | 前向-后向策略 | 自动化训练 |
+| 控制器 | 阻抗控制 | 接触安全 |
+
+### 5.3 Offline RL: 从静态数据中学习
 
 很多时候我们不希望在真机上进行危险的探索，而是利用现有的历史数据。
 

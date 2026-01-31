@@ -1,6 +1,34 @@
+---
+tags:
+  - foundation
+  - computational-geometry
+  - collision-detection
+  - SDF
+aliases:
+  - 计算几何
+  - GJK
+  - EPA
+  - 有向距离场
+  - 凸分解
+created: 2026-01-31
+related:
+  - "[[ContactMechanics]]"
+  - "[[Optimization]]"
+  - "[[Dynamics]]"
+  - "[[RepresentationLearning]]"
+---
+
 # 计算几何在机器人灵巧操作中的深度解析：从离散接触物理到连续流形优化
 
 # Computational Geometry in Robotic Dexterous Manipulation: From Discrete Contact Physics to Continuous Manifold Optimization
+
+> [!tip] 相关领域
+> - [[ContactMechanics]] - 接触点几何与接触雅可比
+> - [[Optimization]] - 基于SDF的轨迹优化 (TrajOpt, CHOMP)
+> - [[Dynamics]] - 刚体运动学与构型空间
+> - [[RepresentationLearning]] - 神经隐式表示 (DeepSDF, Neural Grasp)
+>
+> **核心算法链**: 闵可夫斯基和 → GJK/EPA → SDF → 神经隐式场
 
 ## 1. 引言：几何——灵巧操作的物理语言
 
@@ -96,6 +124,30 @@ $$s_A(\mathbf{d}) = \underset{\mathbf{x} \in A}{\text{argmax}} (\mathbf{x} \cdot
 $$s_C(\mathbf{d}) = s_A(\mathbf{d}) - s_B(-\mathbf{d})$$
 
 这使得我们从未显式计算 $C$，却能在 $C$ 的空间中漫游 。
+
+> [!note] Support Mapping 的数学本质
+> 支持函数的威力来自**凸共轭对偶性 (Convex Conjugate Duality)**。对于凸集 $A$，其 **Gauge Function**（或 Minkowski Functional）定义为：
+> 
+> $$\gamma_A(\mathbf{x}) = \inf \{ t > 0 : \mathbf{x} \in t \cdot A \}$$
+> 
+> 支持函数 $h_A(\mathbf{d}) = \sup_{\mathbf{x} \in A} \langle \mathbf{d}, \mathbf{x} \rangle$ 正是 $\gamma_A$ 的 **Fenchel 共轭**。
+> 
+> **几何意义**：$h_A(\mathbf{d})$ 是过原点、法向为 $\mathbf{d}$ 的超平面"刚好接触" $A$ 时，距原点的有符号距离。这也是为什么支持函数能够直接给出分离超平面。
+
+**Support Mapping 在灵巧操作中的价值**：
+
+对于实际使用的几何基元，支持映射有解析解，无需遍历顶点：
+
+| 几何体 | Support Mapping $s(\mathbf{d})$ |
+|--------|-------------------------------|
+| **球 (Sphere)** | $\mathbf{c} + r \frac{\mathbf{d}}{\|\mathbf{d}\|}$ |
+| **椭球 (Ellipsoid)** | $\mathbf{c} + D \frac{D\mathbf{d}}{\|D\mathbf{d}\|}$，$D = \text{diag}(a, b, c)$ |
+| **圆柱 (Cylinder)** | 沿轴向投影 + 底圆/顶圆上的最远点 |
+| **胶囊 (Capsule)** | 线段支持 + 半径偏移 |
+| **凸包 (Convex Hull)** | $O(n)$ 暴力搜索，或 **Hill Climbing** 利用局部邻接关系 $O(\log n)$ |
+
+> [!tip] 工程洞察：Hill Climbing 优化
+> 对于高多边形凸包（如 1000+ 顶点的手指模型），暴力搜索每个顶点会成为瓶颈。**Hill Climbing** 利用了多面体的邻接图：从上一帧的支持点出发，沿梯度（邻居中点积更大的方向）爬坡，通常 2-3 步就能收敛。这是 **Temporal Coherence（时间一致性）** 在几何算法中的典型应用。
 
 #### 3.1.2 核心逻辑实现 (Python Implementation)
 

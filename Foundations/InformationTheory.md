@@ -1,6 +1,33 @@
+---
+tags:
+  - foundation
+  - information-theory
+  - active-perception
+  - entropy
+aliases:
+  - 信息论
+  - 互信息
+  - KL散度
+  - 主动感知
+created: 2026-01-31
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[StochasticProcess]]"
+  - "[[SignalProcessing]]"
+  - "[[RepresentationLearning]]"
+---
+
 # 信息论驱动的灵巧操作：主动感知与探索的物理本质
 
 # Information-Theoretic Dexterous Manipulation: The Physics of Active Perception and Exploration
+
+> [!tip] 相关领域
+> - [[ReinforcementLearning]] - 内在动机 (Intrinsic Motivation) 与好奇心驱动探索
+> - [[StochasticProcess]] - 贝叶斯推断与信念更新
+> - [[SignalProcessing]] - 触觉信息的序列化获取
+> - [[RepresentationLearning]] - 信息瓶颈与表征压缩
+>
+> **核心框架**: 熵 → 互信息 → KL散度 → 信息增益最大化
 
 ## 1. 绪论：从被动观测到具身主动性 (From Passive Observation to Embodied Agency)
 
@@ -370,7 +397,124 @@ def expected_information_gain(particles, weights, candidate_action,
 
 ------
 
-## 5. 内在动机：无需外部奖励的智能 (Intrinsic Motivation: Intelligence without External Reward)
+## 5. 信息瓶颈原理：最优表征的信息论基础 (Information Bottleneck Principle: Information-Theoretic Foundation for Optimal Representation)
+
+> [!note] 教科书参考
+> Information Bottleneck 原理由 Tishby, Pereira & Bialek (1999) 提出，是表征学习的核心信息论框架，与 [[RepresentationLearning]] 深度关联。
+
+### 5.1 核心直觉：压缩与预测的权衡 (Compression vs Prediction Trade-off)
+
+**Information Bottleneck (IB)** 原理解答了表征学习的核心问题：**给定输入 $X$，如何学习一个压缩表征 $Z$，使其保留对目标 $Y$ 的预测能力，同时丢弃无关的细节？**
+
+在灵巧操作中，这对应于：
+- **$X$**：高维原始观测（如触觉图像、点云、关节角序列）
+- **$Z$**：低维潜在表征（用于策略输入或世界模型）
+- **$Y$**：任务相关信息（如物体位姿、接触状态、抓取成功与否）
+
+#### 形式化定义
+
+Information Bottleneck 目标函数为：
+
+$$\mathcal{L}_{IB} = I(Z; X) - \beta \cdot I(Z; Y)$$
+
+最小化此目标等价于：
+
+$$\min_{p(z|x)} \left[ I(Z; X) - \beta \cdot I(Z; Y) \right]$$
+
+其中：
+- **$I(Z; X)$**：表征复杂度——$Z$ 保留了多少关于 $X$ 的信息（越小越压缩）
+- **$I(Z; Y)$**：预测能力——$Z$ 保留了多少关于 $Y$ 的信息（越大越有用）
+- **$\beta$**：拉格朗日乘子，控制压缩-预测权衡
+
+#### 物理意义
+
+| $\beta$ 值 | 行为特征 | 灵巧操作场景 |
+|-----------|---------|-------------|
+| $\beta \to 0$ | 最大压缩，$Z$ 几乎不包含任何信息 | 无用表征 |
+| $\beta \to \infty$ | 无压缩，$Z$ 保留 $X$ 的全部信息 | 过拟合，对噪声敏感 |
+| **适中 $\beta$** | **最优压缩**，仅保留任务相关信息 | **鲁棒泛化** |
+
+### 5.2 变分信息瓶颈 (Variational Information Bottleneck, VIB)
+
+精确计算 $I(Z; X)$ 和 $I(Z; Y)$ 在高维空间中不可行。**变分信息瓶颈 (VIB)** 利用变分推断获得可优化的上界和下界。
+
+> [!important] VIB 变分界
+> 引入变分分布 $q(z)$ 作为边缘分布 $p(z)$ 的近似，以及 $q(y|z)$ 作为后验 $p(y|z)$ 的近似：
+> 
+> $$I(Z; X) \leq \mathbb{E}_{p(x)} \left[ D_{KL}(p(z|x) \| q(z)) \right]$$
+> 
+> $$I(Z; Y) \geq \mathbb{E}_{p(x,y)} \left[ \mathbb{E}_{p(z|x)} [\log q(y|z)] \right] + H(Y)$$
+> 
+> 将这些界代入 IB 目标，得到可训练的损失函数：
+> 
+> $$\mathcal{L}_{VIB} = \mathbb{E}_{p(x)} \left[ D_{KL}(p_\theta(z|x) \| q(z)) \right] - \beta \cdot \mathbb{E}_{p(x,y), p_\theta(z|x)} \left[ \log q_\phi(y|z) \right]$$
+
+**与 VAE 的联系**：当 $Y = X$（自编码目标）时，VIB 退化为 $\beta$-VAE。$\beta$-VAE 的 $\beta$ 参数正是 IB 框架的拉格朗日乘子。
+
+### 5.3 灵巧操作中的应用 (Applications in Dexterous Manipulation)
+
+#### 5.3.1 触觉表征压缩 (Tactile Representation Compression)
+
+高分辨率触觉图像（如 GelSight 的 $640 \times 480$ 图像）包含大量与任务无关的纹理细节。IB 原理指导我们学习一个压缩表征 $Z$：
+
+- **保留**：接触位置、法向力分布、滑移边缘检测
+- **丢弃**：传感器噪声、照明变化、与任务无关的背景纹理
+
+```python
+# 触觉 VIB 编码器示意
+class TactileVIBEncoder(nn.Module):
+    def __init__(self, beta=0.01):
+        self.encoder = ResNet18()  # 提取特征
+        self.fc_mu = nn.Linear(512, 32)  # 潜在均值
+        self.fc_logvar = nn.Linear(512, 32)  # 潜在方差
+        self.beta = beta
+    
+    def forward(self, tactile_img, contact_label):
+        h = self.encoder(tactile_img)
+        mu, logvar = self.fc_mu(h), self.fc_logvar(h)
+        
+        # 重参数化采样
+        z = mu + torch.exp(0.5 * logvar) * torch.randn_like(mu)
+        
+        # IB 损失
+        kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+        pred_loss = F.cross_entropy(self.classifier(z), contact_label)
+        
+        loss = self.beta * kl_loss + pred_loss
+        return z, loss
+```
+
+#### 5.3.2 状态表征去噪 (State Representation Denoising)
+
+在 Sim-to-Real 迁移中，仿真状态 $X_{sim}$ 与真实状态 $X_{real}$ 存在分布偏移。IB 表征可以通过强制压缩来自动过滤域特异性噪声：
+
+$$Z_{domain-invariant} = \arg\min_{Z} I(Z; X) \quad \text{s.t.} \quad I(Z; Y_{task}) \geq \epsilon$$
+
+这要求 $Z$ 仅保留跨域共享的任务相关信息。
+
+#### 5.3.3 与 Empowerment 的对偶性 (Duality with Empowerment)
+
+> [!tip] IB 与 Empowerment 的信息论对偶
+> 
+> | 原理 | 目标 | 信息流方向 | 灵巧操作意义 |
+> |-----|------|-----------|-------------|
+> | **Information Bottleneck** | 最小化 $I(Z; X)$，最大化 $I(Z; Y)$ | 观测 → 表征 → 预测 | 高效感知压缩 |
+> | **Empowerment** | 最大化 $I(A; S')$ | 动作 → 未来状态 | 最大化控制能力 |
+> 
+> IB 关注**被动感知**（如何从观测中提取有用信息），Empowerment 关注**主动控制**（如何通过动作影响未来）。两者共同构成灵巧操作的信息论闭环。
+
+### 5.4 信息平面与深度学习理论 (Information Plane and Deep Learning Theory)
+
+Tishby 等人提出的**信息平面 (Information Plane)** 假说认为，深度神经网络的训练可以被理解为 IB 优化过程：
+
+1. **拟合阶段 (Fitting Phase)**：$I(Z; Y)$ 快速增加，网络学习预测能力
+2. **压缩阶段 (Compression Phase)**：$I(Z; X)$ 缓慢减少，网络丢弃无关信息
+
+虽然这一假说存在争议（依赖于互信息估计方法），但其核心洞见——**泛化需要压缩**——在灵巧操作的表征学习中得到了实验验证。过度拟合的策略网络往往对传感器噪声极其敏感；而经过 VIB 正则化的网络表现出更强的 Sim-to-Real 鲁棒性。
+
+------
+
+## 6. 内在动机：无需外部奖励的智能 (Intrinsic Motivation: Intelligence without External Reward)
 
 在许多灵巧操作任务中，外部奖励（External Reward）是稀疏的（Sparse）甚至缺失的。例如，让机器人“玩”一个魔方，如果只在魔方复原时给奖励，机器人可能永远学不会。信息论提供了**内在动机（Intrinsic Motivation）**的数学形式，驱动机器人像婴儿一样自主学习操作技能。
 
@@ -385,7 +529,32 @@ $$\mathcal{E}(s_t) = \max_{\pi(a|s_t)} I(A_t; S_{t+k} | s_t)$$
   - **高赋能状态**：灵巧手稳定抓持一个物体。此时，微小的指尖动作 $A$ 都能精确地改变物体位姿 $S$（高相关性）。机器人“掌控”了物体。
   - **低赋能状态**：物体即将滑落，或者手指被卡住。此时，无论机器人如何努力改变动作 $A$，物体状态 $S$ 几乎不可控或随机演化（噪音大）。
   - **结论**：追求最大化赋能，本质上是在追求**可操作性（Manipulability）\**和\**稳定性（Stability）**。即使不需要定义“抓取”为目标，仅通过最大化 $I(A; S)$，机器人就会自动学会抓取物体，因为抓取赋予了它对物体状态最大的控制权 。
+#### 5.1.1 变分下界与实际计算 (Variational Lower Bound for Empowerment)
 
+精确计算 $I(A; S')$ 需要遍历所有可能的动作序列和未来状态，在连续空间中是不可行的。我们需要一个可优化的下界。
+
+> [!important] Blahut-Arimoto 风格的变分下界
+> 令 $\omega(a|s')$ 为关于 $a$ 的任意可逆分布（"Planning Distribution"）。应用互信息的变分界：
+> 
+> $$I(A; S' | s) = H(A|s) - H(A|S', s) \geq H(A|s) + \mathbb{E}_{s' \sim p(\cdot|s,a)}[\log \omega(a|s')]$$
+> 
+> 最大化 $\omega$ 可以收紧这个界，使不等号变为等式。这被称为 **Source Distribution** $\pi(a|s)$ 和 **Planning Distribution** $\omega(a|s')$ 的交替优化。
+
+**深度神经网络实现**：在深度 RL 中，我们用神经网络参数化两个分布：
+
+- **Source/Policy Network** $\pi_\theta(a|s)$：当前状态下采取的动作分布
+- **Inverse Model / Planning Network** $\omega_\phi(a|s')$：给定未来状态，逆向推断动作
+
+训练目标：
+$$\max_{\theta, \phi} \mathbb{E}_{a \sim \pi_\theta, s' \sim p}[\log \omega_\phi(a|s') - \log \pi_\theta(a|s)]$$
+
+**物理意义解读**：
+- $\omega_\phi(a|s')$ 越高，说明给定未来状态 $s'$，我们越能"确定"是哪个动作 $a$ 导致的。这意味着动作与未来状态是**强相关**的。
+- $\pi_\theta(a|s)$ 在分母上，意味着我们惩罚那些本身就"常见"的动作。只有那些"不太可能但却精准导致了特定结果"的动作才获得高赋能。
+- 在灵巧抓取中，这导致机器人学会精细的指尖调整，而非大幅度的随机挥动——因为前者对物体状态的影响更"可预测"。
+
+> [!tip] 与 DIAYN 的联系
+> DIAYN 可以看作是**离散化的 Empowerment**。在 DIAYN 中，$z \in \{1, ..., K\}$ 是离散技能 ID，鉴别器 $q(z|s)$ 正是 $\omega(a|s')$ 的离散版本。最大化 $I(Z; S)$ 等价于在离散技能空间中最大化赋能。
 ### 5.2 变分信息最大化探索 (VIME)
 
 在深度强化学习（RL）中，计算精确的互信息是不可行的。**VIME (Variational Information Maximizing Exploration)** 提出利用变分推断来最大化信息增益。
@@ -470,11 +639,11 @@ def compute_diayn_rewards(discriminator, states, skills):
 
 ------
 
-## 6. 现实世界的挑战：软体与 Sim-to-Real (Real-World Challenges: Soft Body and Sim-to-Real)
+## 7. 现实世界的挑战：软体与 Sim-to-Real (Real-World Challenges: Soft Body and Sim-to-Real)
 
 上述理论虽然优美，但在从仿真迁移到真实世界（Sim-to-Real）时面临巨大挑战。真实世界的物理特性——特别是软体形变和复杂的摩擦动力学——包含了大量在刚体仿真中丢失的信息。
 
-### 6.1 现实鸿沟作为信息损失 (Reality Gap as Information Loss)
+### 7.1 现实鸿沟作为信息损失 (Reality Gap as Information Loss)
 
 我们可以将 Sim-to-Real 问题形式化为源域（Simulation）分布 $P_{sim}$ 和目标域（Real）分布 $P_{real}$ 之间的 KL 散度最小化问题。
 
@@ -484,7 +653,7 @@ def compute_diayn_rewards(discriminator, states, skills):
 
 - **策略**：将在仿真中训练好的探索策略（Exploratory Policy）迁移到真机。该策略不是为了完成任务，而是为了在真机上高效地收集数据，以最快速度缩减 $P_{real}$ 的模型参数不确定性（System Identification）。例如，上真机后先执行“摩擦测试”动作，根据反馈迅速将摩擦系数的不确定性范围从 $[0.1, 1.0]$ 缩小到 $[0.4, 0.5]$，然后再执行任务策略 。
 
-### 6.2 软体触觉的特殊挑战 (Unique Challenges of Soft Body Tactile)
+### 7.2 软体触觉的特殊挑战 (Unique Challenges of Soft Body Tactile)
 
 视觉触觉传感器（如 GelSight, TacTip）引入了软体接触。这带来了新的信息论问题：
 
@@ -498,7 +667,7 @@ def compute_diayn_rewards(discriminator, states, skills):
 
 3. **物理迟滞 (Hysteresis)**：软体接触具有记忆性。当前的信息状态不仅取决于当前观测，还取决于历史形变路径。这违反了马尔可夫假设。为了处理这一点，必须使用循环神经网络（RNN/LSTM）或 Transformer 来构建非马尔可夫的信息状态估计。概率接触块（Probabilistic Contact Patch）的估计需要融合时序信息 。
 
-### 6.3 摩擦与滑动的信息内容 (Friction and Stick-Slip Information)
+### 7.3 摩擦与滑动的信息内容 (Friction and Stick-Slip Information)
 
 摩擦不仅仅是阻力，它是信息的载体。当指尖滑过物体表面时，产生的**粘滑振动（Stick-Slip Vibration）**蕴含了关于纹理和摩擦系数的高频信息。
 
@@ -507,7 +676,7 @@ def compute_diayn_rewards(discriminator, states, skills):
 
 ------
 
-## 7. 结论与展望 (Conclusion and Outlook)
+## 8. 结论与展望 (Conclusion and Outlook)
 
 本报告从物理与信息论的双重视角，重新审视了灵巧操作中的主动感知问题。核心结论如下：
 

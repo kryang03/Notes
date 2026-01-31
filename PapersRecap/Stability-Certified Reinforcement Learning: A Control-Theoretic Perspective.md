@@ -1,3 +1,32 @@
+---
+tags:
+  - paper
+  - safe-rl
+  - robust-control
+  - stability
+aliases:
+  - Stability-Certified RL
+  - Safe RL
+paper-year: 2024
+read-date: 2026-01-31
+related:
+  - "[[ControlTheory]]"
+  - "[[ReinforcementLearning]]"
+  - "[[Optimization]]"
+---
+
+# Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective
+
+> [!abstract] 核心概要
+> 本文在 **鲁棒控制理论** 和 **强化学习** 之间搭建数学桥梁，通过基于偏导数界的二次约束 (SDP) 为 RL 策略提供稳定性证书。
+
+> [!tip] 与理论基础的关联
+> - [[ControlTheory#3.1 稳定性理论]] - Lyapunov 稳定性与输入-输出稳定性
+> - [[ReinforcementLearning]] - Safe RL 的算法框架
+> - [[Optimization]] - SDP 半正定规划问题
+>
+> **核心技术**: IQC (Integral Quadratic Constraints), Lipschitz 连续性, Partial Gradient Bounds
+
 你好。我是 "Paper Analyzer"。这份论文非常有分量，它在**鲁棒控制理论（Robust Control）**和**强化学习（Reinforcement Learning, RL）**之间搭建了一座坚实的数学桥梁。
 
 这篇论文的核心在于解决一个痛点：深度强化学习虽然强大，但其策略网络（Policy Network）通常被视为“黑盒”，缺乏物理系统所需的稳定性证明。作者提出了一种基于**部分梯度（Partial Gradients）**的新型二次约束，并将其转化为**半正定规划（SDP）**问题，从而证明了闭环系统的输入-输出稳定性（Input-Output Stability）。

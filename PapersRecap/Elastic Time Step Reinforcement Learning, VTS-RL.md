@@ -1,3 +1,33 @@
+---
+tags:
+  - paper
+  - reinforcement-learning
+  - variable-time-step
+  - embedded-systems
+aliases:
+  - VTS-RL
+  - SEAC
+  - MOSEAC
+paper-year: 2024
+read-date: 2026-01-31
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[Optimization]]"
+---
+
+# Elastic Time Step Reinforcement Learning (VTS-RL)
+
+> [!abstract] 核心概要
+> 提出弹性时间步长 RL 框架，Agent 同时学习“做什么动作”和“动作持续多久”，通过动态调整控制频率大幅降低计算能耗。
+
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning]] - SAC/PPO 的扩展，Semi-MDP 框架
+> - [[ControlTheory#2.1 阻抗控制]] - 控制频率与系统响应
+> - [[Optimization]] - Lyapunov 稳定性证明与多目标优化
+>
+> **核心技术**: Multi-Objective RL, Adaptive Reward Scaling, Lyapunov Convergence Proof
+
 这份论文集实际上是一篇博士学位论文，整合了作者Dong Wang关于**弹性时间步长强化学习（Elastic Time Step Reinforcement Learning, VTS-RL）** 的四篇核心工作。这套方法论旨在解决传统强化学习在机器人控制中“固定控制频率”带来的计算浪费和性能瓶颈问题。
 
 以下是对这份工作的深度剖析：

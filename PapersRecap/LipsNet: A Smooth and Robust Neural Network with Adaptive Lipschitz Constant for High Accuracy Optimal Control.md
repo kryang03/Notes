@@ -1,3 +1,34 @@
+---
+tags:
+  - paper
+  - neural-network
+  - lipschitz
+  - smooth-control
+aliases:
+  - LipsNet
+  - MGN
+  - Gradient Normalization
+paper-year: 2023
+venue: ICML
+read-date: 2026-01-31
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[RepresentationLearning]]"
+---
+
+# LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control
+
+> [!abstract] 核心概要
+> 通过多维梯度归一化 (MGN) 结构约束 Actor 网络的 Lipschitz 常数，从数学原理上消除控制动作的高频抖动。
+
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning]] - TD3/SAC 的 Actor 网络改进
+> - [[ControlTheory#2.1 阻抗控制]] - 平滑控制与报动抑制
+> - [[RepresentationLearning#1.3 学习目标的物理重构]] - 雅可比正则化与 Lipschitz 连续性
+>
+> **核心技术**: Multi-dimensional Gradient Normalization, Adaptive Lipschitz Constraint, Spectral Norm
+
 你好！我是你的AI学术导师。很高兴能为你深度剖析这篇来自ICML 2023的论文 **"LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control"**。
 
 这篇论文针对深度强化学习（DRL）落地应用中一个极其痛点的问题——**动作抖动（Action Fluctuation）**，提出了一种从网络结构底层进行改进的优雅方案。

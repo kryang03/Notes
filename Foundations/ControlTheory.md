@@ -1,6 +1,30 @@
+---
+tags:
+  - foundation
+  - control-theory
+  - dexterous-manipulation
+aliases:
+  - 控制理论
+  - Control
+  - 阻抗控制
+  - Impedance Control
+created: 2026-01-31
+related:
+  - "[[Dynamics]]"
+  - "[[Optimization]]"
+  - "[[ContactMechanics]]"
+  - "[[ReinforcementLearning]]"
+---
+
 # 灵巧操作控制理论深度研究报告：从位置控制范式到接触隐式非线性动力学
 
 # Deep Research Report on Control Theory for Dexterous Manipulation: From Position Control Paradigms to Contact-Implicit Nonlinear Dynamics
+
+> [!tip] 相关领域
+> - [[Dynamics]] - 动力学方程是控制设计的基础
+> - [[ContactMechanics]] - 接触力学决定了力控制的约束
+> - [[Optimization]] - MPC 与轨迹优化是现代控制的核心工具
+> - [[ReinforcementLearning]] - 数据驱动控制的替代范式
 
 ## 1. 引言：灵巧操作的物理本质与控制挑战
 
@@ -18,7 +42,7 @@
 
 ## 2. Core Concepts: Kinematics & Statics Foundations in Dexterous Manipulation
 
-在深入控制算法之前，必须建立描述灵巧手与物体交互的数学基石。与传统的单臂抓取不同，灵巧操作涉及多指协调（Multi-fingered Coordination），这要求我们不仅关注单个指尖的运动，更要关注接触点力与运动在物体层面的映射关系。这种映射关系集中体现在两个核心矩阵上：**抓取矩阵（Grasp Matrix, $G$）\**与\**手雅可比矩阵（Hand Jacobian, $J_h$）**。
+在深入控制算法之前，必须建立描述灵巧手与物体交互的数学基石。与传统的单臂抓取不同，灵巧操作涉及多指协调（Multi-fingered Coordination），这要求我们不仅关注单个指尖的运动，更要关注接触点力与运动在物体层面的映射关系。这种映射关系集中体现在两个核心矩阵上：**抓取矩阵（Grasp Matrix, $G$）** 与 **手雅可比矩阵（Hand Jacobian, $J_h$）**。这些概念的详细几何推导参见 [[ContactMechanics#2.3 接触雅可比矩阵]]。
 
 ### 2.1 虚功原理与对偶性 (Virtual Work Principle & Duality)
 
@@ -232,6 +256,105 @@ $$M_d (\ddot{x} - \ddot{x}_d) + B_d (\dot{x} - \dot{x}_d) + K_d (x - x_d) = F_{e
 - **物理本质**：$F = Z(x)$。
 
   这使得阻抗控制在与**刚性环境**（Stiff Environment）交互时非常稳定。因为环境通常表现为导纳（Admittance，输入力，输出位移），两个物理系统的耦合应当是“阻抗+导纳”，而非“阻抗+阻抗”或“导纳+导纳”。
+> [!note] 被动性与稳定性证明 (Passivity-Based Stability)
+> 阻抗控制的稳定性可以通过**被动性理论 (Passivity Theory)** 严格证明。定义能量储存函数（Lyapunov Candidate）：
+> 
+> $$V = \frac{1}{2}\tilde{x}^T K_d \tilde{x} + \frac{1}{2}\dot{\tilde{x}}^T M_d \dot{\tilde{x}}$$
+> 
+> 其中 $\tilde{x} = x - x_d$ 为位置误差。对 $V$ 求导：
+> 
+> $$\dot{V} = \dot{\tilde{x}}^T (K_d \tilde{x} + M_d \ddot{\tilde{x}}) = \dot{\tilde{x}}^T (F_{ext} - B_d \dot{\tilde{x}}) = \dot{\tilde{x}}^T F_{ext} - \dot{\tilde{x}}^T B_d \dot{\tilde{x}}$$
+> 
+> **关键结论**：当无外力 $F_{ext} = 0$ 时，$\dot{V} = -\dot{\tilde{x}}^T B_d \dot{\tilde{x}} \leq 0$（负半定）。由 LaSalle 不变原理，系统渐近稳定收敛至 $\tilde{x} = 0$。
+> 
+> **物理意义**：阻尼矩阵 $B_d$ 耗散能量。只要 $B_d > 0$，系统就像一个"漏气"的气球，无论初始状态如何，最终都会回归平衡点。这是阻抗控制在接触任务中天然稳定的**数学保证**。
+
+> [!abstract] 价值函数即 Lyapunov 函数 (来自 [[Safe Model-based Reinforcement Learning with Stability Guarantees]])
+> 一个深刻的洞见是：**RL 中的价值函数天然是 Lyapunov 函数**。
+> 
+> 对于严格正定的代价函数 $r(x, u) > 0$（除原点外）且 $r(0, 0) = 0$，价值函数定义为：
+> $$V^\pi(x) = r(x, \pi(x)) + V^\pi(f(x, \pi(x)))$$
+> 
+> 重排后：
+> $$V^\pi(f(x, \pi(x))) = V^\pi(x) - r(x, \pi(x)) < V^\pi(x)$$
+> 
+> 这恰好满足 Lyapunov 下降条件！因此：
+> - **价值函数**定义了系统的**吸引域 (Region of Attraction)**
+> - **策略优化**等价于**扩大吸引域**
+> - 这为 Safe RL 提供了控制理论的数学基础
+
+> [!tip] 通过网络结构实现稳定性 (来自 [[Reinforcement Learning for Optimal Primary Frequency Control - A Lyapunov Approach]])
+> 另一种将 Lyapunov 稳定性融入 RL 的方法是**结构约束**而非软惩罚。
+> 
+> **核心定理**：对于摇摆方程等系统，若控制器 $u(\omega)$ 满足：
+> 1. **单调递增**：$\omega_1 > \omega_2 \Rightarrow u(\omega_1) > u(\omega_2)$
+> 2. **过原点**：$u(0) = 0$
+> 
+> 则系统存在唯一平衡点且**局部指数稳定**。
+> 
+> **实现方式**：Stacked-ReLU 网络
+> $$u(\omega) = \sum_{k=1}^K \alpha_k \cdot \text{ReLU}(\omega - \beta_k), \quad \alpha_k > 0$$
+> 
+> 正系数确保单调性，偏置选择确保过原点。这是将物理先验（无源性条件 $\omega \cdot u(\omega) \geq 0$）直接编码进网络架构的范例。
+
+> [!abstract] 可达性分析与最大可行集（来自 [[Reachability Constrained Reinforcement Learning]]）
+> **核心问题**：传统约束 RL 使用期望累积代价 $\mathbb{E}[\sum_t \gamma^t c(s_t)] \leq \epsilon$，但这可能在期望安全的同时**单步违约**。
+> 
+> **可达性视角**：定义**安全价值函数**：
+> $$V_c^{\max}(s) = \max_{\pi} \mathbb{E}\left[\max_{t \geq 0} \gamma^t c(s_t) \mid s_0 = s\right]$$
+> 
+> 这捕捉的是"从状态 $s$ 出发，最坏情况下能遇到的最大代价"。
+> 
+> **最大可行集定义**：
+> $$\mathcal{F} = \{s : V_c^{\max}(s) \leq d\}$$
+> 
+> 其中 $d$ 是安全阈值。$\mathcal{F}$ 是**理论上最大的可控不变集**——只要留在 $\mathcal{F}$ 内，就永远能保持安全。
+> 
+> **对比 CBF**：
+> | | Control Barrier Function | RCRL 可达性 |
+> |---|---|---|
+> | 可行集 | 保守估计（可能过小） | 最大理论可行集 |
+> | 计算 | 需要手工设计 $h(x)$ | 学习 $V_c^{\max}$ |
+> | 性能牺牲 | 可能较大 | 最小化 |
+> 
+> **灵巧操作启示**：在高速 in-hand manipulation 中，RCRL 的"最大可行集"可以允许更激进的动作，只要能保证"最终能稳住"。
+
+> [!abstract] 数据驱动阻抗辨识（来自 [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking|Prosthesis VI]]）
+> **问题**：传统阻抗控制需要手工调节 $K$, $B$, $\theta_{eq}$ 参数，耗时且难以适应任务变化。
+> 
+> **解决方案**：将阻抗参数建模为**相位、任务变量的连续函数**：
+> $$K(\phi, v, \alpha) = \sum_{i,j,k} c^K_{ijk} B_i(\phi) P_j(v) P_k(\alpha)$$
+> 
+> 其中 $B_i$ 是 B-spline 基函数，$P_j$, $P_k$ 是多项式基。
+> 
+> **凸优化关键洞察**：固定平衡角 $\theta_{eq}$ 时，力矩误差关于 $K$, $B$ 是**线性**的！
+> $$\tau = -K(\theta - \theta_{eq}) - B\dot{\theta} \quad \Rightarrow \quad \tau = \Phi(\theta, \dot{\theta}, \phi, v, \alpha) \cdot c$$
+> 
+> **两步凸优化**：
+> 1. 先从运动学数据估计 $\theta_{eq}(\phi, v, \alpha)$
+> 2. 再凸优化 $K$, $B$ 的系数（保证全局最优）
+> 
+> **灵巧操作启发**：用人类操作演示替代健康人步态数据，可学习手指刚度如何随操作相位/物体属性变化。
+
+> [!tip] 可变阻抗作为 RL 动作空间（来自 [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks|VICES]]）
+> **核心创新**：让 RL 策略直接输出阻抗参数，而非底层力矩/位置。
+> 
+> **VICES 动作空间**：
+> $$a = (\Delta x, K_{\text{diag}})$$
+> - $\Delta x \in \mathbb{R}^6$：末端位姿增量
+> - $K_{\text{diag}} \in \mathbb{R}^6$：对角刚度增益
+> 
+> **任务适应性**：
+> | 任务类型 | 刚度配置 |
+> |---------|----------|
+> | 自由运动 | 高刚度（精确跟踪） |
+> | 门把手操作 | 约束方向低刚度 |
+> | 表面擦拭 | 法向低刚度 + 切向高刚度 |
+> 
+> **理论优势**：
+> 1. **解耦**：任务学习与底层动力学补偿分离
+> 2. **迁移性**：策略可迁移到不同机器人（同样的"软/硬"语义）
+> 3. **安全性**：低刚度设置自然限制接触力
 
 ### 3.3 解决方案 II：导纳控制 (Admittance Control) —— 位置内环的策略
 
@@ -263,6 +386,24 @@ $$M_d \ddot{x}_{ref} + B_d \dot{x}_{ref} + K_d x_{ref} = F_{meas}$$
 ### 3.4 解决方案 III：统一阻抗与导纳架构 (Unified Architecture)
 
 为了结合两者的优点，**统一阻抗与导纳控制（Unified Impedance and Admittance Control）**架构被提出 。该架构通过一个混合系统（Hybrid System）框架，允许控制器在阻抗因果性和导纳因果性之间连续切换或插值。
+
+> [!tip] 多速率控制与强化学习（来自 [[Reinforcement Learning for Control with Multiple Frequencies|AP-AC]]）
+> 在机器人系统中，不同变量有不同的**自然时间尺度**：
+> - **关节力矩**：需要高频控制（~1kHz）以维持稳定
+> - **抓手开合**：低频即可（~10Hz）
+> - **运动规划**：更低频（~1Hz）
+> 
+> **问题**：标准 RL 假设单一控制频率，强制高频控制 → 轨迹过长 → 探索低效。
+> 
+> **AP-AC 解决方案**：引入**周期性非平稳策略**：
+> $$\pi(a|s, t) = \prod_{j=1}^{m} \pi_j(a^j | s, t \mod T_j)$$
+> 
+> 其中 $T_j$ 是第 $j$ 个动作变量的持续周期。每个变量按自己的节奏更新，形成**多速率采样系统**。
+> 
+> **灵巧操作应用**：
+> - 手臂末端位置：中频控制（50Hz）
+> - 手指关节：高频控制（500Hz）
+> - 抓握力参考：低频调整（10Hz）
 
 **机制：**
 

@@ -1,6 +1,31 @@
+---
+tags:
+  - foundation
+  - dynamics
+  - dexterous-manipulation
+  - multibody
+aliases:
+  - 动力学
+  - 多体动力学
+  - RNEA
+  - ABA
+created: 2026-01-31
+related:
+  - "[[ControlTheory]]"
+  - "[[ContactMechanics]]"
+  - "[[Optimization]]"
+  - "[[StochasticProcess]]"
+---
+
 # 灵巧操作动力学权威指南：从多体算法到接触物理
 
 # The Authoritative Guide to Dexterous Manipulation Dynamics: From Multibody Algorithms to Contact Physics
+
+> [!tip] 相关领域
+> - [[ControlTheory]] - 动力学方程是控制律设计的基础
+> - [[ContactMechanics]] - 接触动力学是灵巧操作的核心难点
+> - [[Optimization]] - iLQR/DDP 依赖高效的动力学求解
+> - [[StochasticProcess]] - GP dynamics learning 补偿模型误差
 
 ## 1. 序言：动力学——灵巧操作的“暗物质” (Introduction: Dynamics as the "Dark Matter")
 
@@ -40,7 +65,7 @@ $$C(q, \dot{q})\dot{q}$$
 
 ### 2.3 Contact Constraints (接触约束)
 
-这是灵巧操作最困难的部分，也是区分“动画”与“物理仿真”的分水岭。
+这是灵巧操作最困难的部分，也是区分"动画"与"物理仿真"的分水岭。详细的接触建模理论参见 [[ContactMechanics]]。
 
 - **Holonomic Constraints**: $f(q) = 0$。例如手指关节的机械连接。它们降低了系统的自由度维数。
 - **Non-holonomic Constraints**: $f(q, \dot{q}) = 0$。例如指尖在物体表面的 Rolling without slipping（纯滚动）。它限制了瞬时速度方向，但不降低 C-Space 的维数。
@@ -382,6 +407,12 @@ Emo Todorov (MuJoCo 作者) 引入了基于 **凸优化（Convex Optimization）
 
 这是大多数实时物理引擎解决接触力的核心循环。请注意这里对 Friction Cone 的处理方式（Clamping）。
 
+> [!note] 数值稳定性技巧
+> 在接触动力学中，"粘滞-滑动"(Stick-Slip) 状态的剧烈切换是导致数值不稳定的主因。以下技术可显著改善收敛性：
+> - **Warm Starting**: 使用上一帧的接触力作为初始猜测，加速收敛
+> - **Baumgarte Stabilization**: 将位置层面的约束违反映射为补偿性的加速度修正
+> - **摩擦锥投影**: 迭代过程中切向脉冲对摩擦锥约束的实时投影——根据法向力的大小对切向分量进行动态限幅
+
 Python
 
 ```
@@ -503,11 +534,126 @@ $$\tau = J^T F_{motion} + (I - J^T J^{\#}) \tau_{internal}$$
 
 ------
 
-## 7. Future Outlook: Differentiable Physics (可微物理)
+## 7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)
+
+> [!note] 教科书参考
+> 本节内容源自 **Khatib 1987** 经典论文 "A Unified Approach for Motion and Force Control of Robot Manipulators" 以及 **Murray, Li & Sastry** Chapter 4。操作空间动力学是灵巧操作任务空间控制的数学基础。
+
+### 7.1 动机：为什么需要操作空间？
+
+传统关节空间控制问题：
+- 任务通常定义在**笛卡尔空间**（末端执行器位置/姿态），而非关节空间
+- 关节空间动力学耦合复杂，难以直观设计任务相关的控制律
+- 冗余机械臂有无穷多逆运动学解，需要统一框架处理零空间
+
+**操作空间动力学的核心思想**：将整个机器人系统"投影"到任务空间，在任务空间直接设计控制律，再映射回关节力矩。
+
+### 7.2 操作空间质量矩阵 (Operational Space Mass Matrix)
+
+设关节空间动力学方程为：
+$$M(q) \ddot{q} + C(q, \dot{q}) \dot{q} + g(q) = \tau$$
+
+末端执行器位置 $x \in \mathbb{R}^m$ 与关节角度 $q \in \mathbb{R}^n$ 的关系：
+$$x = f(q), \quad \dot{x} = J(q) \dot{q}$$
+
+**操作空间动力学方程**：
+$$\Lambda(x) \ddot{x} + \mu(x, \dot{x}) + p(x) = F$$
+
+其中：
+
+**操作空间质量矩阵**（Operational Space Inertia Matrix）：
+$$\Lambda(x) = (J M^{-1} J^T)^{-1}$$
+
+**操作空间科里奥利/离心力**：
+$$\mu(x, \dot{x}) = \Lambda(x) J M^{-1} C \dot{q} - \Lambda(x) \dot{J} \dot{q}$$
+
+**操作空间重力**：
+$$p(x) = \Lambda(x) J M^{-1} g(q) = J^{-T} g(q)$$
+
+### 7.3 关节力矩与操作空间力的映射
+
+任务空间力 $F$ 与关节力矩 $\tau$ 的关系：
+
+$$\tau = J^T F$$
+
+**逆动力学（操作空间控制）**：给定期望的操作空间加速度 $\ddot{x}_d$，计算所需的关节力矩：
+
+$$\tau = J^T \Lambda(x) \ddot{x}_d + J^T \mu(x, \dot{x}) + J^T p(x) + \tau_{null}$$
+
+其中 $\tau_{null}$ 是零空间力矩（用于冗余自由度的次级任务）。
+
+### 7.4 动力学一致性伪逆 (Dynamically Consistent Pseudo-Inverse)
+
+对于冗余机械臂（$n > m$），需要定义 **动力学一致性伪逆**：
+
+$$\bar{J} = M^{-1} J^T \Lambda$$
+
+**性质**：
+1. $J \bar{J} = I_m$（左逆）
+2. $\bar{J} J$ 是幂等矩阵（Idempotent）
+3. 零空间投影：$N = I - \bar{J} J$
+
+**关键洞察**：$\bar{J}$ 不同于 Moore-Penrose 伪逆 $J^+$。使用 $\bar{J}$ 能保证零空间力矩**不影响操作空间运动**，这就是"动力学一致性"的含义。
+
+$$\bar{J}^T (I - \bar{J} J)^T \tau_{null} = 0$$
+
+### 7.5 零空间控制与冗余利用 (Null Space Control)
+
+完整的操作空间控制律：
+
+$$\tau = \underbrace{J^T F}_{\text{Primary Task}} + \underbrace{(I - J^T \bar{J}^T) \tau_0}_{\text{Secondary Task in Null Space}}$$
+
+**典型的次级任务**：
+- **关节限位回避**：$\tau_0 = -k \nabla U_{limit}(q)$
+- **奇异点规避**：$\tau_0 = k \nabla \det(J J^T)$
+- **抓取内力调节**：$\tau_0 = \tau_{squeeze}$
+- **能量最小化**：$\tau_0 = -k \dot{q}$
+
+### 7.6 灵巧操作中的操作空间：双手协调
+
+对于双臂/多指系统，操作空间框架自然扩展为**层级任务**：
+
+```
+Priority 1: 物体轨迹跟踪
+    ↓ Null Space
+Priority 2: 抓取力维持
+    ↓ Null Space  
+Priority 3: 关节限位回避
+```
+
+数学形式（Task Priority Framework）：
+$$\tau = J_1^T F_1 + (I - J_1^T \bar{J}_1^T)[J_2^T F_2 + (I - J_2^T \bar{J}_2^T) \tau_0]$$
+
+> [!tip] 工程洞察
+> 操作空间动力学是**阻抗控制 (Impedance Control)** 的理论基础。通过在操作空间定义期望的质量-阻尼-刚度特性，机器人可以实现柔顺的物理交互——这对灵巧操作至关重要。
+
+------
+
+## 8. Future Outlook: Differentiable Physics (可微物理)
 
 传统的物理引擎是不可微的（Non-differentiable），因为接触和摩擦引入了不连续性。然而，Sim-to-Real 的核心痛点在于 System Identification（系统辨识）。
 
 - **Analytical Gradients**: 新一代引擎（如 **Dojo**, **Brax**, **Nimble**）支持通过链式法则直接计算 $\frac{\partial \text{State}_{t+1}}{\partial \text{Param}}$。
 - **Application**: 这意味着我们可以通过梯度下降（Gradient Descent）来自动调整仿真中的摩擦系数、质量分布，使其产出的轨迹与真实机器人的轨迹相匹配。这比传统的 Domain Randomization（随机化）更加高效和精准。
 
-**结论**: 灵巧操作的动力学不再是简单的 $F=ma$。它是一门关于如何在计算资源受限、接触状态高度不确定、系统拓扑动态变化的条件下，寻找最优控制策略的艺术。掌握 RNEA/ABA 是入门，理解 Contact Solver 是进阶，而能够驾驭 Differentiable Physics 则是通向未来的钥匙。
+> [!tip] 关节级神经动力学分解（来自 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]）
+> 可微物理的一个替代方案是**数据驱动的关节级动力学**：
+> 
+> **核心思想**：不建模整个手-物体系统，而是为每个关节学习独立的"净效应"动力学：
+> $$\hat{q}_{t+1}^{(j)} = f_\theta^{(j)}(q_t^{(j)}, \dot{q}_t^{(j)}, a_t^{(j)})$$
+> 
+> 其中 $f_\theta^{(j)}$ 是第 $j$ 个关节的神经网络模型，它隐式地吸收了：
+> - 关节间耦合
+> - 手指-物体接触力
+> - 未建模的摩擦/间隙
+> 
+> **优势**：
+> 1. **数据效率**：每个 $f_\theta^{(j)}$ 是低维函数（3→1），比全系统模型容易学习
+> 2. **泛化性**：对不同物体、不同腕部姿态具有零样本迁移能力
+> 3. **自主数据采集**：只需关节编码器，无需物体追踪系统
+> 
+> **与残差策略的结合**：
+> $$\pi_{real}(s) = \pi_{sim}(s) + \Delta\pi(s)$$
+> 仿真策略 $\pi_{sim}$ 提供基线，残差 $\Delta\pi$ 补偿动力学误差。
+
+**结论**: 灵巧操作的动力学不再是简单的 $F=ma$。它是一门关于如何在计算资源受限、接触状态高度不确定、系统拓扑动态变化的条件下，寻找最优控制策略的艺术。掌握 RNEA/ABA 是入门，理解 Contact Solver 是进阶，而能够驾驭 Differentiable Physics 或 Neural Dynamics 则是通向未来的钥匙。

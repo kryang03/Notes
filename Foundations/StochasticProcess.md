@@ -1,4 +1,35 @@
+---
+tags:
+  - foundation
+  - stochastic-process
+  - uncertainty
+  - belief-space
+aliases:
+  - 随机过程
+  - SDE
+  - 维纳过程
+  - MPPI
+  - 高斯过程
+created: 2026-01-31
+related:
+  - "[[ControlTheory]]"
+  - "[[ReinforcementLearning]]"
+  - "[[Optimization]]"
+  - "[[SignalProcessing]]"
+  - "[[InformationTheory]]"
+  - "[[Dynamics]]"
+---
+
 # 灵巧操作中的随机过程：不确定性下的物理直觉、算法演进与系统构建
+
+> [!tip] 相关领域
+> - [[ControlTheory]] - 鲁棒控制与随机最优控制
+> - [[ReinforcementLearning]] - 扩散策略的数学基础 (参见 [[ReinforcementLearning#2.2 深度解析：扩散策略]])
+> - [[Optimization]] - MPPI 等路径积分方法
+> - [[SignalProcessing]] - 卡尔曼滤波与状态估计
+> - [[InformationTheory]] - 信念空间规划中的信息度量
+> - [[Dynamics]] - GP 残差学习补偿刚体动力学模型误差
+> **核心概念**: SDE → Itō Calculus → 马尔可夫性 → 信念空间
 
 ## 1. 引言：从确定性的幻象到随机性的本质
 
@@ -602,6 +633,49 @@ void mppi_update_host(float* U, float* E, float* costs) {
 - **Defensive Sampling**：在实际操作中，如果某些轨迹导致了极端的物理违背（如手指穿透物体，或者关节速度爆炸），该轨迹的 Cost 应设为无穷大，使其权重归零，防止这些危险动作污染控制序列。
 - **Noise Scheduling**：不仅是控制噪声，我们有时也在初始状态 $x_0$ 叠加感知噪声，以提高控制器对状态估计误差的鲁棒性。这被称为 **Robust MPPI** 或 **Tube-MPPI** 。
 
+---
+
+> [!important] 🔬 自回归探索噪声 (Autoregressive Exploration Noise)
+> 
+> **来源**：[[Autoregressive Policies for Robust Manipulation with Continuous Actions|ARP (arXiv 2024)]] — 时间一致探索理论
+> 
+> **问题**：传统 RL 在每个时间步独立采样动作噪声 $\epsilon_t \sim \mathcal{N}(0, \Sigma)$（白噪声）。这导致：
+> - 高频抖动（物理不合理）
+> - 探索缺乏时间连贯性（系统无法"深入"某个状态区域）
+> 
+> **核心洞察**：用 **AR-p 过程** 替代白噪声：
+> $$\epsilon_t = \sum_{i=1}^{p} \phi_i \epsilon_{t-i} + \eta_t, \quad \eta_t \sim \mathcal{N}(0, \sigma^2_\eta)$$
+> 
+> **数学性质**：
+> - **边缘分布不变**：每个 $\epsilon_t$ 仍服从原始高斯分布（策略的"平均行为"不变）
+> - **时间相关**：$\text{Cov}(\epsilon_t, \epsilon_{t-k}) = \sum_{i=1}^{p} \phi_i \text{Cov}(\epsilon_{t-i}, \epsilon_{t-k})$（平滑探索）
+> 
+> **与 MPPI 的关联**：
+> MPPI 中的采样轨迹也可以使用 AR 噪声替代白噪声，生成更符合物理直觉的探索路径。这在处理接触任务时尤为重要——突然的力变化可能破坏接触状态。
+> 
+> **参见**：[[ReinforcementLearning#时间一致探索]] 中的完整讨论
+
+---
+
+> [!important] 🔬 连续时间熵正则化最优控制 (Continuous-Time Entropy-Regularized Optimal Control)
+> 
+> **来源**：[[Exploration vs Exploitation: A Stochastic Control Approach|Exploration vs Exploitation (NeurIPS 2024)]] — 最优探索理论
+> 
+> **理论框架**：
+> 将 RL 的探索-利用权衡建模为连续时间随机最优控制问题。引入熵正则化后，HJB 方程变为：
+> 
+> $$\partial_t V + \sup_u \left[ f^T \nabla V + \frac{1}{2} \text{Tr}(G G^T \nabla^2 V) - \frac{\tau}{2} \|u\|^2 + \frac{\beta}{2} \log|\Sigma_u| \right] = 0$$
+> 
+> 其中 $\beta$ 是探索系数，$\Sigma_u$ 是策略协方差。
+> 
+> **关键洞察**：
+> 1. **探索项来源**：$\frac{\beta}{2} \log|\Sigma_u|$ 惩罚低熵（确定性）策略
+> 2. **与 Itō 项的交互**：$\frac{1}{2} \text{Tr}(G G^T \nabla^2 V)$ 揭示噪声如何影响 value function 的演化
+> 3. **最优探索策略**：当 Value 函数曲率 $\nabla^2 V$ 很大时，增加探索有利于发现更优解
+> 
+> **与 MPPI 的联系**：
+> MPPI 的 temperature $\lambda$ 在连续极限下正是熵正则化系数 $\beta$。这揭示了 MPPI 并非经验主义算法，而是熵正则化随机控制的蒙特卡洛近似。
+
 ------
 
 ## 7. 高级主题：信念空间规划 (Belief Space Planning)
@@ -659,9 +733,33 @@ $$0 \le \lambda \perp \phi(q) \ge 0$$
 1. **梯度消失或爆炸**：对于基于梯度的优化算法，这种硬开关也是灾难性的。
 2. **仿真抖动**：在数值求解时，系统容易在“接触”和“分离”之间高频震荡（Zeno Phenomenon）。
 
-### 8.2 Stochastic LCP 与软接触 (Soft Contact)
+### 8.2 Stochastic Complementarity Problem (SCP) 的严格定义
 
-为了解决这个问题，并更好地模拟真实世界的微观粗糙度，我们引入 **Stochastic LCP** 或 **Soft Contact** 模型。
+**随机互补问题 (SCP)** 是确定性 LCP 在不确定环境下的推广。当接触参数（如摩擦系数 $\mu$、接触刚度 $k$）本身是随机变量时，我们面临的不再是找到一个解，而是找到一个使期望性能最优的策略。
+
+> [!note] 数学形式化
+> 设 $\omega \in \Omega$ 为随机参数，接触动力学方程变为：
+> 
+> $$M(\omega) \dot{v} = f_{ext} + J_n^T(\omega) \lambda_n + J_t^T(\omega) \lambda_t$$
+> 
+> $$0 \le \lambda_n \perp \phi(q; \omega) \ge 0$$
+> 
+> $$\lambda_t \in \text{Friction Cone}(\mu(\omega), \lambda_n)$$
+> 
+> SCP 的核心难点在于：互补约束 $\perp$ 的满足依赖于 $\omega$ 的实现，而我们在决策时并不知道 $\omega$ 的确切值。
+
+**物理意义**：考虑一个灵巧手抓取未知物体。摩擦系数 $\mu$ 是未知的随机变量（可能是玻璃 $\mu \approx 0.1$ 或橡胶 $\mu \approx 0.8$）。控制器必须选择一个抓取力 $\lambda_n$，使得：
+
+- 在 $\mu$ 偏低时不会滑落（$\lambda_n$ 足够大）
+- 在 $\mu$ 偏高时不会损坏物体（$\lambda_n$ 不能过大）
+
+这正是 **Risk-Sensitive Grasping** 的数学本质。
+
+### 8.3 解决 SCP 的两条技术路线
+
+#### 8.3.1 平滑化路线：Soft Contact 与 Differentiable Physics
+
+为了解决这个问题，并更好地模拟真实世界的微观粗糙度，我们引入 **Soft Contact** 模型。
 
 我们假设距离测量存在噪声，或者接触面是弹性的。互补条件被平滑函数替代，例如 Log-Barrier 或 SoftPlus：
 
@@ -669,7 +767,17 @@ $$\lambda \approx \frac{1}{\epsilon} \ln(1 + \exp(-\epsilon \phi(q)))$$
 
 这不仅使物理动力学变得处处可微（Differentiable Physics），而且更符合微观物理事实。
 
-- **Sim-to-Real Insight**：使用 Stochastic LCP 训练的策略往往具有更好的 Sim-to-Real 迁移能力。因为真实世界中的接触（由于手指的软肉、传感器的噪声）本身就是“软”的。在仿真中引入这种随机平滑，实际上是在训练过程中注入了物理先验，防止策略过拟合到理想的刚体模型上。
+- **Sim-to-Real Insight**：使用 Stochastic LCP 训练的策略往往具有更好的 Sim-to-Real 迁移能力。因为真实世界中的接触（由于手指的软肉、传感器的噪声）本身就是"软"的。在仿真中引入这种随机平滑，实际上是在训练过程中注入了物理先验，防止策略过拟合到理想的刚体模型上。
+
+#### 8.3.2 采样路线：Robust MPPI
+
+另一条路线是保持 LCP 的精确性，但通过大规模采样来覆盖参数不确定性：
+
+1. 在每条 MPPI 轨迹开始时，从先验分布 $p(\mu)$ 采样一个摩擦系数
+2. 用该摩擦系数求解该轨迹上所有接触的 LCP
+3. 计算轨迹代价，并按指数权重聚合
+
+这种方法被称为 **Robust MPPI**，它在物理精度和鲁棒性之间取得了平衡。详见 [[StochasticProcess#6. MPPI]] 中关于 Temperature $\lambda$ 调节风险敏感度的讨论。
 
 ------
 

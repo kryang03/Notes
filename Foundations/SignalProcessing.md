@@ -1,4 +1,31 @@
+---
+tags:
+  - foundation
+  - signal-processing
+  - tactile-sensing
+  - state-estimation
+aliases:
+  - 信号处理
+  - 触觉感知
+  - GelSight
+  - 卡尔曼滤波
+created: 2026-01-31
+related:
+  - "[[ControlTheory]]"
+  - "[[StochasticProcess]]"
+  - "[[RepresentationLearning]]"
+  - "[[ContactMechanics]]"
+---
+
 # 触觉信号处理与状态估计：机器人灵巧操作中的感知基石
+
+> [!tip] 相关领域
+> - [[ControlTheory]] - 触觉反馈闭环控制
+> - [[StochasticProcess]] - 卡尔曼滤波与粒子滤波的理论基础
+> - [[RepresentationLearning]] - 触觉表征学习与多模态融合
+> - [[ContactMechanics]] - 接触力学模型与触觉信号的物理来源
+>
+> **相关项目**: [[Dynamic Non-Prehensile Manipulation]] - 动态操作中的触觉感知
 
 ## 1. 绪论：灵巧操作中的信号处理危机与范式转移
 

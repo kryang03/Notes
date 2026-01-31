@@ -1,0 +1,395 @@
+---
+tags:
+  - paper
+  - variable-impedance
+  - reinforcement-learning
+  - action-space
+  - contact-manipulation
+aliases:
+  - VICES
+  - Variable Impedance Control in End-Effector Space
+paper-year: 2019
+read-date: 2026-01-31
+related:
+  - "[[ControlTheory]]"
+  - "[[ReinforcementLearning]]"
+  - "[[ContactMechanics]]"
+  - "[[Dynamics]]"
+---
+
+# Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks
+
+> [!abstract] 核心概要
+> 提出 **VICES (Variable Impedance Control in End-Effector Space)** 作为接触密集型任务 RL 的动作空间。动作 = 末端执行器位移 + 可变阻抗增益，实现**样本效率高、能耗低、跨机器人迁移**的策略学习。
+
+> [!tip] 与理论基础的关联
+> - [[ControlTheory#3.2 阻抗控制]] - 阻抗控制的理论基础
+> - [[ReinforcementLearning#2.2 动作空间设计]] - 动作空间对学习的影响
+> - [[ContactMechanics#2.3 接触力控制]] - 接触任务中的力控制需求
+> - [[Dynamics#7.2 操作空间动力学]] - 末端空间的动力学补偿
+>
+> **核心技术**: Impedance Control, Action Space Design, Sim-to-Real Transfer
+
+---
+
+## 1. 核心直觉与宏观定位 (The Big Picture)
+
+### 一句话核心
+**动作空间的选择 = 闭环控制的空间 → 选对动作空间，接触任务学习事半功倍**
+
+### 直观隐喻
+想象你在学习擦玻璃：
+- **关节力矩动作空间**：你需要直接控制每块肌肉的力量（太难！）
+- **关节位置动作空间**：你只能控制胳膊的角度，无法感知玻璃的存在
+- **VICES 动作空间**：你控制"手想去哪里"+"遇到阻力时多软/硬"
+
+第三种方式最自然——你决定方向和柔顺度，底层控制器处理肌肉细节。
+
+### 领域定位
+```
+RL Action Space Evolution
+        ↓
+Joint Torque (raw, difficult)
+        ↓
+Joint Position/Velocity (easier, limited)
+        ↓
+End-Effector Position (task-relevant)
+        ↓
+████████████████████████████████████████
+█  VICES (2019)                        █
+█  • 末端空间位移 + 可变阻抗增益        █
+█  • 接触任务的自然表达                 █
+█  • 跨机器人迁移能力                   █
+████████████████████████████████████████
+        ↓
+未来: 触觉引导的阻抗调节
+```
+
+---
+
+## 2. 核心创新与贡献 (Contributions & Novelty)
+
+### 问题定义
+
+**控制系统分层**：
+$$u = f \circ g(o)$$
+
+- $g(o): O \to A$ — 外环：观测 → 参考信号（**策略学习的对象**）
+- $f(a): A \to U$ — 内环：参考信号 → 执行器指令（**底层控制器**）
+
+**核心问题**：什么样的 $A$（动作空间）最适合接触密集型任务的 RL？
+
+### Delta 分析
+
+| 动作空间 | 样本效率 | 能量效率 | 安全性 | 迁移性 |
+|---------|---------|---------|-------|-------|
+| 关节力矩 | 低 | 低 | 差 | 差 |
+| 关节位置 | 中 | 中 | 中 | 差 |
+| 关节可变阻抗 | 中 | 高 | 好 | 中 |
+| 末端位置 | 高 | 中 | 中 | 好 |
+| **VICES** | **高** | **高** | **好** | **好** |
+
+### 关键贡献
+
+1. **C1**: 首次系统比较 RL 中不同动作空间对接触任务的影响
+2. **C2**: 提出 VICES——末端空间可变阻抗动作空间
+3. **C3**: 证明 VICES 实现 sim-to-real 和跨机器人迁移
+
+---
+
+## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.1 阻抗控制回顾
+
+**目标**：让机器人末端表现得像弹簧-阻尼系统
+
+$$F = K(x_{des} - x) + D(\dot{x}_{des} - \dot{x})$$
+
+其中：
+- $K$: 刚度矩阵（6×6，位置+姿态）
+- $D$: 阻尼矩阵
+- $x_{des}$: 期望位姿
+- $F$: 施加在环境上的力
+
+### 3.2 VICES 动作定义
+
+**动作空间**：
+$$a = (\Delta x, K_{diag})$$
+
+- $\Delta x \in \mathbb{R}^6$: 末端位姿增量（位置 + 旋转）
+- $K_{diag} \in \mathbb{R}^6$: 对角刚度增益
+
+**为什么只用对角？** 
+- 简化动作空间维度
+- 实践中足够表达大多数任务约束
+- 非对角项可通过任务坐标系对齐处理
+
+### 3.3 底层控制器
+
+**操作空间动力学**（Khatib, 1987）：
+$$\tau = J^T \Lambda (K \Delta x + D \dot{e}) + \mu(q, \dot{q}) + p(q)$$
+
+其中：
+- $J$: 雅可比矩阵
+- $\Lambda = (J M^{-1} J^T)^{-1}$: 操作空间惯性矩阵
+- $\mu$: 科里奥利/离心力补偿
+- $p$: 重力补偿
+
+> [!important] 动态一致性
+> 这个公式保证末端空间的动力学**独立于**关节空间冗余度，使策略可以迁移到不同机器人。
+
+### 3.4 为什么 VICES 适合接触任务？
+
+**场景分析**：
+
+1. **自由空间运动**（Path Following）
+   - 需要：精确位置跟踪
+   - VICES：高刚度 + 轨迹增量
+
+2. **运动学约束**（Door Opening）
+   - 需要：沿约束方向顺从
+   - VICES：约束方向低刚度，其他方向高刚度
+
+3. **持续接触**（Surface Wiping）
+   - 需要：法向力控制 + 切向运动
+   - VICES：法向低刚度（顺从）+ 切向高刚度（运动）
+
+```
+┌─────────────────────────────────────────┐
+│  Surface Wiping 任务                    │
+├─────────────────────────────────────────┤
+│                                         │
+│     ↑ 法向 (z)                          │
+│     │  K_z = 低 (顺从接触)              │
+│     │                                   │
+│     ├───→ 切向 (x,y)                    │
+│        K_xy = 高 (精确运动)             │
+│                                         │
+│  策略学习：                              │
+│  - Δx, Δy: 擦拭轨迹                     │
+│  - K_z: 根据接触力调节                  │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 4. 实验与验证 (Experiments)
+
+### 4.1 实验设置
+
+**任务**：
+1. **Path Following**：无接触轨迹跟踪
+2. **Door Opening**：有运动学约束
+3. **Surface Wiping**：持续接触
+
+**比较的动作空间**：
+- Joint Torque (JT)
+- Joint Position (JP)
+- Joint Velocity (JV)
+- Joint Variable Impedance (JVI)
+- End-Effector Position (EEP)
+- **VICES** (proposed)
+
+**RL 算法**：SAC (Soft Actor-Critic)
+
+### 4.2 主要结果
+
+| 任务 | JT | JP | JVI | EEP | **VICES** |
+|-----|----|----|-----|-----|----------|
+| Path Following | 低 | 中 | 中 | 高 | **高** |
+| Door Opening | 低 | 低 | 中 | 中 | **高** |
+| Surface Wiping | 低 | 低 | 中 | 中 | **高** |
+
+### 4.3 关键发现
+
+1. **样本效率**：VICES 在所有任务上收敛最快
+2. **能量效率**：VICES 消耗能量最低（可变阻抗避免过度刚性）
+3. **安全性**：VICES 接触力最小（顺从控制）
+4. **迁移性**：VICES 策略可直接迁移到不同机器人
+
+### 4.4 Sim-to-Real 迁移
+
+**结果**：
+- VICES 策略从仿真直接部署到真实 Sawyer 机器人
+- 无需额外训练或微调
+- 成功完成 door opening 和 surface wiping
+
+**原因**：
+- 操作空间动力学补偿了机器人差异
+- 可变阻抗提供了对不确定性的鲁棒性
+
+---
+
+## 5. 批判性分析 (Critical Analysis)
+
+### 优势
+- **样本效率**：任务相关的动作空间简化探索
+- **能量效率**：可变阻抗避免不必要的刚性
+- **安全性**：接触力自然受限
+- **迁移性**：动力学补偿使策略跨机器人通用
+
+### 局限性
+- **仅对角刚度**：无法表达复杂耦合（如斜向力场）
+- **底层控制器依赖**：需要准确的动力学模型
+- **姿态表示**：使用欧拉角或轴角，可能有奇异性
+- **单臂操作**：未验证双臂或灵巧手
+
+### 与其他方法的对比
+
+| 特性 | VICES | Residual LfD | 纯阻抗控制 |
+|-----|-------|-------------|----------|
+| 学习目标 | 轨迹+刚度 | 轨迹修正 | 无（手动调） |
+| 先验知识 | 无需演示 | 需要演示 | 需要任务知识 |
+| 适应性 | 策略适应 | 残差适应 | 固定刚度 |
+
+---
+
+## 6. 对灵巧操作的启发 (Implications)
+
+### 扩展到灵巧手
+
+```
+单臂 VICES:
+  动作 = (末端位移, 末端刚度)
+  维度 = 6 + 6 = 12
+
+灵巧手 VICES:
+  动作 = (指尖位移, 指尖刚度) × 5 fingers
+  维度 = (6 + 6) × 5 = 60
+  
+  或者：
+  动作 = (关节位移, 关节刚度)
+  维度 = 24 + 24 = 48 (for typical hand)
+  
+挑战：
+  - 高维动作空间
+  - 手指间协调
+  - 腱驱动的刚度映射
+```
+
+### 与其他论文的联系
+
+- **DexNDM**：VICES 的刚度调节可结合 DexNDM 的关节级动力学
+- **DexTrack**：跟踪控制器可使用 VICES 动作空间
+- **Residual LfD**：残差可以是刚度调节，而非仅位置修正
+
+---
+
+## 7. 演进脉络定位 (Evolution Context)
+
+```
+Robot Control Paradigms
+        ↓
+Position Control (PD)
+        ↓
+Force Control (explicit force tracking)
+        ↓
+Hybrid Position/Force Control (Raibert-Craig)
+        ↓
+Impedance Control (Hogan, 1985)
+├── Fixed impedance
+└── Scheduled impedance (time-varying)
+        ↓
+████████████████████████████████████████
+█  VICES (2019)                        █
+█  • RL 学习可变阻抗                    █
+█  • 末端空间动作                       █
+█  • 自动适应任务约束                   █
+████████████████████████████████████████
+        ↓
+未来: 触觉引导 + 学习的阻抗调节
+```
+
+---
+
+## 8. 核心代码逻辑
+
+```python
+class VICESController:
+    """变阻抗末端空间控制器"""
+    
+    def __init__(self, robot_model):
+        self.robot = robot_model
+        self.D = compute_critical_damping()  # 临界阻尼
+        
+    def compute_torque(self, x_current, x_desired, K, dx_current):
+        """计算关节力矩"""
+        # 1. 位置误差
+        e = x_desired - x_current
+        de = -dx_current  # 假设期望速度为 0
+        
+        # 2. 操作空间力
+        F = K @ e + self.D @ de
+        
+        # 3. 雅可比转换
+        J = self.robot.jacobian()
+        
+        # 4. 动力学补偿
+        M = self.robot.mass_matrix()
+        Lambda = np.linalg.inv(J @ np.linalg.inv(M) @ J.T)
+        mu = self.robot.coriolis()
+        p = self.robot.gravity()
+        
+        # 5. 关节力矩
+        tau = J.T @ Lambda @ F + mu + p
+        
+        return tau
+
+
+class VICESPolicy(nn.Module):
+    """VICES 动作空间的策略网络"""
+    
+    def __init__(self, obs_dim):
+        super().__init__()
+        self.backbone = MLP(obs_dim, 256)
+        self.delta_x_head = nn.Linear(256, 6)  # 位姿增量
+        self.stiffness_head = nn.Linear(256, 6)  # 刚度增益
+        
+    def forward(self, obs):
+        features = self.backbone(obs)
+        
+        # 位姿增量 (bounded)
+        delta_x = torch.tanh(self.delta_x_head(features)) * MAX_DELTA
+        
+        # 刚度增益 (positive, bounded)
+        K_diag = torch.sigmoid(self.stiffness_head(features)) * (K_MAX - K_MIN) + K_MIN
+        
+        return delta_x, K_diag
+
+
+# RL 训练循环
+def train_vices_policy(env, policy):
+    for episode in range(n_episodes):
+        obs = env.reset()
+        x_desired = env.get_ee_pose()
+        
+        while not done:
+            # 策略输出
+            delta_x, K_diag = policy(obs)
+            
+            # 更新期望位姿
+            x_desired = x_desired + delta_x
+            K = torch.diag(K_diag)
+            
+            # 底层控制器
+            tau = vices_controller.compute_torque(
+                env.get_ee_pose(),
+                x_desired,
+                K,
+                env.get_ee_velocity()
+            )
+            
+            # 执行
+            obs, reward, done = env.step(tau)
+```
+
+---
+
+## 9. 与 Foundation 的链接更新
+
+### 需要添加到 ControlTheory.md
+在"阻抗控制"部分添加"学习可变阻抗"作为自适应阻抗调节的新范式。
+
+### 需要添加到 ReinforcementLearning.md
+在"动作空间设计"部分添加"任务空间动作"作为接触任务的推荐实践。

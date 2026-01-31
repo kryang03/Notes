@@ -1,4 +1,34 @@
+---
+tags:
+  - foundation
+  - representation-learning
+  - imitation-learning
+  - diffusion-policy
+aliases:
+  - 表征学习
+  - 扩散策略
+  - 模仿学习
+  - ACT
+  - 行为克隆
+created: 2026-01-31
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[Dynamics]]"
+  - "[[SignalProcessing]]"
+  - "[[InformationTheory]]"
+  - "[[Optimization]]"
+---
+
 # 灵巧操作中的物理具身与计算表征：从接触动力学到多模态策略 (Physical Embodiment and Computational Representation in Dexterous Manipulation: From Contact Dynamics to Multimodal Policies)
+
+> [!tip] 相关领域
+> - [[ReinforcementLearning]] - 策略学习的强化学习视角
+> - [[Dynamics]] - 微分物理与可微仿真
+> - [[SignalProcessing]] - 触觉表征与多模态融合
+> - [[InformationTheory]] - 信息瓶颈与表征压缩
+> - [[Optimization]] - 轨迹优化与策略梯度
+>
+> **技术演进**: BC → MDN → IBC → Diffusion Policy / ACT
 
 ## 1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)
 
@@ -393,7 +423,132 @@ def compute_jacobian_loss(policy_net, states, lambda_reg=0.01):
 
 ------
 
-## 4. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)
+## 4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)
+
+> [!note] 教科书参考
+> 本节基于 **Qi et al. (2017) PointNet/PointNet++** 系列的奠基性工作，以及 **Guo et al. (2021) Deep Learning on 3D Point Clouds: A Survey** 的综述框架。
+
+在灵巧操作中，RGB-D 相机和激光雷达产生的**3D 点云**是核心输入模态。与结构化的图像不同，点云具有**无序性（Unordered）**和**几何不变性需求**，这催生了专门的神经网络架构。
+
+### 4.1 核心数学问题：集合函数的设计 (Set Functions: The Mathematical Foundation)
+
+#### 4.1.1 置换不变性 (Permutation Invariance)
+
+点云是一个**无序集合** $\mathcal{P} = \{p_1, p_2, ..., p_N\} \subset \mathbb{R}^3$。对于任意排列 $\pi$，我们需要：
+
+$$f(\{p_1, ..., p_N\}) = f(\{p_{\pi(1)}, ..., p_{\pi(N)}\})$$
+
+**问题**：标准 MLP 或 CNN 假设输入有固定顺序，无法直接处理集合。
+
+**解决方案（Zaheer et al., Deep Sets 定理）**：任何置换不变函数可以分解为：
+
+$$f(\mathcal{P}) = \rho\left(\sum_{p \in \mathcal{P}} \phi(p)\right)$$
+
+其中 $\phi: \mathbb{R}^3 \to \mathbb{R}^d$ 是逐点特征提取器，$\rho: \mathbb{R}^d \to \mathbb{R}^k$ 是聚合后的处理函数，$\sum$ 是对称聚合操作（可替换为 max, mean 等）。
+
+#### 4.1.2 PointNet：最简实现
+
+PointNet 直接应用 Deep Sets 定理：
+
+$$\text{PointNet}(\mathcal{P}) = \gamma\left(\max_{p \in \mathcal{P}} h(p)\right)$$
+
+- $h(p)$：共享权重的 MLP，将 $\mathbb{R}^3 \to \mathbb{R}^{1024}$
+- $\max$：逐通道取最大值（对称聚合）
+- $\gamma$：分类/分割头
+
+> [!tip] 物理直觉
+> PointNet 可以理解为学习一组"探测函数"。每个 $h_i(p)$ 检测点云中是否存在某种几何特征（如角点、平面）。$\max$ 操作相当于问"这种特征在点云中**是否存在**"，而不关心存在多少个。
+
+**局限性**：PointNet 缺乏对**局部几何结构**的建模。每个点独立处理，无法捕获邻域信息。
+
+### 4.2 PointNet++：层级局部特征学习 (Hierarchical Local Feature Learning)
+
+PointNet++ 引入**层级抽象**，模仿 CNN 的局部感受野：
+
+```
+输入点云 (N, 3) 
+    ↓ FPS (Farthest Point Sampling)
+采样中心点 (N', 3)   N' << N
+    ↓ Ball Query (Radius r)
+构建局部邻域 (N', K, 3)
+    ↓ PointNet (逐邻域)
+局部特征 (N', d)
+    ↓ 递归重复
+全局特征 (1, D)
+```
+
+**关键组件**：
+
+1. **Farthest Point Sampling (FPS)**：选择覆盖性最好的采样点，保证几何均匀性
+2. **Ball Query**：在半径 $r$ 内搜索 $K$ 个邻居，构建局部邻域
+3. **Mini-PointNet**：对每个局部邻域应用 PointNet，提取局部特征
+
+**数学形式**：
+$$f_i^{(l+1)} = \text{PointNet}\left(\{p_j - p_i : p_j \in \mathcal{N}(p_i, r^{(l)})\}\right)$$
+
+其中使用**相对坐标** $(p_j - p_i)$ 保证平移不变性。
+
+### 4.3 几何不变性的编码 (Encoding Geometric Invariance)
+
+#### 4.3.1 SE(3) 等变网络 (SE(3)-Equivariant Networks)
+
+在灵巧操作中，物体的旋转和平移不应改变抓取策略的本质。需要设计 **SE(3)-等变** 或 **SE(3)-不变** 的网络。
+
+**等变性定义**：对于变换 $T \in SE(3)$，
+$$f(T \cdot \mathcal{P}) = T \cdot f(\mathcal{P}) \quad \text{(Equivariant)}$$
+$$f(T \cdot \mathcal{P}) = f(\mathcal{P}) \quad \text{(Invariant)}$$
+
+**Vector Neurons (VN-PointNet)**：将标量特征替换为 3D 向量特征，使用旋转等变的线性层：
+$$\mathbf{v}_{out} = W \mathbf{v}_{in}$$
+其中 $W$ 作用在向量集合上，保持旋转等变性。
+
+#### 4.3.2 T-Net：学习规范化变换
+
+PointNet 的 **T-Net** 是一种数据驱动的对齐方法：
+
+$$\mathcal{P}' = \mathcal{P} \cdot T_{pred}$$
+
+其中 $T_{pred} \in \mathbb{R}^{3 \times 3}$ 由一个小型 PointNet 预测，并通过正则化损失约束接近正交矩阵：
+$$L_{reg} = \|I - T T^T\|_F^2$$
+
+### 4.4 Point Transformer：注意力机制在点云上的应用 (Attention on Point Clouds)
+
+受 Vision Transformer 启发，**Point Transformer** 将自注意力引入点云处理：
+
+**局部自注意力**：
+$$y_i = \sum_{j \in \mathcal{N}(i)} \text{softmax}_j\left(\frac{(\phi(x_i) - \psi(x_j)) \cdot \alpha(p_i - p_j)}{\sqrt{d}}\right) \odot (\gamma(x_j) + \delta(p_i - p_j))$$
+
+其中：
+- $\phi, \psi, \gamma$：线性投影（Query, Key, Value）
+- $\alpha, \delta$：位置编码函数，编码相对几何位置
+- $\odot$：Hadamard 乘积
+
+**优势**：
+- 自适应的邻域权重（vs. PointNet++ 的固定聚合）
+- 更强的表达能力，适合复杂几何
+
+### 4.5 灵巧操作中的点云处理管线 (Point Cloud Pipeline for Dexterous Manipulation)
+
+```
+RGB-D → 点云分割 → 物体点云 → PointNet++/Transformer → 物体几何特征
+                                     ↓
+                            融合 Hand Proprioception
+                                     ↓
+                              策略网络 (Policy)
+```
+
+**关键实践经验**：
+
+| 阶段 | 技术选择 | 原因 |
+|-----|---------|-----|
+| **点云降采样** | FPS + Voxel Grid | 平衡覆盖性和计算效率 |
+| **特征提取** | PointNet++ 或 Point Transformer | 层级局部特征对抓取姿态估计至关重要 |
+| **坐标系** | 物体中心坐标系 | 保证平移不变性 |
+| **数据增强** | 随机旋转 + 抖动 | 提升 SO(3) 鲁棒性 |
+
+------
+
+## 5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)
 
 在灵巧操作中，视觉（Vision）和触觉（Tactile）并非简单的冗余，而是具有**互补的物理尺度（Complementary Physical Scales）**。视觉擅长全局规划（Global Planning）和物体识别，但在接触发生时，由于**遮挡（Occlusion）\**和\**尺度限制**，视觉几乎完全失效。此时，触觉成为感知接触力学（摩擦、滑动、纹理）的唯一窗口。
 
@@ -443,11 +598,11 @@ $$Attention(Q_{tactile}, K_{vision}, V_{vision}) = softmax(\frac{Q K^T}{\sqrt{d_
 
 ------
 
-## 5. Tutorial Analysis: 批判性综合与未来方向 (Critical Synthesis and Future Directions)
+## 6. Tutorial Analysis: 批判性综合与未来方向 (Critical Synthesis and Future Directions)
 
 为了构建真正具备物理常识的知识库，我们不仅要记录成功，还要深入剖析当前的失败模式与局限性。
 
-### 5.1 Case Study: 长视界规划的因果断裂 (Causal Break in Long-Horizon Planning)
+### 6.1 Case Study: 长视界规划的因果断裂 (Causal Break in Long-Horizon Planning)
 
 **现象**：当前的端到端模型（如 RT-2, VoxPoser）在处理长序列任务（例如：“煮咖啡” = 拿杯子 $\to$ 放咖啡机 $\to$ 按按钮）时，经常出现“重复动作”（反复拿已经拿到的杯子）或“遗漏步骤” 。
 
@@ -462,7 +617,7 @@ $$Attention(Q_{tactile}, K_{vision}, V_{vision}) = softmax(\frac{Q K^T}{\sqrt{d_
 - PALM / Guardian ：引入显式的**进度跟踪（Progress Tracking）**模块。模型不仅预测动作，还要预测“当前子任务是否完成”。
 - **分层规划（Hierarchical Planning）**：结合大语言模型（LLM）的高层逻辑推理能力与底层策略（如 ACT/Diffusion）的物理执行能力。LLM 充当“大脑”进行因果推理和任务分解，ACT 充当“小脑”处理接触动力学 。
 
-### 5.2 Case Study: Sim-to-Real 的物理陷阱与域随机化的局限 (The Physics Trap of Sim-to-Real and Limits of Domain Randomization)
+### 6.2 Case Study: Sim-to-Real 的物理陷阱与域随机化的局限 (The Physics Trap of Sim-to-Real and Limits of Domain Randomization)
 
 **现象**：即使使用了大规模的域随机化（Domain Randomization, DR），策略在真机上仍可能失败，尤其是在摩擦力极其敏感的任务（如灵巧手转笔）中 。
 
@@ -472,7 +627,7 @@ $$Attention(Q_{tactile}, K_{vision}, V_{vision}) = softmax(\frac{Q K^T}{\sqrt{d_
 - **系统辨识与在线适应 (System ID & Online Adaptation)**：未来的方向不是无限扩大 DR 范围，而是赋予机器人**在线系统辨识**能力。
   - **RMA (Rapid Motor Adaptation)**：通过分析历史本体感知数据（Proprioception History），实时推断环境参数的隐变量（Latent Variable），并动态调整策略。这使得机器人能够在几秒钟内适应新的摩擦系数或物体质量，而无需重新训练。
 
-### 5.3 结论：从拟合到物理理解 (Conclusion: From Fitting to Physical Understanding)
+### 6.3 结论：从拟合到物理理解 (Conclusion: From Fitting to Physical Understanding)
 
 灵巧操作的机器学习正在经历一场深刻的变革。我们已经证明了大规模数据和生成式模型（Diffusion, Transformers）可以拟合极其复杂的动作分布。然而，**拟合不是理解**。
 

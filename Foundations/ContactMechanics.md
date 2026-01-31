@@ -1,4 +1,30 @@
+---
+tags:
+  - foundation
+  - contact-mechanics
+  - dexterous-manipulation
+  - friction
+  - LCP
+aliases:
+  - 接触力学
+  - Contact
+  - 摩擦锥
+  - Friction Cone
+created: 2026-01-31
+related:
+  - "[[Dynamics]]"
+  - "[[ControlTheory]]"
+  - "[[Optimization]]"
+  - "[[ComputationalGeometry]]"
+---
+
 # 机器人灵巧操作中的高级接触力学：从几何运动学到可微物理
+
+> [!tip] 相关领域
+> - [[Dynamics]] - 接触动力学与多体动力学的耦合
+> - [[ControlTheory]] - 力/位混合控制依赖接触模型
+> - [[Optimization]] - LCP/QP 求解器是接触仿真的核心
+> - [[ComputationalGeometry]] - SDF 用于碰撞检测
 
 ## 1. 执行摘要与引言
 
@@ -83,6 +109,131 @@ $$W_{object} = G V_{contact}$$
 
 其中 $W_{object}$ 是施加在物体上的旋量（Wrench）。重要的是，抓取矩阵 $G$ 的结构直接取决于所采用的**接触模型**（点接触、硬指、软指）。对于软指接触，$G$ 矩阵不仅包含力的传递块，还必须包含力矩传递块，这增加了系统的可控自由度，使得某些在点接触模型下不可控的操作（如原地旋转物体）成为可能 。
 
+### 2.4 抓取矩阵的严格数学定义 (Formal Definition of Grasp Matrix)
+
+> [!note] 教科书参考
+> 本节严格遵循 Murray, Li & Sastry 《A Mathematical Introduction to Robotic Manipulation》Chapter 5-6 的定义体系。
+
+设有 $k$ 个接触点 $\{p_1, ..., p_k\}$，每个接触点相对于物体质心的位置向量为 $r_i$，接触法向为 $n_i$。
+
+#### 2.4.1 单点接触旋量 (Single Contact Wrench)
+
+对于第 $i$ 个接触点，施加的力 $f_i \in \mathbb{R}^3$ 在物体质心产生的旋量为：
+
+$$w_i = \begin{bmatrix} f_i \\ r_i \times f_i \end{bmatrix} = \begin{bmatrix} I_{3 \times 3} \\ \hat{r}_i \end{bmatrix} f_i$$
+
+其中 $\hat{r}_i$ 是 $r_i$ 的反对称矩阵（叉乘矩阵）。
+
+#### 2.4.2 完整抓取矩阵 (Full Grasp Matrix)
+
+将所有接触点的贡献组合，抓取矩阵 $G \in \mathbb{R}^{6 \times 3k}$（对于点接触）定义为：
+
+$$G = \begin{bmatrix} I & I & \cdots & I \\ \hat{r}_1 & \hat{r}_2 & \cdots & \hat{r}_k \end{bmatrix}$$
+
+合成旋量为：
+$$w_{total} = G \cdot f = \sum_{i=1}^{k} w_i$$
+
+其中 $f = [f_1^T, f_2^T, ..., f_k^T]^T \in \mathbb{R}^{3k}$ 是所有接触力的堆叠向量。
+
+#### 2.4.3 Wrench Space 与抓取能力
+
+**物理意义**：$G$ 的列空间 $\text{Range}(G)$ 表示通过当前接触配置能够施加的所有可能旋量的集合。如果 $\text{rank}(G) = 6$，则理论上可以施加任意方向的力和力矩（完全约束）。
+
+**Null Space 的意义**：$G$ 的零空间 $\text{Null}(G)$ 对应于**内力 (Internal Forces)**——施加这些接触力不会改变物体的运动状态，但会影响抓取的稳定性（如挤压力）。
+
+$$f_{internal} \in \text{Null}(G) \Rightarrow G \cdot f_{internal} = 0$$
+
+### 2.5 力闭合与形闭合：抓取稳定性的数学条件 (Force & Form Closure)
+
+> [!important] 核心概念
+> **力闭合 (Force Closure)** 是灵巧抓取的核心数学条件：能够通过接触力抵抗任意方向的外扰动。
+
+#### 2.5.1 形闭合 (Form Closure)
+
+**定义**：物体在接触约束下**几何上完全固定**，即使没有摩擦也无法移动。
+
+数学条件：
+$$\text{rank}(G) = 6 \quad \text{且} \quad \text{Null}(G_{velocity}) = \{0\}$$
+
+**物理意义**：物体被接触点的几何形状"锁死"。例如，将一个正方体卡在 V 形槽中。
+
+**局限性**：纯形闭合在灵巧操作中很少使用，因为它依赖于精确的几何配合，缺乏灵活性。
+
+#### 2.5.2 力闭合 (Force Closure)
+
+**定义**：通过**摩擦约束内**的接触力，能够抵抗施加在物体上的**任意方向**的旋量。
+
+数学条件（几何解释）：旋量空间的原点必须位于**可达旋量锥 (Wrench Cone)** 的内部。
+
+$$0 \in \text{int}(\text{ConvexHull}(\mathcal{W}))$$
+
+其中 $\mathcal{W} = \{w : w = G f, f \in \mathcal{FC}\}$，$\mathcal{FC}$ 是所有接触点的摩擦锥约束。
+
+**等价条件 (Murray 定理 5.4)**：
+设 $W_i$ 为第 $i$ 个接触点的 primitive wrench（单位接触力产生的旋量），则力闭合当且仅当：
+$$\nexists \lambda \neq 0 : \lambda^T W_i \geq 0, \forall i \quad \text{(No common half-space)}$$
+
+> [!tip] 物理直觉
+> **力闭合就像"手指把物体团团围住"**：无论外力从哪个方向来，总有某些手指能够推回去。如果所有手指的力都只能指向某个半空间，那么反方向的扰动将无法抵抗。
+
+#### 2.5.3 力闭合的充分条件：最小接触点数
+
+> [!note] 教科书参考
+> 本节基于 Murray, Li & Sastry 《A Mathematical Introduction to Robotic Manipulation》Chapter 5, Section 3-4。
+
+**关键定理（凸分析）**：
+
+**Caratheodory 定理**：若向量集 $X = \{v_1, ..., v_k\}$ 正生成 (positively span) $\mathbb{R}^p$，则 $k \geq p + 1$。
+
+**Steinitz 定理**：若 $S \subset \mathbb{R}^p$ 且 $q \in \text{int}(\text{co}(S))$，则存在 $X = \{v_1, ..., v_k\} \subset S$ 使得 $q \in \text{int}(\text{co}(X))$ 且 $k \leq 2p$。
+
+**应用到抓取**：
+- **下界 (Caratheodory)**：力闭合抓取至少需要 $p + 1$ 个接触点
+- **上界 (Steinitz)**：对于非例外曲面，至多需要 $2p$ 个接触点即可实现力闭合
+
+| 接触模型 | 2D 最小接触点 | 3D 最小接触点 |
+|---------|--------------|--------------|
+| **无摩擦点接触** | 4 | 7 |
+| **有摩擦点接触** | 2 | 3 |
+| **软指接触** | 2 | 2 |
+
+**例外曲面 (Exceptional Surface)**：若物体表面 $\Sigma$ 的可达旋量集 $\Lambda(\Sigma)$ 的凸包不包含原点的邻域，则该物体**永远无法**用无摩擦点接触实现力闭合。典型例子：球体（所有法向量通过球心）。
+
+**洞察**：软指模型的优势在于更少的接触点就能实现力闭合，这对于高自由度灵巧手至关重要——更少的接触点意味着更简单的协调控制。
+
+### 2.6 抓取品质度量 (Grasp Quality Metrics)
+
+评估一个抓取"有多好"需要量化指标。以下是最常用的度量体系。
+
+#### 2.6.1 Ferrari-Canny Q1 Metric (Largest Inscribed Ball)
+
+**定义**：在归一化的旋量空间中，可达旋量集合（Wrench Set）内接最大球的半径。
+
+$$Q_1 = \max_r \{ r : B(0, r) \subseteq \mathcal{W} \}$$
+
+**物理意义**：能够抵抗的最大**均匀**外扰动。$Q_1 > 0$ 等价于力闭合。
+
+**计算方法**：转化为线性规划 (LP) 或二阶锥规划 (SOCP)。
+
+#### 2.6.2 Grasp Wrench Space Volume
+
+**定义**：可达旋量集合的体积（或超体积）。
+
+$$Q_2 = \text{Volume}(\mathcal{W})$$
+
+**特点**：考虑了各向异性——某些方向可能能施加更大的力。
+
+#### 2.6.3 Minimum Singular Value of G
+
+**定义**：抓取矩阵的最小奇异值。
+
+$$Q_3 = \sigma_{\min}(G)$$
+
+**物理意义**：抓取配置的"病态程度"。$\sigma_{\min}$ 越大，力从接触空间到旋量空间的传递越有效率。
+
+> [!note] 工程选择
+> 在实际的抓取规划中，通常使用 **Ferrari-Canny Q1** 作为主要指标，因为它直接对应于鲁棒性，且计算相对高效。
+
 ------
 
 ## 3. 接触建模演变：从点模型到软体模型
@@ -143,7 +294,7 @@ $$W_{object} = G V_{contact}$$
 
 #### 4.1.1 Stewart-Trinkle 时间步进算法
 
-早期的动力学仿真常在加速度层面上求解，容易导致Painlevé悖论（即解不存在或不唯一）。Stewart和Trinkle在1996年提出了一种基于速度-冲量（Velocity-Impulse）层面的时间步进算法，彻底解决了存在性问题 。
+早期的动力学仿真常在加速度层面上求解，容易导致Painlevé悖论（即解不存在或不唯一）。Stewart和Trinkle在1996年提出了一种基于速度-冲量（Velocity-Impulse）层面的时间步进算法，彻底解决了存在性问题。该算法与 [[Dynamics#4.1 空间向量代数]] 中的空间向量表示紧密配合。
 
 在Stewart-Trinkle公式中，系统状态更新被写作：
 

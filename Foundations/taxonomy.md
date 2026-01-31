@@ -1,69 +1,147 @@
-领域 (Domain),核心关注 (Primary Focus),关键实现/库 (Key Implementation),现代 Value-Add (Modern Insight)
-Optimization,决策生成,iLQR / OSQP / cvxpy,"可微优化层 (Diff. Layers), MPC"
-Control,稳定性与交互,Operational Space / franka_ros,变阻抗控制 (Variable Impedance)
-Dynamics,物理建模,ABA / RNEA / pinocchio,"可微物理引擎 (Brax, Dojo)"
-Contact Mech.,交互物理,GJK / EPA / Friction Cones,"软指模型, 黏滞-滑移检测"
-RL,行为学习,PPO / SAC / Stable-Baselines3,"Sim-to-Real, 域随机化"
-Signal Proc.,状态估计,EKF / Particle Filter,视触觉感知 (GelSight as Vision)
-Info. Theory,不确定性与探索,Mutual Information / Entropy,"内在动机, 表征解耦"
-Geom. Mech.,运动数学,Lie Algebras / PoE / manif,"流形优化, 无坐标动力学"
-Comp. Geometry,空间推理,SDFs / Voronoi / trimesh,隐式神经表示 (Neural Fields)
-Stochastic Proc.,随机建模,Gaussian Processes / SDEs,扩散策略 (Diffusion Policies)
+---
+tags:
+  - index
+  - taxonomy
+  - meta
+aliases:
+  - 领域分类
+  - Domain Taxonomy
+created: 2026-01-31
+---
 
-**[System Role]**: 你现在是Robotics Dexterous Manipulation领域的首席科学家，以严谨、怀疑、深度的视角协助我构建Obsidian知识库。
+# 灵巧操作知识领域分类
 
-**[Output Requirement]**:
+# Dexterous Manipulation Knowledge Taxonomy
 
-1. **格式**: Markdown
-2. **语言**: 解释性文字用中文，专业术语保留英文（如 Generalized Coordinates, Jacobian）。
-3. **代码风格**: Python/C++，仅展示核心算法逻辑（Core Logic），移除所有防御性代码（Assert/Try-Catch）、GUI及非必要注释。
-4. **深度**: 拒绝百科全书式的浅层解释。聚焦于该领域在**灵巧操作（Dexterous Manipulation）**中的具体应用和物理意义。
-5. **结构**:
-   - **Core Concepts**: 核心概念的物理直觉与数学定义。
-   - **Evolution & Insights**: 技术演进脉络（Problem-Solution Chain），即“为什么旧方法失效，新方法引入了什么Value-add”。
-   - **Implementation**: 核心算法的具体细节分析讲解。
+---
 
-你的分析应当是Tutorial类型，覆盖该领域的主体脉络、涉及足够广的相关知识点并进行详尽的分析、再延伸到对于灵巧操作领域的insight，以建立起对领域的充分了解
-你的分析应当是Tutorial类型，覆盖该领域的主体脉络、涉及足够广的相关知识点并进行详尽的分析、再延伸到对于灵巧操作领域的insight，以建立起对领域的充分了解
+## 领域速查表
 
-课题：
+| 领域 (Domain) | 核心关注 (Primary Focus) | 关键实现/库 (Key Implementation) | 现代 Value-Add (Modern Insight) |
+|--------------|-------------------------|--------------------------------|-------------------------------|
+| [[Optimization]] | 决策生成 | iLQR / OSQP / cvxpy | 可微优化层 (Diff. Layers), MPC |
+| [[ControlTheory\|Control]] | 稳定性与交互 | Operational Space / franka_ros | 变阻抗控制 (Variable Impedance) |
+| [[Dynamics]] | 物理建模 | ABA / RNEA / pinocchio | 可微物理引擎 (Brax, Dojo) |
+| [[ContactMechanics\|Contact Mech.]] | 交互物理 | GJK / EPA / Friction Cones | 软指模型, 黏滞-滑移检测 |
+| [[ReinforcementLearning\|RL]] | 行为学习 | PPO / SAC / Stable-Baselines3 | Sim-to-Real, 域随机化 |
+| [[SignalProcessing\|Signal Proc.]] | 状态估计 | EKF / Particle Filter | 视触觉感知 (GelSight as Vision) |
+| [[InformationTheory\|Info. Theory]] | 不确定性与探索 | Mutual Information / Entropy | 内在动机, 表征解耦 |
+| [[ComputationalGeometry\|Comp. Geometry]] | 空间推理 | SDFs / Voronoi / trimesh | 隐式神经表示 (Neural Fields) |
+| [[StochasticProcess\|Stochastic Proc.]] | 随机建模 | Gaussian Processes / SDEs | 扩散策略 (Diffusion Policies) |
+| [[RepresentationLearning\|Representation]] | 特征提取 | VAE / Contrastive Learning | 多模态融合, 流形学习 |
 
-#### **Dynamics (动力学)**
+---
 
-*侧重点：从刚体到多体，再到接触动力学。灵巧手的高维特性要求极其高效的动力学解算。*
+## 领域关联图
 
-#### **Contact Mechanics (接触力学)**
+```
+                        ┌─────────────────┐
+                        │   Dexterous     │
+                        │  Manipulation   │
+                        └────────┬────────┘
+                                 │
+         ┌───────────────────────┼───────────────────────┐
+         │                       │                       │
+         ▼                       ▼                       ▼
+   ┌───────────┐          ┌───────────┐          ┌───────────┐
+   │  Physics  │          │  Control  │          │ Learning  │
+   │  Modeling │          │ & Decision│          │ & Sensing │
+   └─────┬─────┘          └─────┬─────┘          └─────┬─────┘
+         │                      │                      │
+    ┌────┴────┐            ┌────┴────┐            ┌────┴────┐
+    │         │            │         │            │         │
+    ▼         ▼            ▼         ▼            ▼         ▼
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│Dynamics│ │Contact │ │Control │ │Optim.  │ │  RL    │ │Signal  │
+│        │ │Mech.   │ │Theory  │ │        │ │        │ │Proc.   │
+└───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘
+    │          │          │          │          │          │
+    └──────────┴──────┬───┴──────────┴──────────┴──────────┘
+                      │
+              ┌───────┴───────┐
+              │  Foundations  │
+              │   交叉领域     │
+              └───────┬───────┘
+                      │
+         ┌────────────┼────────────┐
+         ▼            ▼            ▼
+    ┌─────────┐  ┌─────────┐  ┌─────────┐
+    │ Comp.   │  │ Info.   │  │Stochast.│
+    │Geometry │  │ Theory  │  │ Process │
+    └─────────┘  └─────────┘  └─────────┘
+```
 
-*侧重点：这是灵巧操作的灵魂。从点接触到软指接触，从库伦摩擦到LCP。*
+---
 
-#### **Computational Geometry (计算几何)**
+## 领域交叉关系
 
-*侧重点：碰撞检测是运动规划的前置，SDF是现代操作优化的核心。*
+### 强关联 (Strong Coupling)
 
-#### **Control Theory (控制理论)**
+| 领域 A | 领域 B | 交叉点 |
+|-------|-------|-------|
+| [[ControlTheory]] | [[Dynamics]] | 动力学一致逆运动学、OSF |
+| [[ContactMechanics]] | [[Dynamics]] | 接触动力学、LCP |
+| [[ReinforcementLearning]] | [[ControlTheory]] | 稳定性约束RL、Safe RL |
+| [[Optimization]] | [[ControlTheory]] | MPC、轨迹优化 |
+| [[ReinforcementLearning]] | [[StochasticProcess]] | 扩散策略、GP-based RL |
 
-*侧重点：从位置控制转向力/位混合控制，以及处理非线性的能力。*
+### 弱关联 (Weak Coupling)
 
-#### **Optimization (优化理论)**
+| 领域 A | 领域 B | 潜在交叉 |
+|-------|-------|---------|
+| [[ComputationalGeometry]] | [[ReinforcementLearning]] | 神经场表示用于RL |
+| [[InformationTheory]] | [[ReinforcementLearning]] | 内在动机探索 |
+| [[SignalProcessing]] | [[RepresentationLearning]] | 触觉特征提取 |
 
-*侧重点：轨迹优化是现代操作的核心，MPC是实时性的关键。*
+---
 
-#### **Reinforcement Learning (强化学习)**
+## 各领域研究侧重点
 
-*侧重点：解决接触丰富、难以建模的复杂操作任务。*
+> [!note] 灵巧操作视角
+> 以下是从灵巧操作角度对各领域的研究侧重点定义
 
-#### **Stochastic Process (随机过程)**
+### [[Dynamics|动力学]]
+从刚体到多体，再到接触动力学。灵巧手的高维特性要求极其高效的动力学解算。
 
-*侧重点：操作充满了不确定性（物体质量、摩擦系数未知）。*
+### [[ContactMechanics|接触力学]]
+这是灵巧操作的灵魂。从点接触到软指接触，从库伦摩擦到 LCP。
 
-#### **Signal Processing (信号处理)**
+### [[ComputationalGeometry|计算几何]]
+碰撞检测是运动规划的前置，SDF 是现代操作优化的核心。
 
-*侧重点：触觉信号处理与状态估计。*
+### [[ControlTheory|控制理论]]
+从位置控制转向力/位混合控制，以及处理非线性的能力。
 
-#### **Information Theory (信息论)**
+### [[Optimization|优化理论]]
+轨迹优化是现代操作的核心，MPC 是实时性的关键。
 
-*侧重点：探索（Exploration）与感知的主动性。*
+### [[ReinforcementLearning|强化学习]]
+解决接触丰富、难以建模的复杂操作任务。
 
-#### **Machine Learning (General ML)**
+### [[StochasticProcess|随机过程]]
+操作充满了不确定性（物体质量、摩擦系数未知）。
 
-*侧重点：表征学习与多模态融合。*
+### [[SignalProcessing|信号处理]]
+触觉信号处理与状态估计。
+
+### [[InformationTheory|信息论]]
+探索（Exploration）与感知的主动性。
+
+### [[RepresentationLearning|表征学习]]
+多模态融合与流形学习。
+
+---
+
+## 相关论文索引
+
+| 论文 | 相关领域 |
+|-----|---------|
+| [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]] | RL, Control |
+| [[Elastic Time Step Reinforcement Learning, VTS-RL]] | RL, Optimization |
+| [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] | RL, Control |
+
+---
+
+## 相关项目
+
+- [[Dynamic Non-Prehensile Manipulation]] - 动态非抓取灵巧操作研究

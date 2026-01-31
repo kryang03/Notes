@@ -1,4 +1,30 @@
+---
+tags:
+  - project
+  - non-prehensile
+  - dynamic-manipulation
+  - sim-to-real
+aliases:
+  - DNPM
+  - 动态非抓取操作
+created: 2026-01-31
+status: active
+related:
+  - "[[Dynamics]]"
+  - "[[ControlTheory]]"
+  - "[[ReinforcementLearning]]"
+  - "[[ContactMechanics]]"
+---
+
 # 动态非抓取灵巧操作：基于惯性因果链的任务分类与仿真实现研究报告
+
+> [!tip] 理论基础关联
+> - [[Dynamics]] - 多体动力学与惯性项建模
+> - [[ControlTheory#2.1 阻抗控制]] - 动态交互控制策略
+> - [[ReinforcementLearning]] - 基于 RL 的策略学习 (Isaac Gym)
+> - [[ContactMechanics]] - 接触切换与摩擦锥约束
+>
+> **硬件配置**: UR5 + 灵巧手 | **仿真环境**: Isaac Gym/Sim
 
 ## 1. 摘要
 

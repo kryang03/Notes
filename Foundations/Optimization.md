@@ -1,4 +1,30 @@
+---
+tags:
+  - foundation
+  - optimization
+  - dexterous-manipulation
+  - MPC
+  - trajectory-optimization
+aliases:
+  - 优化理论
+  - Optimization
+  - iLQR
+  - MPC
+created: 2026-01-31
+related:
+  - "[[ControlTheory]]"
+  - "[[Dynamics]]"
+  - "[[ContactMechanics]]"
+  - "[[ReinforcementLearning]]"
+---
+
 # 灵巧操作中的优化理论：从接触隐式轨迹优化到实时模型预测控制
+
+> [!tip] 相关领域
+> - [[ControlTheory]] - MPC 是控制理论的实时实现
+> - [[Dynamics]] - 动力学模型是轨迹优化的约束
+> - [[ContactMechanics]] - LCP/互补约束的处理
+> - [[ReinforcementLearning]] - 优化与RL的融合
 
 ## 1. 领域全景与首席科学家视角的执行摘要
 
@@ -49,7 +75,7 @@ $$M(q)\dot{v} + C(q, v)v + g(q) = B u + J_c(q)^T \lambda$$
 
 接触之所以难以优化，是因为它引入了**互补约束（Complementarity Constraints）**。对于刚体接触，物理世界要求满足 Signorini 条件（非穿透）和 Coulomb 摩擦定律。
 
-在无摩擦的最简形式下，线性互补问题（Linear Complementarity Problem, LCP）定义为：
+在无摩擦的最简形式下，线性互补问题（Linear Complementarity Problem, LCP）定义为（详见 [[ContactMechanics#4.1 线性互补问题 (LCP) 的构建]]）：
 
 $$0 \le \phi(q) \perp \lambda_n \ge 0$$
 
@@ -177,6 +203,56 @@ $$\lambda \approx k_p \cdot \text{sigmoid}(-\frac{\phi(q)}{\epsilon})$$
 **Insight**： 通过平滑化，接触不再是一个突变的“开关”，而是一个陡峭的“坡”。这使得梯度信息（Gradient Information）能够**穿透**接触事件。例如，当手指还没碰到物体时，距离 $\phi(q)$ 的微小变化会引起力的微小变化，从而产生非零梯度。这直接告诉优化器：“再靠近一点，力就会增加”。这赋能了基于梯度的算法（如 DDP）在灵巧操作中的应用 。
 
 **Variational Integrators (Manchester)**: 另一种思路是使用变分积分器 。这种方法从离散拉格朗日量出发，通过离散变分原理导出运动方程。它在处理接触时具有更好的能量守恒特性，并且能够提供更稳定的梯度。
+
+---
+
+> [!important] 🔬 同伦优化在灵巧操作中的应用 (Homotopy Optimization)
+> 
+> **来源**：[[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack (ICLR 2025)]] — 数据飞轮与同伦方法
+> 
+> **核心思想**：当优化问题存在严重的局部极小值时，**同伦方法（Continuation Method）**构造一条从"简单问题"到"目标问题"的连续路径，逐步逼近目标。
+> 
+> **在灵巧操作中的应用**：
+> 如果直接优化复杂的手部操作轨迹（如 pen spinning）失败，先优化简化版本：
+> 
+> $$H(\lambda) = (1-\lambda) \cdot \text{简单问题} + \lambda \cdot \text{目标问题}, \quad \lambda: 0 \to 1$$
+> 
+> **简化路径示例**：
+> ```
+> 原始: 复杂 pen spinning (大幅度旋转 + 手指换位)
+>     ↑ λ = 1.0
+> 层3: 小幅度 pen rotation
+>     ↑ λ = 0.7
+> 层2: pen translation only
+>     ↑ λ = 0.3
+> 层1: static grasping
+>     ↑ λ = 0.0
+> ```
+> 
+> **与思维链的类比**：同伦优化类似于推理中的 Chain-of-Thought，通过中间步骤降低问题的非凸性。
+> 
+> **灵巧操作的意义**：接触隐式优化（CITO）经常陷入局部极小值。同伦方法通过渐进增加接触复杂度（先无接触→稳定接触→动态接触）实现突破。
+
+---
+
+> [!important] 🔬 阻抗参数的凸辨识 (Convex Impedance Identification)
+> 
+> **来源**：[[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking|Prosthesis VI (IEEE TRO 2022)]] — 数据驱动阻抗控制
+> 
+> **问题**：阻抗控制中的参数 $(K, B, \theta_{eq})$ 如何自动确定？传统方法需要专家数小时手工调参。
+> 
+> **关键洞察**：固定平衡角 $\theta_{eq}$ 后，阻抗方程 $\tau = -K(\theta - \theta_{eq}) - B\dot{\theta}$ 关于 $(K, B)$ 是**线性**的！
+> 
+> **两步凸优化**：
+> 1. **Step 1**：从运动学数据估计 $\theta_{eq}$ 的参数化形式
+> 2. **Step 2**：凸优化求解 $K(\phi, v, \alpha)$, $B(\phi, v, \alpha)$
+>    $$\min_{c^K, c^B} \sum_n \| \tau_n^{data} - \tau_n^{model} \|^2 \quad \text{(凸二次规划)}$$
+> 
+> **参数化技巧**：将阻抗参数表示为相位变量 $\phi$、速度 $v$、任务参数 $\alpha$ 的连续函数：
+> $$K(\phi, v, \alpha) = \sum_{i,j,k} c^K_{ijk} B_i(\phi) P_j(v) P_k(\alpha)$$
+> 其中 $B_i$ 是 B-spline 基函数。
+> 
+> **灵巧操作的意义**：手部接触控制中的刚度/阻尼设计可以借鉴此方法——从演示数据自动学习"抓取力应该如何随操作相位变化"。
 
 ------
 
