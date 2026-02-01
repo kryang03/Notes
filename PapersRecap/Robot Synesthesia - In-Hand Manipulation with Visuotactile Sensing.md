@@ -22,18 +22,18 @@ related:
 > 受人类触觉-视觉联觉启发，提出点云形式的触觉表示，将视觉和触觉统一到 3D 空间中，实现更自然的多模态融合用于手内操作。
 
 > [!note] 教科书背景
-> **接触信息的几何本质**：触觉点云实际上是 [[ContactMechanics#2.2 Montana接触运动学方程|Montana 接触运动学方程]] 中"接触点在表面演化"的离散化观测。每个触觉点的 3D 坐标隐式编码了：
+> **接触信息的几何本质**：触觉点云实际上是 [[ContactMechanics#2. 接触几何运动学：流形上的演化|Montana 接触运动学方程]] 中“接触点在表面演化”的离散化观测。每个触觉点的 3D 坐标隐式编码了：
 > - **接触位置** $u_1, u_2$：在物体/手指表面的局部坐标
 > - **接触力分布**：通过点的密度/强度表示法向压力
 > 
 > 参见 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Ch.5 关于**抓取几何**的讨论——本文将这些几何关系嵌入到神经网络的隐式表示中。
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning#Point Cloud]] - PointNet 统一处理视觉和触觉点云
-> - [[ComputationalGeometry#点云处理]] - 增强点云与触觉点云融合
-> - [[ContactMechanics#2.1 表面微分几何基础]] - 触觉点云是表面几何的离散采样
-> - [[ContactMechanics#2.4 抓取矩阵 (Grasp Matrix)]] - 接触点到物体力的映射
-> - [[ReinforcementLearning#Teacher-Student]] - 教师-学生训练框架
+> - [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]] - PointNet 统一处理视觉和触觉点云
+> - [[ComputationalGeometry]] - 增强点云与触觉点云融合
+> - [[ContactMechanics#2. 接触几何运动学：流形上的演化]] - 触觉点云是表面几何的离散采样
+> - [[ContactMechanics]] - 接触点到物体力的映射
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 教师-学生训练框架
 >
 > **核心技术**: Tactile Point Cloud, Unified 3D Representation, Teacher-Student RL
 

@@ -23,10 +23,10 @@ related:
 > 提出 **VICES (Variable Impedance Control in End-Effector Space)** 作为接触密集型任务 RL 的动作空间。动作 = 末端执行器位移 + 可变阻抗增益，实现**样本效率高、能耗低、跨机器人迁移**的策略学习。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3.2 阻抗控制]] - 阻抗控制的理论基础
-> - [[ReinforcementLearning#2.2 动作空间设计]] - 动作空间对学习的影响
-> - [[ContactMechanics#2.3 接触力控制]] - 接触任务中的力控制需求
-> - [[Dynamics#7.2 操作空间动力学]] - 末端空间的动力学补偿
+> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] - 阻抗控制的理论基础
+> - [[ReinforcementLearning]] - 动作空间对学习的影响
+> - [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] - 接触任务中的力控制需求
+> - [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] - 末端空间的动力学补偿
 >
 > **核心技术**: Impedance Control, Action Space Design, Sim-to-Real Transfer
 

@@ -20,8 +20,8 @@ related:
 > 提出在仿真中收集人类演示，通过大规模数据增强（视觉+物理+几何）生成多样化数据集，用课程学习训练策略后仅需少量真实数据微调即可实现 sim-to-real 迁移。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#Imitation Learning]] - 行为克隆 + 课程学习
-> - [[RepresentationLearning#视觉预训练]] - R3M 等预训练表征对比
+> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - 行为克隆 + 课程学习
+> - [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] - R3M 等预训练表征对比
 >
 > **核心技术**: Simulation Data Augmentation, Auto Curriculum Learning, Minimal Real Fine-tuning
 

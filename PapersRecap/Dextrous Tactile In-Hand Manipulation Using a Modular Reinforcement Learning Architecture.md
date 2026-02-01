@@ -24,10 +24,10 @@ related:
 > 提出**模块化深度 RL 架构**，将策略学习与状态估计**解耦**：用可微分粒子滤波器从纯触觉（关节扭矩+位置）估计立方体状态，实现手朝下情况下的 **24 种目标方位重定向**，零样本 Sim2Real 迁移成功。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Actor-Critic 方法]] - SAC 策略学习
-> - [[SignalProcessing#3. 贝叶斯滤波]] - 可微分粒子滤波器
-> - [[StochasticProcess#3. 贝叶斯滤波]] - 状态估计
-> - [[ControlTheory#2.1 阻抗控制]] - 扭矩控制 DLR-Hand II
+> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - SAC 策略学习
+> - [[SignalProcessing#5. 状态估计：从局部触觉到全局语义]] - 可微分粒子滤波器
+> - [[StochasticProcess]] - 状态估计
+> - [[ControlTheory]] - 扭矩控制 DLR-Hand II
 >
 > **核心技术**: Modular Architecture, Differentiable Particle Filter, Torque-Controlled Hand
 

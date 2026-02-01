@@ -22,9 +22,9 @@ related:
 > 提出 **CSR (Curriculum-based Sensing Reduction)**：解决 Sim2Real 中"仿真有丰富传感、真实难以复现"的矛盾。通过**课程式逐步移除特征**（而非一步裁剪），让策略从完整观测空间渐进适应到受限观测空间，提升训练效率和真实世界性能。ICRA 2024。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#6.2 Sim-to-Real]] - Asymmetric Actor-Critic 的改进
-> - [[RepresentationLearning#3.1 特征选择]] - 特征重要性评估
-> - [[ContactMechanics#3.1 触觉感知]] - 触觉特征在操作中的作用
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - Asymmetric Actor-Critic 的改进
+> - [[RepresentationLearning]] - 特征重要性评估
+> - [[ContactMechanics]] - 触觉特征在操作中的作用
 >
 > **核心技术**: Asymmetric Actor-Critic, Curriculum Feature Reduction, Deep Random Generator
 

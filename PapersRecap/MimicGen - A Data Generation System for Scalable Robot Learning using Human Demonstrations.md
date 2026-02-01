@@ -21,9 +21,9 @@ related:
 > 提出 MimicGen 系统，从**少量人类演示**（~10-200 条）自动合成**大规模多样化数据集**（50K+），通过将演示分解为物体中心片段并空间变换适应新场景，实现数据高效的模仿学习。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#7. 模仿学习]] - Behavioral Cloning
-> - [[Dynamics#7. 操作空间动力学]] - 末端执行器轨迹变换
-> - [[RepresentationLearning#6. 多模态表征]] - 多模态策略输入
+> - [[ReinforcementLearning#2.2 Imitation Learning 的崛起与局限]] - Behavioral Cloning
+> - [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] - 末端执行器轨迹变换
+> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 多模态策略输入
 >
 > **核心技术**: Object-Centric Segmentation, Spatial Transformation, Trajectory Stitching
 

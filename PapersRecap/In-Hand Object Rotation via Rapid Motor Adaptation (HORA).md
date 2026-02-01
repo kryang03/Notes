@@ -24,10 +24,10 @@ related:
 > 提出 **快速电机适应 (Rapid Motor Adaptation)** 框架，通过学习物体物理属性的压缩表征 (extrinsics)，实现**仅用本体感觉**在真实世界中旋转 30+ 种不同大小、形状、质量的物体，无需视觉或触觉。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Actor-Critic 方法]] - PPO 策略学习
-> - [[Dynamics#7. 操作空间动力学]] - 物体动力学隐式学习
-> - [[RepresentationLearning#3. 变分自编码器]] - 物理属性编码器
-> - [[ControlTheory#2.1 阻抗控制]] - 自适应控制思想
+> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - PPO 策略学习
+> - [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] - 物体动力学隐式学习
+> - [[RepresentationLearning#3. Implementation: 核心算法实现与物理逻辑 (Core Algorithmic Implementation and Physical Logic)]] - 物理属性编码器
+> - [[ControlTheory]] - 自适应控制思想
 >
 > **核心技术**: Extrinsics Encoding, Adaptation Module, Proprioception-only Control
 

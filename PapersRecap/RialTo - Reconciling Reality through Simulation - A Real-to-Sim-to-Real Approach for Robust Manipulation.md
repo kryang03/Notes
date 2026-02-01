@@ -23,9 +23,9 @@ related:
 > 提出 RialTo 系统，通过**快速构建真实场景的数字孪生**，在仿真中用 RL 鲁棒化模仿学习策略，再迁移回真实世界。关键创新是**逆向蒸馏 (Inverse Distillation)** 将真实演示迁移到仿真，以及简化的场景扫描流程，实现 **67%+ 鲁棒性提升**。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#6. Sim-to-Real]] - Real→Sim→Real 流程
-> - [[ComputationalGeometry#5. 神经隐式表示]] - 3D 场景重建
-> - [[RepresentationLearning#4. 点云表征]] - 点云策略
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - Real→Sim→Real 流程
+> - [[RepresentationLearning#3. Implementation: 核心算法实现与物理逻辑 (Core Algorithmic Implementation and Physical Logic)]] - 3D 场景重建
+> - [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]] - 点云策略
 >
 > **核心技术**: Digital Twin Construction, Inverse Distillation, RL Fine-tuning in Sim
 

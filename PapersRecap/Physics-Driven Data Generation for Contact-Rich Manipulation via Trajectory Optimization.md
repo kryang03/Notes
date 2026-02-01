@@ -23,10 +23,10 @@ related:
 > 利用轨迹优化将少量人类演示自动扩增为大规模、物理一致的接触丰富轨迹数据集，支持跨具身迁移和域随机化，实现零样本硬件部署。
 
 > [!tip] 与理论基础的关联
-> - [[Optimization#轨迹优化]] - 接触隐式轨迹优化 (CITO)
-> - [[Dynamics#接触动力学]] - 物理一致的轨迹生成
-> - [[ContactMechanics#多接触规划]] - 复杂多接触交互
-> - [[ReinforcementLearning#Diffusion Policy]] - Diffusion Policy 训练
+> - [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]] - 接触隐式轨迹优化 (CITO)
+> - [[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)]] - 物理一致的轨迹生成
+> - [[ContactMechanics#4. 计算动力学与求解器：从LCP到凸优化]] - 复杂多接触交互
+> - [[ReinforcementLearning#6. Future Frontiers: Model-Based & Diffusion]] - Diffusion Policy 训练
 >
 > **核心技术**: VR Demo Collection, Kinematic Retargeting, Demonstration-Guided Trajectory Optimization
 

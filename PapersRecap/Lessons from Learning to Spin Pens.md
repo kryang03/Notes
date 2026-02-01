@@ -31,8 +31,8 @@ related:
 # Lessons from Learning to Spin "Pens"
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#6. Sim-to-Real 与 Domain Randomization]]**: 三阶段 Sim-to-Real 流程
-> - **[[ContactMechanics#3. 接触模型的演进]]**: 动态接触与 finger gaiting
+> - **[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]]**: 三阶段 Sim-to-Real 流程
+> - **[[ContactMechanics#3. 接触建模演变：从点模型到软体模型]]**: 动态接触与 finger gaiting
 > - **[[Dynamics]]**: 笔状物体的动态平衡控制
 > - **[[EmbodiedAI]]**: 灵巧操作系统集成
 

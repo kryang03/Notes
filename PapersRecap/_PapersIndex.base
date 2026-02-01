@@ -3,7 +3,7 @@ filters:
     - file.folder == "PapersRecap"
     - file.hasTag("paper")
 formulas:
-  word_count: file.content.length / 5
+  word_count: file.size / 5
   has_foundation: 'related.length > 0 ? "✅" : "❌"'
 properties:
   file.name:

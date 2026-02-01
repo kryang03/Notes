@@ -23,10 +23,10 @@ related:
 > 提出 Touch Dexterity 系统，使用**密集二值力传感器阵列**（16 个 FSR）实现**纯触觉**的手内物体旋转，无需视觉输入即可泛化到训练中未见过的物体。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#4. 策略梯度方法]] - PPO 策略学习
-> - [[RepresentationLearning#6. 多模态表征]] - 触觉表征的隐式学习
-> - [[SignalProcessing#1. 传感器融合]] - 二值化触觉信号处理
-> - [[ContactMechanics#3. 接触模型的演进]] - 接触状态感知
+> - [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] - PPO 策略学习
+> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 触觉表征的隐式学习
+> - [[SignalProcessing]] - 二值化触觉信号处理
+> - [[ContactMechanics]] - 接触状态感知
 >
 > **核心技术**: 二值触觉传感、Domain Randomization、IsaacGym 并行训练
 

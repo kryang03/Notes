@@ -23,10 +23,10 @@ related:
 > 提出 HATO（Hands-Arms Tele-Operation）系统，首次实现双多指手 + 视触觉感知 + 模仿学习的组合，用 VR 控制器实现直观的双手多指遥操作。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#Imitation Learning]] - Diffusion Policy 行为克隆
-> - [[RepresentationLearning#多模态融合]] - 视觉+触觉+本体感觉融合
-> - [[SignalProcessing#触觉处理]] - FSR 触觉传感器信号
-> - [[ContactMechanics#抓取稳定性]] - 多指手 vs 夹爪的接触优势
+> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - Diffusion Policy 行为克隆
+> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 视觉+触觉+本体感觉融合
+> - [[SignalProcessing]] - FSR 触觉传感器信号
+> - [[ContactMechanics]] - 多指手 vs 夹爪的接触优势
 >
 > **核心技术**: VR Teleoperation for Multifingered Hands, Prosthetic Hand for Research, Visuotactile Diffusion Policy
 

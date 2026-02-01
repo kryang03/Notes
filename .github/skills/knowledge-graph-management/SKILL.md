@@ -513,6 +513,117 @@ institution: [主要机构]
 本文的控制理论基础参见 [[ControlTheory#2.4 阻抗控制]]
 ```
 
+### 3.4 Wikilink 章节引用规范（断链预防）
+
+> [!danger] 断链是知识图谱最严重的质量问题
+> 引用不存在的章节会导致 Obsidian 无法正确解析链接，降低知识导航体验。
+
+**章节引用原则**:
+
+1. **引用前验证**: 引用 `[[File#Section]]` 格式时，必须确认目标章节**确实存在**
+2. **使用精确标题**: 章节标题必须与文件中的实际标题**完全一致**（包括空格、标点）
+3. **泛化回退**: 若不确定章节是否存在，使用泛化链接 `[[File]]` 而非猜测章节名
+
+```markdown
+# ❌ 错误示例 — 引用不存在的章节
+[[ControlTheory#3.6 多速率控制]]     # 实际只有 3.1-3.4
+[[Dynamics#5.2 步态动力学]]          # 实际 5.2 是 Convex Optimization
+[[ControlTheory#2.3 Safe RL]]        # 实际 2.3 是抓取矩阵
+
+# ✅ 正确做法 — 使用泛化链接或精确标题
+[[ControlTheory]]                    # 安全的泛化链接
+[[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]]  # 精确标题
+```
+
+**维护时的断链检查流程**:
+
+```
+1. grep_search 搜索 [[Foundation#.*]] 模式的引用
+2. 对照目标 Foundation 文件的实际章节列表
+3. 发现不匹配 → 修正为泛化链接或正确章节
+```
+
+### 3.5 Frontmatter 字段命名规范
+
+> [!important] 统一的字段命名是 Obsidian Bases 正常工作的前提
+
+**PapersRecap 论文笔记的标准 frontmatter**:
+
+```yaml
+---
+tags:
+  - paper                    # ✅ 统一用 paper，不用 paper-recap
+  - reinforcement-learning   # 领域标签
+  - sim-to-real             # 技术标签
+aliases:
+  - ShortName               # 论文简称
+  - 中文别名                 # 可选
+paper-year: 2024            # ✅ 统一用 paper-year，不用 year
+read-date: 2026-02-01       # ✅ 统一用 read-date，不用 created
+venue: CoRL 2024            # 会议/期刊
+authors:                    # 作者列表
+  - Author Name
+related:                    # 关联的 Foundation
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+---
+```
+
+**字段命名对照表**:
+
+| 正确字段名 | 错误用法（历史遗留） | 说明 |
+|-----------|-------------------|------|
+| `paper-year` | `year` | 避免与通用 year 字段混淆 |
+| `read-date` | `created` | 明确表示阅读日期 |
+| `paper` (tag) | `paper-recap` | 简洁统一 |
+
+**Projects 项目笔记的标准 frontmatter**:
+
+```yaml
+---
+tags:
+  - project
+  - 技术方向标签
+aliases:
+  - 项目简称
+created: 2026-01-31         # 项目创建日期
+status: active | paused | completed
+related:
+  - "[[Foundation1]]"
+  - "[[Foundation2]]"
+---
+```
+
+### 3.6 Obsidian Bases 公式规范
+
+> [!warning] Bases 中的 `file.content` 属性不存在
+
+**有效的 file 属性**（完整列表）:
+
+| 属性 | 类型 | 说明 |
+|-----|------|------|
+| `file.name` | String | 文件名（含扩展名） |
+| `file.basename` | String | 文件名（不含扩展名） |
+| `file.path` | String | 完整路径 |
+| `file.folder` | String | 父文件夹路径 |
+| `file.ext` | String | 扩展名 |
+| `file.size` | Number | 文件大小（字节） |
+| `file.ctime` | Date | 创建时间 |
+| `file.mtime` | Date | 修改时间 |
+| `file.tags` | List | 所有标签 |
+| `file.links` | List | 内部链接 |
+| `file.backlinks` | List | 反向链接 |
+
+```yaml
+# ❌ 错误 — file.content 不存在
+formulas:
+  content_size: (file.content.length / 1000).round(1) + "k"
+
+# ✅ 正确 — 使用 file.size
+formulas:
+  content_size: (file.size / 1000).round(1) + "k"
+```
+
 ---
 
 ## 4. MergeBuffer 处理详细流程 (MergeBuffer Processing)

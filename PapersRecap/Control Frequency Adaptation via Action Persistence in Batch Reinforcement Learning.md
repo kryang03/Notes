@@ -29,7 +29,7 @@ related:
 # Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#5. 离线强化学习 (Offline RL)]]**: Batch RL / FQI 算法基础
+> - **[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]]**: Batch RL / FQI 算法基础
 > - **[[ControlTheory]]**: 控制频率与采样定理
 > - **[[SignalProcessing]]**: 信号采样与 Nyquist 频率
 

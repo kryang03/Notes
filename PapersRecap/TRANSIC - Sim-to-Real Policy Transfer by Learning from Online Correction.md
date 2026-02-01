@@ -21,9 +21,9 @@ related:
 > 提出一种人在回路的 sim-to-real 迁移方法：人类观察并在线校正仿真策略的失误，收集校正数据训练残差策略，从而 holistically 解决各种 sim-to-real gap。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#Human-in-the-Loop]] - 人类干预与在线校正框架
-> - [[ControlTheory#残差学习]] - 残差策略补偿未建模动态
-> - [[ComputationalGeometry#点云表示]] - 点云作为视觉输入减小感知 gap
+> - [[ReinforcementLearning]] - 人类干预与在线校正框架
+> - [[ControlTheory]] - 残差策略补偿未建模动态
+> - [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]] - 点云作为视觉输入减小感知 gap
 >
 > **核心技术**: Residual Policy, Online Human Correction, Action Space Distillation
 

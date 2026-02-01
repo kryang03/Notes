@@ -15,7 +15,7 @@ related:
 # EvoControl: Evolved High Frequency Control for Continuous Control Tasks
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#2.3 策略梯度方法]]**: PPO 高层策略
+> - **[[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]]**: PPO 高层策略
 > - **[[ControlTheory]]**: 高低频分层控制架构
 > - **[[SignalProcessing]]**: 500Hz 高频控制信号处理
 

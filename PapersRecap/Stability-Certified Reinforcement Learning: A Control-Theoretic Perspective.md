@@ -21,11 +21,11 @@ related:
 > 本文在 **鲁棒控制理论** 和 **强化学习** 之间搭建数学桥梁，通过基于偏导数界的二次约束 (SDP) 为 RL 策略提供稳定性证书。
 
 > [!note] 教科书背景
-> 本文使用的 TRPO/PPO 算法的理论基础详见 [[ReinforcementLearning#理论基础：Policy Gradient as Policy Iteration]]。
+> 本文使用的 TRPO/PPO 算法的理论基础详见 [[ReinforcementLearning#3. Implementation: 核心算法细节分析]]。
 > 信任域约束的合法性来自**分布间隙边界定理**：只要新旧策略在 KL 散度意义下足够接近，就可以安全地用旧策略的状态分布近似新策略。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3.1 稳定性理论]] - Lyapunov 稳定性与输入-输出稳定性
+> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性]] - Lyapunov 稳定性与输入-输出稳定性
 > - [[ReinforcementLearning]] - Safe RL 的算法框架
 > - [[Optimization]] - SDP 半正定规划问题
 >

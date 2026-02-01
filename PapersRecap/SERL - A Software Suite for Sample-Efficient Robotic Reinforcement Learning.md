@@ -23,10 +23,10 @@ related:
 > 提供一个**开箱即用的真实世界机器人 RL 软件框架**，集成高效 off-policy 算法 (RLPD)、自动奖励推断、自动重置学习和阻抗控制器，在 PCB 装配、线缆布线等任务上实现 **25-50 分钟训练**达到近乎完美成功率。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Actor-Critic 方法]] - SAC/RLPD 算法
-> - [[ReinforcementLearning#8. Offline RL]] - Demo-augmented learning
-> - [[ControlTheory#2.1 阻抗控制]] - 接触任务安全控制
-> - [[RepresentationLearning#6. 多模态表征]] - 图像观测处理
+> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - SAC/RLPD 算法
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - Demo-augmented learning
+> - [[ControlTheory]] - 接触任务安全控制
+> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 图像观测处理
 >
 > **核心技术**: RLPD, Classifier-based Rewards, Forward-Backward Reset, Impedance Control
 

@@ -18,7 +18,7 @@ related:
 # Dynamic Reinforcement Learning for Actors
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#3. 探索策略]]**: 探索机制设计
+> - **[[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]]**: 探索机制设计
 > - **[[StochasticProcess]]**: 混沌动力系统与随机性
 > - **[[Dynamics]]**: 网络动力学与稳定性
 

@@ -15,9 +15,9 @@ related:
 # Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#7. 课程学习与辅助任务]]**: 课程设计对学习的影响
+> - **[[ReinforcementLearning#4. Advanced State Space & Reward Engineering]]**: 课程设计对学习的影响
 > - **[[ContactMechanics]]**: 触觉反馈与接触建模
-> - **[[SignalProcessing#6. 触觉信号处理]]**: 触觉信号处理与融合
+> - **[[SignalProcessing#5. 状态估计：从局部触觉到全局语义]]**: 触觉信号处理与融合
 
 ## 元信息
 - **作者**: Pegah Ojaghi, Romina Mir, Ali Marjaninejad, Francisco J. Valero-Cuevas, et al.

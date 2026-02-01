@@ -3,7 +3,7 @@ filters:
     - file.folder == "Foundations"
     - file.ext == "md"
 formulas:
-  content_size: (file.content.length / 1000).round(1) + "k"
+  content_size: (file.size / 1000).round(1) + "k"
 properties:
   file.name:
     displayName: 📚 领域
@@ -23,6 +23,9 @@ views:
       - file.name
       - formula.content_size
       - file.mtime
+    sort:
+      - property: formula.content_size
+        direction: ASC
   - type: list
     name: 🕐 最近更新
     order:

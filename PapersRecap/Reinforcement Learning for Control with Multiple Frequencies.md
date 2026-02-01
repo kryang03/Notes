@@ -23,9 +23,9 @@ related:
 > 提出 **AP-AC (Action-Persistent Actor-Critic)** 算法，解决多控制频率问题。不同动作变量有不同持续时间（如机械臂 50Hz + 抓手 10Hz），通过**周期性非平稳策略**直接优化，避免任意平稳策略的次优性。NeurIPS 2020。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#2.4 采样与离散化]] - 多速率采样理论
-> - [[ReinforcementLearning#3.3 时间抽象]] - 动作持续与 options 框架
-> - [[Dynamics#4.3 多时间尺度系统]] - 快慢子系统分解
+> - [[ControlTheory]] - 多速率采样理论
+> - [[ReinforcementLearning]] - 动作持续与 options 框架
+> - [[Dynamics]] - 快慢子系统分解
 >
 > **核心技术**: Factored-Action MDP, Action Persistence, Periodic Non-stationary Policy
 

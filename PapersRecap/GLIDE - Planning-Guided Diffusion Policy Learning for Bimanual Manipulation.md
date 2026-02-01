@@ -222,9 +222,9 @@ $$\min_{q^u_+, a} (q^u_+ - q^u_{goal})^T Q (q^u_+ - q^u_{goal}) + (a - q^a)^T R 
 - [[HIL-SERL]]（人在环微调）
 
 **技术相关**:
-- [[Optimization#Trajectory Optimization]]
-- [[ContactMechanics#Contact-Implicit Planning]]
-- [[RepresentationLearning#Point Cloud Processing]]
+- [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]]
+- [[ContactMechanics#4. 计算动力学与求解器：从LCP到凸优化]]
+- [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]]
 
 ---
 

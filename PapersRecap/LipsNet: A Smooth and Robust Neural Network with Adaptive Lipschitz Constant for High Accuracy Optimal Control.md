@@ -24,8 +24,8 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] - TD3/SAC 的 Actor 网络改进
-> - [[ControlTheory#2.1 阻抗控制]] - 平滑控制与报动抑制
-> - [[RepresentationLearning#1.3 学习目标的物理重构]] - 雅可比正则化与 Lipschitz 连续性
+> - [[ControlTheory]] - 平滑控制与报动抑制
+> - [[RepresentationLearning#1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)]] - 雅可比正则化与 Lipschitz 连续性
 >
 > **核心技术**: Multi-dimensional Gradient Normalization, Adaptive Lipschitz Constraint, Spectral Norm
 

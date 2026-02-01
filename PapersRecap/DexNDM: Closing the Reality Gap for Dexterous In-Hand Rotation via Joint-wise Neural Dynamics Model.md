@@ -32,11 +32,11 @@ related:
 > 详见 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Ch.4 中关于 **Lagrangian 分解** 和 **Newton-Euler 递推** 的理论推导。
 
 > [!tip] 与理论基础的关联
-> - [[Dynamics#2.4 刚体变换与指数坐标]] - 关节运动学基础
-> - [[Dynamics#3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)]] - 分解式动力学的理论根源
-> - [[ReinforcementLearning#6.2 Sim-to-Real]] - 域随机化的替代方案
-> - [[ContactMechanics#3.2 接触力建模]] - 手指-物体接触的复杂性
-> - [[ControlTheory#5.2 Residual Policy Learning]] - 残差策略适应
+> - [[Dynamics#2. Core Concepts: 物理直觉与数学形式的对偶 (The Duality of Intuition and Formalism)]] - 关节运动学基础
+> - [[Dynamics#3. Evolution & Insights: 动力学算法的演进脉络 (The Evolutionary Chain of Algorithms)]] - 分解式动力学的理论根源
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 域随机化的替代方案
+> - [[ContactMechanics]] - 手指-物体接触的复杂性
+> - [[ControlTheory#9. 数据驱动控制理论：从模型到数据的范式转移]] - 残差策略适应
 >
 > **核心技术**: Joint-wise Dynamics Factorization, Residual Policy, Autonomous Data Collection
 

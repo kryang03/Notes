@@ -19,8 +19,8 @@ related:
 # DemoSpeedup: Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#1.2 行为克隆 (Behavior Cloning)]]**: 模仿学习基础
-> - **[[InformationTheory#3. 熵与控制]]**: 熵作为不确定性度量
+> - **[[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]]**: 模仿学习基础
+> - **[[InformationTheory]]**: 熵作为不确定性度量
 > - **[[SignalProcessing]]**: 时序信号的采样与加速
 
 > **摘要**: 模仿学习策略执行通常因人类遥操作数据采集速度慢而不尽人意。本文提出 DemoSpeedup，一种通过熵引导示范加速来提升视觉运动策略执行效率的自监督方法。核心洞察：低动作熵帧需要高精度操作（保留），高动作熵帧对应随意动作（可加速）。训练得到的策略执行速度提升高达 3 倍，同时保持甚至提高任务完成率。
@@ -179,8 +179,8 @@ $$\text{加速块长度} \times \text{加速率} \approx \text{原始块长度}$
 - [[TRANSIC]]（人-机协作迁移）
 
 **技术相关**:
-- [[InformationTheory#Entropy Estimation]]
-- [[SignalProcessing#Time Series Segmentation]]
+- [[InformationTheory]]
+- [[SignalProcessing#4. 时序信号处理：滑移检测与摩擦估计]]
 
 ---
 

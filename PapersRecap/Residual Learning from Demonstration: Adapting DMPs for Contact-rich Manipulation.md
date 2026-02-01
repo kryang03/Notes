@@ -23,10 +23,10 @@ related:
 > 提出 **rLfD (residual Learning from Demonstration)** 框架：用 DMP 提供 100Hz 基础轨迹，叠加 10Hz 的 RL 残差策略进行在线修正，实现接触密集型插入任务（插销、齿轮、网线）的稳健执行。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3.2 解决方案 I：阻抗控制]] - 底层使用阻抗控制
-> - [[ReinforcementLearning#2.4 Actor-Critic]] - 残差策略用 SAC/PPO 训练
-> - [[ContactMechanics#3.1 接触状态检测]] - 接触密集型任务的核心挑战
-> - [[Dynamics#6.3 Internal Forces]] - 插入任务中的力控制
+> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] - 底层使用阻抗控制
+> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - 残差策略用 SAC/PPO 训练
+> - [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] - 接触密集型任务的核心挑战
+> - [[Dynamics#6. Insights: 灵巧操作中的 Closed Loop Dynamics (闭链动力学)]] - 插入任务中的力控制
 >
 > **核心技术**: Dynamic Movement Primitives, Residual Policy Learning, Task-space Adaptation
 

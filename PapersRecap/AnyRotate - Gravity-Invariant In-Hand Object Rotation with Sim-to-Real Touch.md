@@ -22,9 +22,9 @@ related:
 > 提出 AnyRotate 系统，首次实现重力不变的多轴手内物体旋转，使用稠密特征化 sim-to-real 触觉感知实现 zero-shot 迁移。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#Teacher-Student Policy Distillation]] - 教师-学生策略蒸馏
-> - [[ContactMechanics#触觉感知]] - 稠密接触特征表示
-> - [[SignalProcessing#接触状态估计]] - 触觉感知模型预测接触姿态与力
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 教师-学生策略蒸馏
+> - [[ContactMechanics]] - 稠密接触特征表示
+> - [[SignalProcessing]] - 触觉感知模型预测接触姿态与力
 > - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 触觉图像到接触特征的表征
 >
 > **核心技术**: Dense Featured Tactile Representation, Gravity-Invariant RL, Auxiliary Goal Formulation

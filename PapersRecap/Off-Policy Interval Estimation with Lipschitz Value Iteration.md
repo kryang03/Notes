@@ -27,7 +27,7 @@ related:
 # Off-Policy Interval Estimation with Lipschitz Value Iteration
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#5. 离线强化学习 (Offline RL)]]**: Off-Policy 评估问题
+> - **[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]]**: Off-Policy 评估问题
 > - **[[Optimization]]**: Lipschitz 函数空间约束优化
 
 > [!abstract] 核心贡献

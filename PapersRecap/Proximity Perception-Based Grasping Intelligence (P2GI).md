@@ -20,7 +20,7 @@ related:
 # Proximity Perception-Based Grasping Intelligence: Toward the Seamless Control of a Dexterous Prosthetic Hand
 
 > [!note] Foundation 关联
-> - **[[RepresentationLearning#4. 点云表示学习 (Point Cloud Representation)]]**: 实时点云处理
+> - **[[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]]**: 实时点云处理
 > - **[[ComputationalGeometry]]**: 点云分割与3D感知
 > - **[[SignalProcessing]]**: EMG信号处理与近距离传感
 > - **[[EmbodiedAI]]**: 人机共享自主系统

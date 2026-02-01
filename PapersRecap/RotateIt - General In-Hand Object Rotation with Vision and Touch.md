@@ -22,10 +22,10 @@ related:
 > 首次将视觉和触觉传感融合用于通用手内物体多轴旋转，提出 Visuotactile Transformer 实现对物体形状和物理属性的在线推断。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#Rapid Motor Adaptation]] - 从特权信息到 extrinsics 编码
-> - [[RepresentationLearning#Point Cloud]] - PointNet 编码物体形状
-> - [[SignalProcessing#状态估计]] - Transformer 融合多模态时序信息
-> - [[ComputationalGeometry#Depth Representation]] - 前景物体深度作为视觉表示
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 从特权信息到 extrinsics 编码
+> - [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]] - PointNet 编码物体形状
+> - [[SignalProcessing#5. 状态估计：从局部触觉到全局语义]] - Transformer 融合多模态时序信息
+> - [[RepresentationLearning]] - 前景物体深度作为视觉表示
 >
 > **核心技术**: Visuotactile Transformer, Object Shape Encoding via PointNet, Multi-axis Rotation with Extrinsics
 

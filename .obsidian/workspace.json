@@ -11,13 +11,10 @@
             "id": "a2bda358afde2f94",
             "type": "leaf",
             "state": {
-              "type": "bases",
-              "state": {
-                "file": "Foundations/_FoundationsIndex.base",
-                "viewName": "📖 Foundation 概览"
-              },
-              "icon": "lucide-table",
-              "title": "_FoundationsIndex"
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "关系图谱"
             }
           }
         ]
@@ -184,11 +181,13 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "a2bda358afde2f94",
+  "active": "83ac6868d741d647",
   "lastOpenFiles": [
+    "pen_canonical_grasp.png.md",
     "PapersRecap/_PapersIndex.base",
     "MergeBuffer/_MergeIndex.md",
     "Foundations/_FoundationsIndex.base",
+    "Foundations/ComputationalGeometry.md",
     "Foundations/ContactMechanics.md",
     "PapersRecap/Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.md",
     "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL.md",

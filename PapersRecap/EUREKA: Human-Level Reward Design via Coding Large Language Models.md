@@ -22,8 +22,8 @@ related:
 > 利用 GPT-4 的代码生成能力进行**进化式奖励函数搜索**，在 29 个 RL 环境（含 10 种机器人形态）上实现了超越人类专家的奖励设计，并首次实现了仿真灵巧手的高速转笔技能。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.7 Offline RL 与模仿学习]] - 奖励设计是 RL 的核心瓶颈
-> - [[Optimization#3.3 阶段三：接触隐式轨迹优化]] - 奖励塑形与轨迹优化的关系
+> - [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] - 奖励设计是 RL 的核心瓶颈
+> - [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]] - 奖励塑形与轨迹优化的关系
 > - [[ControlTheory]] - 稳定性约束下的奖励设计
 >
 > **核心技术**: LLM Code Generation, Evolutionary Search, Reward Reflection, Curriculum Learning
@@ -188,9 +188,9 @@ but 'orientation_error' plateaued. Consider increasing its weight."
 3. **多任务扩展**：无需为每个操作任务手工设计奖励
 
 ### 与知识库其他内容的连接
-- [[ContactMechanics#2.5 力闭合与形闭合]] - EUREKA 可自动发现力闭合相关的奖励项
-- [[ReinforcementLearning#2.4 Actor-Critic]] - EUREKA 生成的奖励用于 PPO 训练
-- [[Optimization#5.3 基于采样的 MPC]] - 进化搜索思想与 MPPI 类似
+- [[ContactMechanics]] - EUREKA 可自动发现力闭合相关的奖励项
+- [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - EUREKA 生成的奖励用于 PPO 训练
+- [[Optimization#5. 实时控制：模型预测控制 (Real-Time Control: MPC)]] - 进化搜索思想与 MPPI 类似
 
 ---
 

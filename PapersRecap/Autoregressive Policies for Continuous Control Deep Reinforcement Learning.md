@@ -32,9 +32,9 @@ related:
 > **本文 Delta**：将熵正则化的探索目标与随机过程的时间相关性显式解耦，提供了更精细的探索控制。
 
 > [!tip] 与理论基础的关联
-> - [[StochasticProcess#3.2 自回归过程]] - AR 过程的数学基础
+> - [[StochasticProcess]] - AR 过程的数学基础
 > - [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC]] - SAC 熵正则化理论
-> - [[SignalProcessing#4.1 低通滤波]] - 时间平滑的信号处理视角
+> - [[SignalProcessing#4. 时序信号处理：滑移检测与摩擦估计]] - 时间平滑的信号处理视角
 > - [[ControlTheory]] - 高频动作的物理影响
 >
 > **核心技术**: AR-p Process, Stationary Gaussian, Temporal Coherence

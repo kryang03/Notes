@@ -23,7 +23,7 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] - SAC/PPO 的扩展，Semi-MDP 框架
-> - [[ControlTheory#2.1 阻抗控制]] - 控制频率与系统响应
+> - [[ControlTheory]] - 控制频率与系统响应
 > - [[Optimization]] - Lyapunov 稳定性证明与多目标优化
 >
 > **核心技术**: Multi-Objective RL, Adaptive Reward Scaling, Lyapunov Convergence Proof

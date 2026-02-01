@@ -23,10 +23,10 @@ related:
 > 提出 **DexTrack**：通用神经跟踪控制器，从人类手-物交互参考轨迹学习，实现灵巧手操作。核心创新是**数据飞轮**（data flywheel）+ **同伦优化**（homotopy optimization），迭代提升控制器性能和演示质量。在 ICLR 2025 发表。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#4.2 轨迹跟踪]] - 参考轨迹跟踪的控制理论基础
-> - [[ReinforcementLearning#4.3 模仿学习]] - RL + IL 的结合
-> - [[RepresentationLearning#2.2 动作表示]] - 人类到机器人的运动重定向
-> - [[Optimization#3.2 同伦方法]] - 从简单到复杂的优化路径
+> - [[ControlTheory#4. 操作空间公式化 (Operational Space Formulation)]] - 参考轨迹跟踪的控制理论基础
+> - [[ReinforcementLearning#2.2 Imitation Learning 的崛起与局限]] - RL + IL 的结合
+> - [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] - 人类到机器人的运动重定向
+> - [[Optimization#3. 技术演进脉络与深度洞察 (Evolution & Insights)]] - 从简单到复杂的优化路径
 >
 > **核心技术**: Data Flywheel, Homotopy Optimization, RL-IL Integration
 

@@ -21,9 +21,9 @@ related:
 > 结合参考运动数据与强化学习，训练物理模拟角色执行高动态技能（翻跟斗、武术等），同时保持自然外观并能响应扰动。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#策略梯度]] - PPO 优化策略
-> - [[Dynamics#多体动力学]] - 物理模拟角色的关节扭矩控制
-> - [[ControlTheory#PD控制]] - PD 控制器将策略输出映射到扭矩
+> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - PPO 优化策略
+> - [[Dynamics]] - 物理模拟角色的关节扭矩控制
+> - [[ControlTheory]] - PD 控制器将策略输出映射到扭矩
 >
 > **核心技术**: Motion Imitation Reward, Reference State Initialization, Early Termination
 

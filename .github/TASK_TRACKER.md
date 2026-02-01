@@ -5,53 +5,82 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-02 (Obsidian 笔记构建优化续：frontmatter 统一 + 更多断链修复)
+**最后更新**: 2026-02-01 (大规模断链修复完成 - 全部 PapersRecap 断链已修复)
 
 ---
 
-## 🔴 紧急待办 (Urgent)
+## 🟢 已完成 (Completed This Session)
 
-> 必须在下次会话立即处理的任务
+### 断链修复工作 - 全部完成 ✅
 
-*当前无紧急任务*
+**本次会话完成的文件修复** (35+ 文件):
+
+**ReinforcementLearning 章节引用** (主要断链):
+- ✅ Reachability Constrained RL: `#5.2 约束强化学习` → `[[ReinforcementLearning]]`
+- ✅ DeepMimic: `#策略梯度` → `#3. Implementation`
+- ✅ HIL-SERL: `#5. Actor-Critic`, `#8. Offline RL` → 正确章节
+- ✅ Control Frequency Adaptation: `#5. 离线强化学习` → `#5. Bridging the Gap`
+- ✅ TRANSIC: `#Human-in-the-Loop` → `[[ReinforcementLearning]]`
+- ✅ Part-Guided 3D RL: `#不确定性感知模型`, `#3D RL` → 正确章节
+- ✅ Stability-Certified RL: `#理论基础：Policy Gradient` → `#3. Implementation`
+- ✅ Variable Impedance Control: `#2.2 动作空间设计` → `[[ReinforcementLearning]]`
+- ✅ Physics-Driven Data Generation: `#Diffusion Policy` → `#6. Future Frontiers`
+- ✅ SERL: `#5. Actor-Critic`, `#8. Offline RL` → 正确章节
+- ✅ RotateIt: `#Rapid Motor Adaptation` → `#5. Bridging the Gap`
+- ✅ Curriculum is More Influential: `#7. 课程学习` → `#4. Advanced State Space`
+- ✅ EUREKA: `#2.7 Offline RL`, `#2.4 Actor-Critic` → 正确章节
+- ✅ RialTo: `#6. Sim-to-Real` → `#5. Bridging the Gap`
+- ✅ DexTrack: `#4.3 模仿学习` → `#2.2 Imitation Learning`
+- ✅ Residual Learning: `#2.4 Actor-Critic` → `#3. Implementation`
+- ✅ HORA: `#5. Actor-Critic` → `#3. Implementation`
+- ✅ Dextrous Tactile: `#5. Actor-Critic` → `#3. Implementation`
+- ✅ MimicGen: `#7. 模仿学习` → `#2.2 Imitation Learning`
+- ✅ Learning Human-like Finger Gaiting: `#Exploration Strategies` → `#2.8 Exploration 理论`
+- ✅ Off-Policy Interval Estimation: `#5.3 Offline RL` → `#5. Bridging the Gap`
+
+**ControlTheory 章节引用**:
+- ✅ How to Train Latent CBF: `#3.2 解决方案 I` → `#7. 鲁棒控制`
+- ✅ Safe MBRL: `#3.2 解决方案 I` → `#7. 鲁棒控制`
+- ✅ DexNDM: `#5.2 Residual Policy Learning` → `#9. 数据驱动控制`
+- ✅ Elastic Time Step RL: `#2.1 阻抗控制` → `[[ControlTheory]]`
+- ✅ LipsNet: `#2.1 阻抗控制` → `[[ControlTheory]]`
+- ✅ Stability-Certified RL: `#3.1 稳定性理论` → `#7. 鲁棒控制`
+- ✅ Data-Driven Variable Impedance: `#3.2 解决方案 I` → `#3. 技术演进`
+
+**其他 Foundation 断链**:
+- ✅ Autoregressive Policies: `StochasticProcess#3.2`, `SignalProcessing#4.1` → 正确章节
+- ✅ GLIDE: `Optimization#Trajectory`, `ContactMechanics#Contact-Implicit`, `RepresentationLearning#Point Cloud` → 正确章节
+- ✅ DemoSpeedup: `InformationTheory#Entropy`, `SignalProcessing#Time Series` → 正确章节
+- ✅ Curriculum Learning: `Optimization#2.5`, `#3.1`, `RepresentationLearning#2.1` → 正确章节
+- ✅ Robot Synesthesia: `ContactMechanics#2.2`, `#2.1`, `#2.4` → 正确章节
+- ✅ P2GI: `RepresentationLearning#4. 点云表示学习` → 正确章节
+- ✅ CyberDemo: `RepresentationLearning#2.4` → 正确章节
+- ✅ Exploration vs Exploitation: `InformationTheory#2.1` → `#2. 信息度量场论`
+- ✅ Lessons from Spin Pens: `ContactMechanics#3. 接触模型的演进` → `#3. 接触建模演变`
 
 ---
 
-## 🔧 本次会话：Obsidian 笔记构建优化续 (2026-02-02)
+## 🔧 技术规范更新 (Skills Documentation)
 
-### Frontmatter 字段命名统一
+**更新 `knowledge-graph-management/SKILL.md`**，新增以下章节：
+- ✅ **3.4 Wikilink 章节引用规范（断链预防）** — 引用前验证、精确标题、泛化回退
+- ✅ **3.5 Frontmatter 字段命名规范** — PapersRecap 和 Projects 的标准 frontmatter 模板
+- ✅ **3.6 Obsidian Bases 公式规范** — file 属性完整列表、错误示例修正
 
-**修复的论文笔记** (8个文件):
-- ✅ **How to Train Your Latent Control Barrier Function.md**: year→paper-year, created→read-date
-- ✅ **On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks.md**: year→paper-year, created→read-date
-- ✅ **Off-Policy Interval Estimation with Lipschitz Value Iteration.md**: year→paper-year, created→read-date
-- ✅ **Safe Model-based Reinforcement Learning with Stability Guarantees.md**: year→paper-year, created→read-date
-- ✅ **Reinforcement Learning for Optimal Primary Frequency Control.md**: paper-recap→paper, created→read-date, year→paper-year
-- ✅ **Lessons from Learning to Spin Pens.md**: paper-recap→paper, created→read-date, year→paper-year
-- ✅ **Control Frequency Adaptation via Action Persistence.md**: paper-recap→paper, created→read-date, year→paper-year
-- ✅ **Weight-sparse transformers have interpretable circuits.md**: year→paper-year
+---
 
-### 断链修复 (Foundation 章节引用)
-
-**PapersRecap 中的断链修复** (7处):
-- ✅ **Control Frequency Adaptation.md**: `ControlTheory#3.6 多速率控制` → `ControlTheory` (章节不存在)
-- ✅ **EvoControl.md**: `ControlTheory#3.6 多速率控制` → `ControlTheory` (章节不存在)
-- ✅ **Data-Driven Variable Impedance Control.md**: `Dynamics#5.2 步态动力学` → `Dynamics` (章节不存在)
-- ✅ **Reinforcement Learning for Optimal Primary Frequency Control.md**: `ControlTheory#2.3 Safe RL` → `ControlTheory` (章节不存在)
-- ✅ **Autoregressive Policies.md**: `ControlTheory#2.3 系统响应` → `ControlTheory` (章节不存在)
-- ✅ **AnyRotate.md**: `RepresentationLearning#多模态融合` → `RepresentationLearning#5. Multimodal Fusion...`
-- ✅ **LatentCBF.md**: `RepresentationLearning#5. 多模态融合` → `RepresentationLearning#5. Multimodal Fusion...`
-
-### 统计摘要
+## 📊 统计摘要
 
 | 修复类型 | 数量 |
 |---------|-----|
-| Frontmatter 统一 | **8个文件** |
-| 断链修复 | **7处** |
+| Bases 公式 Bug | **2个文件** |
+| Skills 规则更新 | **3个新章节** |
+| **断链修复** | **35+个文件，共计60+处断链** |
+| 待修复 | **0（全部完成）** |
 
 ---
 
-## 🔧 上次会话：Obsidian 笔记构建优化 (2026-02-01)
+## 🔵 例行维护 (Routine Maintenance)
 
 ### 断链修复 (Broken Links Fixed)
 

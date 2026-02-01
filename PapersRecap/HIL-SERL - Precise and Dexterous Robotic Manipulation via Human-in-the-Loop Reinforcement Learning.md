@@ -23,10 +23,10 @@ related:
 > 在 SERL 基础上引入**人在回路校正 (Human Corrections)**，实现对**动态操作、精密装配、双臂协调**等前所未有复杂任务的学习，1-2.5 小时训练达到**超人类水平**性能，成功率比模仿学习提升 101%。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Actor-Critic 方法]] - RLPD 核心算法
-> - [[ReinforcementLearning#8. Offline RL]] - 演示 + 校正数据利用
-> - [[ControlTheory#2.1 阻抗控制]] - 双臂协调控制
-> - [[RepresentationLearning#6. 多模态表征]] - 预训练视觉骨干
+> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - RLPD 核心算法
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 演示 + 校正数据利用
+> - [[ControlTheory]] - 双臂协调控制
+> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 预训练视觉骨干
 >
 > **核心技术**: Human Corrections, Pretrained Vision Backbone, Dual-Arm Coordination
 

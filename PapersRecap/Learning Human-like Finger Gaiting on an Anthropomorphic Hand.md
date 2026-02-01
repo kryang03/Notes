@@ -23,7 +23,7 @@ related:
 
 > [!note] Foundation 关联
 > - **[[ReinforcementLearning]]**: PPO + 课程学习
-> - **[[ContactMechanics#3. 接触模型的演进]]**: 动态接触与手指步态
+> - **[[ContactMechanics#3. 接触建模演变：从点模型到软体模型]]**: 动态接触与手指步态
 > - **[[Dynamics]]**: 多体动力学与物体平衡
 > - **[[EmbodiedAI]]**: 仿人手操作系统
 
@@ -182,8 +182,8 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 - [[DexTrack]]（人类参考轨迹追踪）
 
 **技术相关**:
-- [[ReinforcementLearning#Exploration Strategies]]
-- [[Dynamics#Contact Dynamics]]
+- [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]]
+- [[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)]]
 
 ---
 
