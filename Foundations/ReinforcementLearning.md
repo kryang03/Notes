@@ -524,6 +524,24 @@ $$\tilde{r}(s, a) = r(s, a) + \beta \cdot \text{bonus}(s, a)$$
 - **Prediction Error**: 用动力学模型预测误差作为新颖性度量
 - **Information Gain**: $\text{bonus} = I(s'; s, a)$
 
+#### Hindsight Experience Replay (HER)：从失败中学习
+
+> [!tip] 关键突破
+> [[Hindsight Experience Replay]] 提出了处理稀疏奖励的另一种优雅方案：**重标注目标**。
+
+**核心思想**：人类能从失败中学到几乎和成功一样多的东西。HER 让智能体具备这种能力——将失败轨迹的实际到达状态作为"假装的目标"进行重放学习。
+
+**算法流程**：
+1. 收集轨迹 $\tau = (s_0, a_0, \ldots, s_T)$，目标 $g$
+2. 标准回放：存储 $(s_t, a_t, r_t, s_{t+1}, g)$
+3. **Hindsight 回放**：额外存储 $(s_t, a_t, r'_t, s_{t+1}, g')$
+   - 其中 $g' = s_T$（轨迹末态作为新目标）
+   - $r'_t$ 根据新目标重新计算
+
+**为什么有效**：HER 自动形成从易到难的隐式课程。早期智能体能力弱，末态接近初态，学习短距离操作；能力提升后末态更远，逐渐学习复杂任务。
+
+> **灵巧操作应用**：HER 是接触丰富任务的标准配置。手内旋转、非抓取操作等任务的子目标（如特定抓取姿态）可作为 HER 的重标注目标。
+
 ------
 
 ## 3. Implementation: 核心算法细节分析
@@ -1005,8 +1023,15 @@ $$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sig
 ### 奖励设计与探索
 - [[EUREKA - Human-Level Reward Design via Coding Large Language Models|EUREKA]]: LLM自动奖励设计
 - [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]: 探索-利用的随机控制视角
+- [[Hindsight Experience Replay]]: **稀疏奖励探索基石**，目标重标注的隐式课程
 
 ### 控制频率与时间抽象
+- [[TARC - Time-Adaptive Robotic Control]]: **时间自适应控制**，策略输出动作+持续时间
 - [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|Control Frequency Adaptation]]: 动作持续性与频率适应
 - [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]]: 弹性时间步RL
 - [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]]: 演化高频控制
+
+### 长时程与接触丰富任务
+- [[Learning Long-Horizon Robot Manipulation Skills via Privileged Action]]: **特权动作**简化长时程探索
+- [[Dexterous Robotic Manipulation using Deep RL and Knowledge Transfer]]: 知识迁移框架
+- [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力融合课程

@@ -876,10 +876,14 @@ $$w_{t+1} = w_t - \eta \cdot \arg\max_{\|v\|_p^* \leq 1} \langle v, \nabla L(w_t
 - [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]] — 视触觉联觉表征
 - [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] — 触觉点云表征
 - [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)]] — 双手视触觉技能
+- [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]] — **视觉触觉自监督预训练**，低成本感知实现高性能
 
 ### Diffusion 策略与生成式表征
 - [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation]] — 扩散策略
 - [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation]] — 仿真增强表征
+
+### 多模态融合与课程学习
+- [[Vision-force-fused Curriculum Learning for Robotic Assembly]] — **视觉-力融合课程**，感知渐进训练范式
 
 ### 潜在空间学习
 - [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] — 快速自适应的隐编码

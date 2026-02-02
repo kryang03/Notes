@@ -219,6 +219,31 @@ status: pending
 
 ---
 
+## 2026-02-02 新增论文处理
+
+### 12-17. 新论文批量处理
+
+| # | 论文名称 | 状态 | 处理方式 |
+|---|---------|------|---------|
+| 12 | Hindsight Experience Replay | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→RL Foundation |
+| 13 | TARC: Time-Adaptive Robotic Control | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→DNPM项目 |
+| 14 | Learning Long-Horizon Manipulation via Privileged Action | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→DNPM项目 |
+| 15 | Vision-force-fused Curriculum Learning | 🟢 | PDF→Papers/, 笔记→PapersRecap/ |
+| 16 | Visual-tactile Pretraining for Dexterity | 🟢 | PDF→Papers/, 笔记→PapersRecap/ |
+| 17 | Dexterous RL with Knowledge Transfer | 🟢 | PDF→Papers/, 笔记→PapersRecap/ |
+| 18 | Path-Constrained Haptic Admittance Control | 🟢 | PDF→Papers/, 笔记→PapersRecap/ |
+
+### 未处理文件（非操作领域相关）
+
+| 文件 | 原因 | 建议 |
+|-----|------|------|
+| IsoCompute Playbook.pdf | LLM RL Scaling，与灵巧操作无直接关联 | 保留观察或删除 |
+| Learning to Discover at Test Time.pdf | 通用 ML 方法，非操作相关 | 保留观察或删除 |
+
+**处理时间**: 2026-02-02
+
+---
+
 ## 历史参考（已归档）
 
 ### 原合并策略（已完成）

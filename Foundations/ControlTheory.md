@@ -1128,9 +1128,11 @@ $$\begin{pmatrix} U_p \\ Y_p \\ U_f \\ Y_f \end{pmatrix} g = \begin{pmatrix} u_{
 - [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks]] — 鲁棒 RL
 
 ### 控制频率与时间步
+- [[TARC - Time-Adaptive Robotic Control]] — **时间自适应控制**：策略输出动作+持续时间，自动调节控制频率
 - [[Elastic Time Step Reinforcement Learning, VTS-RL]] — 弹性时间步
 - [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks]] — 高频控制进化
 - [[Reinforcement Learning for Control with Multiple Frequencies]] — 多速率采样
+- [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning]] — 动作持续性
 
 ### 轨迹跟踪与模仿
 - [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References]] — 神经跟踪控制

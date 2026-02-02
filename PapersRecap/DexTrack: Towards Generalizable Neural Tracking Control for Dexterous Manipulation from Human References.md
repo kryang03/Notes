@@ -24,7 +24,7 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ControlTheory#4. 操作空间公式化 (Operational Space Formulation)]] - 参考轨迹跟踪的控制理论基础
-> - [[ReinforcementLearning#2.2 Imitation Learning 的崛起与局限]] - RL + IL 的结合
+> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - RL + IL 的结合
 > - [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] - 人类到机器人的运动重定向
 > - [[Optimization#3. 技术演进脉络与深度洞察 (Evolution & Insights)]] - 从简单到复杂的优化路径
 >

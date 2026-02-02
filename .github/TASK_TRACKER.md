@@ -5,7 +5,97 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-01 (大规模断链修复完成 - 全部 PapersRecap 断链已修复)
+**最后更新**: 2026-02-02 (新论文处理 + DNPM 项目关联强化)
+
+---
+
+## 🟢 本次会话完成 (2026-02-02 下午)
+
+### 新论文处理 (7篇)
+
+| 论文 | 类型 | 与DNPM关联 |
+|-----|------|-----------|
+| **Hindsight Experience Replay** | 稀疏奖励探索 | ⭐ 核心基线方法 |
+| **TARC: Time-Adaptive Robotic Control** | 频率自适应 | ⭐ 直接解决频率困境 |
+| **Learning Long-Horizon via Privileged Action** | 特权动作 | ⭐ 惯性阶段简化方案 |
+| **Vision-force-fused Curriculum Learning** | 多模态课程 | 感知融合范式 |
+| **Visual-tactile Pretraining for Dexterity** | 低成本感知 | 简化触觉验证 |
+| **Dexterous RL with Knowledge Transfer** | 知识迁移 | 慢→快任务迁移 |
+| **Path-Constrained Haptic Admittance Control** | 人机协作 | 相位变量思想 |
+
+### Projects 强化
+
+- ✅ **DNPM 关联论文更新**: 新增 7 篇论文的分类索引
+- ✅ **算法提升 TODO 扩展**: 新增 6 条实验方向
+  - 时间自适应控制 (TARC)
+  - 稀疏奖励基线 (HER)
+  - 特权动作实验
+  - 知识迁移消融
+  - 视觉-力课程融合
+  - 简化触觉验证
+
+### Foundations 更新
+
+- ✅ **ReinforcementLearning.md**: 新增 HER 章节（探索理论部分）
+
+### 知识库健康状态
+
+| 指标 | 数值 |
+|-----|-----|
+| Papers PDFs | 53 (+7) |
+| PapersRecap 笔记 | 55 (+7) |
+| MergeBuffer 待处理 | 2 (非操作相关) |
+| Foundation 文件 | 11 + taxonomy |
+
+### MergeBuffer 剩余
+
+- `IsoCompute Playbook.pdf` - LLM RL Scaling，非操作相关
+- `Learning to Discover at Test Time.pdf` - 通用 ML，非操作相关
+
+---
+
+## 🟢 上次会话完成 (2026-02-02 上午)
+
+### 基础设施更新
+
+- ✅ **创建 `.github/copilot-instructions.md`** — 全面的知识库管理指南
+  - 核心使命与主动维护原则
+  - 知识库架构说明
+  - 强制工作流（Phase 0/1/2）
+  - Foundation 领域映射
+  - 主动修复清单
+  - 论文笔记标准模板
+  - 教科书参考规范
+  - 理论导师模式说明
+  - Obsidian 语法速查
+  - 禁止/必须操作清单
+
+### 断链修复 (2处)
+
+- ✅ **DexTrack**: `ReinforcementLearning#2.2 Imitation Learning 的崛起与局限` → `#2.2 Imitation Learning (IL): 数据饥渴与分布漂移`
+- ✅ **MimicGen**: 同上
+
+### 知识库健康状态
+
+| 指标 | 数值 |
+|-----|-----|
+| Papers PDFs | 46 |
+| PapersRecap 笔记 | 48 |
+| MergeBuffer 待处理 | 0（已清空）|
+| Foundation 文件 | 11 + taxonomy |
+
+### 验证完成
+
+- ✅ 所有主要 Foundation 章节编号一致
+- ✅ ReinforcementLearning 章节 2.2-2.8 引用验证通过
+- ✅ Optimization 章节 2-8 引用验证通过
+- ✅ ControlTheory 章节 1-10 引用验证通过
+
+### Projects 强化
+
+- ✅ **Dynamic Non-Prehensile Manipulation**: 补充 story-telling/intro、算法核心框架、算法提升 TODO
+  - 增强与 [[Dynamics]]、[[ControlTheory]]、[[ReinforcementLearning]]、[[ContactMechanics]]、[[Optimization]]、[[SignalProcessing]] 的关联
+  - 添加与 PapersRecap 的项目级索引（频率、变阻抗、Sim-to-Real 等）
 
 ---
 

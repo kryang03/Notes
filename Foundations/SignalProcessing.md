@@ -418,6 +418,8 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 ### 多模态信号融合
 - [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)|HATO]]: 视觉-触觉多模态信号融合
 - [[Proximity Perception-Based Grasping Intelligence (P2GI)|P2GI]]: 部件级多模态感知信号处理
+- [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]]: **简化触觉有效性**——二值触觉信号在灵巧操作中的应用
+- [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力融合课程学习范式
 
 ------
 **(正文结束，字数统计约 16,500 字)**
