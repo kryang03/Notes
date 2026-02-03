@@ -5,11 +5,44 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-02 (新论文处理 + DNPM 项目关联强化)
+**最后更新**: 2026-02-03 (知识图谱 Canvas 创建)
 
 ---
 
-## 🟢 本次会话完成 (2026-02-02 下午)
+## 🟢 本次会话完成 (2026-02-03)
+
+### 知识图谱可视化 Canvas
+
+- ✅ **创建 `KnowledgeGraph.canvas`** — 知识库核心关联可视化
+  - **核心结构**: Projects (DNPM) → 算法突破点 → PapersRecap → Foundations
+  - **6 大算法突破点**:
+    1. 控制频率困境 (TARC, Action Persistence, VTS-RL)
+    2. 稀疏奖励探索 (HER, Privileged Action)
+    3. 变阻抗控制 (VICES)
+    4. 物理参数课程 (Curriculum Learning)
+    5. Sim-to-Real 迁移 (RialTo, TRANSIC, Pen Spinning)
+    6. 特权动作 (Privileged Action, Long-Horizon)
+  - **12 篇核心论文节点**: 提取关键洞见/算法/Value-Add
+  - **6 个 Foundations 关联**: RL, ControlTheory, Dynamics, ContactMechanics, Optimization, SignalProcessing
+  - **关联边类型**: 痛点映射、核心方法、理论基础、论文间演进
+
+### 维护规范建立
+
+- ✅ **Canvas 维护指南**: 每次新增内容需检查是否与算法突破点相关，若相关则更新 Canvas
+
+### 知识库健康状态
+
+| 指标 | 数值 |
+|-----|-----|
+| Papers PDFs | 53 |
+| PapersRecap 笔记 | 55 |
+| MergeBuffer 待处理 | 2 (非操作相关) |
+| Foundation 文件 | 11 + taxonomy |
+| **Canvas 文件** | **1 (新增)** |
+
+---
+
+## 🟢 上次会话完成 (2026-02-02 下午)
 
 ### 新论文处理 (7篇)
 

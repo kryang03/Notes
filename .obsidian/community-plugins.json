@@ -1,3 +1,6 @@
 [
-  "open-vscode"
+  "open-vscode",
+  "omnisearch",
+  "dataview",
+  "editing-toolbar"
 ]
