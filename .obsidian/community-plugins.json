@@ -2,5 +2,6 @@
   "open-vscode",
   "omnisearch",
   "dataview",
-  "editing-toolbar"
+  "editing-toolbar",
+  "obsidian-git"
 ]

@@ -21,14 +21,14 @@
             "id": "5937f8e1bf6ef711",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "split-diff-view",
               "state": {
-                "file": "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
-                "mode": "preview",
-                "source": false
+                "aFile": ".obsidian/community-plugins.json",
+                "bFile": ".obsidian/community-plugins.json",
+                "aRef": ""
               },
-              "icon": "lucide-file",
-              "title": "TARC - Time-Adaptive Robotic Control"
+              "icon": "diff",
+              "title": "Diff: community-plugins.json  (Working Tree)"
             }
           }
         ],
@@ -106,7 +106,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -116,7 +115,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "TARC - Time-Adaptive Robotic Control 的反向链接列表"
+              "title": "反向链接"
             }
           },
           {
@@ -154,17 +153,26 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "TARC - Time-Adaptive Robotic Control 的大纲"
+              "title": "大纲"
+            }
+          },
+          {
+            "id": "a8e1e5b8773c4d5e",
+            "type": "leaf",
+            "state": {
+              "type": "git-view",
+              "state": {},
+              "icon": "git-pull-request",
+              "title": "Source Control"
             }
           }
         ],
-        "currentTab": 3
+        "currentTab": 4
       }
     ],
     "direction": "horizontal",
@@ -184,11 +192,13 @@
       "templates:插入模板": false,
       "command-palette:打开命令面板": false,
       "open-vscode:VSCode": false,
-      "omnisearch:Omnisearch": false
+      "omnisearch:Omnisearch": false,
+      "obsidian-git:Open Git source control": false
     }
   },
-  "active": "2f71ab26899f546f",
+  "active": "5937f8e1bf6ef711",
   "lastOpenFiles": [
+    "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
     "KnowledgeGraph.canvas",
     "Foundations/ControlTheory.md",
     "Foundations/Dynamics.md",
