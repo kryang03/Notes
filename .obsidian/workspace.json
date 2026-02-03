@@ -4,17 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "e1d7882af41e2fd4",
+        "id": "c97bbdfb1f95c6a8",
         "type": "tabs",
         "children": [
           {
-            "id": "eae871dcada90dd9",
+            "id": "a2bda358afde2f94",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Foundations/StochasticProcess.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "新标签页"
+              "title": "StochasticProcess"
             }
           }
         ]
@@ -37,7 +41,7 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": true
+                "autoReveal": false
               },
               "icon": "lucide-folder-closed",
               "title": "文件列表"
@@ -50,7 +54,7 @@
               "type": "search",
               "state": {
                 "query": "",
-                "matchingCase": true,
+                "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
                 "extraContext": false,
@@ -103,6 +107,19 @@
             }
           },
           {
+            "id": "5f893e18465e8102",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
             "id": "71ae0b620b20eff9",
             "type": "leaf",
             "state": {
@@ -146,7 +163,7 @@
             }
           },
           {
-            "id": "a8e1e5b8773c4d5e",
+            "id": "fa2d5fa10800fbf6",
             "type": "leaf",
             "state": {
               "type": "git-view",
@@ -154,22 +171,9 @@
               "icon": "git-pull-request",
               "title": "Source Control"
             }
-          },
-          {
-            "id": "facf37365ff0c424",
-            "type": "leaf",
-            "state": {
-              "type": "outgoing-link",
-              "state": {
-                "linksCollapsed": false,
-                "unlinkedCollapsed": true
-              },
-              "icon": "links-going-out",
-              "title": "出链"
-            }
           }
         ],
-        "currentTab": 4
+        "currentTab": 5
       }
     ],
     "direction": "horizontal",
@@ -177,6 +181,8 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "omnisearch:Omnisearch": false,
+      "obsidian-git:Open Git source control": false,
       "bases:新建数据库": false,
       "markdown-importer:打开 Markdown 格式转换器": false,
       "zk-prefixer:创建时间戳笔记": false,
@@ -188,36 +194,27 @@
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
       "command-palette:打开命令面板": false,
-      "open-vscode:VSCode": false,
-      "omnisearch:Omnisearch": false,
-      "obsidian-git:Open Git source control": false
+      "open-vscode:VSCode": false
     }
   },
-  "active": "eae871dcada90dd9",
+  "active": "a2bda358afde2f94",
   "lastOpenFiles": [
     "KnowledgeGraph.canvas",
-    "README.md",
-    "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
-    "Foundations/ControlTheory.md",
-    "Foundations/Dynamics.md",
-    "PapersRecap/On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks.md",
-    "lyapunov_rnn_framework.png.md",
+    "Foundations/RepresentationLearning.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
     "Foundations/_FoundationsIndex.base",
-    "HATO.md",
-    "pen_canonical_grasp.png.md",
-    "未命名.canvas",
-    "PapersRecap/_PapersIndex.base",
     "MergeBuffer/_MergeIndex.md",
+    "PapersRecap/_PapersIndex.base",
+    "pen_canonical_grasp.png.md",
     "Foundations/ComputationalGeometry.md",
     "Foundations/ContactMechanics.md",
     "PapersRecap/Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.md",
     "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL.md",
-    "Foundations/RepresentationLearning.md",
     "Foundations/ReinforcementLearning.md",
     "PapersRecap/Weight-sparse transformers have interpretable circuits.md",
     "P2GI - Part-Guided 3D RL for Contact-Rich Bimanual Manipulation.md",
+    "README.md",
     "未命名.base",
-    "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
     "Projects/Dynamic Non-Prehensile Manipulation/Elastic Time Step Reinforcement Learning, VTS-RL.md",
     "Projects/Dynamic Non-Prehensile Manipulation/RSS26.pdf",
     "Projects/RSS26.pdf",
