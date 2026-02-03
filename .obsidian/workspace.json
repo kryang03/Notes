@@ -11,28 +11,20 @@
             "id": "a2bda358afde2f94",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "关系图谱"
-            }
-          },
-          {
-            "id": "5937f8e1bf6ef711",
-            "type": "leaf",
-            "state": {
-              "type": "split-diff-view",
+              "type": "canvas",
               "state": {
-                "aFile": ".obsidian/community-plugins.json",
-                "bFile": ".obsidian/community-plugins.json",
-                "aRef": ""
+                "file": "KnowledgeGraph.canvas",
+                "viewState": {
+                  "x": 290,
+                  "y": -383.6538461538463,
+                  "zoom": -0.8178855895497736
+                }
               },
-              "icon": "diff",
-              "title": "Diff: community-plugins.json  (Working Tree)"
+              "icon": "lucide-layout-dashboard",
+              "title": "KnowledgeGraph"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -85,8 +77,7 @@
               "title": "书签"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -170,6 +161,20 @@
               "icon": "git-pull-request",
               "title": "Source Control"
             }
+          },
+          {
+            "id": "facf37365ff0c424",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "KnowledgeGraph.canvas",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "KnowledgeGraph 的出链列表"
+            }
           }
         ],
         "currentTab": 4
@@ -196,15 +201,15 @@
       "obsidian-git:Open Git source control": false
     }
   },
-  "active": "5937f8e1bf6ef711",
+  "active": "a2bda358afde2f94",
   "lastOpenFiles": [
+    "README.md",
     "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
     "KnowledgeGraph.canvas",
     "Foundations/ControlTheory.md",
     "Foundations/Dynamics.md",
     "PapersRecap/On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks.md",
     "lyapunov_rnn_framework.png.md",
-    "README.md",
     "Foundations/_FoundationsIndex.base",
     "HATO.md",
     "pen_canonical_grasp.png.md",

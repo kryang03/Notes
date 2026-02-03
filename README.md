@@ -7,23 +7,6 @@ aliases:
   - Home
 created: 2026-01-31
 ---
-## 🔗 快速导航
-
-# 启动理论导师模式
-@theoretical-mentor-mode 完善 Foundations
-
-# 处理 MergeBuffer
-@merge-buffer-process
-
-# 健康检查
-@knowledge-health-check
-
-# 论文精读
-@paper-reading Papers和MergeBuffer中的所有遗留论文
-
-# 继续上次工作
-@continue-session
-
 # 🤖 灵巧操作知识图谱
 
 # Dexterous Manipulation Knowledge Graph
