@@ -4,24 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "c97bbdfb1f95c6a8",
+        "id": "e1d7882af41e2fd4",
         "type": "tabs",
         "children": [
           {
-            "id": "a2bda358afde2f94",
+            "id": "eae871dcada90dd9",
             "type": "leaf",
             "state": {
-              "type": "canvas",
-              "state": {
-                "file": "KnowledgeGraph.canvas",
-                "viewState": {
-                  "x": 290,
-                  "y": -383.6538461538463,
-                  "zoom": -0.8178855895497736
-                }
-              },
-              "icon": "lucide-layout-dashboard",
-              "title": "KnowledgeGraph"
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "新标签页"
             }
           }
         ]
@@ -168,12 +161,11 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "KnowledgeGraph.canvas",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "KnowledgeGraph 的出链列表"
+              "title": "出链"
             }
           }
         ],
@@ -201,11 +193,11 @@
       "obsidian-git:Open Git source control": false
     }
   },
-  "active": "a2bda358afde2f94",
+  "active": "eae871dcada90dd9",
   "lastOpenFiles": [
+    "KnowledgeGraph.canvas",
     "README.md",
     "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
-    "KnowledgeGraph.canvas",
     "Foundations/ControlTheory.md",
     "Foundations/Dynamics.md",
     "PapersRecap/On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks.md",
