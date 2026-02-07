@@ -1,0 +1,3 @@
+1. 当前的初始化是10000个对先验几何位置进行扰动后能存活0.1s的状态，应该对这10000个点围成的凸包都作为初始化；同时应当随着课程逐步扩展凸包（哪怕脱离了几何先验，这意味着策略真正学会了初始状态的微调）
+2. 当前的“高惯性状态”是一个重要的必经中间态，它自带采样稀疏性、危险性，系统需要主动进入高惯性状态（exploration）（对应risk-averse），还必须是安全的、好的高惯性状态（exploitation）（对应speed hacking）。当前只奖励高惯性状态（rotation reward），没有限制好的高惯性状态（陀螺的稳定旋转而非大力猛转获取短暂的高速奖励；Thumbaround的合理力度、有利于收手式的snap而非猛snap直接转飞），可能好的高惯性状态（q，q_dot）本身也是一个凸包
+3. Dynamic Nonprehensile的意义：Action Acceleration(Tray Balancing and Transportation、Visual-tactile pretraining and online multitask learning for humanlike manipulation dexterity中的旋转开瓶盖) & Task Space Broadening(颠锅、Thumbaround)

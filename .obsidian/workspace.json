@@ -11,17 +11,72 @@
             "id": "a2bda358afde2f94",
             "type": "leaf",
             "state": {
+              "type": "pdf",
+              "state": {
+                "file": "Papers/Visual-tactile pretraining and online multitask learningfor humanlike manipulation dexterity.pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Visual-tactile pretraining and online multitask learningfor humanlike manipulation dexterity"
+            }
+          },
+          {
+            "id": "a4b3db055b40f27c",
+            "type": "leaf",
+            "state": {
               "type": "markdown",
               "state": {
-                "file": "Foundations/StochasticProcess.md",
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "StochasticProcess"
+              "title": "ideas"
+            }
+          },
+          {
+            "id": "312dd4d91efdb44c",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Dynamic Non-Prehensile Manipulation"
+            }
+          },
+          {
+            "id": "828e91fce11bf5ed",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "TARC - Time-Adaptive Robotic Control"
+            }
+          },
+          {
+            "id": "e84cd4c241ee3668",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "PapersRecap/RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -197,11 +252,28 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "a2bda358afde2f94",
+  "active": "a4b3db055b40f27c",
   "lastOpenFiles": [
-    "KnowledgeGraph.canvas",
-    "Foundations/RepresentationLearning.md",
     "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
+    "Foundations/ControlTheory.md",
+    "PapersRecap/Reinforcement Learning for Control with Multiple Frequencies.md",
+    "PapersRecap/Path-Constrained Haptic Motion Guidance via Admittance Control.md",
+    "Papers/Visual-tactile pretraining and online multitask learningfor humanlike manipulation dexterity.pdf",
+    "PapersRecap/Visual-tactile Pretraining for Humanlike Manipulation Dexterity.md",
+    "Papers/Learning Visuotactile Skills with Two Multifingered Hands.pdf",
+    "PapersRecap/Weight-sparse transformers have interpretable circuits.md",
+    "Papers/Learning_Long-Horizon_Robot_Manipulation_Skills_via Privileged Action.pdf",
+    "PapersRecap/Learning Long-Horizon Robot Manipulation Skills via Privileged Action.md",
+    "MergeBuffer/DemoStart: Demonstration-led auto-curriculum applied to sim-to-real with multi-fingered robots.pdf",
+    "MergeBuffer/未确认 928675.crdownload",
+    "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
+    "PapersRecap/Hindsight Experience Replay.md",
+    "PapersRecap/RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation.md",
+    "Papers/Hindsight Experience Replay.pdf",
+    "KnowledgeGraph.canvas",
+    "Foundations/StochasticProcess.md",
+    "Foundations/RepresentationLearning.md",
     "Foundations/_FoundationsIndex.base",
     "MergeBuffer/_MergeIndex.md",
     "PapersRecap/_PapersIndex.base",
@@ -211,23 +283,13 @@
     "PapersRecap/Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.md",
     "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL.md",
     "Foundations/ReinforcementLearning.md",
-    "PapersRecap/Weight-sparse transformers have interpretable circuits.md",
     "P2GI - Part-Guided 3D RL for Contact-Rich Bimanual Manipulation.md",
     "README.md",
     "未命名.base",
     "Projects/Dynamic Non-Prehensile Manipulation/Elastic Time Step Reinforcement Learning, VTS-RL.md",
     "Projects/Dynamic Non-Prehensile Manipulation/RSS26.pdf",
-    "Projects/RSS26.pdf",
-    "Projects/Dynamic Non-Prehensile Manipulation",
     "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL copy.md",
     "PapersRecap/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control copy.md",
-    "PapersRecap/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control.md",
-    "PapersRecap/Weight-sparse transformers have interpretable circuits copy.md",
-    "PapersRecap",
-    "Papers/Weight-sparse transformers have interpretable circuits.pdf",
-    "Papers/未确认 348889.crdownload",
-    "Backups/Variable Time Step Reinforcement Learning for Robotic Applications.pdf",
-    "未命名.md",
-    "MergeBuffer/deep-research-thinking-20260129-153156.md"
+    "PapersRecap/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control.md"
   ]
 }
