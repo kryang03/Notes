@@ -24,10 +24,10 @@ related:
 > 提出**视觉-力融合课程学习**框架，通过渐进式感知融合（先视觉引导，后力反馈精调），实现 0.1mm 间隙的高精度装配任务，并展示了强大的 Sim-to-Real 泛化能力。
 
 > [!tip] 与理论基础的关联
-> - [[SignalProcessing#4. 触觉信号处理]] - 力传感信号的特征提取与融合
-> - [[RepresentationLearning#2.4 表征学习]] - 多模态感知融合策略
+> - [[SignalProcessing#4. 时序信号处理：滑移检测与摩擦估计]] - 力传感信号的特征提取与融合
+> - [[RepresentationLearning]] - 多模态感知融合策略
 > - [[ContactMechanics]] - 装配任务中的接触力学约束
-> - [[ReinforcementLearning#4. Advanced State Space Design]] - 课程学习的状态空间设计
+> - [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] - 课程学习的状态空间设计
 >
 > **核心技术**: Vision-Force Fusion, Curriculum Learning, Peg-in-Hole Assembly
 

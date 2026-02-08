@@ -41,7 +41,7 @@ related:
 ### 1.2 项目定位与知识图谱关联
 
 - **动力学主线**：欠驱动能量注入与惯性调度 → [[Dynamics]]、[[ContactMechanics]]
-- **控制策略**：低频决策 + 高频阻抗稳定 → [[ControlTheory]]、[[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]]
+- **控制策略**：低频决策 + 高频阻抗稳定 → [[ControlTheory]]、[[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]]、[[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]]（阻抗参考模型跟踪）
 - **学习与频率**：时间缩放/动作持续的策略表征 → [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning]]、[[Elastic Time Step Reinforcement Learning, VTS-RL]]、[[EvoControl - Evolved High Frequency Control for Continuous Control Tasks]]
 - **Sim-to-Real 管线**：动力学域迁移与在线校正 → [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation]]、[[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction]]
 - **数据与评估**：轨迹优化与数据生成 → [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization]]、[[Optimization]]
@@ -379,8 +379,7 @@ $$\mathbf{M}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{C}(\mathbf{q}, \dot{\mathbf{
 ### 6.3 算法效果提升 TODO
 
 - [ ] **频率对齐消融**：对比 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning]]、[[Elastic Time Step Reinforcement Learning, VTS-RL]]、[[EvoControl - Evolved High Frequency Control for Continuous Control Tasks]] 的频率/动作重复设置，回填到低频策略稳定性分析。
-- [ ] **变阻抗动作空间**：引入 [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] 的阻抗参数化，缓解低频 PD “僵硬”问题。
-- [ ] **物理参数课程**：以 [[Curriculum Learning]] 为模板建立 $\alpha$-schedule，记录对 [[Dynamics]] 中惯性主导区间的影响。
+- [ ] **变阻抗动作空间**：引入 [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] 的阻抗参数化，缓解低频 PD “僵硬”问题。- [ ] **阻抗参考模型跟踪** ⭐：基于 [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 的阻抗参考模型框架，为灵巧手各关节定义独立阻抗参考模型，RL 输出 $(x_{des}, K_p, K_d)$。核心实验：在 Thumbaround 中对比 (a) 固定 PD, (b) VICES 变阻抗, (c) FACET 参考模型跟踪。验证时变 $K_p$ 是否让策略自然学习 snap→spin→catch 的相位切换。进阶实验：融合 TARC 的时间自适应，输出 $(x_{des}, K_p, K_d, \Delta t)$。- [ ] **物理参数课程**：以 [[Curriculum Learning]] 为模板建立 $\alpha$-schedule，记录对 [[Dynamics]] 中惯性主导区间的影响。
 - [ ] **Sim-to-Real 校正**：结合 [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation]] 与 [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction]] 设计在线修正实验。
 - [ ] **触觉稳定性指标**：基于 [[SignalProcessing]] 的滑移检测思路定义稳定性 metric，并在 [[ContactMechanics]] 中标注摩擦锥余量的可观测性。
 

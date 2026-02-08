@@ -358,6 +358,35 @@ $$M_d (\ddot{x} - \ddot{x}_d) + B_d (\dot{x} - \dot{x}_d) + K_d (x - x_d) = F_{e
 > 2. **迁移性**：策略可迁移到不同机器人（同样的"软/硬"语义）
 > 3. **安全性**：低刚度设置自然限制接触力
 
+> [!abstract] 阻抗参考模型跟踪：从"控制阻抗"到"跟踪阻抗轨迹"（来自 [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]]）
+> **核心创新**：不直接让 RL 输出阻抗参数，而是让 RL 策略**跟踪一个虚拟阻抗参考模型生成的轨迹**。
+> 
+> **参考模型动力学**：
+> $$m\ddot{x}_{ref} = K_p(x_{des} - x_{ref}) + K_d(\dot{x}_{des} - \dot{x}_{ref}) + f_{ext}$$
+> 
+> RL 策略和参考模型都经历相同的外力 $f_{ext}$，但参考模型额外受虚拟弹簧力约束。训练目标是让 $x_{sim} \approx x_{ref}$。
+> 
+> **统一控制接口** $(x_{des}, K_p, K_d)$：
+> - $K_p = 0$：机器人零抗力被牵着走（运动学示教）
+> - $K_p$ 中等：柔顺跟随（碰撞冲击降低 80%）
+> - $K_p$ 高：精确定位或大力拖拽
+> 
+> **时间平滑技术**：混合从不同历史时刻积分的参考轨迹，平衡开环精度和闭环适应性：
+> $$r_t = \frac{1}{M}\sum_{t'} \exp(-\|x_{sim}(t) - x^{t'}_{ref}(t)\|^2) + \exp(-\|\dot{x}_{sim}(t) - \dot{x}^{t'}_{ref}(t)\|^2)$$
+> 
+> **与 VICES 的关键区别**：
+> | | VICES | FACET |
+> |---|---|---|
+> | RL 输出 | $(\Delta x, K)$ 直接作为阻抗参数 | $(x_{des}, K_p, K_d)$ 作为参考模型输入 |
+> | 跟踪目标 | 静态平衡点 | **动态参考轨迹** |
+> | 力自适应 | 通过低刚度被动顺从 | 通过参考模型**主动响应** $f_{ext}$ |
+> | 适用场景 | 接触丰富操作 | 大冲击/力自适应 + 操作 |
+> 
+> **灵巧操作启发**：
+> 1. 为每个手指/关节定义独立阻抗参考模型 → 实现关节级时变阻抗
+> 2. 在动态非紧握操作中：snap 阶段高 $K_p$（发力）→ 旋转阶段低 $K_p$（柔顺滑动）→ catch 阶段中 $K_p$（精确接住）
+> 3. 多体扩展：arm 和 hand 分别定义参考模型，通过力传导参数 $a \in [0,1]$ 控制耦合程度
+
 > [!note] 教科书参考
 > Control Barrier Function 理论源自 Ames et al. (2017) 和控制理论经典文献。
 > 参考 [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints|LatentCBF 论文]] 的数学背景部分。
@@ -1120,6 +1149,7 @@ $$\begin{pmatrix} U_p \\ Y_p \\ U_f \\ Y_f \end{pmatrix} g = \begin{pmatrix} u_{
 ### 阻抗控制与变刚度
 - [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] — 阻抗控制作为 RL 动作空间
 - [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking]] — 数据驱动阻抗辨识
+- [[FACET - Force-Adaptive Control via Impedance Reference Tracking]] — **阻抗参考模型跟踪**：RL 跟踪虚拟弹簧-质量-阻尼轨迹实现力自适应
 
 ### Safe RL 与稳定性
 - [[Reachability Constrained Reinforcement Learning]] — 可达性约束

@@ -23,7 +23,7 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - HER 处理稀疏奖励
-> - [[ReinforcementLearning#5. Bridging the Gap: Simulation to Reality]] - Sim-to-Real 迁移验证
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - Sim-to-Real 迁移验证
 > - [[Optimization]] - 从简单到复杂的优化策略
 >
 > **核心技术**: DDPG + HER, Knowledge Transfer, TriFinger Manipulation

@@ -22,7 +22,7 @@ related:
 
 > [!note] 教科书背景
 > 本文的 **不确定性感知采样 (Uncertainty-aware Sampling)** 与 Model-Based RL 中的不确定性建模有相同理论根源。
-> 详见 [[ReinforcementLearning#2.6 Model-Based RL 的尝试与认知]]：
+> 详见 [[ReinforcementLearning#2.6 Model-Based RL (MBRL): 样本效率与世界模型]]：
 > - **Aleatoric 不确定性**：分割噪声（本文用熵 $H$ 度量）
 > - **Epistemic 不确定性**：帧间不一致（本文用时序滤波缓解）
 

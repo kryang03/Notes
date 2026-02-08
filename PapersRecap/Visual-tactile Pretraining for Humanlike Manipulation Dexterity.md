@@ -24,8 +24,8 @@ related:
 > 提出**两阶段学习框架**：(1) 从人类演示中自监督学习视觉-触觉融合表征，(2) 通过强化学习+在线模仿学习训练统一多任务策略。仅用单目视觉+简单二值触觉实现 85% 成功率，覆盖 5 类复杂任务和 25 种物体。
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning#2.4 表征学习]] - 视觉-触觉自监督预训练
-> - [[SignalProcessing#4. 触觉信号处理]] - 简化触觉（二值信号）的有效利用
+> - [[RepresentationLearning]] - 视觉-触觉自监督预训练
+> - [[SignalProcessing#4. 时序信号处理：滑移检测与摩擦估计]] - 简化触觉（二值信号）的有效利用
 > - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - 在线模仿学习解决分布漂移
 > - [[ContactMechanics]] - 接触状态的多模态感知
 >
@@ -117,7 +117,7 @@ $$
 > - 视觉已包含形状、位置等丰富信息
 > - 二值触觉作为**接触开关信号**，触发视觉注意力切换
 > 
-> 参见 [[SignalProcessing#4.1 触觉信号预处理]] 中的降维与特征提取
+> 参见 [[SignalProcessing#4.1 早期滑移（Incipient Slip）检测算法]] 中的降维与特征提取
 
 ## 4. 实验与验证 (Experiments)
 

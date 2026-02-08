@@ -5,11 +5,67 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-03 (知识图谱 Canvas 创建)
+**最后更新**: 2026-02-08 (FACET 论文整合 + 断链修复 + DNPM 方向A强化)
 
 ---
 
-## 🟢 本次会话完成 (2026-02-03)
+## 🟢 本次会话完成 (2026-02-08)
+
+### 新论文处理
+
+| 论文 | 类型 | 与DNPM关联 |
+|-----|------|-----------|
+| **FACET: Force-Adaptive Control via Impedance Reference Tracking** | 阻抗参考模型跟踪 | ⭐⭐ **方向A的核心方案** — 时变阻抗直接匹配 snap/spin/catch 相位 |
+
+### DNPM 项目强化 — 方向A（Low-Level Controller 优化）
+
+- ✅ **ideas.md 3.1.3 研究方向重构**：从 3 个方案扩展为 5 个方案
+  - 新增方案 2：阻抗参考模型跟踪（FACET）⭐
+  - 新增方案 5：阻抗参考模型 + 时间自适应（FACET + TARC 融合）⭐⭐
+  - 更新任务-算法匹配表，覆盖所有 4 类任务
+- ✅ **Dynamic Non-Prehensile Manipulation.md 算法 TODO 更新**：新增阻抗参考模型跟踪实验计划
+  - 三组对比实验：固定 PD vs VICES 变阻抗 vs FACET 参考模型跟踪
+  - 进阶融合实验：$(x_{des}, K_p, K_d, \Delta t)$ 输出
+
+### Foundations 更新
+
+- ✅ **ControlTheory.md 3.2 节**：新增 FACET 阻抗参考模型跟踪 callout
+  - 完整数学框架：参考模型动力学、时间平滑技术、VICES 对比表
+  - 灵巧操作启发：关节级参考模型、多体扩展
+- ✅ **ControlTheory.md 论文索引**：新增 FACET 反向链接
+
+### Canvas 更新
+
+- ✅ **KnowledgeGraph.canvas**：新增 FACET 论文节点
+  - 连接到 `bt_impedance`（变阻抗控制突破点）
+  - 连接到 `found_control`、`found_dynamics`（理论基础）
+  - VICES → FACET 演进关系边
+
+### 断链修复（16 处，涉及 9 个文件）
+
+| 断链类型 | 数量 | 涉及文件 |
+|---------|-----|---------|
+| ReinforcementLearning 章节引用 | 8 | HER, TARC, Dexterous RL, Long-Horizon, Vision-force, DemoStart, Part-Guided, ideas.md |
+| Dynamics 章节引用 | 4 | ideas.md (×4) |
+| SignalProcessing 章节引用 | 3 | Visual-tactile, Vision-force |
+| RepresentationLearning 章节引用 | 2 | Visual-tactile, Vision-force |
+| ContactMechanics 章节引用 | 1 | Long-Horizon |
+| FACET 笔记内部断链 | 2 | FACET (RL#2.5 PPO, Dynamics#3.1 Lagrangian) |
+
+### 知识库健康状态
+
+| 指标 | 数值 |
+|-----|-----|
+| Papers PDFs | 55 (+2 since last) |
+| PapersRecap 笔记 | 55 |
+| MergeBuffer 待处理 | 3 (非操作相关) |
+| Foundation 文件 | 11 + taxonomy |
+| Canvas 论文节点 | 13 (+1 FACET) |
+| 断链修复 | 18 处 (本次) |
+
+---
+
+## 🟢 上次会话完成 (2026-02-03)
 
 ### 知识图谱可视化 Canvas
 

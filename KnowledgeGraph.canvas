@@ -22,6 +22,7 @@
 		{"id":"paper_her","type":"text","text":"## HER (2017)\n**Hindsight Experience Replay**\n\n💡 失败→\"成功\"\n目标重标注\n隐式课程学习\n\n⭐ 稀疏奖励基石","x":-320,"y":700,"width":280,"height":180,"color":"4"},
 		{"id":"paper_privileged","type":"text","text":"## Privileged Action (2025)\n**特权动作课程学习**\n\n💡 仿真中\"作弊\"\n禁用碰撞/虚拟力\n课程恢复约束\n\n⭐ 长时程探索突破","x":-320,"y":920,"width":280,"height":180,"color":"4"},
 		{"id":"paper_vices","type":"text","text":"## VICES (2019)\n**末端空间变阻抗**\n\n💡 动作 = (Δx, K)\n位移 + 刚度\n任务相关顺从性\n\n⭐ 接触任务动作空间","x":10,"y":700,"width":280,"height":180,"color":"4"},
+		{"id":"paper_facet","type":"text","text":"## FACET (2025)\n**阻抗参考模型跟踪**\n\n💡 RL 跟踪虚拟弹簧-质量-阻尼轨迹\n统一接口 (x_des, Kp, Kd)\n时变阻抗自然匹配相位\n\n⭐ DNPM 方向A核心方案","x":10,"y":920,"width":280,"height":180,"color":"4"},
 		{"id":"paper_curriculum","type":"text","text":"## Curriculum Learning (2009)\n**课程学习理论**\n\n💡 Continuation Method\n简单→复杂分布\n避免局部极小\n\n⭐ α-scaling 理论背书","x":10,"y":920,"width":280,"height":180,"color":"4"},
 		{"id":"paper_rialto","type":"text","text":"## RialTo (2024)\n**Real-to-Sim-to-Real**\n\n💡 数字孪生+RL鲁棒化\n逆向蒸馏\n67%+ 鲁棒性提升\n\n⭐ 迁移新范式","x":340,"y":700,"width":280,"height":180,"color":"5"},
 		{"id":"paper_pen","type":"text","text":"## Pen Spinning (2024)\n**转笔三阶段Sim2Real**\n\n💡 Oracle + OpenLoop + Finetune\n<50条真实轨迹\nFinger Gaiting\n\n⭐ 动态操作典范","x":340,"y":920,"width":280,"height":180,"color":"5"},
@@ -50,6 +51,7 @@
 		{"id":"e_bt2_her","fromNode":"bt_sparse","fromSide":"bottom","toNode":"paper_her","toSide":"top","color":"4","label":"⭐ 核心"},
 		{"id":"e_bt2_priv","fromNode":"bt_sparse","fromSide":"bottom","toNode":"paper_privileged","toSide":"top","label":"简化探索"},
 		{"id":"e_bt3_vices","fromNode":"bt_impedance","fromSide":"bottom","toNode":"paper_vices","toSide":"top","color":"4","label":"⭐ 核心"},
+		{"id":"e_bt3_facet","fromNode":"bt_impedance","fromSide":"bottom","toNode":"paper_facet","toSide":"top","color":"4","label":"⭐ 参考模型"},
 		{"id":"e_bt4_curri","fromNode":"bt_curriculum","fromSide":"bottom","toNode":"paper_curriculum","toSide":"top","color":"4","label":"⭐ 理论"},
 		{"id":"e_bt4_priv","fromNode":"bt_curriculum","fromSide":"bottom","toNode":"paper_privileged","toSide":"top","label":"应用"},
 		{"id":"e_bt5_rialto","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_rialto","toSide":"top","color":"5","label":"⭐ 核心"},
@@ -79,6 +81,9 @@
 		{"id":"e_paper_curri_priv","fromNode":"paper_curriculum","fromSide":"top","toNode":"paper_privileged","toSide":"bottom","color":"3","label":"理论基础"},
 		{"id":"e_paper_rialto_pen","fromNode":"paper_rialto","fromSide":"right","toNode":"paper_pen","toSide":"left","color":"3","label":"互补范式"},
 		{"id":"e_paper_priv_long","fromNode":"paper_privileged","fromSide":"right","toNode":"paper_longhorizon","toSide":"left","color":"3","label":"应用拓展"},
-		{"id":"e_paper_vices_control","fromNode":"paper_vices","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","color":"6"}
+		{"id":"e_paper_vices_control","fromNode":"paper_vices","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","color":"6"},
+		{"id":"e_facet_control","fromNode":"paper_facet","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"},
+		{"id":"e_facet_dynamics","fromNode":"paper_facet","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","color":"6"},
+		{"id":"e_vices_facet","fromNode":"paper_vices","fromSide":"bottom","toNode":"paper_facet","toSide":"top","color":"3","label":"演进"}
 	]
 }

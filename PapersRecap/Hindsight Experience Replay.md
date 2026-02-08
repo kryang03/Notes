@@ -21,7 +21,7 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - HER 解决稀疏奖励下的探索困难
-> - [[ReinforcementLearning#5. Bridging the Gap: Simulation to Reality]] - HER 策略可直接 Sim-to-Real 部署
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - HER 策略可直接 Sim-to-Real 部署
 > - [[Optimization]] - 目标重标注作为隐式课程优化
 >
 > **核心技术**: Goal-conditioned RL, Experience Replay, Implicit Curriculum
