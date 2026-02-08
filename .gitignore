@@ -1,6 +1,0 @@
-# Ignore Obsidian workspace and graph state files
-.obsidian/workspace.json
-.obsidian/graph.json
-
-/.obsidian/workspace.json
-/.DS_Store

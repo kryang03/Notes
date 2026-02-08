@@ -9,14 +9,14 @@
   "colorGroups": [],
   "collapse-display": false,
   "showArrow": false,
-  "textFadeMultiplier": 0,
-  "nodeSizeMultiplier": 1,
+  "textFadeMultiplier": 1.7,
+  "nodeSizeMultiplier": 1.12083333333333,
   "lineSizeMultiplier": 1,
   "collapse-forces": false,
   "centerStrength": 0.518713248970312,
-  "repelStrength": 10,
+  "repelStrength": 20,
   "linkStrength": 1,
   "linkDistance": 250,
-  "scale": 1.032470448920062,
+  "scale": 0.13596318668906154,
   "close": true
 }
