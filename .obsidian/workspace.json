@@ -20,8 +20,23 @@
               "icon": "lucide-file",
               "title": "ideas"
             }
+          },
+          {
+            "id": "a8aeb41d86e31e20",
+            "type": "leaf",
+            "state": {
+              "type": "split-diff-view",
+              "state": {
+                "aFile": ".gitignore",
+                "bFile": ".gitignore",
+                "aRef": ""
+              },
+              "icon": "diff",
+              "title": "Diff: .gitignore  (Working Tree)"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -177,8 +192,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -198,11 +212,11 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "a2bda358afde2f94",
+  "active": "a8aeb41d86e31e20",
   "lastOpenFiles": [
+    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
     "Projects/Dynamic Non-Prehensile Manipulation/RSS26.pdf",
     "MergeBuffer/Mediator-Based Reward Design in Online Contextual Bandit.pdf",
-    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
     "Projects/Dynamic Non-Prehensile Manipulation/HDC-元宝纪要.txt",
     "Foundations/StochasticProcess.md",
     "MergeBuffer/DemoStart: Demonstration-led auto-curriculum applied to sim-to-real with multi-fingered robots.pdf",
