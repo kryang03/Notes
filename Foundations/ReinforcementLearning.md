@@ -406,6 +406,28 @@ $$\mathbb{E}_{\tau \sim p_{\theta'}(\tau)}\left[\gamma^t A^{\pi_\theta}(s_t, a_t
 
 这解释了 TRPO 为什么要约束 KL 散度：**不是任意的正则化，而是保证状态分布替换的理论合法性**。
 
+#### 统一梯度视角：SFT、蒸馏与 RL 的深层联系
+
+> [!abstract] 从梯度角度统一四种训练范式
+> SFT、Off-Policy Distillation、RL、On-Policy Distillation 四种训练目标看似不同，但从策略梯度角度可以统一到同一个框架中。将所有梯度通过重要性采样转换到 On-Policy 分布后：
+>
+> | 方法 | 梯度形式 | 加权方式 | 稀疏/稠密 |
+> |------|---------|---------|----------|
+> | **SFT** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\frac{\pi_\theta}{\pi_{data}} \cdot \mathbf{1}[a=a^*]$ | 指示函数（one-hot） | 稀疏 |
+> | **Off-Policy Distillation** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\frac{\pi_\theta}{\pi_{data}} \cdot \pi_{teacher}(a\|s)$ | 教师分布 | 稠密 |
+> | **RL (GRPO)** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\hat{A}(s,a)$ | 优势估计（reward） | 稀疏 |
+> | **On-Policy Distillation** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\pi_{teacher}(a\|s)$ | 教师分布 | 稠密 |
+>
+> **关键洞见**：
+> - **SFT 可视为奖励模型是指示函数的稀疏 RL**（$R(a) = \mathbf{1}[a=a^*]$）
+> - RL 与 On-Policy Distillation 都是 On-Policy 的，区别在于 RL 用 reward 做稀疏加权，蒸馏用教师分布做稠密加权
+> - On-Policy 方法（RL、On-Policy Distillation）比 Off-Policy 方法（SFT、Off-Policy Distillation）更优，因为避免了分布偏移
+>
+> **与灵巧操作的关联**：
+> - 在 Sim-to-Real 中，教师策略（仿真中的专家）向学生策略蒸馏时，On-Policy Distillation 的稠密梯度信号比 RL 的稀疏 reward 信号更高效
+> - 对于 [[Dynamic Non-Prehensile Manipulation|DNPM]] 中的长因果链问题，稠密的教师信号可部分缓解 credit assignment 困难
+> - GRPO 算法（用于 LLM-RL）的组内优势估计思想可推广到机器人 RL 中的 episode-level 优势估计
+
 ### 2.6 Model-Based RL (MBRL): 样本效率与世界模型
 
 **Problem**: 即使是SAC，也需要百万级的步数才能收敛。在真机上这需要几周时间。 **Evolution**: DreamerV3 。 **Insights**:
@@ -771,6 +793,26 @@ $$R = w_1 \cdot \text{dist}(p_{obj}, p_{goal}) + w_2 \cdot \text{quat\_diff}(q_{
 
 1. **ARES (Attention-based REward Shaping)** : 利用Transformer自动从演示数据中学习权重。
 2. **Inverse Reinforcement Learning (IRL)**: 从专家演示中反推奖励函数。
+3. **Mediator-Based Surrogate Reward**: 利用因果结构中的中介变量构造低方差替代奖励。
+
+> [!tip] Mediator-Based Reward Design — 利用因果结构降低奖励方差
+> 当原始奖励信号噪声很大时（如接触丰富的操作任务中成功/失败的二值奖励），可以利用因果 DAG 中的**中介变量（Mediator）**构造替代奖励：
+>
+> **因果结构**: $\text{Action} \xrightarrow{a} \text{Mediator} \xrightarrow{b} \text{Reward}$
+>
+> **替代奖励定义**: $\tilde{R}(m, s) = \mathbb{E}[R_t \mid M_t = m, S_t = s]$
+>
+> **核心定理（无偏性 + 方差降低）**: 在 surrogacy 假设（$R_t \perp A_t \mid M_t, S_t$）下：
+> - $\mathbb{E}[\tilde{R}(M_t, S_t) \mid A_t, S_t] = \mathbb{E}[R_t \mid A_t, S_t]$（无偏）
+> - $\text{Var}(\tilde{R}) \leq \text{Var}(R)$（严格更低方差），源于全方差公式
+>
+> **与灵巧操作的关联**：
+> - 在 [[Dynamic Non-Prehensile Manipulation|DNPM]] 的长因果链（发力→惯性→接触力→摩擦力→抗重力）中，中间状态（如接触力大小、物体角速度）可作为 mediator
+> - 用 mediator 构造的替代奖励可显著降低 credit assignment 的方差
+> - 在线学习 mediator-reward 映射时，奖励的非平稳性可通过对抗性 bandit oracle 处理
+> - 即使 surrogacy 假设不完全成立（如 mediator 只捕获 56% 的因果效应），仍可观察到性能提升
+>
+> **实践启发**：对于 EUREKA 等自动奖励设计方法，可将因果中介变量自动识别纳入奖励搜索空间，构造"因果感知"的奖励函数。
 
 ------
 
@@ -948,6 +990,56 @@ $$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sig
 
 ------
 
+### 6.3 RL Scaling Laws: 计算最优的训练资源分配
+
+> [!abstract] IsoCompute Playbook — RL 训练中的采样计算最优分配
+> 在 On-Policy RL（如 GRPO）训练中，给定固定的采样计算预算 $C = n \times B_{problem} \times M$（并行采样数 × 问题数 × 迭代次数），如何最优地分配这三个维度？
+>
+> **核心发现**：
+>
+> | 发现 | 描述 | 与灵巧操作的关联 |
+> |------|------|-----------------|
+> | **最优并行采样数随预算增长** | $n^*(C)$ 呈 sigmoid 增长 | 训练预算充足时应增大并行环境数（如 IsaacGym） |
+> | **Easy/Hard 问题：相似趋势，不同机制** | Easy: 大 $n$ 锐化策略（改善 worst@k）；Hard: 大 $n$ 扩展覆盖（改善 best@k） | DNPM 中 quasi-static（easy）vs dynamic（hard）任务需不同策略 |
+> | **熵控制策略因难度而异** | Easy 任务需 KL/熵约束防止过早坍缩；Hard 任务去除正则化反而更优 | HDC 课程从 easy（$\alpha$ 小）到 hard（$\alpha=1$）的迁移过程中应动态调整熵正则 |
+> | **学习率应随 batch size 平方根缩放** | $\text{lr} \propto \sqrt{B}$，而非固定 | 大规模并行仿真训练的超参数指导 |
+>
+> **"健康" RL 配方的特征**：
+> - 稳定的熵动态（避免 entropy collapse 或 divergence）
+> - 严格 on-policy（避免 staleness），限制 off-policy 重用
+> - 根据问题难度分布调整正则化策略
+>
+> **与 [[Dynamic Non-Prehensile Manipulation|DNPM]] HDC 的直接关联**：
+> - HDC 的 $\alpha$ 课程从 easy（慢速空间）渐进到 hard（真实速度），正好对应 scaling law 中 easy→hard 的不同机制转换
+> - HDC 课程迁移判据（success rate 阈值）可参考 IsoCompute 中 easy 问题饱和点的定义来优化
+> - 并行环境数 $n$ 的选择应根据当前 $\alpha$ 值动态调整——低 $\alpha$（easy）时可用更大 $B_{problem}$，高 $\alpha$（hard）时增大 $n$ 以扩展覆盖
+
+### 6.4 Test-Time RL: 部署时在线学习新发现
+
+> [!abstract] TTT-Discover — 测试时通过 RL 持续训练发现新方案
+> **核心思想**：在部署/测试阶段对单个问题继续执行 RL 训练，让模型从特定问题的经验中持续改进，而非仅依赖训练阶段的泛化能力。
+>
+> **与标准 RL 的关键区别**：
+> - 标准 RL: 优化**期望**奖励，策略需在多个环境中泛化
+> - TTT-Discover: 只需找到**单个**最优解（最大而非期望），且只需解决**当前**问题
+>
+> **Entropic Objective** — 偏好最大奖励动作的学习目标：
+> $$J_\beta(\theta) = \mathbb{E}_{s \sim \text{reuse}(H)} \left[ \log \mathbb{E}_{a \sim \pi_\theta(\cdot|s)} \left[ e^{\beta(s) R(s,a)} \right] \right]$$
+>
+> 其策略梯度为 softmax 加权形式：
+> $$w_{\beta(s)}(a) = \frac{e^{\beta(s) R(s,a)}}{\mathbb{E}_{\pi_\theta}[e^{\beta(s) R(s,a)}]}$$
+>
+> 当 $\beta \to \infty$ 时退化为 argmax（纯贪婪）；$\beta \to 0$ 时退化为标准策略梯度（均匀加权）。
+>
+> **State Reuse 机制**：维护历史解的缓冲区 $H_i$，通过启发式采样复用高奖励解作为初始状态，有效延长搜索视野。
+>
+> **与灵巧操作的潜在关联**：
+> - **在线适应**: 将操作策略部署到新环境（新物体、新摩擦系数）时，可在测试时对该特定物体执行 TTT-Discover，发现针对性的操作策略
+> - **与 [[Optimization#5.3 基于采样的 MPC (Sampling-based MPC)|Sampling-based MPC]] 的对比**: TTT-Discover 的 state reuse + entropic objective 可视为"带学习的 MPC"——MPPI 在每步重新采样，TTT 则通过参数更新积累经验
+> - **探索-利用权衡**: Entropic objective 的 $\beta$ 参数控制探索-利用权衡，类似 [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC|SAC]] 中的温度参数 $\alpha$
+
+------
+
 ## 7. Conclusion: 走向物理感知的智能
 
 综上所述，强化学习在灵巧操作领域的成功，并非单纯依赖于算力的堆砌，而是源于对物理问题的深刻抽象与算法适配：
@@ -965,7 +1057,7 @@ $$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sig
 
 ## 8. Learning Resources
 
-> **Source**: From [[Projects/Lumina-Embodied-AI-Reference|Lumina Embodied AI Guide]]
+> **Source**: From [[Books/lumina-eai-guide.pdf|Lumina Embodied AI Guide]]
 
 ### Courses
 
@@ -1017,11 +1109,11 @@ $$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sig
 
 ### 模仿学习与行为克隆
 - [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills|DeepMimic]]: 参考动作引导的深度RL
-- [[DexTrack - Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]: 人类参考的神经跟踪控制
+- [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]: 人类参考的神经跟踪控制
 - [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]: 规划引导的扩散策略
 
 ### 奖励设计与探索
-- [[EUREKA - Human-Level Reward Design via Coding Large Language Models|EUREKA]]: LLM自动奖励设计
+- [[EUREKA: Human-Level Reward Design via Coding Large Language Models|EUREKA]]: LLM自动奖励设计
 - [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]: 探索-利用的随机控制视角
 - [[Hindsight Experience Replay]]: **稀疏奖励探索基石**，目标重标注的隐式课程
 

@@ -233,14 +233,49 @@ status: pending
 | 17 | Dexterous RL with Knowledge Transfer | 🟢 | PDF→Papers/, 笔记→PapersRecap/ |
 | 18 | Path-Constrained Haptic Admittance Control | 🟢 | PDF→Papers/, 笔记→PapersRecap/ |
 
-### 未处理文件（非操作领域相关）
+### 未处理文件（非操作领域相关） → 已全部深度整合 (2026-02-27)
 
-| 文件 | 原因 | 建议 |
-|-----|------|------|
-| IsoCompute Playbook.pdf | LLM RL Scaling，与灵巧操作无直接关联 | 保留观察或删除 |
-| Learning to Discover at Test Time.pdf | 通用 ML 方法，非操作相关 | 保留观察或删除 |
+> [!success] MergeBuffer 零废弃原则应用
+> 以下文件此前被标注为"无直接关联"，但经深度分析后发现均与知识库存在有价值的关联，已全部整合。
 
-**处理时间**: 2026-02-02
+| 文件 | 整合目标 | 关联发现 |
+|-----|---------|---------|
+| IsoCompute Playbook.pdf | [[ReinforcementLearning#6.3 RL Scaling Laws]] + DNPM ideas.md §2.5.4 | RL 缩放定律、easy/hard 熵控制、课程设计指导 |
+| Learning to Discover at Test Time.pdf | [[ReinforcementLearning#6.4 Test-Time RL]] + DNPM ideas.md §4.1 | 测试时 RL、entropic objective、在线适应新环境 |
+
+**处理时间**: 2026-02-02 标注 → 2026-02-27 完成深度整合
+
+---
+
+## 2026-02-27 新增文件处理
+
+### 19. 什么是机器人动力学中的牛顿欧拉法与拉格朗日法？.pdf
+**来源**: 微信公众号 Zane Hub (2026-02-24)
+**类型**: 📱 公众号/博客文章（科普级别）
+**状态**: 🟢 已完成
+
+| 核心内容 | 融合目标 | 处理结果 |
+|---------|---------|---------|
+| NE vs Lagrangian 方法对比 | [[Dynamics#3.4 方法对比总结 (Method Comparison Summary)]] | ✅ 新增对比表 |
+| 离散时间动力学建模 | [[Dynamics#10. Future Outlook: Differentiable Physics (可微物理)]] | ✅ 新增 callout |
+| Lagrangian Neural Networks | [[Dynamics#10. Future Outlook: Differentiable Physics (可微物理)]] | ✅ 新增 callout |
+
+**处理结果**: 核心内容已融合到 Dynamics.md。原文件为科普级别，Dynamics.md 已有更深入的覆盖。
+
+### 20-24. 此前标注"非操作领域"文件 → 已全部深度整合
+
+> [!success] MergeBuffer 零废弃原则应用 (2026-02-27)
+> 经深度分析，所有文件均发现与知识库的有价值关联。
+
+| # | 文件名 | 整合目标 | 核心关联 | 状态 |
+|---|-------|---------|---------|------|
+| 20 | 从梯度角度看SFT...pdf | [[ReinforcementLearning]] §2.5 统一梯度视角 | SFT=稀疏RL、策略蒸馏与 DNPM credit assignment | 🟢 已整合 |
+| 21 | Mediator-Based Reward Design...pdf | [[ReinforcementLearning]] §4.2 + DNPM ideas §2.5.3 | 因果中介变量降低奖励方差，解决长因果链 credit assignment | 🟢 已整合 |
+| 22 | Compression-Based Denoisers.pdf | [[InformationTheory]] §5.0 + [[SignalProcessing]] §5.4 | 压缩-去噪对偶性，指导触觉信号处理与状态表征 | 🟢 已整合 |
+| 23 | IsoCompute Playbook.pdf | [[ReinforcementLearning]] §6.3 + DNPM ideas §2.5.4 | RL 缩放定律、easy/hard 熵控制、课程设计 | 🟢 已整合 |
+| 24 | Learning to Discover at Test Time.pdf | [[ReinforcementLearning]] §6.4 + DNPM ideas §4.1 | 测试时 RL、entropic objective、在线适应 | 🟢 已整合 |
+
+**处理时间**: 2026-02-27 (深度整合完成)
 
 ---
 

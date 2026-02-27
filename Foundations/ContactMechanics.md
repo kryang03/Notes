@@ -294,7 +294,7 @@ $$Q_3 = \sigma_{\min}(G)$$
 
 #### 4.1.1 Stewart-Trinkle 时间步进算法
 
-早期的动力学仿真常在加速度层面上求解，容易导致Painlevé悖论（即解不存在或不唯一）。Stewart和Trinkle在1996年提出了一种基于速度-冲量（Velocity-Impulse）层面的时间步进算法，彻底解决了存在性问题。该算法与 [[Dynamics#4.1 空间向量代数]] 中的空间向量表示紧密配合。
+早期的动力学仿真常在加速度层面上求解，容易导致Painlevé悖论（即解不存在或不唯一）。Stewart和Trinkle在1996年提出了一种基于速度-冲量（Velocity-Impulse）层面的时间步进算法，彻底解决了存在性问题。该算法与 [[Dynamics#4.1 空间向量代数 (Spatial Vector Algebra) 基础|空间向量代数]] 中的空间向量表示紧密配合。
 
 在Stewart-Trinkle公式中，系统状态更新被写作：
 

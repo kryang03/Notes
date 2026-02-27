@@ -178,8 +178,8 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 - OpenAI Rubik's Cube（灵巧操作里程碑）
 
 **同期工作**:
-- [[AnyRotate]]（任意轴旋转）
-- [[DexTrack]]（人类参考轨迹追踪）
+- [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]（任意轴旋转）
+- [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]（人类参考轨迹追踪）
 
 **技术相关**:
 - [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]]

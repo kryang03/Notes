@@ -1,89 +1,982 @@
 {
-	"nodes":[
-		{"id":"papers_group","type":"group","x":-700,"y":650,"width":1900,"height":500,"color":"4","label":"📄 PapersRecap: 核心算法与洞见"},
-		{"id":"breakthrough_group","type":"group","x":-700,"y":200,"width":1900,"height":350,"color":"2","label":"⚡ 算法突破点 (Key Technical Challenges)"},
-		{"id":"foundations_group","type":"group","x":-700,"y":1250,"width":1900,"height":350,"color":"6","label":"🧠 Foundations: 理论基础"},
-		{"id":"proj_dnpm_core","type":"group","x":-200,"y":-400,"width":900,"height":500,"color":"1","label":"🚀 Projects: Dynamic Non-Prehensile Manipulation"},
-		{"id":"bt_frequency","type":"text","text":"## 🕐 控制频率困境\n\n**痛点**: 仿真高频 vs 真机低频\n\n**解决思路**:\n- 动作持续时间学习\n- 弹性时间步\n- 惯性阶段自动低频\n- 接触切换自动高频","x":-650,"y":250,"width":280,"height":250,"color":"2"},
-		{"id":"bt_sparse","type":"text","text":"## 🔍 稀疏奖励探索\n\n**痛点**: 长因果链导致奖励稀疏\n\n**解决思路**:\n- 目标重标注 (HER)\n- 速度缩放拉开惯性窗口\n- 特权动作简化探索\n- 隐式课程学习","x":-320,"y":250,"width":280,"height":250,"color":"2"},
-		{"id":"bt_impedance","type":"text","text":"## 🎛️ 变阻抗控制\n\n**痛点**: 固定PD低频\"僵硬\"\n\n**解决思路**:\n- 刚度作为动作空间\n- 接触时低刚度顺从\n- 运动时高刚度精确\n- 末端空间参数化","x":10,"y":250,"width":280,"height":250,"color":"2"},
-		{"id":"bt_curriculum","type":"text","text":"## 📚 物理参数课程\n\n**痛点**: 直接学习高动态任务困难\n\n**解决思路**:\n- α-scaling 速度缩放\n- 从简单到复杂分布\n- 重力/摩擦渐进\n- Continuation Method","x":340,"y":250,"width":280,"height":250,"color":"2"},
-		{"id":"bt_sim2real","type":"text","text":"## 🌐 Sim-to-Real 迁移\n\n**痛点**: 动力学域差异\n\n**解决思路**:\n- Real-to-Sim-to-Real\n- 在线校正 (TRANSIC)\n- 数字孪生 RL 鲁棒化\n- 域随机化","x":670,"y":250,"width":280,"height":250,"color":"2"},
-		{"id":"bt_privileged","type":"text","text":"## 🔮 特权动作\n\n**痛点**: 物理边界阻碍探索\n\n**解决思路**:\n- 禁用碰撞\"穿透\"学习\n- 虚拟力辅助\n- 课程恢复物理约束\n- 从作弊到真实","x":1000,"y":250,"width":280,"height":250,"color":"2"},
-		{"id":"paper_tarc","type":"text","text":"## TARC (2025)\n**时间自适应控制**\n\n💡 策略输出 (a, Δt)\n惯性阶段→低频\n接触切换→高频\n\n⭐ 直接解决频率困境","x":-650,"y":700,"width":280,"height":180,"color":"5"},
-		{"id":"proj_dnpm","type":"file","file":"Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md","subpath":"#1. 摘要","x":-150,"y":-350,"width":400,"height":200},
-		{"id":"proj_dnpm_insight","type":"text","text":"## 🎯 DNPM 核心洞见\n\n**惯性因果链条**:\n主动发力 → 高惯性状态 → 惯性力 → 对抗重力 → 物理演化\n\n**核心挑战**: 欠驱动系统的长程探索","x":300,"y":-350,"width":350,"height":200,"color":"1"},
-		{"id":"paper_pfqi","type":"text","text":"## Action Persistence (2020)\n**动作持续理论框架**\n\n💡 k-persistent MDP\n性能损失 ∝ 环境演化速度\n\n⭐ 频率选择的理论基础","x":-650,"y":920,"width":280,"height":180,"color":"5"},
-		{"id":"found_rl","type":"file","file":"Foundations/ReinforcementLearning.md","subpath":"#1. Core Concepts","x":-650,"y":1300,"width":280,"height":150},
-		{"id":"found_rl_insight","type":"text","text":"**核心**: 接触流形探索\n混合动力学系统\n隐式处理 f_ext","x":-650,"y":1470,"width":280,"height":100,"color":"6"},
-		{"id":"found_control","type":"file","file":"Foundations/ControlTheory.md","subpath":"#3.2 解决方案 I：阻抗控制","x":-320,"y":1300,"width":280,"height":150},
-		{"id":"found_control_insight","type":"text","text":"**核心**: 阻抗控制\n力-位混合\n模式切换","x":-320,"y":1470,"width":280,"height":100,"color":"6"},
-		{"id":"found_dynamics","type":"file","file":"Foundations/Dynamics.md","x":10,"y":1300,"width":280,"height":150},
-		{"id":"paper_her","type":"text","text":"## HER (2017)\n**Hindsight Experience Replay**\n\n💡 失败→\"成功\"\n目标重标注\n隐式课程学习\n\n⭐ 稀疏奖励基石","x":-320,"y":700,"width":280,"height":180,"color":"4"},
-		{"id":"paper_privileged","type":"text","text":"## Privileged Action (2025)\n**特权动作课程学习**\n\n💡 仿真中\"作弊\"\n禁用碰撞/虚拟力\n课程恢复约束\n\n⭐ 长时程探索突破","x":-320,"y":920,"width":280,"height":180,"color":"4"},
-		{"id":"paper_vices","type":"text","text":"## VICES (2019)\n**末端空间变阻抗**\n\n💡 动作 = (Δx, K)\n位移 + 刚度\n任务相关顺从性\n\n⭐ 接触任务动作空间","x":10,"y":700,"width":280,"height":180,"color":"4"},
-		{"id":"paper_facet","type":"text","text":"## FACET (2025)\n**阻抗参考模型跟踪**\n\n💡 RL 跟踪虚拟弹簧-质量-阻尼轨迹\n统一接口 (x_des, Kp, Kd)\n时变阻抗自然匹配相位\n\n⭐ DNPM 方向A核心方案","x":10,"y":920,"width":280,"height":180,"color":"4"},
-		{"id":"paper_curriculum","type":"text","text":"## Curriculum Learning (2009)\n**课程学习理论**\n\n💡 Continuation Method\n简单→复杂分布\n避免局部极小\n\n⭐ α-scaling 理论背书","x":10,"y":920,"width":280,"height":180,"color":"4"},
-		{"id":"paper_rialto","type":"text","text":"## RialTo (2024)\n**Real-to-Sim-to-Real**\n\n💡 数字孪生+RL鲁棒化\n逆向蒸馏\n67%+ 鲁棒性提升\n\n⭐ 迁移新范式","x":340,"y":700,"width":280,"height":180,"color":"5"},
-		{"id":"paper_pen","type":"text","text":"## Pen Spinning (2024)\n**转笔三阶段Sim2Real**\n\n💡 Oracle + OpenLoop + Finetune\n<50条真实轨迹\nFinger Gaiting\n\n⭐ 动态操作典范","x":340,"y":920,"width":280,"height":180,"color":"5"},
-		{"id":"paper_transic","type":"text","text":"## TRANSIC (2024)\n**在线校正迁移**\n\n💡 从在线人类校正学习\n残差策略\n无需额外仿真\n\n⭐ 迁移Gap动态修复","x":670,"y":700,"width":280,"height":180,"color":"5"},
-		{"id":"paper_longhorizon","type":"text","text":"## Long-Horizon (2025)\n**特权动作长时程**\n\n💡 Push-and-Grasp\nPivot Grasp\n行为自发涌现\n\n⭐ 无需手工子任务","x":670,"y":920,"width":280,"height":180,"color":"4"},
-		{"id":"paper_elastic","type":"text","text":"## VTS-RL (2021)\n**弹性时间步**\n\n💡 时间缩放MDP\n动态调整Δt\n\n⭐ TARC前身","x":1000,"y":700,"width":280,"height":180,"color":"5"},
-		{"id":"paper_evocontrol","type":"text","text":"## EvoControl (2023)\n**进化高频控制**\n\n💡 进化策略+高频\n连续控制突破\n\n⭐ 高频策略可能性","x":1000,"y":920,"width":280,"height":180,"color":"5"},
-		{"id":"found_dynamics_insight","type":"text","text":"**核心**: 多体动力学\n惯性项建模\n时标分离","x":10,"y":1470,"width":280,"height":100,"color":"6"},
-		{"id":"found_contact","type":"file","file":"Foundations/ContactMechanics.md","x":340,"y":1300,"width":280,"height":150},
-		{"id":"found_contact_insight","type":"text","text":"**核心**: 摩擦锥约束\n接触切换\n力学交互","x":340,"y":1470,"width":280,"height":100,"color":"6"},
-		{"id":"found_optim","type":"file","file":"Foundations/Optimization.md","x":670,"y":1300,"width":280,"height":150},
-		{"id":"found_optim_insight","type":"text","text":"**核心**: Continuation\niLQR/MPC\n非凸优化","x":670,"y":1470,"width":280,"height":100,"color":"6"},
-		{"id":"found_signal","type":"file","file":"Foundations/SignalProcessing.md","x":1000,"y":1300,"width":280,"height":150},
-		{"id":"found_signal_insight","type":"text","text":"**核心**: 触觉感知\n滑移检测\n状态估计","x":1000,"y":1470,"width":280,"height":100,"color":"6"}
-	],
-	"edges":[
-		{"id":"e_proj_bt1","fromNode":"proj_dnpm_insight","fromSide":"bottom","toNode":"bt_frequency","toSide":"top","label":"痛点1"},
-		{"id":"e_proj_bt2","fromNode":"proj_dnpm_insight","fromSide":"bottom","toNode":"bt_sparse","toSide":"top","label":"痛点2"},
-		{"id":"e_proj_bt3","fromNode":"proj_dnpm_insight","fromSide":"bottom","toNode":"bt_impedance","toSide":"top","label":"痛点3"},
-		{"id":"e_proj_bt4","fromNode":"proj_dnpm_insight","fromSide":"bottom","toNode":"bt_curriculum","toSide":"top","label":"痛点4"},
-		{"id":"e_proj_bt5","fromNode":"proj_dnpm_insight","fromSide":"bottom","toNode":"bt_sim2real","toSide":"top","label":"痛点5"},
-		{"id":"e_proj_bt6","fromNode":"proj_dnpm_insight","fromSide":"bottom","toNode":"bt_privileged","toSide":"top","label":"痛点6"},
-		{"id":"e_bt1_tarc","fromNode":"bt_frequency","fromSide":"bottom","toNode":"paper_tarc","toSide":"top","color":"5","label":"⭐ 核心"},
-		{"id":"e_bt1_pfqi","fromNode":"bt_frequency","fromSide":"bottom","toNode":"paper_pfqi","toSide":"top","label":"理论"},
-		{"id":"e_bt1_elastic","fromNode":"bt_frequency","fromSide":"bottom","toNode":"paper_elastic","toSide":"top","label":"前身"},
-		{"id":"e_bt2_her","fromNode":"bt_sparse","fromSide":"bottom","toNode":"paper_her","toSide":"top","color":"4","label":"⭐ 核心"},
-		{"id":"e_bt2_priv","fromNode":"bt_sparse","fromSide":"bottom","toNode":"paper_privileged","toSide":"top","label":"简化探索"},
-		{"id":"e_bt3_vices","fromNode":"bt_impedance","fromSide":"bottom","toNode":"paper_vices","toSide":"top","color":"4","label":"⭐ 核心"},
-		{"id":"e_bt3_facet","fromNode":"bt_impedance","fromSide":"bottom","toNode":"paper_facet","toSide":"top","color":"4","label":"⭐ 参考模型"},
-		{"id":"e_bt4_curri","fromNode":"bt_curriculum","fromSide":"bottom","toNode":"paper_curriculum","toSide":"top","color":"4","label":"⭐ 理论"},
-		{"id":"e_bt4_priv","fromNode":"bt_curriculum","fromSide":"bottom","toNode":"paper_privileged","toSide":"top","label":"应用"},
-		{"id":"e_bt5_rialto","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_rialto","toSide":"top","color":"5","label":"⭐ 核心"},
-		{"id":"e_bt5_transic","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_transic","toSide":"top","label":"在线校正"},
-		{"id":"e_bt5_pen","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_pen","toSide":"top","label":"范例"},
-		{"id":"e_bt6_priv","fromNode":"bt_privileged","fromSide":"bottom","toNode":"paper_privileged","toSide":"top","color":"4","label":"⭐ 核心"},
-		{"id":"e_bt6_long","fromNode":"bt_privileged","fromSide":"bottom","toNode":"paper_longhorizon","toSide":"top","label":"应用"},
-		{"id":"e_tarc_rl","fromNode":"paper_tarc","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
-		{"id":"e_tarc_control","fromNode":"paper_tarc","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"},
-		{"id":"e_pfqi_rl","fromNode":"paper_pfqi","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
-		{"id":"e_her_rl","fromNode":"paper_her","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
-		{"id":"e_her_optim","fromNode":"paper_her","fromSide":"bottom","toNode":"found_optim","toSide":"top","color":"6"},
-		{"id":"e_vices_control","fromNode":"paper_vices","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"},
-		{"id":"e_vices_contact","fromNode":"paper_vices","fromSide":"bottom","toNode":"found_contact","toSide":"top","color":"6"},
-		{"id":"e_curri_optim","fromNode":"paper_curriculum","fromSide":"bottom","toNode":"found_optim","toSide":"top","color":"6"},
-		{"id":"e_rialto_rl","fromNode":"paper_rialto","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
-		{"id":"e_pen_dynamics","fromNode":"paper_pen","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","color":"6"},
-		{"id":"e_pen_contact","fromNode":"paper_pen","fromSide":"bottom","toNode":"found_contact","toSide":"top","color":"6"},
-		{"id":"e_transic_rl","fromNode":"paper_transic","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
-		{"id":"e_priv_contact","fromNode":"paper_privileged","fromSide":"bottom","toNode":"found_contact","toSide":"top","color":"6"},
-		{"id":"e_long_contact","fromNode":"paper_longhorizon","fromSide":"bottom","toNode":"found_contact","toSide":"top","color":"6"},
-		{"id":"e_elastic_rl","fromNode":"paper_elastic","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
-		{"id":"e_evo_rl","fromNode":"paper_evocontrol","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
-		{"id":"e_paper_tarc_pfqi","fromNode":"paper_tarc","fromSide":"bottom","toNode":"paper_pfqi","toSide":"top","color":"3","label":"演进"},
-		{"id":"e_paper_elastic_tarc","fromNode":"paper_elastic","fromSide":"left","toNode":"paper_tarc","toSide":"right","color":"3","label":"启发"},
-		{"id":"e_paper_curri_her","fromNode":"paper_curriculum","fromSide":"left","toNode":"paper_her","toSide":"right","color":"3","label":"隐式课程"},
-		{"id":"e_paper_curri_priv","fromNode":"paper_curriculum","fromSide":"top","toNode":"paper_privileged","toSide":"bottom","color":"3","label":"理论基础"},
-		{"id":"e_paper_rialto_pen","fromNode":"paper_rialto","fromSide":"right","toNode":"paper_pen","toSide":"left","color":"3","label":"互补范式"},
-		{"id":"e_paper_priv_long","fromNode":"paper_privileged","fromSide":"right","toNode":"paper_longhorizon","toSide":"left","color":"3","label":"应用拓展"},
-		{"id":"e_paper_vices_control","fromNode":"paper_vices","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","color":"6"},
-		{"id":"e_facet_control","fromNode":"paper_facet","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"},
-		{"id":"e_facet_dynamics","fromNode":"paper_facet","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","color":"6"},
-		{"id":"e_vices_facet","fromNode":"paper_vices","fromSide":"bottom","toNode":"paper_facet","toSide":"top","color":"3","label":"演进"}
-	]
+  "nodes": [
+    {
+      "id": "papers_group",
+      "type": "group",
+      "x": -700,
+      "y": 650,
+      "width": 2560,
+      "height": 700,
+      "color": "4",
+      "label": "📄 PapersRecap: 核心算法与洞见"
+    },
+    {
+      "id": "breakthrough_group",
+      "type": "group",
+      "x": -700,
+      "y": 200,
+      "width": 2560,
+      "height": 350,
+      "color": "2",
+      "label": "⚡ 算法突破点 (Key Technical Challenges)"
+    },
+    {
+      "id": "foundations_group",
+      "type": "group",
+      "x": -700,
+      "y": 1450,
+      "width": 2900,
+      "height": 350,
+      "color": "6",
+      "label": "🧠 Foundations: 理论基础"
+    },
+    {
+      "id": "proj_dnpm_core",
+      "type": "group",
+      "x": -200,
+      "y": -400,
+      "width": 900,
+      "height": 500,
+      "color": "1",
+      "label": "🚀 Projects: Dynamic Non-Prehensile Manipulation"
+    },
+    {
+      "id": "bt_frequency",
+      "type": "text",
+      "text": "## 🕐 控制频率困境\n\n**痛点**: 仿真高频 vs 真机低频\n\n**解决思路**:\n- 动作持续时间学习\n- 弹性时间步\n- 惯性阶段自动低频\n- 接触切换自动高频",
+      "x": -650,
+      "y": 250,
+      "width": 280,
+      "height": 250,
+      "color": "2"
+    },
+    {
+      "id": "bt_sparse",
+      "type": "text",
+      "text": "## 🔍 稀疏奖励探索\n\n**痛点**: 长因果链导致奖励稀疏\n\n**解决思路**:\n- 目标重标注 (HER)\n- 速度缩放拉开惯性窗口\n- 特权动作简化探索\n- 隐式课程学习",
+      "x": -320,
+      "y": 250,
+      "width": 280,
+      "height": 250,
+      "color": "2"
+    },
+    {
+      "id": "bt_impedance",
+      "type": "text",
+      "text": "## 🎛️ 变阻抗控制\n\n**痛点**: 固定PD低频\"僵硬\"\n\n**解决思路**:\n- 刚度作为动作空间\n- 接触时低刚度顺从\n- 运动时高刚度精确\n- 末端空间参数化",
+      "x": 10,
+      "y": 250,
+      "width": 280,
+      "height": 250,
+      "color": "2"
+    },
+    {
+      "id": "bt_curriculum",
+      "type": "text",
+      "text": "## 📚 物理参数课程\n\n**痛点**: 直接学习高动态任务困难\n\n**解决思路**:\n- α-scaling 速度缩放\n- 从简单到复杂分布\n- 重力/摩擦渐进\n- Continuation Method",
+      "x": 340,
+      "y": 250,
+      "width": 280,
+      "height": 250,
+      "color": "2"
+    },
+    {
+      "id": "bt_sim2real",
+      "type": "text",
+      "text": "## 🌐 Sim-to-Real 迁移\n\n**痛点**: 动力学域差异\n\n**解决思路**:\n- Real-to-Sim-to-Real\n- 在线校正 (TRANSIC)\n- 数字孪生 RL 鲁棒化\n- 域随机化\n- 快速电机适应",
+      "x": 670,
+      "y": 250,
+      "width": 280,
+      "height": 250,
+      "color": "2"
+    },
+    {
+      "id": "bt_privileged",
+      "type": "text",
+      "text": "## 🔮 特权动作\n\n**痛点**: 物理边界阻碍探索\n\n**解决思路**:\n- 禁用碰撞\"穿透\"学习\n- 虚拟力辅助\n- 课程恢复物理约束\n- 从作弊到真实",
+      "x": 1000,
+      "y": 250,
+      "width": 280,
+      "height": 250,
+      "color": "2"
+    },
+    {
+      "id": "bt_representation",
+      "type": "text",
+      "text": "## 🧩 感知与表征\n\n**痛点**: 高维观测空间\n\n**解决思路**:\n- 视触觉融合\n- 扩散策略分布建模\n- 点云几何特征\n- 物理属性嵌入",
+      "x": 1330,
+      "y": 250,
+      "width": 280,
+      "height": 250,
+      "color": "2"
+    },
+    {
+      "id": "paper_tarc",
+      "type": "text",
+      "text": "## TARC (2025)\n**时间自适应控制**\n\n💡 策略输出 (a, Δt)\n惯性阶段→低频\n接触切换→高频\n\n⭐ 直接解决频率困境",
+      "x": -650,
+      "y": 700,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "proj_dnpm",
+      "type": "file",
+      "file": "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
+      "subpath": "#1. 摘要",
+      "x": -150,
+      "y": -350,
+      "width": 400,
+      "height": 200
+    },
+    {
+      "id": "proj_dnpm_insight",
+      "type": "text",
+      "text": "## 🎯 DNPM 核心洞见\n\n**惯性因果链条**:\n主动发力 → 高惯性状态 → 惯性力 → 对抗重力 → 物理演化\n\n**核心挑战**: 欠驱动系统的长程探索",
+      "x": 300,
+      "y": -350,
+      "width": 350,
+      "height": 200,
+      "color": "1"
+    },
+    {
+      "id": "paper_pfqi",
+      "type": "text",
+      "text": "## Action Persistence (2020)\n**动作持续理论框架**\n\n💡 k-persistent MDP\n性能损失 ∝ 环境演化速度\n\n⭐ 频率选择的理论基础",
+      "x": -650,
+      "y": 920,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "paper_multifreq",
+      "type": "text",
+      "text": "## Multi-Frequency RL (2020)\n**多频率控制理论**\n\n💡 高层低频决策\n底层高频跟踪\n层次化频率分配\n\n⭐ 频率分离框架",
+      "x": -650,
+      "y": 1130,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "found_rl",
+      "type": "file",
+      "file": "Foundations/ReinforcementLearning.md",
+      "subpath": "#1. Core Concepts",
+      "x": -650,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_rl_insight",
+      "type": "text",
+      "text": "**核心**: 接触流形探索\n混合动力学系统\n隐式处理 f_ext",
+      "x": -650,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_control",
+      "type": "file",
+      "file": "Foundations/ControlTheory.md",
+      "subpath": "#3.2 解决方案 I：阻抗控制",
+      "x": -320,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_control_insight",
+      "type": "text",
+      "text": "**核心**: 阻抗控制\n力-位混合\n模式切换",
+      "x": -320,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_dynamics",
+      "type": "file",
+      "file": "Foundations/Dynamics.md",
+      "x": 10,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "paper_her",
+      "type": "text",
+      "text": "## HER (2017)\n**Hindsight Experience Replay**\n\n💡 失败→\"成功\"\n目标重标注\n隐式课程学习\n\n⭐ 稀疏奖励基石",
+      "x": -320,
+      "y": 700,
+      "width": 280,
+      "height": 180,
+      "color": "4"
+    },
+    {
+      "id": "paper_privileged",
+      "type": "text",
+      "text": "## Privileged Action (2025)\n**特权动作课程学习**\n\n💡 仿真中\"作弊\"\n禁用碰撞/虚拟力\n课程恢复约束\n\n⭐ 长时程探索突破",
+      "x": -320,
+      "y": 920,
+      "width": 280,
+      "height": 180,
+      "color": "4"
+    },
+    {
+      "id": "paper_vices",
+      "type": "text",
+      "text": "## VICES (2019)\n**末端空间变阻抗**\n\n💡 动作 = (Δx, K)\n位移 + 刚度\n任务相关顺从性\n\n⭐ 接触任务动作空间",
+      "x": 10,
+      "y": 700,
+      "width": 280,
+      "height": 180,
+      "color": "4"
+    },
+    {
+      "id": "paper_facet",
+      "type": "text",
+      "text": "## FACET (2025)\n**阻抗参考模型跟踪**\n\n💡 RL 跟踪虚拟弹簧-质量-阻尼轨迹\n统一接口 (x_des, Kp, Kd)\n时变阻抗自然匹配相位\n\n⭐ DNPM 方向A核心方案",
+      "x": 10,
+      "y": 920,
+      "width": 280,
+      "height": 180,
+      "color": "4"
+    },
+    {
+      "id": "paper_curriculum",
+      "type": "text",
+      "text": "## Curriculum Learning (2009)\n**课程学习理论**\n\n💡 Continuation Method\n简单→复杂分布\n避免局部极小\n\n⭐ α-scaling 理论背书",
+      "x": 340,
+      "y": 700,
+      "width": 280,
+      "height": 180,
+      "color": "4"
+    },
+    {
+      "id": "paper_demostart",
+      "type": "text",
+      "text": "## DemoStart (2024)\n**演示引导自动课程**\n\n💡 从人类演示起始\n自动难度递增\n多指灵巧操作\n\n⭐ 课程+Sim2Real 融合",
+      "x": 340,
+      "y": 920,
+      "width": 280,
+      "height": 180,
+      "color": "4"
+    },
+    {
+      "id": "paper_rialto",
+      "type": "text",
+      "text": "## RialTo (2024)\n**Real-to-Sim-to-Real**\n\n💡 数字孪生+RL鲁棒化\n逆向蒸馏\n67%+ 鲁棒性提升\n\n⭐ 迁移新范式",
+      "x": 670,
+      "y": 700,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "paper_pen",
+      "type": "text",
+      "text": "## Pen Spinning (2024)\n**转笔三阶段Sim2Real**\n\n💡 Oracle + OpenLoop + Finetune\n<50条真实轨迹\nFinger Gaiting\n\n⭐ 动态操作典范",
+      "x": 670,
+      "y": 920,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "paper_transic",
+      "type": "text",
+      "text": "## TRANSIC (2024)\n**在线校正迁移**\n\n💡 从在线人类校正学习\n残差策略\n无需额外仿真\n\n⭐ 迁移Gap动态修复",
+      "x": 670,
+      "y": 1130,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "paper_hora",
+      "type": "text",
+      "text": "## HORA (2022)\n**快速电机适应**\n\n💡 Rapid Motor Adaptation\n在线系统辨识\n隐式参数推断\n\n⭐ 零样本域适应",
+      "x": 1000,
+      "y": 1130,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "paper_longhorizon",
+      "type": "text",
+      "text": "## Long-Horizon (2025)\n**特权动作长时程**\n\n💡 Push-and-Grasp\nPivot Grasp\n行为自发涌现\n\n⭐ 无需手工子任务",
+      "x": 1000,
+      "y": 700,
+      "width": 280,
+      "height": 180,
+      "color": "4"
+    },
+    {
+      "id": "paper_elastic",
+      "type": "text",
+      "text": "## VTS-RL (2021)\n**弹性时间步**\n\n💡 时间缩放MDP\n动态调整Δt\n\n⭐ TARC前身",
+      "x": 1000,
+      "y": 920,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "paper_evocontrol",
+      "type": "text",
+      "text": "## EvoControl (2023)\n**进化高频控制**\n\n💡 进化策略+高频\n连续控制突破\n\n⭐ 高频策略可能性",
+      "x": 1330,
+      "y": 700,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "paper_rotateit",
+      "type": "text",
+      "text": "## RotateIt (2024)\n**视触觉旋转**\n\n💡 Vision + Touch融合\n通用物体旋转\n多模态表征\n\n⭐ 表征学习典范",
+      "x": 1330,
+      "y": 920,
+      "width": 280,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "found_dynamics_insight",
+      "type": "text",
+      "text": "**核心**: 多体动力学\n惯性项建模\n时标分离",
+      "x": 10,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_contact",
+      "type": "file",
+      "file": "Foundations/ContactMechanics.md",
+      "x": 340,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_contact_insight",
+      "type": "text",
+      "text": "**核心**: 摩擦锥约束\n接触切换\n力学交互",
+      "x": 340,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_optim",
+      "type": "file",
+      "file": "Foundations/Optimization.md",
+      "x": 670,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_optim_insight",
+      "type": "text",
+      "text": "**核心**: Continuation\niLQR/MPC\n非凸优化",
+      "x": 670,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_signal",
+      "type": "file",
+      "file": "Foundations/SignalProcessing.md",
+      "x": 1000,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_signal_insight",
+      "type": "text",
+      "text": "**核心**: 触觉感知\n状态估计\nKF→EKF→UKF→PF",
+      "x": 1000,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_stochastic",
+      "type": "file",
+      "file": "Foundations/StochasticProcess.md",
+      "x": 1330,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_stochastic_insight",
+      "type": "text",
+      "text": "**核心**: 扩散策略\n不确定性建模\nMPPI采样优化",
+      "x": 1330,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_repr",
+      "type": "file",
+      "file": "Foundations/RepresentationLearning.md",
+      "x": 1660,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_repr_insight",
+      "type": "text",
+      "text": "**核心**: PCA→AE→VAE→对比\n视触觉融合\n点云几何表征",
+      "x": 1660,
+      "y": 1670,
+      "width": 280,
+      "height": 100,
+      "color": "6"
+    },
+    {
+      "id": "found_info",
+      "type": "file",
+      "file": "Foundations/InformationTheory.md",
+      "x": 1990,
+      "y": 1500,
+      "width": 280,
+      "height": 150
+    },
+    {
+      "id": "found_info_insight",
+      "type": "text",
+      "text": "**核心**: 率失真理论\n压缩-去噪对偶性\n信息瓶颈\n内在动机",
+      "x": 1990,
+      "y": 1670,
+      "width": 280,
+      "height": 100
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_proj_bt1",
+      "fromNode": "proj_dnpm_insight",
+      "fromSide": "bottom",
+      "toNode": "bt_frequency",
+      "toSide": "top",
+      "label": "痛点1"
+    },
+    {
+      "id": "e_proj_bt2",
+      "fromNode": "proj_dnpm_insight",
+      "fromSide": "bottom",
+      "toNode": "bt_sparse",
+      "toSide": "top",
+      "label": "痛点2"
+    },
+    {
+      "id": "e_proj_bt3",
+      "fromNode": "proj_dnpm_insight",
+      "fromSide": "bottom",
+      "toNode": "bt_impedance",
+      "toSide": "top",
+      "label": "痛点3"
+    },
+    {
+      "id": "e_proj_bt4",
+      "fromNode": "proj_dnpm_insight",
+      "fromSide": "bottom",
+      "toNode": "bt_curriculum",
+      "toSide": "top",
+      "label": "痛点4"
+    },
+    {
+      "id": "e_proj_bt5",
+      "fromNode": "proj_dnpm_insight",
+      "fromSide": "bottom",
+      "toNode": "bt_sim2real",
+      "toSide": "top",
+      "label": "痛点5"
+    },
+    {
+      "id": "e_proj_bt6",
+      "fromNode": "proj_dnpm_insight",
+      "fromSide": "bottom",
+      "toNode": "bt_privileged",
+      "toSide": "top",
+      "label": "痛点6"
+    },
+    {
+      "id": "e_bt1_tarc",
+      "fromNode": "bt_frequency",
+      "fromSide": "bottom",
+      "toNode": "paper_tarc",
+      "toSide": "top",
+      "color": "5",
+      "label": "⭐ 核心"
+    },
+    {
+      "id": "e_bt1_pfqi",
+      "fromNode": "bt_frequency",
+      "fromSide": "bottom",
+      "toNode": "paper_pfqi",
+      "toSide": "top",
+      "label": "理论"
+    },
+    {
+      "id": "e_bt1_elastic",
+      "fromNode": "bt_frequency",
+      "fromSide": "bottom",
+      "toNode": "paper_elastic",
+      "toSide": "top",
+      "label": "前身"
+    },
+    {
+      "id": "e_bt1_multifreq",
+      "fromNode": "bt_frequency",
+      "fromSide": "bottom",
+      "toNode": "paper_multifreq",
+      "toSide": "top",
+      "label": "层次化"
+    },
+    {
+      "id": "e_bt2_her",
+      "fromNode": "bt_sparse",
+      "fromSide": "bottom",
+      "toNode": "paper_her",
+      "toSide": "top",
+      "color": "4",
+      "label": "⭐ 核心"
+    },
+    {
+      "id": "e_bt2_priv",
+      "fromNode": "bt_sparse",
+      "fromSide": "bottom",
+      "toNode": "paper_privileged",
+      "toSide": "top",
+      "label": "简化探索"
+    },
+    {
+      "id": "e_bt3_vices",
+      "fromNode": "bt_impedance",
+      "fromSide": "bottom",
+      "toNode": "paper_vices",
+      "toSide": "top",
+      "color": "4",
+      "label": "⭐ 核心"
+    },
+    {
+      "id": "e_bt3_facet",
+      "fromNode": "bt_impedance",
+      "fromSide": "bottom",
+      "toNode": "paper_facet",
+      "toSide": "top",
+      "color": "4",
+      "label": "⭐ 参考模型"
+    },
+    {
+      "id": "e_bt4_curri",
+      "fromNode": "bt_curriculum",
+      "fromSide": "bottom",
+      "toNode": "paper_curriculum",
+      "toSide": "top",
+      "color": "4",
+      "label": "⭐ 理论"
+    },
+    {
+      "id": "e_bt4_priv",
+      "fromNode": "bt_curriculum",
+      "fromSide": "bottom",
+      "toNode": "paper_privileged",
+      "toSide": "top",
+      "label": "应用"
+    },
+    {
+      "id": "e_bt4_demostart",
+      "fromNode": "bt_curriculum",
+      "fromSide": "bottom",
+      "toNode": "paper_demostart",
+      "toSide": "top",
+      "label": "演示引导"
+    },
+    {
+      "id": "e_bt5_rialto",
+      "fromNode": "bt_sim2real",
+      "fromSide": "bottom",
+      "toNode": "paper_rialto",
+      "toSide": "top",
+      "color": "5",
+      "label": "⭐ 核心"
+    },
+    {
+      "id": "e_bt5_transic",
+      "fromNode": "bt_sim2real",
+      "fromSide": "bottom",
+      "toNode": "paper_transic",
+      "toSide": "top",
+      "label": "在线校正"
+    },
+    {
+      "id": "e_bt5_pen",
+      "fromNode": "bt_sim2real",
+      "fromSide": "bottom",
+      "toNode": "paper_pen",
+      "toSide": "top",
+      "label": "范例"
+    },
+    {
+      "id": "e_bt5_hora",
+      "fromNode": "bt_sim2real",
+      "fromSide": "bottom",
+      "toNode": "paper_hora",
+      "toSide": "top",
+      "label": "快速适应"
+    },
+    {
+      "id": "e_bt6_priv",
+      "fromNode": "bt_privileged",
+      "fromSide": "bottom",
+      "toNode": "paper_privileged",
+      "toSide": "top",
+      "color": "4",
+      "label": "⭐ 核心"
+    },
+    {
+      "id": "e_bt6_long",
+      "fromNode": "bt_privileged",
+      "fromSide": "bottom",
+      "toNode": "paper_longhorizon",
+      "toSide": "top",
+      "label": "应用"
+    },
+    {
+      "id": "e_bt7_rotateit",
+      "fromNode": "bt_representation",
+      "fromSide": "bottom",
+      "toNode": "paper_rotateit",
+      "toSide": "top",
+      "color": "5",
+      "label": "⭐ 视触觉"
+    },
+    {
+      "id": "e_tarc_rl",
+      "fromNode": "paper_tarc",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_tarc_control",
+      "fromNode": "paper_tarc",
+      "fromSide": "bottom",
+      "toNode": "found_control",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_pfqi_rl",
+      "fromNode": "paper_pfqi",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_multifreq_rl",
+      "fromNode": "paper_multifreq",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_multifreq_control",
+      "fromNode": "paper_multifreq",
+      "fromSide": "bottom",
+      "toNode": "found_control",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_her_rl",
+      "fromNode": "paper_her",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_her_optim",
+      "fromNode": "paper_her",
+      "fromSide": "bottom",
+      "toNode": "found_optim",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_vices_control",
+      "fromNode": "paper_vices",
+      "fromSide": "bottom",
+      "toNode": "found_control",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_vices_contact",
+      "fromNode": "paper_vices",
+      "fromSide": "bottom",
+      "toNode": "found_contact",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_curri_optim",
+      "fromNode": "paper_curriculum",
+      "fromSide": "bottom",
+      "toNode": "found_optim",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_demostart_rl",
+      "fromNode": "paper_demostart",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_rialto_rl",
+      "fromNode": "paper_rialto",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_pen_dynamics",
+      "fromNode": "paper_pen",
+      "fromSide": "bottom",
+      "toNode": "found_dynamics",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_pen_contact",
+      "fromNode": "paper_pen",
+      "fromSide": "bottom",
+      "toNode": "found_contact",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_transic_rl",
+      "fromNode": "paper_transic",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_hora_rl",
+      "fromNode": "paper_hora",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_hora_dynamics",
+      "fromNode": "paper_hora",
+      "fromSide": "bottom",
+      "toNode": "found_dynamics",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_priv_contact",
+      "fromNode": "paper_privileged",
+      "fromSide": "bottom",
+      "toNode": "found_contact",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_long_contact",
+      "fromNode": "paper_longhorizon",
+      "fromSide": "bottom",
+      "toNode": "found_contact",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_elastic_rl",
+      "fromNode": "paper_elastic",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_evo_rl",
+      "fromNode": "paper_evocontrol",
+      "fromSide": "bottom",
+      "toNode": "found_rl",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_rotateit_repr",
+      "fromNode": "paper_rotateit",
+      "fromSide": "bottom",
+      "toNode": "found_repr",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_rotateit_signal",
+      "fromNode": "paper_rotateit",
+      "fromSide": "bottom",
+      "toNode": "found_signal",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_paper_tarc_pfqi",
+      "fromNode": "paper_tarc",
+      "fromSide": "bottom",
+      "toNode": "paper_pfqi",
+      "toSide": "top",
+      "color": "3",
+      "label": "演进"
+    },
+    {
+      "id": "e_paper_elastic_tarc",
+      "fromNode": "paper_elastic",
+      "fromSide": "left",
+      "toNode": "paper_tarc",
+      "toSide": "right",
+      "color": "3",
+      "label": "启发"
+    },
+    {
+      "id": "e_paper_curri_her",
+      "fromNode": "paper_curriculum",
+      "fromSide": "left",
+      "toNode": "paper_her",
+      "toSide": "right",
+      "color": "3",
+      "label": "隐式课程"
+    },
+    {
+      "id": "e_paper_curri_demostart",
+      "fromNode": "paper_curriculum",
+      "fromSide": "bottom",
+      "toNode": "paper_demostart",
+      "toSide": "top",
+      "color": "3",
+      "label": "实践化"
+    },
+    {
+      "id": "e_paper_rialto_pen",
+      "fromNode": "paper_rialto",
+      "fromSide": "bottom",
+      "toNode": "paper_pen",
+      "toSide": "top",
+      "color": "3",
+      "label": "互补范式"
+    },
+    {
+      "id": "e_paper_priv_long",
+      "fromNode": "paper_privileged",
+      "fromSide": "right",
+      "toNode": "paper_longhorizon",
+      "toSide": "left",
+      "color": "3",
+      "label": "应用拓展"
+    },
+    {
+      "id": "e_paper_vices_control",
+      "fromNode": "paper_vices",
+      "fromSide": "bottom",
+      "toNode": "found_dynamics",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_facet_control",
+      "fromNode": "paper_facet",
+      "fromSide": "bottom",
+      "toNode": "found_control",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_facet_dynamics",
+      "fromNode": "paper_facet",
+      "fromSide": "bottom",
+      "toNode": "found_dynamics",
+      "toSide": "top",
+      "color": "6"
+    },
+    {
+      "id": "e_vices_facet",
+      "fromNode": "paper_vices",
+      "fromSide": "bottom",
+      "toNode": "paper_facet",
+      "toSide": "top",
+      "color": "3",
+      "label": "演进"
+    },
+    {
+      "id": "e_hora_pen",
+      "fromNode": "paper_hora",
+      "fromSide": "left",
+      "toNode": "paper_pen",
+      "toSide": "right",
+      "color": "3",
+      "label": "基础框架"
+    },
+    {
+      "id": "edge_bt_sparse_info",
+      "fromNode": "bt_sparse",
+      "fromSide": "bottom",
+      "toNode": "found_info",
+      "toSide": "top",
+      "label": "信息论奖励"
+    },
+    {
+      "id": "edge_bt_repr_info",
+      "fromNode": "bt_representation",
+      "fromSide": "bottom",
+      "toNode": "found_info",
+      "toSide": "top",
+      "label": "信息瓶颈"
+    },
+    {
+      "id": "edge_info_insight",
+      "fromNode": "found_info",
+      "fromSide": "bottom",
+      "toNode": "found_info_insight",
+      "toSide": "top",
+      "label": ""
+    }
+  ]
 }

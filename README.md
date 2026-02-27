@@ -85,7 +85,7 @@ Dynamics  Contact        Control   Optimization      RL    Representation
 > [!success] 处理完成
 > 所有 MergeBuffer 文件已于 2026-01-31 完成分析和融合。
 > 详细处理记录参见 [[_MergeIndex|MergeBuffer/_MergeIndex.md]]
-> 管理流程参见 [[knowledge-graph-management|管理指南]]
+> 管理流程参见 [管理指南](.github/skills/knowledge-graph-management/SKILL.md)
 
 | 状态 | 统计 |
 |------|------|
@@ -114,7 +114,7 @@ Dynamics  Contact        Control   Optimization      RL    Representation
 
 本知识库由 Claude Opus 4.5 协助管理，管理规范详见：
 
-📋 [[knowledge-graph-management|.github/skills/knowledge-graph-management/SKILL.md]]
+📋 [.github/skills/knowledge-graph-management/SKILL.md](.github/skills/knowledge-graph-management/SKILL.md)
 
 ---
 

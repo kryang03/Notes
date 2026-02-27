@@ -95,12 +95,14 @@ created: 2026-01-31
 | [[Optimization]] | [[ControlTheory]] | MPC、轨迹优化 |
 | [[ReinforcementLearning]] | [[StochasticProcess]] | 扩散策略、GP-based RL |
 
+| [[InformationTheory]] | [[ReinforcementLearning]] | Mediator奖励、RL Scaling Laws 熵控制、内在动机 |
+| [[InformationTheory]] | [[SignalProcessing]] | 压缩-去噪对偶性、率失真→触觉去噪 |
+
 ### 弱关联 (Weak Coupling)
 
 | 领域 A | 领域 B | 潜在交叉 |
 |-------|-------|---------|
 | [[ComputationalGeometry]] | [[ReinforcementLearning]] | 神经场表示用于RL |
-| [[InformationTheory]] | [[ReinforcementLearning]] | 内在动机探索 |
 | [[SignalProcessing]] | [[RepresentationLearning]] | 触觉特征提取 |
 | [[EmbodiedAI]] | [[ControlTheory]] | 分层VLA中的低层控制 |
 | [[EmbodiedAI]] | [[ReinforcementLearning]] | Robot Learning范式 |
@@ -138,7 +140,7 @@ created: 2026-01-31
 触觉信号处理与状态估计。
 
 ### [[InformationTheory|信息论]]
-探索（Exploration）与感知的主动性。
+探索（Exploration）与感知的主动性。率失真理论为压缩-去噪对偶性提供统一框架，Mediator因果推断为奖励设计提供信息论基础。
 
 ### [[RepresentationLearning|表征学习]]
 多模态融合与流形学习。

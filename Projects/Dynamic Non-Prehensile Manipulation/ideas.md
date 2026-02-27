@@ -109,7 +109,7 @@ $$M(q)\ddot{q} + C(q, \dot{q})\dot{q} + g(q) = \tau$$
 
 1. **拇指的支持力不足以抗衡重力**：由于非紧握状态下接触点的几何限制，拇指背侧的法向力方向无法直接提供竖直向上的分量来平衡重力。
 2. **系统必须利用惯性力**：高速旋转产生的离心力将笔压向拇指侧，产生法向接触力。
-3. **接触力再产生摩擦力**：这个法向接触力通过摩擦（[[ContactMechanics#3. 接触建模演变]]）产生一个切向摩擦力分量。
+3. **接触力再产生摩擦力**：这个法向接触力通过摩擦（[[ContactMechanics#3. 接触建模演变：从点模型到软体模型|接触建模演变]]）产生一个切向摩擦力分量。
 4. **摩擦力对抗重力**：正是这个摩擦力分量最终平衡了重力，使笔不坠落。
 
 因此，系统需要学习的动力学因果链条是：
@@ -182,10 +182,10 @@ Sparse reward 指的是系统只在极少数状态获得非零奖励。Delayed r
 2. **Reward Hacking（奖励黑客）**：策略进入高惯性状态后，收敛到 hacking plateau 而非真正的成功。
 
 > [!note] 与 [[ReinforcementLearning]] 的联系
-> 这里的 value landscape 崎岖性可以用 [[Optimization#2.5 非凸优化景观理论]] 中的框架来分析：
+> 这里的 value landscape 崎岖性可以用 [[Optimization#2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观理论]] 中的框架来分析：
 > - Risk Aversion 对应虚假局部极小值（spurious local minimum）
 > - Hacking Plateau 对应鞍点区域
-> - 稀疏踏脚石对应 PL 不等式（[[Optimization#2.5.2 良好景观的特征]]）不成立的区域
+> - 稀疏踏脚石对应 PL 不等式（[[Optimization#2.5.2 良好景观的特征：无虚假局部极小|良好景观特征]]）不成立的区域
 
 ### 2.2 方法：Homotopic Dynamics Curriculum（HDC）
 
@@ -221,7 +221,9 @@ HDC 采用连续的迁移策略：
 3. 迁移判据：当前 $\alpha$ 下成功率达到阈值（当前使用 70%）后递增 $\alpha$
 
 > [!note] Homotopy 的数学含义
-> $\alpha$ 从 0.5 到 1.0 的连续变化构成了一个**同伦（Homotopy）** — 在参数空间中，慢速世界的最优策略可以连续形变到真实世界的最优策略，而不需要跨越不连续的策略壁垒。这正是"Homotopic"一词的来源，也是与离散频率调整方法的核心区别。
+> $\alpha$ 从 0.5 到 1.0 的连续变化构成了一个**同伦（Homotopy）** — 在参数空间中，慢速世界的最优策略可以连续形变到真实世界的最优策略，而不需要跨越不连续的策略壁垒。
+> 
+> 这正是"Homotopic"一词的来源，也是与离散频率调整方法的核心区别。
 
 ### 2.3 HDC vs. Control Frequency Curriculum（CFC）
 
@@ -297,6 +299,14 @@ Control Frequency Curriculum（CFC）通过改变 Decimation（策略观察和�
 > [!tip] 与 [[Hindsight Experience Replay]] 的关系
 > 在 Light reward 场景下，可以进一步引入 HER 作为额外的 exploration baseline。如果 HDC 在 HER 基础上仍有额外收益，这将极大加强论文的论证力度。
 
+> [!tip] Mediator-Based Surrogate Reward 的潜在应用
+> DNPM 的长因果链（发力→惯性→接触力→摩擦力→抗重力）天然存在**因果中介变量**。利用 mediator-based reward design 的思想：
+> - **候选 Mediator**: 物体角速度、接触力大小、接触点位置等中间物理量
+> - **优势**: 用 $\tilde{R}(m, s) = \mathbb{E}[R|M=m, S=s]$ 替代最终的 sparse success reward，可显著降低 credit assignment 方差
+> - **与 HDC 的协同**: HDC 通过拉伸 value landscape 改善探索，mediator reward 通过降低方差改善梯度信号质量，两者互补
+> - **实验设计**: 可在 Light reward 组中对比 (a) pure sparse, (b) sparse + HER, (c) sparse + mediator surrogate, (d) HDC + mediator
+> - 参见 [[ReinforcementLearning#4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)]]
+
 #### 2.5.4 课程迁移判据的优化
 
 **目的**：当前仅使用 success threshold = 70% 作为 $\alpha$ 递增的判据，这可能导致过早迁移。
@@ -305,6 +315,24 @@ Control Frequency Curriculum（CFC）通过改变 Decimation（策略观察和�
 - 达到 success threshold **且** Critic Loss 变化低于阈值
 - 基于 success rate 的滑动平均稳定性
 - 考虑 value function 的方差而不仅是均值
+
+> [!tip] RL Scaling Laws 对 HDC 课程设计的指导
+> IsoCompute Playbook 的 RL 缩放定律研究揭示了与 HDC 课程设计直接相关的规律：
+>
+> **1. Easy/Hard 问题的不同机制**：
+> - Easy（$\alpha$ 小，慢速空间）：大并行 $n$ 主要**锐化策略**（改善 worst-case），此时可优先增大 $B_{problem}$
+> - Hard（$\alpha$ 大，接近真实速度）：大并行 $n$ 主要**扩展覆盖**（发现稀疏成功轨迹），此时应增大 $n$ 以探索更多可能
+>
+> **2. 熵控制应随课程阶段动态调整**：
+> - 低 $\alpha$ 阶段（easy）：保留 entropy/KL 正则化防止过早坍缩
+> - 高 $\alpha$ 阶段（hard）：移除正则化以允许更激进的探索
+> - 这可直接集成到 HDC 的 $\alpha$ 递增逻辑中
+>
+> **3. 迁移判据优化**：
+> - Easy 问题存在明确的"饱和点"（reward 不再随 $n$ 增加而显著提升）
+> - 可用类似的饱和检测作为 $\alpha$ 递增的触发条件，替代当前的固定 70% success threshold
+>
+> 参见 [[ReinforcementLearning#6.3 RL Scaling Laws: 计算最优的训练资源分配]]
 
 ### 2.6 探索阶段的关键参数分析
 
@@ -407,7 +435,7 @@ PD Controller 起到的最大作用是在探索初期**简化了 credit assignme
 
 #### 3.2.2 凸包假设
 
-**核心假设**：如果某个高惯性状态 $(q, \dot{q})$ 最终导致了成功，那么这个状态的**邻居**很大概率也会导致成功。进一步地，成功的高惯性状态在状态空间中能组成一个**近似凸包（Convex Hull）**。
+**核心假设**：如果某个高惯性状态 $(q, \dot{q}, [F])$ 最终导致了成功，那么这个状态的**邻居**很大概率也会导致成功。进一步地，成功的高惯性状态在状态空间中能组成一个**近似凸包（Convex Hull）**。
 
 这个假设的物理直觉是：
 - 成功的状态意味着物体在相空间中处于一条"安全通道"上
@@ -449,7 +477,7 @@ PD Controller 起到的最大作用是在探索初期**简化了 credit assignme
 
 #### 3.3.2 当前初始化方案及其局限
 
-当前的初始化方式（参考 Xiaolong Wang、EUREKA 等做法，见 [[EUREKA Human-Level Reward Design via Coding Large Language Models|EUREKA]]）：
+当前的初始化方式（参考 Xiaolong Wang、EUREKA 等做法，见 [[EUREKA: Human-Level Reward Design via Coding Large Language Models|EUREKA]]）：
 1. 人为指定任务开始时对应的先验几何位置（如转笔的标准起手式）
 2. 对先验位置施加随机扰动
 3. 筛选出 10000 个扰动后能存活 0.1 秒的状态作为初始化
@@ -486,18 +514,19 @@ PD Controller 起到的最大作用是在探索初期**简化了 credit assignme
 
 #### 3.4.1 已训练/测试的任务
 
-| 任务 | 状态 | 意义类别 | 动力学特征 |
-|------|------|---------|----------|
-| Thumbaround | ✅ 已训练 | Task Space Broadening | 长因果链 + 危险高惯性 + 不可归因 |
-| Triangle Pass | ✅ 已训练 | Task Space Broadening | 连续模式中的持续不可控 |
+| 任务            | 状态    | 意义类别                  | 动力学特征               |
+| ------------- | ----- | --------------------- | ------------------- |
+| Thumbaround   | ✅ 已训练 | Task Space Broadening | 长因果链 + 危险高惯性 + 不可归因 |
+| Triangle Pass | ✅ 已训练 | Task Space Broadening | 连续模式中的持续不可控         |
 
 #### 3.4.2 计划训练/测试的任务
 
-| 任务 | 意义类别 | 长因果链 | 高惯性危险性 | 不可归因性 | 最匹配的算法方向 |
-|------|---------|:---:|:---:|:---:|------|
-| **旋转陀螺** | Task Space Broadening | ✅ | ✅ 脱手后完全不可控 | ✅ 初始条件极敏感 | 方向 B（凸包）+ 方向 C（初始化） |
-| **颠锅** | Task Space Broadening | ✅ | ✅ 飞行相不可控 | 中等 | 方向 A（变频控制） |
-| **托盘搬运** | Action Acceleration | 中等 | ✅ 加速过大倾倒 | 较低 | 方向 A（变阻抗） |
+| 任务       | 意义类别                  | 长因果链 |   高惯性危险性   |   不可归因性   | 最匹配的算法方向            |
+| -------- | --------------------- | :--: | :--------: | :-------: | ------------------- |
+| **旋转陀螺** | Task Space Broadening |  ✅   | ✅ 脱手后完全不可控 | ✅ 初始条件极敏感 | 方向 B（凸包）+ 方向 C（初始化） |
+| **颠锅**   | Task Space Broadening |  ✅   |  ✅ 飞行相不可控  |    中等     | 方向 A（变频控制）          |
+| **托盘搬运** | Action Acceleration   |  中等  |  ✅ 加速过大倾倒  |    较低     | 方向 A（变阻抗）           |
+| **开瓶盖**  | Action Acceleration   |      |            |           |                     |
 
 #### 3.4.3 任务-算法-Big Picture 特征的三角对应
 
@@ -527,8 +556,12 @@ Big Picture 特征          算法方向              适配任务
 | [[ControlTheory]] | 7.3 接触状态机 | 非紧握操作中的模式切换 |
 | [[ReinforcementLearning]] | 2.5 PPO | 当前策略优化算法 |
 | [[ReinforcementLearning]] | 2.8 Exploration 理论 | Risk aversion、intrinsic motivation |
+| [[ReinforcementLearning]] | 4.2 奖励工程 | Mediator-based surrogate reward 降低 credit assignment 方差 |
+| [[ReinforcementLearning]] | 6.3 RL Scaling Laws | 计算预算分配、easy/hard 熵控制策略 |
+| [[ReinforcementLearning]] | 6.4 Test-Time RL | 部署时在线适应新环境的潜在范式 |
 | [[ContactMechanics]] | 3 接触建模演变 | 摩擦锥、滑移检测 |
 | [[Optimization]] | 2.5 非凸优化景观理论 | Value Landscape 崎岖性的数学框架 |
+| [[InformationTheory]] | 5.0 率失真理论 | 压缩-去噪对偶性指导状态表征设计 |
 | [[InformationTheory]] | 6.1 Empowerment | 高惯性状态下的可控性度量 |
 | [[SignalProcessing]] | 触觉信号处理 | 接触切换的实时检测 |
 
@@ -552,7 +585,7 @@ Big Picture 特征          算法方向              适配任务
 - [[Lessons from Learning to Spin Pens]] — 转笔任务设计的直接参考；初始化设计的启发
 
 **奖励设计：**
-- [[EUREKA Human-Level Reward Design via Coding Large Language Models]] — LLM 辅助 reward design
+- [[EUREKA: Human-Level Reward Design via Coding Large Language Models]] — LLM 辅助 reward design
 - [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach]] — 探索与利用的随机控制理论
 
 **Sim-to-Real：**

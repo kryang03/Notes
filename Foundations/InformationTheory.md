@@ -402,6 +402,39 @@ def expected_information_gain(particles, weights, candidate_action,
 > [!note] 教科书参考
 > Information Bottleneck 原理由 Tishby, Pereira & Bialek (1999) 提出，是表征学习的核心信息论框架，与 [[RepresentationLearning]] 深度关联。
 
+### 5.0 率失真理论基础 (Rate-Distortion Theory)
+
+> [!theorem] 率失真函数 (Shannon, 1959)
+> 给定信源 $X \sim p(x)$ 和失真度量 $d(x, \hat{x})$，率失真函数定义为在平均失真不超过 $D$ 时的最小编码速率：
+> $$R(D) = \min_{p(\hat{x}|x): \mathbb{E}[d(x,\hat{x})] \leq D} I(X; \hat{X})$$
+
+**与 Information Bottleneck 的关系**：
+- **率失真**：压缩 $X$ 为 $\hat{X}$，保留关于 $X$ **自身**的重构质量
+- **Information Bottleneck**：压缩 $X$ 为 $Z$，保留关于**另一变量 $Y$** 的预测能力
+- IB 是率失真理论的推广——当 $Y = X$ 且失真度量为对数损失时，IB 退化为率失真问题
+
+**灵巧操作中的物理直觉**：
+- 触觉传感器产生高带宽数据流（如 GelSight 的 $640 \times 480$ 图像），但控制回路仅需极低维信息（接触法向量、滑移方向）
+- 率失真理论给出了"最少需要多少 bit 才能保证控制精度"的**理论下界**
+- 这直接指导了传感器-控制器通信带宽的设计，以及嵌入式触觉编码器的压缩率选择
+
+> [!abstract] 好的压缩即好的去噪 — 压缩-去噪对偶性
+> **核心定理（Song, Özgür & Weissman, 2025）**：对于经过无记忆信道 $P_{Z|X}$ 观测到的平稳遍历源 $X^n$，选择与信道条件分布匹配的失真度量 $\rho(z, y) = -\log P_{Z|X}(z|y)$ 和失真水平 $D$，"好的"有损编码器的重构 $Y^n$ 同时也是对源 $X^n$ 的最优去噪。
+>
+> **形式化结果**：在好的有损码下，联合经验分布满足**条件独立性**：
+> $$X^n - Z^n - Y^n \text{ (Markov chain)} \implies Q^{(n)}_{X_0|Z_{-k}^k, Y_{-k}^k} \to P_{X|Z} \cdot \text{(posterior sampling)}$$
+> 即重构序列 $Y^n$ 渐近等价于从后验分布 $P_{X|Z}$ 的独立采样。
+>
+> **对率失真-IB 联系的深化**：
+> - 传统理解：IB 是率失真的推广（$Y \neq X$ 时）
+> - 新理解：即使在 $Y = X$（自编码去噪）场景中，选择**与噪声信道匹配的失真度量**可使压缩自动实现最优去噪
+> - 这解释了为什么 autoencoder 能去噪——**压缩本质上就是在去除噪声**
+>
+> **与灵巧操作的关联**：
+> - **触觉信号去噪**（[[SignalProcessing]]）：电容式触觉传感器的非线性噪声（[[SignalProcessing#2.1 电容式触觉传感：超弹性与边缘场效应的非线性纠缠|超弹性与边缘场]]）可通过压缩-去噪框架处理——选择匹配传感器噪声特性的失真度量进行有损压缩
+> - **状态表征学习**：在高噪声的接触状态估计中，VIB/VAE 的压缩行为本身就在执行去噪，这为"压缩率的选择"提供了信息论指导——失真水平应匹配观测噪声的熵率
+> - **Sim-to-Real 中的域差异**：仿真-真实的域差异可视为一种"信道噪声"，压缩表征自然地过滤掉域特异性细节，保留域不变的任务信息
+
 ### 5.1 核心直觉：压缩与预测的权衡 (Compression vs Prediction Trade-off)
 
 **Information Bottleneck (IB)** 原理解答了表征学习的核心问题：**给定输入 $X$，如何学习一个压缩表征 $Z$，使其保留对目标 $Y$ 的预测能力，同时丢弃无关的细节？**
@@ -725,7 +758,7 @@ def compute_diayn_rewards(discriminator, states, skills):
 ### 熵与探索策略
 - [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]: 熵引导的示教加速，信息论采样
 - [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]: 信息论视角的探索-利用权衡
-- [[EUREKA - Human-Level Reward Design via Coding Large Language Models|EUREKA]]: LLM引导的奖励信息编码
+- [[EUREKA: Human-Level Reward Design via Coding Large Language Models|EUREKA]]: LLM引导的奖励信息编码
 
 ### 互信息与表示学习
 - [[Weight-sparse transformers have interpretable circuits|Weight-sparse Transformers]]: 信息瓶颈与稀疏表示

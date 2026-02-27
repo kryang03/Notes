@@ -11,14 +11,17 @@
             "id": "a2bda358afde2f94",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "canvas",
               "state": {
-                "file": "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
-                "mode": "source",
-                "source": false
+                "file": "KnowledgeGraph.canvas",
+                "viewState": {
+                  "x": 290,
+                  "y": 1455.4622474733815,
+                  "zoom": -1.607432781524851
+                }
               },
-              "icon": "lucide-file",
-              "title": "ideas"
+              "icon": "lucide-layout-dashboard",
+              "title": "KnowledgeGraph"
             }
           }
         ]
@@ -78,7 +81,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 215.5
   },
   "right": {
     "id": "ddd67c62d17972e8",
@@ -199,13 +202,17 @@
   },
   "active": "a2bda358afde2f94",
   "lastOpenFiles": [
+    "Foundations/InformationTheory.md",
+    "Foundations/ControlTheory.md",
+    "Foundations/Dynamics.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
+    "PapersRecap/Visual-tactile Pretraining for Humanlike Manipulation Dexterity.md",
     "PapersRecap/FACET - Force-Adaptive Control via Impedance Reference Tracking.md",
     "PapersRecap/DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots.md",
     "Papers/FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots.pdf",
     "Papers/DemoStart: Demonstration-led auto-curriculum applied to sim-to-real with multi-fingered robots.pdf",
     "MergeBuffer/FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots.pdf",
     "conflict-files-obsidian-git.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
     "Projects/Dynamic Non-Prehensile Manipulation/RSS26.pdf",
     "MergeBuffer/Mediator-Based Reward Design in Online Contextual Bandit.pdf",
     "Projects/Dynamic Non-Prehensile Manipulation/HDC-元宝纪要.txt",
@@ -231,8 +238,6 @@
     "PapersRecap/Elastic Time Step Reinforcement Learning, VTS-RL copy.md",
     "PapersRecap/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control copy.md",
     "PapersRecap/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control.md",
-    "PapersRecap/Weight-sparse transformers have interpretable circuits copy.md",
-    "未命名.md",
-    "MergeBuffer/deep-research-thinking-20260129-153156.md"
+    "PapersRecap/Weight-sparse transformers have interpretable circuits copy.md"
   ]
 }

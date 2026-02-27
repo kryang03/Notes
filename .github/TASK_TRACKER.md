@@ -5,11 +5,57 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-08 (FACET 论文整合 + 断链修复 + DNPM 方向A强化)
+**最后更新**: 2026-07-16 (核心原则嵌入 + MergeBuffer 深度整合 + 穷尽式扫描)
 
 ---
 
-## 🟢 本次会话完成 (2026-02-08)
+## 🟢 本次会话完成 (2026-07-16)
+
+### 核心原则嵌入
+
+- ✅ **copilot-instructions.md**: 新增"穷尽式完善"和"MergeBuffer零废弃"两条核心使命
+- ✅ **SKILL.md**: 新增 Error Pattern 2 (将MergeBuffer内容标为"无关") 和 Error Pattern 3 (提前停止)
+- ✅ 更新绝对禁止/必须做清单
+
+### MergeBuffer 深度整合（5篇，之前被错误标注为"无关"）
+
+| 文件 | 整合目标 | 关键洞见 |
+|-----|---------|---------|
+| 从梯度角度看SFT...pdf | RL §2.5 PPO + DNPM ideas | SFT=稀疏RL 统一梯度框架，on-policy蒸馏用于sim-to-real |
+| Mediator-Based Reward Design | RL §4.2 奖励工程 + DNPM §2.5.3 | 中间变量(mediator)降低奖励方差，解决DNPM长因果链credit assignment |
+| Compression-Based Denoisers | InformationTheory §5.0 + SignalProcessing §5.4 | 压缩=去噪的形式化证明，IB→触觉信号去噪 |
+| IsoCompute Playbook | RL §6.3 新增 + DNPM §2.5.4 | RL Scaling Laws: easy/hard熵区分、计算饱和检测 |
+| Learning to Discover at Test Time | RL §6.4 新增 | Test-Time RL: 部署时在线适应新环境 |
+
+### DNPM ideas.md 增强
+
+- ✅ §2.5.3 新增 Mediator 实验设计（接触力作为surrogate reward中介）
+- ✅ §2.5.4 新增 Scaling Law 指引（HDC课程的easy/hard熵控制）
+- ✅ §4.1 新增 5 条 Foundations 关联索引
+
+### 穷尽式改善扫描
+
+- ✅ **断链检查**: 0 个断链（新增6个章节链接全部有效）
+- ✅ **taxonomy.md 更新**: InfoTheory×RL 升级为强关联（mediator奖励、scaling laws熵控制）；新增 InfoTheory×SignalProcessing（压缩-去噪对偶性）；更新 InfoTheory 描述
+- ✅ **PapersRecap 交叉引用**: EUREKA 笔记新增到 RL §4.2 mediator奖励的链接；DemoSpeedup 笔记新增到 RL §6.3 Scaling Laws 的链接
+- ✅ **Canvas 更新**: 新增 InformationTheory Foundation 节点 + 洞察节点；新增 3 条边（稀疏奖励→信息论、表征→信息瓶颈）；扩展 foundations_group 宽度
+- ✅ **MergeBuffer 清理**: 6个已整合PDF全部删除，仅保留 _MergeIndex.md 历史记录
+
+### 知识库健康状态
+
+| 指标 | 数值 |
+|-----|-----|
+| Papers PDFs | 55 |
+| PapersRecap 笔记 | 56 |
+| MergeBuffer 待处理 | 0 |
+| Foundation 文件 | 11 + taxonomy |
+| Canvas 节点 | 48 (+6) |
+| Canvas 边 | 61 (+3) |
+| Foundation 新增章节 | 4 (RL §2.5 callout, §6.3, §6.4; InfoTheory §5.0 callout) |
+
+---
+
+## 🟢 上次会话完成 (2026-02-27)
 
 ### 新论文处理
 

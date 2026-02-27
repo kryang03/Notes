@@ -24,7 +24,7 @@ related:
 
 > [!tip] 相关领域
 > - [[ControlTheory]] - 鲁棒控制与随机最优控制
-> - [[ReinforcementLearning]] - 扩散策略的数学基础 (参见 [[ReinforcementLearning#2.2 深度解析：扩散策略]])
+> - [[ReinforcementLearning]] - 扩散策略的数学基础 (参见 [[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|扩散策略]])
 > - [[Optimization]] - MPPI 等路径积分方法
 > - [[SignalProcessing]] - 卡尔曼滤波与状态估计
 > - [[InformationTheory]] - 信念空间规划中的信息度量
@@ -637,7 +637,7 @@ void mppi_update_host(float* U, float* E, float* costs) {
 
 > [!important] 🔬 自回归探索噪声 (Autoregressive Exploration Noise)
 > 
-> **来源**：[[Autoregressive Policies for Robust Manipulation with Continuous Actions|ARP (arXiv 2024)]] — 时间一致探索理论
+> **来源**：[[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|ARP (arXiv 2024)]] — 时间一致探索理论
 > 
 > **问题**：传统 RL 在每个时间步独立采样动作噪声 $\epsilon_t \sim \mathcal{N}(0, \Sigma)$（白噪声）。这导致：
 > - 高频抖动（物理不合理）
@@ -653,13 +653,13 @@ void mppi_update_host(float* U, float* E, float* costs) {
 > **与 MPPI 的关联**：
 > MPPI 中的采样轨迹也可以使用 AR 噪声替代白噪声，生成更符合物理直觉的探索路径。这在处理接触任务时尤为重要——突然的力变化可能破坏接触状态。
 > 
-> **参见**：[[ReinforcementLearning#时间一致探索]] 中的完整讨论
+> **参见**：[[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]] 中的完整讨论
 
 ---
 
 > [!important] 🔬 连续时间熵正则化最优控制 (Continuous-Time Entropy-Regularized Optimal Control)
 > 
-> **来源**：[[Exploration vs Exploitation: A Stochastic Control Approach|Exploration vs Exploitation (NeurIPS 2024)]] — 最优探索理论
+> **来源**：[[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation (NeurIPS 2024)]] — 最优探索理论
 > 
 > **理论框架**：
 > 将 RL 的探索-利用权衡建模为连续时间随机最优控制问题。引入熵正则化后，HJB 方程变为：
@@ -777,7 +777,7 @@ $$\lambda \approx \frac{1}{\epsilon} \ln(1 + \exp(-\epsilon \phi(q)))$$
 2. 用该摩擦系数求解该轨迹上所有接触的 LCP
 3. 计算轨迹代价，并按指数权重聚合
 
-这种方法被称为 **Robust MPPI**，它在物理精度和鲁棒性之间取得了平衡。详见 [[StochasticProcess#6. MPPI]] 中关于 Temperature $\lambda$ 调节风险敏感度的讨论。
+这种方法被称为 **Robust MPPI**，它在物理精度和鲁棒性之间取得了平衡。详见 [[StochasticProcess#6. 核心算法详解：Model Predictive Path Integral Control (MPPI)|MPPI 章节]] 中关于 Temperature $\lambda$ 调节风险敏感度的讨论。
 
 ------
 

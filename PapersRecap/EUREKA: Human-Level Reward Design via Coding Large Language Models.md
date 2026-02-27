@@ -190,6 +190,7 @@ but 'orientation_error' plateaued. Consider increasing its weight."
 ### 与知识库其他内容的连接
 - [[ContactMechanics]] - EUREKA 可自动发现力闭合相关的奖励项
 - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - EUREKA 生成的奖励用于 PPO 训练
+- [[ReinforcementLearning#4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)]] - Mediator-based surrogate reward 提供因果推断视角补充 LLM 奖励搜索
 - [[Optimization#5. 实时控制：模型预测控制 (Real-Time Control: MPC)]] - 进化搜索思想与 MPPI 类似
 
 ---

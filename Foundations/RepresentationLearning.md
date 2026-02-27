@@ -149,6 +149,27 @@ ACT 引入条件变分自编码器（CVAE）来学习潜在的“风格变量”
 
 在像素输入下，如何提取包含物理信息的特征？这直接决定了策略的泛化能力。
 
+#### 2.4.0 表征学习演进脉络 (Evolution: PCA → AE → VAE → Contrastive → Foundation Models)
+
+> [!abstract] 降维思想的统一主线
+> 所有表征学习方法的本质目标相同：找到一个低维流形 $\mathcal{Z} \subset \mathbb{R}^d$（$d \ll D$），使得高维观测 $x \in \mathbb{R}^D$ 在 $\mathcal{Z}$ 上的投影保留任务相关信息。
+
+**Phase 1: 线性子空间方法**
+- **PCA（主成分分析）**：求协方差矩阵的前 $k$ 个特征向量 $\{v_i\}$，最小化重构误差 $\min_V \mathbb{E}[\|x - VV^Tx\|^2]$
+- **局限性**：仅捕捉线性相关性。灵巧操作中的接触模式切换、物体旋转等本质上是**非线性流形**上的变化
+
+**Phase 2: 非线性自编码器 (Autoencoder)**
+- **结构**：编码器 $z = f_\theta(x)$，解码器 $\hat{x} = g_\phi(z)$，目标 $\min_{\theta,\phi} \|x - g_\phi(f_\theta(x))\|^2$
+- **与 PCA 的关系**：当 $f, g$ 均为线性时，AE 退化为 PCA（特征值分解的等价表示）
+- **不足**：潜空间 $\mathcal{Z}$ 无结构保证——无法采样、插值不连续。不适合作为生成式策略的输入
+
+**Phase 3: 变分自编码器 (VAE)**
+- **突破**：引入概率框架 $p_\theta(z|x) = \mathcal{N}(\mu_\theta(x), \sigma_\theta^2(x))$，ELBO 目标同时优化重构质量和潜空间正则化
+- **灵巧操作意义**：ACT 利用 CVAE 将人类演示的风格变量编码到连续潜空间（见 [[RepresentationLearning#2.3 动作分块与Transformer (ACT)：处理长时间相关性 (Action Chunking with Transformers: Handling Long-Horizon Correlations)|ACT 章节]]）
+
+**Phase 4: 对比学习 → 多模态融合 → Foundation Models**
+- 从像素级重构转向**语义级对齐**（InfoNCE, CLIP），再到视觉-触觉联合嵌入（见 [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)|多模态融合章节]]）
+
 #### 2.4.1 通用视觉表征的局限：R3M vs. VIP vs. Voltron
 
 R3M (Real-world ResNet-50 for Manipulation)  和 VIP  通过在大规模人类视频（如 Ego4D）上进行对比学习或预测学习来预训练视觉编码器。
@@ -558,7 +579,7 @@ RGB-D → 点云分割 → 物体点云 → PointNet++/Transformer → 物体几
 
 > [!note] 论文参考
 > 本节基于 **Robot Synesthesia (Higuera et al., 2024)** 和 **RotateIt (Yuan et al., 2023)** 的跨模态学习框架。
-> 相关笔记: [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]], [[RotateIt - Continuous In-Hand Object Rotation]]
+> 相关笔记: [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]], [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]
 
 #### 5.1.1 联觉的物理直觉
 

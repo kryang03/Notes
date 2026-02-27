@@ -169,7 +169,7 @@ $$e^{\hat{\xi}\theta} = \begin{bmatrix} e^{\hat{\omega}\theta} & (I - e^{\hat{\o
 1. **运动学建模**: 指积公式（Product of Exponentials, PoE）用 twist 参数化机器人运动学，比 DH 参数更简洁：
    $$g_{st}(\theta) = e^{\hat{\xi}_1 \theta_1} e^{\hat{\xi}_2 \theta_2} \cdots e^{\hat{\xi}_n \theta_n} g_{st}(0)$$
 
-2. **雅可比计算**: 空间雅可比和物体雅可比可以直接从 twist 导出，见 [[ControlTheory#2.2 手雅可比矩阵]]
+2. **雅可比计算**: 空间雅可比和物体雅可比可以直接从 twist 导出，见 [[ControlTheory#2.2 手雅可比矩阵：从关节到接触 (Hand Jacobian: From Joints to Contacts)|手雅可比矩阵]]
 
 3. **接触约束建模**: Montana 接触运动学方程（见 [[ContactMechanics#2.2 Montana接触运动学方程]]）使用相对旋量描述接触点演化
 
@@ -260,6 +260,28 @@ $$M(\theta) \ddot{\theta} + C(\theta, \dot{\theta}) \dot{\theta} + N(\theta) = \
   - *Articulated Inertia* ($I^A$): 当一个连杆连接着一串“松弛”的子连杆链时，从该连杆看去感受到的“等效惯量”。
   - **Physical Insight**: 想象你手里挥舞着一根鞭子（软连接）和一根铁棍（刚连接）。鞭子的末端会滞后，你感受到的阻力（惯量）小于铁棍。ABA 通过递归地计算这种“被子运动链修正后”的惯量，实现了无需显式求逆矩阵的直接求解。
 - **Value-add**: 使得包含数十个关节的灵巧手仿真能够在微秒级完成，为 Sim-to-Real Reinforcement Learning 提供了算力基础。它是现代物理引擎（MuJoCo, Dart, RBDL）的核心。
+
+### 3.4 方法对比总结 (Method Comparison Summary)
+
+> [!note] 教科书参考
+> 综合 Murray Ch.4（Lagrangian）与 Featherstone（RNEA/ABA）的分析
+
+| 对比维度 | Lagrangian | RNEA | ABA |
+|---------|-----------|------|-----|
+| **理论基础** | 能量原理（$L = T - V$） | 牛顿第二定律 + 欧拉方程 | 关节惯量递推 |
+| **数学表述** | 标量函数（广义坐标） | 矢量方程（力/力矩平衡） | 空间向量代数 |
+| **计算问题** | ID 和 FD 均可 | 主要用于 ID | 主要用于 FD |
+| **计算复杂度** | $O(N^3)$（符号推导） | $O(N)$（递归） | $O(N)$（递归） |
+| **物理直觉** | 能量守恒视角 | 逐连杆力平衡 | 等效惯量传播 |
+| **约束处理** | Lagrange 乘子（系统化） | 需虚拟切断 + 投影 | 原生支持树形结构 |
+| **适用场景** | 理论分析、Passivity 证明 | 实时逆动力学控制 | 高保真仿真 |
+| **灵巧操作** | 稳定性分析框架 | 1kHz 计算力矩控制 | Sim-to-Real 数据生成 |
+
+> [!tip] 工程选择指南
+> - **串联结构 + 实时控制** → RNEA（$O(N)$ 逆动力学，嵌入式友好）
+> - **仿真 + RL 训练** → ABA（$O(N)$ 正向动力学，MuJoCo/Brax 内核）
+> - **理论推导 + 控制器设计** → Lagrangian（结构化分析，$\dot{M} - 2C$ 反对称性质）
+> - **闭链/并联/非完整约束** → Lagrangian + Lagrange 乘子（系统化约束处理）
 
 ------
 
@@ -984,6 +1006,13 @@ $$\mathcal{F} = \{F \mid \|\tau\| \leq 1\} = \{F \mid F^T (J_h J_h^T) F \leq 1\}
 
 - **Analytical Gradients**: 新一代引擎（如 **Dojo**, **Brax**, **Nimble**）支持通过链式法则直接计算 $\frac{\partial \text{State}_{t+1}}{\partial \text{Param}}$。
 - **Application**: 这意味着我们可以通过梯度下降（Gradient Descent）来自动调整仿真中的摩擦系数、质量分布，使其产出的轨迹与真实机器人的轨迹相匹配。这比传统的 Domain Randomization（随机化）更加高效和精准。
+
+> [!abstract] 新兴方向：物理先验神经网络与离散时间建模
+> **Lagrangian Neural Networks (LNN)** 与 **Hamiltonian Neural Networks (HNN)** 将物理结构嵌入网络架构：
+> - LNN 学习 Lagrangian 函数 $L_\theta(q, \dot{q})$，通过自动微分获得 Euler-Lagrange 方程
+> - 保证能量守恒等物理性质，但对传感器噪声和力矩估计误差敏感
+> 
+> **离散时间动力学**：直接在固定时间步长 $\Delta t$ 下建模 $q_{t+1} = f(q_t, \dot{q}_t, \tau_t)$，避免连续-离散转换误差。在 MPC 等控制应用中，离散模型可直接匹配控制器采样周期，提升数值稳定性。
 
 > [!tip] 关节级神经动力学分解（来自 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]）
 > 可微物理的一个替代方案是**数据驱动的关节级动力学**：

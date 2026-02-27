@@ -44,7 +44,7 @@ related:
 
 ## 2. Core Concepts: Kinematics & Statics Foundations in Dexterous Manipulation
 
-在深入控制算法之前，必须建立描述灵巧手与物体交互的数学基石。与传统的单臂抓取不同，灵巧操作涉及多指协调（Multi-fingered Coordination），这要求我们不仅关注单个指尖的运动，更要关注接触点力与运动在物体层面的映射关系。这种映射关系集中体现在两个核心矩阵上：**抓取矩阵（Grasp Matrix, $G$）** 与 **手雅可比矩阵（Hand Jacobian, $J_h$）**。这些概念的详细几何推导参见 [[ContactMechanics#2.3 接触雅可比矩阵]]。
+在深入控制算法之前，必须建立描述灵巧手与物体交互的数学基石。与传统的单臂抓取不同，灵巧操作涉及多指协调（Multi-fingered Coordination），这要求我们不仅关注单个指尖的运动，更要关注接触点力与运动在物体层面的映射关系。这种映射关系集中体现在两个核心矩阵上：**抓取矩阵（Grasp Matrix, $G$）** 与 **手雅可比矩阵（Hand Jacobian, $J_h$）**。这些概念的详细几何推导参见 [[ContactMechanics#2.3 接触雅可比矩阵 (Contact Jacobian)|接触雅可比矩阵]]。
 
 ### 2.1 虚功原理与对偶性 (Virtual Work Principle & Duality)
 

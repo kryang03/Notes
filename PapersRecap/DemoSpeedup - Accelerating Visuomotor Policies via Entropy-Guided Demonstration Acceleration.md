@@ -175,8 +175,8 @@ $$\text{加速块长度} \times \text{加速率} \approx \text{原始块长度}$
 - 复合误差分析 (Ross et al., 2011)
 
 **同期工作**:
-- [[HIL-SERL]]（人在环强化学习）
-- [[TRANSIC]]（人-机协作迁移）
+- [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]（人在环强化学习）
+- [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction|TRANSIC]]（人-机协作迁移）
 
 **技术相关**:
 - [[InformationTheory]]
@@ -231,6 +231,7 @@ DemoSpeedup: 短视野 + 快动作 → 低复合误差 → 高/持平成功率
 
 - [[InformationTheory]]: 熵估计、核密度估计
 - [[ReinforcementLearning]]: 行为克隆、策略学习
+- [[ReinforcementLearning#6.3 RL Scaling Laws: 计算最优的训练资源分配]]: 熵作为 easy/hard 区分标准，与 DemoSpeedup 的熵引导加速思想一脉相承
 - [[SignalProcessing]]: 时间序列聚类、异常检测
 - [[Optimization]]: 轨迹下采样策略
 

@@ -180,8 +180,8 @@ related:
 - 机器人近距离感知 (Hsiao et al., 2009)
 
 **潜在下游**:
-- [[Robot Synesthesia]]（多模态感知融合）
-- [[HATO]]（触觉增强遥操作）
+- [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing|Robot Synesthesia]]（多模态感知融合）
+- [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)|HATO]]（触觉增强遥操作）
 
 ---
 

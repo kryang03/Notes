@@ -218,8 +218,8 @@ $$\min_{q^u_+, a} (q^u_+ - q^u_{goal})^T Q (q^u_+ - q^u_{goal}) + (a - q^a)^T R 
 - DP3 (3D Diffusion Policy)
 
 **同期工作**:
-- [[TRANSIC]]（可组合 sim-to-real）
-- [[HIL-SERL]]（人在环微调）
+- [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction|TRANSIC]]（可组合 sim-to-real）
+- [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]（人在环微调）
 
 **技术相关**:
 - [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]]
