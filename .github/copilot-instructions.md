@@ -54,6 +54,7 @@ Papers&Notes/
 | `.github/skills/knowledge-graph-management/SKILL.md` | 完整管理规范 | 操作前参考 |
 | `Foundations/taxonomy.md` | 领域分类索引 | 新增内容时检查 |
 | `MergeBuffer/_MergeIndex.md` | 待处理内容索引 | 处理新内容时更新 |
+| `Projects/*/all_Insights/_ExperimentResultsAll.md` | 🔄 远端服务器实验结果汇总 | **每次会话检查是否有新结果** |
 
 ---
 
@@ -68,6 +69,8 @@ Papers&Notes/
 │  2. list_dir: MergeBuffer/, Papers/, PapersRecap/           │
 │     → 发现待处理内容                                        │
 │  3. 快速扫描 Foundations/ 结构完整性                         │
+│  4. 🔄 检查 Projects/*/all_Insights/_ExperimentResultsAll.md  │
+│     → 识别远端服务器新增的实验结果，更新对应 Idea 迭代日志  │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -286,6 +289,8 @@ $$
 ```
 ✅ 每次会话开始首先读取 TASK_TRACKER.md
 ✅ 每次会话结束前更新 TASK_TRACKER.md
+✅ 每次会话检查 Projects/*/all_Insights/_ExperimentResultsAll.md 是否有远端新增实验结果
+✅ 若有新实验结果，更新对应 Idea 的「动态迭代日志」节并调整后续实验计划
 ✅ 新增内容建立至少一个 wikilink 到 Foundations/
 ✅ 论文笔记包含到相关 Foundation 领域的链接
 ✅ 处理 MergeBuffer/ 时进行深度内容分析

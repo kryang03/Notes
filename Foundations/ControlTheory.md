@@ -237,6 +237,37 @@ $$\tau = K_p e + K_d \dot{e} + \tau_{gravity}$$
 2. **巨大的接触力：** 当机器人试图移动到一个被环境（如墙壁）占据的位置时，高增益控制器会将其视为位置误差。由于 $K_p$ 很大，控制器会输出极大的力 $F = K_p \delta x$ 试图消除误差。
 3. **系统破坏：** 这种“不妥协”的行为会导致力迅速饱和，甚至损坏机械臂或物体。更严重的是，由于环境本身具有刚度 $K_e$，闭环系统的总刚度 $K_{total} \approx K_p + K_e$ 变得极大，导致系统自然频率升高，极易激发未建模的高频动力学（如齿轮箱柔性），引发剧烈的**接触不稳定性（Contact Instability）** 。
 
+
+#### 3.1.1 从 PID 到计算力矩：精确线性化的诱惑与局限 (From PID to Computed Torque)
+
+> [!note] 教科书参考
+> 本节基于 Murray, Li & Sastry, *A Mathematical Introduction to Robotic Manipulation*, Chapter 4 §5.2-5.3 (Proposition 4.8)
+
+PID 控制的一个直接改进思路是**计算力矩控制（Computed Torque Control, CTC）**，也称为反馈线性化（Feedback Linearization）。核心思想：用全状态反馈**精确消去所有非线性**。
+
+$$\tau = M(q)\left[\ddot{q}_d - K_v \dot{e} - K_p e\right] + C(q, \dot{q})\dot{q} + N(q, \dot{q})$$
+
+代入动力学方程后，由于 $M(q)$ 正定，误差动力学化简为**纯线性系统**：
+
+$$\ddot{e} + K_v \dot{e} + K_p e = 0$$
+
+**Proposition 4.8 (Murray)**：若 $K_p, K_v \in \mathbb{R}^{n \times n}$ 为对称正定矩阵，则上述控制律保证**指数级轨迹跟踪**。
+
+**CTC 的结构分解**：
+
+$$\tau = \underbrace{M(q)\ddot{q}_d + C\dot{q} + N}_{\tau_{ff} \text{ (前馈：补偿非线性)}} + \underbrace{M(q)(-K_v \dot{e} - K_p e)}_{\tau_{fb} \text{ (反馈：误差校正)}}$$
+
+**为什么 CTC 不适合灵巧操作？**
+
+1. **模型依赖性**：CTC 需要精确的 $M(q)$、$C(q,\dot{q})$、$N(q,\dot{q})$。模型误差 $\Delta M$ 导致线性化不完全，残余非线性引发性能退化（详见 §7 鲁棒控制）。在高动态非紧握任务中（如 [[Dynamic Non-Prehensile Manipulation]]），接触切换导致动力学剧变，使模型误差尤为严重。
+2. **环境交互的缺失**：CTC 将 $F_{ext}$ 视为扰动并试图消除。但在灵巧操作中，接触力 $F_{ext}$ 是任务的核心——我们需要**调节**与环境的交互，而非**消除**它。
+3. **PD 的本质局限**：PD 控制 $\tau = -K_v \dot{e} - K_p e$ 是 CTC 的"穷人版本"——没有前馈项 $\tau_{ff}$。Murray 明确指出：*"PD 控制永远无法实现非平凡轨迹的精确跟踪。"* 这解释了 [[Dynamic Non-Prehensile Manipulation|DNPM]] 项目中的现象：PD 将位置目标转化为力矩，但力矩 pattern 受限于固定 $K_p, K_d$，无法表达动态任务所需的**时变刚度**。
+
+> [!tip] 与 DNPM 项目的直接联系
+> DNPM ideas.md §3.1 观察到"实际关节位置几乎不动，$q_{target}$ 变化主要被 PD 转化为力矩"。从 CTC 视角看，策略在用 PD 近似力矩控制，但**缺失了前馈项和时变增益**。这正是方向 A（变阻抗 / [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 参考模型跟踪）的理论动机来源。
+
+**演进逻辑**：PID 在接触时失稳 → CTC 消除非线性但忽略环境交互 → 需要一种能**主动调节机器人与环境交互动态关系**的控制范式 → **阻抗控制**。
+
 ### 3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系
 
 **Hogan** 提出的阻抗控制并不是直接控制力或位置，而是控制力与位置之间的**动态关系（Dynamic Relationship）** 。

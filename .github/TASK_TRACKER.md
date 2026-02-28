@@ -5,11 +5,229 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-07-16 (核心原则嵌入 + MergeBuffer 深度整合 + 穷尽式扫描)
+**最后更新**: 2026-02-28 (首批服务器实验结果合并 — Exp2 奖励搜索 + 历史 Kp 数据)
 
 ---
 
-## 🟢 本次会话完成 (2026-07-16)
+## 🟢 本次会话完成 (2026-02-28 #5)
+
+### 首批服务器实验结果处理
+
+**触发**：MergeBuffer/all_Insights_server/ 收到远端服务器首批实验结果（Smoke Test + Exp2 TA/TP 奖励搜索 + 历史 Kp×AS 数据 + Exp3a 运行中）。
+
+#### 核心发现
+
+| 发现 | 影响 |
+|-----|------|
+| TA: Light BASE SR=0.83 > TWC SR=0.72 | TWC 对 TA 无益，简洁奖励最优 → 影响 Idea-003, 006 |
+| TP: Medium TWC SR=0.86 最优, α→1.0 | TWC 对 TP 有决定性优势 → 影响 Idea-001, 007 |
+| Heavy 奖励配置普遍 SR=0 | 过多 shaping reward → reward hacking → 支持 Idea-003 因果分析 |
+| TWC 降方差 19× (TP Reduced) | TWC 稳定性价值在 TP 上显著 → 支持 Idea-007 |
+| 历史 Kp 最优区间 3.5~8.5 (TP) | 基准阻抗灵敏度高 → 支持 Idea-001 变阻抗假设 |
+
+#### 修改的文件
+
+| 文件 | 变更内容 |
+|------|---------|
+| `research-insights.prompt.md` | 同步架构更新为 MergeBuffer 中转模式（3 处替换） |
+| `Idea-001-Phase-Adaptive Impedance.md` | 迭代日志合并历史 Kp 数据 + Exp2 TP 基线 + 下一步方向 |
+| `Idea-003-Causal Mediator Reward.md` | 迭代日志合并 TA 奖励搜索结果 + 单 mediator 实验提案 |
+| `Idea-006-Adaptive Lipschitz Actor.md` | 迭代日志合并 Heavy 失败分析 + ALA 验证实验提案 |
+| `Idea-007-Dual Orthogonal Curriculum.md` | 迭代日志合并 TWC 不对称性发现 + 状态轴课程提案 |
+| `_ExperimentResultsAll.md` | 填充 5 个结构化实验条目（4 完成 + 1 运行中） |
+| `_InsightsIndex.md` | 新增实验进度总览表 + Exp2 核心发现摘要 + MergeBuffer 同步说明 |
+
+#### 清理
+
+- ✅ 删除 `MergeBuffer/all_Insights_server/`（已处理完毕）
+
+#### 下一步服务器实验方向
+
+1. **等待 Exp3a 完成** → α 直接训练结果，影响 TWC 理解
+2. **PAI Stage 0** → 在 TP Medium TWC SR=0.86 基线上测试固定 vs 相位自适应 Kp
+3. **CMR 单 mediator** → 在 TA Light BASE SR=0.83 基线上测试单 ω 奖励能否超越
+4. **ALA 验证** → 在 TA Heavy (SR=0) 上测试 Lipschitz 约束能否恢复训练
+
+---
+
+## 🟢 上次会话完成 (2026-02-28 #4)
+
+### 远端服务器同步机制集成
+
+**触发**：用户要求将 `all_Insights/` 文件夹与远端服务器的双向同步特性写入 instructions 和 prompt 中，使远端 Agent 能正确读取 Idea 文档、写入实验结果。
+
+#### 修改的文件
+
+| 文件 | 变更内容 |
+|------|---------|
+| `.github/prompts/research-insights.prompt.md` | 新增「远端同步协议」节（架构图 + 本地/远端 Agent 职责 + `_ExperimentResultsAll.md` 格式规范）；更新输出目录为 `all_Insights/`；新增阶段 A 步骤 2「检查远端实验结果」；Idea 模板新增 §6 动态迭代日志（含同步说明）；质量红线新增 2 条同步相关准则 |
+| `_ExperimentResultsAll.md` | 从空文件填充为完整的远端 Agent 操作指南：文件夹结构、CodeStructure 快速参考、Idea 索引（含关键配置变量）、结果记录模板 |
+| `Idea-001 ~ Idea-007` (7 个文件) | §6 动态迭代日志 callout 统一更新为同步感知版本（标注结果来源为 `_ExperimentResultsAll.md`、表头增加 EXP-ID 列） |
+| `_InsightsIndex.md` | 新增 `> [!important]` 同步机制说明 callout |
+| `.github/copilot-instructions.md` | 关键文件表新增 `_ExperimentResultsAll.md`；Phase 0 新增步骤 4（检查远端实验结果）；必做事项新增 2 条同步相关条目 |
+
+#### 同步架构
+
+```
+本地 Obsidian ◄──── 同步 ────► 远端 8×A100 服务器
+    │                                    │
+    ├── Idea 文档 (实验计划) ──────►      ├── 读取 Idea + CodeStructure
+    ├── CodeStructure.md ──────────►     ├── 执行实验
+    │                                    ├── 写入 _ExperimentResultsAll.md
+    └── 读取新结果 ◄────────────────      └──
+         ↓
+    更新 Idea 迭代日志
+```
+
+### 知识库状态
+
+| 指标 | 数值 |
+|-----|-----|
+| 修改文件 | 11 (1 prompt + 1 instructions + 1 ExperimentResults + 7 Ideas + 1 InsightsIndex) |
+| 新增文件 | 0 |
+
+---
+
+## 🟢 上次会话完成 (2026-02-28 #3)
+
+### Research Insights 第二轮迭代（Prompt 更新 + 执行）
+
+**触发**：用户更新 `research-insights.prompt.md` 添加两条新准则：
+1. 8×A100 集群可用 → 优先 Grid Search 暴力验证
+2. 动态迭代 → Idea 文档需持续更新实验结果
+
+#### Phase A: 全量信息收集（第二轮扫描）
+
+- ✅ **PapersRecap 增量扫描**: 14 篇之前未覆盖的论文
+  - 🔴 Very High: LipsNet (P1+P4), Finger Gaiting (P3+P5)
+  - 🟠 High: DemoStart (P2+P3), DexTrack (P1+P4)
+  - 🟡 Medium: DemoSpeedup (P2+P4), DexNDM (P4)
+- ✅ **Foundation 前沿扫描**: 11 个 Foundation × 开放问题 → 26 个 open problems
+  - 完全未覆盖的高价值方向: World Model, Empowerment pretraining, RL Scaling Laws × HDC
+
+#### Phase B: 现有 Idea 增强
+
+- ✅ **所有 5 个 Idea (001-005) 添加 Stage 0: Grid Search 快速验证节**
+  - Idea-001: Kp ∈ {2,5,12,25,50} × 3 seeds, ~1天
+  - Idea-002: β ∈ {0.0,0.3,0.5,0.7,0.9} × 3 seeds, ~6h
+  - Idea-003: 手工 mediator reward (ω+Fn 阈值), ~1.5天
+  - Idea-004: 成功状态初始化 δ ∈ {1.0,0.7,0.3} × 3 seeds, ~1.5天
+  - Idea-005: Oracle 参数输入 vs 无参数 vs 噪声参数, ~2天
+- ✅ **所有 5 个 Idea 添加"动态迭代日志"节** — 用于记录实验结果和决策
+
+#### Phase C: 新 Idea 生成
+
+| ID | 标题 | 三角定位 | 可行性 | 新颖性 | 优先级 |
+|----|------|---------|--------|--------|--------|
+| 006 | Adaptive Lipschitz Actor (ALA) | P1×P4 × LipsNet × ControlTheory stability | A | B+ | **P0→P1** |
+| 007 | Dual Orthogonal Curriculum (DOC) | P2×P3 × DemoStart ZVF × Finger Gaiting waypoint | A | B+ | **P0** |
+
+- ✅ **Idea-006**: 状态自适应 Lipschitz 约束 → 消除动作抖动，改变网络架构（与 001 正交）
+- ✅ **Idea-007**: 物理难度 α × 状态难度 δ 双正交课程 → 直接嵌入 HDC 论文
+
+#### Phase D: 索引更新
+
+- ✅ **_InsightsIndex.md 重写**：
+  - 新增 Idea-006、007 到所有矩阵
+  - 新增 "Stage 0 执行计划" 节（Week 1-4 时间线）
+  - 新增 "正交性与组合矩阵" 节
+  - 新增 "新增文献关联" 节
+- ✅ **TASK_TRACKER 更新**（本文件）
+
+### 知识库状态
+
+| 指标 | 数值 |
+|-----|-----|
+| 新增文件 | 2 (Idea-006, Idea-007) |
+| 修改文件 | 6 (Ideas 001-005 + InsightsIndex) |
+| Insights 总数 | **7** (5 → 7) |
+| P0 Ideas | 4 (001, 002, 006, 007) |
+| Stage 0 Grid Search 总量 | ~100 runs (~4天 on 8×A100 并行) |
+
+---
+
+## 🟢 上次会话完成 (2026-02-28 #2)
+
+### Research Insights Generator
+
+- ✅ **创建 `.github/prompts/research-insights.prompt.md`**: 从知识库全量分析到顶会 Idea 的标准化生成流程
+  - 痛点-理论-文献 三角定位方法论
+  - Idea 文档标准模板
+  - 可行性评估矩阵
+  - 质量红线与 reviewer 模拟
+
+### DNPM Research Insights 生成（5 个原创 Idea）
+
+| ID | 标题 | 核心贡献 | 目标会议 | 优先级 |
+|----|------|---------|---------|--------|
+| 001 | Phase-Adaptive Impedance (PAI) | 逐指时变阻抗 + 频率自适应，消解频率-动力学混淆 | RSS/CoRL | **P0** |
+| 002 | Contact-Adaptive Autoregressive Exploration (CA-ARP) | 接触自适应 AR-p 探索噪声替代白噪声 | CoRL/ICRA | **P0** |
+| 003 | Causal Mediator Reward (CMR) | 物理中介变量的因果 credit assignment | NeurIPS/ICML | **P1** |
+| 004 | Convex Safe Set Bootstrapping (CSS) | 成功经验几何凸包引导探索 | RSS/CoRL | **P1** |
+| 005 | Test-Time Contact Adaptation (TTCA) | 部署时探测性交互在线辨识接触参数 | CoRL/ICRA | **P2** |
+
+- ✅ 每个 Idea 包含：完整 Intro 故事线、方法论（含数学公式）、实验计划（精确到代码文件）、风险分析、知识库关联
+- ✅ 创建 `Projects/Dynamic Non-Prehensile Manipulation/Insights/` 文件夹及 6 个文件（含索引）
+- ✅ 所有 Idea 与 ideas.md 中已有方向 A/B/C/D 建立了清晰的映射关系
+
+### 知识库状态
+
+| 指标 | 数值 |
+|-----|-----|
+| 新增文件 | 7 (1 prompt + 1 index + 5 ideas) |
+| Insights 总数 | 5 |
+| 覆盖 Foundations | 9/11 |
+| 覆盖 PapersRecap | 12+ 篇 |
+| 实验计划总量 | ~180 次训练 (~28 GPU-天 on 8×A100) |
+
+---
+
+## 🟢 上次会话完成 (2026-02-28)
+
+### 知识库健康扫描
+
+- ✅ **全库断链检查**: Python 脚本扫描所有 wikilinks（文件级 + 章节级），结果 **0 个真实断链**
+- ✅ **Foundation 演进链审计**: 全部 11 个 Foundation 文件的 evolution chain 均已验证完整
+  - Dynamics: Lagrangian → RNEA → ABA → Spatial Vector → Contact Dynamics ✅
+  - ControlTheory: PID → **CTC (新增)** → Impedance → Admittance → Unified ✅
+  - RL: DQN → DDPG → TD3 → SAC → PPO → Offline RL → Diffusion Policy ✅
+  - 其他 8 个领域均已验证 ✅
+
+### ControlTheory.md — 计算力矩控制 (CTC) 子节插入
+
+- ✅ **新增 §3.1.1**: "从 PID 到计算力矩：精确线性化的诱惑与局限"
+  - 基于 Murray 教科书 Ch.4 §5.2-5.3 (Proposition 4.8)
+  - CTC 公式推导 + 结构分解（前馈 + 反馈）
+  - **3 个不适合灵巧操作的原因**: 模型依赖性、环境交互缺失、PD 本质局限
+  - 与 DNPM 项目的直接联系 callout（ideas.md §3.1 PD 力矩 pattern 受限现象）
+  - 演进逻辑桥: PID → CTC → 阻抗控制
+- ✅ **演进链补全**: ControlTheory §3 从 PID 直接跳到阻抗控制 → 现在有完整的 PID → CTC → 阻抗 理论桥梁
+
+### Canvas 更新
+
+- ✅ **found_control_insight 节点更新**: `阻抗控制/力-位混合/模式切换` → `PID→CTC→阻抗控制/力-位混合·时变刚度/计算力矩理论基础`
+- ✅ Canvas 结构完整性验证: 48 节点、61 边均正常
+
+### 清理
+
+- ✅ **重复 PDF 删除**: `Lessons from Learning to Spin "Pens".pdf`（带引号的重复副本，54→54 PDFs）
+
+### 知识库健康状态
+
+| 指标 | 数值 |
+|-----|-----|
+| Papers PDFs | 54 |
+| PapersRecap 笔记 | 57 (含 _PapersIndex.base) |
+| MergeBuffer 待处理 | 0 |
+| Foundation 文件 | 12 (11 + taxonomy) |
+| Canvas 节点 | 48 |
+| Canvas 边 | 61 |
+| 断链 | 0 |
+| ControlTheory 新增章节 | 1 (§3.1.1 CTC) |
+
+---
+
+## 🟢 上次会话完成 (2026-07-16)
 
 ### 核心原则嵌入
 
