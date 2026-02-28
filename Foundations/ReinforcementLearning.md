@@ -789,6 +789,28 @@ $$R = w_1 \cdot \text{dist}(p_{obj}, p_{goal}) + w_2 \cdot \text{quat\_diff}(q_{
 
 - *Insight & Risk*: 人工设计的奖励往往含有偏见（Bias）。例如，为了最小化距离，机器人可能会学会一种奇怪的抓握姿态，这种姿态虽然距离目标近，但无法进行下一步的旋转操作（Local Optima）。这就是所谓的“Reward Hacking” 。
 
+
+> [!theorem] Potential-Based Reward Shaping (PBRS) — 保策略不变的奖励变换定理
+> **来源**: Ng, Harada & Russell, 1999 — *“Policy Invariance Under Reward Transformations”*
+>
+> **定理（充要条件）**：对于折扣 MDP（$\gamma < 1$），shaped reward $R' = R + F(s, a, s')$ 保持所有最优策略不变 **当且仅当** 存在势函数 $\Phi: S \to \mathbb{R}$ 使得：
+>
+> $$F(s, a, s') = \gamma \Phi(s') - \Phi(s)$$
+>
+> 其中：
+> - $\Phi(s)$：状态势函数，可理解为“状态 $s$ 距目标还有多远”的估计
+> - $\gamma \Phi(s') - \Phi(s)$：只依赖状态差，不依赖动作 $a$
+>
+> **直觉**：PBRS 是一种“重新定义零点”的操作 — 类似物理学中的势能参考面选择，不改变力的方向（即不改变最优策略）。
+>
+> **为什么非 PBRS 的 shaping 会导致 reward hacking**：
+> - 当 $F$ 不满足 PBRS 条件时，shaping reward **改变了最优策略**
+> - 策略会学习最大化 $F$（shaping 信号）而非 $R$（任务目标）
+> - **每增加一个非 PBRS 的 shaping term，就引入一个新的 hacking 通道**
+> - 多个 shaping term 的叠加使得联合 $F$ 偏离 PBRS 条件的程度**超线性增长**
+>
+> **与 DNPM Exp2 的对应**：Heavy 配置的 6 个 shaping term 中，velocity、energy、contact force 等 term 几乎不可能满足 PBRS 的势函数差分形式，因此策略找到了最大化这些 shaping 信号的“捷径”，导致 SR=0。
+
 **Solution**:
 
 1. **ARES (Attention-based REward Shaping)** : 利用Transformer自动从演示数据中学习权重。
@@ -813,6 +835,24 @@ $$R = w_1 \cdot \text{dist}(p_{obj}, p_{goal}) + w_2 \cdot \text{quat\_diff}(q_{
 > - 即使 surrogacy 假设不完全成立（如 mediator 只捕获 56% 的因果效应），仍可观察到性能提升
 >
 > **实践启发**：对于 EUREKA 等自动奖励设计方法，可将因果中介变量自动识别纳入奖励搜索空间，构造"因果感知"的奖励函数。
+
+> [!warning] 实验证据：Reward Shaping Term 数量与 Reward Hacking 的定量关系（DNPM Exp2, 2026-02）
+> 在 [[Dynamic Non-Prehensile Manipulation|DNPM]] 转笔任务的系统性奖励搜索实验中，发现了 shaping term 数量与 reward hacking 严重程度之间的**剂量-反应关系**：
+>
+> | 奖励配置 | Shaping Terms | TA Success Rate | TP Success Rate |
+> |---------|--------------|-----------------|------------------|
+> | **Heavy** | 6 (dist + rot + vel + energy + contact + bonus) | **0.00** | **0.00** |
+> | **Medium** | 4 (dist + rot + vel + energy) | 0.31~0.72 | **0.86** |
+> | **Light** | 3 (dist + rot + bonus) | **0.83** | 0.66~0.81 |
+> | **Reduced** | 2 (dist + rot) | 0.17~0.75 | 0.21~0.74 |
+>
+> **关键洞见**：
+> 1. Heavy 配置 **100% 失败**（SR=0），强证据表明过多 shaping term 导致策略找到 reward hacking 捷径
+> 2. **最简洁的 Light 配置在 TA 上最优**（SR=0.83），说明"少即是多"
+> 3. Shaping term 的边际效用**严格递减且可能为负** — 每增加一个 term 都引入新的 hacking 通道
+> 4. **任务特异性**：TA 偏好 Light（3 terms），TP 偏好 Medium（4 terms），说明最优 shaping 复杂度取决于任务动力学
+>
+> **理论解释**：多 shaping term 的联合优化景观中，梯度方向被 shaping reward 主导，策略学会最大化 shaping 信号而非完成任务。这与 [[Optimization#2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观]] 中的鞍点逃逸失败一致 — shaping reward 创造了更深的局部极小值。
 
 ------
 
@@ -860,6 +900,22 @@ $$\xi \sim U[\xi_{low}, \xi_{high}]$$
 > - 在设计 RL 训练时，**优先设计好课程**，而不是堆传感器
 > - 课程隐含了对任务的先验知识——**课程即 inductive bias**
 > - 触觉可能是"锦上添花"而非"必需品"（至少对某些任务）
+
+> [!warning] 实验证据：课程学习的任务特异性 — TWC 对不同任务效果不对称（DNPM Exp2, 2026-02）
+> 在 [[Dynamic Non-Prehensile Manipulation|DNPM]] 的 Time-Warped Curriculum (TWC, α-scaling) 实验中：
+>
+> | 任务 | BASE SR | TWC SR | TWC 效果 | TWC 方差变化 |
+> |------|---------|--------|----------|-------------|
+> | **TA (Thumbaround)** | **0.83** | 0.72 | ❌ **负效果** | 方差更大 |
+> | **TP (Triangle Pass)** | 0.66 | **0.86** | ✅ **决定性正效果** | 降 19× |
+>
+> **关键洞见**：
+> 1. **同一课程策略对不同任务效果可以完全相反** — TWC 帮助 TP 但伤害 TA
+> 2. TWC 的物理轴课程（重力 ×α²、速度 ×α）对 TP 有效，可能因为 TP 的核心挑战是克服重力势垒，而 TWC 提供渐进的重力适应
+> 3. TA 的核心挑战可能是**探索空间**而非物理难度 — TA 需要的是状态空间课程（δ轴），而非物理参数课程（α轴）
+> 4. 这支持了 [[Idea-007-Dual Orthogonal Curriculum|DOC]] 的核心假设：物理难度和状态难度是**正交维度**，不同任务需要不同维度的课程
+>
+> **与课程学习理论的联系**：Continuation Method 保证了沿单一参数轴的连续性，但**多任务场景中不同任务对参数轴的响应面（response surface）不同**。这意味着通用课程不存在，需要任务感知的课程设计。
 
 > [!abstract] 数据飞轮：从演示到策略的闭环迭代（来自 [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]）
 > **核心问题**：人类手部演示数据通常有噪声且不完美，直接模仿效果差。

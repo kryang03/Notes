@@ -263,6 +263,19 @@ $$\tau = \underbrace{M(q)\ddot{q}_d + C\dot{q} + N}_{\tau_{ff} \text{ (前馈：
 2. **环境交互的缺失**：CTC 将 $F_{ext}$ 视为扰动并试图消除。但在灵巧操作中，接触力 $F_{ext}$ 是任务的核心——我们需要**调节**与环境的交互，而非**消除**它。
 3. **PD 的本质局限**：PD 控制 $\tau = -K_v \dot{e} - K_p e$ 是 CTC 的"穷人版本"——没有前馈项 $\tau_{ff}$。Murray 明确指出：*"PD 控制永远无法实现非平凡轨迹的精确跟踪。"* 这解释了 [[Dynamic Non-Prehensile Manipulation|DNPM]] 项目中的现象：PD 将位置目标转化为力矩，但力矩 pattern 受限于固定 $K_p, K_d$，无法表达动态任务所需的**时变刚度**。
 
+> [!warning] 实验证据：$K_p$ 对灵巧操作成功率的极端敏感性（DNPM 历史数据 + Exp2, 2026-02）
+> 在 [[Dynamic Non-Prehensile Manipulation|DNPM]] 的 TP (Triangle Pass) 任务中，100+ 组历史实验的 $K_p$ 网格搜索显示：
+>
+> - **最优 $K_p$ 区间 = 3.5 ~ 8.5**，区间外性能急剧衰退
+> - $K_p$ 过低（< 3）：力矩不足，无法驱动笔完成翻转
+> - $K_p$ 过高（> 10）：系统"僵硬"，接触阶段无法顺从，导致笔弹飞
+> - 最优 $K_d$ 尚未独立搜索（当前与 $K_p$ 耦合）
+>
+> **理论意义**：
+> 1. 窄最优区间（~2.4× 范围）证实了"刚度悖论"在灵巧操作中的严重性 — 固定 $K_p$ 无法同时满足运动相和接触相的需求
+> 2. 不同操作相位（snap vs spin vs release）可能各自有最优 $K_p$，但全局固定值只能折中  — 这正是 [[Idea-001-Phase-Adaptive Impedance|PAI]] 相位自适应阻抗的核心动机
+> 3. Exp2 最优基线 TP Medium TWC SR=0.86（$K_p$ 在最优区间内）为后续变阻抗实验提供了对照
+
 > [!tip] 与 DNPM 项目的直接联系
 > DNPM ideas.md §3.1 观察到"实际关节位置几乎不动，$q_{target}$ 变化主要被 PD 转化为力矩"。从 CTC 视角看，策略在用 PD 近似力矩控制，但**缺失了前馈项和时变增益**。这正是方向 A（变阻抗 / [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 参考模型跟踪）的理论动机来源。
 

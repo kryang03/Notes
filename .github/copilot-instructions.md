@@ -34,9 +34,12 @@ Papers&Notes/
 │   └── skills/                  ← 详细操作技能文档
 │       ├── knowledge-graph-management/SKILL.md  ← 📖 完整管理指南
 │       ├── embodied-ai-resources/SKILL.md
-│       ├── json-canvas/SKILL.md
-│       ├── obsidian-bases/SKILL.md
-│       └── obsidian-markdown/SKILL.md
+│       └── obsidian-skills/skills/  ← 🔄 远端同步 (sparse checkout)
+│           ├── defuddle/SKILL.md
+│           ├── json-canvas/SKILL.md
+│           ├── obsidian-bases/SKILL.md
+│           ├── obsidian-cli/SKILL.md
+│           └── obsidian-markdown/SKILL.md
 ├── Backups/           ← 🔒 只读，绝对不修改
 ├── Books/             ← 📚 教科书 PDF（权威理论来源）
 ├── Foundations/       ← 🧠 核心理论体系（知识图谱骨架）
@@ -342,9 +345,11 @@ comm -23 <(ls Papers/*.pdf | xargs -I {} basename {} .pdf | sort) \
 |---------|------|
 | `.github/skills/knowledge-graph-management/SKILL.md` | **完整管理规范**（核心参考） |
 | `.github/skills/embodied-ai-resources/SKILL.md` | EmbodiedAI.md 资源追踪 |
-| `.github/skills/obsidian-markdown/SKILL.md` | Obsidian Markdown 语法详解 |
-| `.github/skills/obsidian-bases/SKILL.md` | Obsidian Bases 数据库视图 |
-| `.github/skills/json-canvas/SKILL.md` | Canvas 文件创建编辑 |
+| `.github/skills/obsidian-skills/skills/obsidian-markdown/SKILL.md` | Obsidian Markdown 语法详解 |
+| `.github/skills/obsidian-skills/skills/obsidian-bases/SKILL.md` | Obsidian Bases 数据库视图 |
+| `.github/skills/obsidian-skills/skills/json-canvas/SKILL.md` | Canvas 文件创建编辑 |
+| `.github/skills/obsidian-skills/skills/obsidian-cli/SKILL.md` | Obsidian CLI 命令行操作 |
+| `.github/skills/obsidian-skills/skills/defuddle/SKILL.md` | 网页内容提取（减少 token 消耗） |
 
 ---
 

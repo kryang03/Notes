@@ -5,11 +5,125 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-28 (首批服务器实验结果合并 — Exp2 奖励搜索 + 历史 Kp 数据)
+**最后更新**: 2026-02-28 (knowledge-graph-management 恢复 + 全局引用修正 + standard-workflow)
 
 ---
 
-## 🟢 本次会话完成 (2026-02-28 #5)
+## 🟢 本次会话完成 (2026-02-28 #8)
+
+### knowledge-graph-management 恢复后全局引用修正 + Standard Workflow
+
+**触发**：用户恢复了误删的 `.github/skills/knowledge-graph-management/SKILL.md`，需要将上次会话 #7 中错误移除的引用全部恢复，并执行一次完整 standard-workflow。
+
+#### 引用恢复（4 个文件，7 处修改）
+
+| 文件 | 恢复内容 |
+|------|---------|
+| `copilot-instructions.md` | ① 目录树恢复 `knowledge-graph-management/SKILL.md` 条目 ② 关键文件表恢复 SKILL.md 引用 ③ 技能索引表恢复首行 |
+| `standard-workflow.prompt.md` | Phase 0 恢复为 `read_file: .github/skills/knowledge-graph-management/SKILL.md` |
+| `README.md` | 2 处管理指南链接恢复为 `knowledge-graph-management/SKILL.md` |
+| `embodied-ai-resources/SKILL.md` | §5.1 标题恢复为 `knowledge-graph-management` |
+
+#### Standard Workflow 健康检查
+
+- ✅ Foundations/ 13 文件完整（11 领域 + taxonomy + base）
+- ✅ MergeBuffer/ 空（无待处理）
+- ✅ Papers(54) / PapersRecap(57)
+- ✅ 远端 Exp3a 仍运行中，无新结果
+- ✅ 断链扫描：22 个章节引用全部有效，零断链
+- ✅ `knowledge-graph-management/SKILL.md` 1290 行完整审阅
+
+---
+
+## 🟢 上一次会话完成 (2026-02-28 #7)
+
+### Obsidian Skills 远端仓库配置 + 知识库引用迁移
+
+**触发**：用户 clone 了 `kepano/obsidian-skills` 远端仓库到 `.github/skills/obsidian-skills/`，需要配置 sparse checkout 并更新所有旧引用。
+
+#### Git Sparse Checkout 配置
+
+| 操作 | 详情 |
+|------|------|
+| 仓库 | `https://github.com/kepano/obsidian-skills.git` |
+| 位置 | `.github/skills/obsidian-skills/` |
+| 模式 | non-cone sparse checkout，仅检出 `skills/` 目录 |
+| 效果 | 根目录 LICENSE/README/.claude-plugin 已隐藏，未来 `git pull` 不会恢复 |
+
+#### 新增可用 Skills（来自远端仓库）
+
+| Skill | 路径 | 功能 |
+|-------|------|------|
+| defuddle | `.github/skills/obsidian-skills/skills/defuddle/SKILL.md` | 网页内容清洁提取 |
+| json-canvas | `.github/skills/obsidian-skills/skills/json-canvas/SKILL.md` | Canvas 文件规范 |
+| obsidian-bases | `.github/skills/obsidian-skills/skills/obsidian-bases/SKILL.md` | Bases 数据库视图 |
+| obsidian-cli | `.github/skills/obsidian-skills/skills/obsidian-cli/SKILL.md` | Obsidian CLI 命令行 |
+| obsidian-markdown | `.github/skills/obsidian-skills/skills/obsidian-markdown/SKILL.md` | Obsidian Markdown 语法 |
+
+#### 全局路径迁移（6 个文件）
+
+| 文件 | 变更 |
+|------|------|
+| `copilot-instructions.md` | 目录树 skills 结构更新；技能索引表路径迁移到 `obsidian-skills/skills/`；移除不存在的 `knowledge-graph-management` 引用 |
+| `standard-workflow.prompt.md` | Phase 0 管理指南路径改为 `copilot-instructions.md` |
+| `README.md` | 2 处管理指南链接改为 `copilot-instructions.md` |
+| `embodied-ai-resources/SKILL.md` | §5.1 协作标题改为 `copilot-instructions (管理规范)` |
+| `hardware-documentation/` | 删除空目录 |
+
+#### 健康检查
+
+- ✅ Foundations/ 11+2 文件完整
+- ✅ MergeBuffer/ 空（无待处理）
+- ✅ Papers(54) / PapersRecap(57) 匹配
+- ✅ 无新远端实验结果（Exp3a 仍运行中）
+- ✅ Sparse checkout 配置正确，`git pull` 仅同步 skills/ 目录
+
+---
+
+## 🟢 上一次会话完成 (2026-02-28 #6)
+
+### 标准工作流维护：Canvas + Foundation 深化
+
+**触发**：标准工作流执行，Phase 0 发现 Canvas 未反映 Exp2 实验发现，Foundation 缺少 PBRS 定理。
+
+#### KnowledgeGraph.canvas 更新
+
+| 变更 | 内容 |
+|------|------|
+| 新增 `exp2_findings` 节点 | Exp2 核心发现卡（TA/TP 不对称 + Heavy 失败 + TWC 效果） |
+| 新增 `exp_status_group` 分组 | 🔬 实验验证状态分组 |
+| 新增 4 条 Exp2→Idea 连接边 | exp2→001(Kp+基线), exp2→003(reward hacking), exp2→006(Heavy失败), exp2→007(TWC不对称) |
+| 更新 Idea-001 节点 | 添加 Kp 最优区间 + TP TWC SR=0.86 基线 |
+| 更新 Idea-003 节点 | 添加 Heavy SR=0 + Light SR=0.83 + 下一步方向 |
+| 更新 Idea-006 节点 | 添加 Heavy 失败 → ALA 验证机会 |
+| 更新 Idea-007 节点 | 添加 TWC 不对称发现 + 方差数据 |
+| 更新 idea_combo 节点 | 添加 Exp2 TA/TP 不对称核心发现 |
+| 更新 bt_impedance 节点 | 添加 Kp 灵敏度实验数据 |
+| 更新 bt_curriculum 节点 | 添加 TWC 任务特化发现 |
+
+Canvas 统计：59 nodes, 78 edges（+1 node, +4 edges vs 上次）
+
+#### Foundation 理论深化
+
+| 文件 | 变更 |
+|------|------|
+| `ReinforcementLearning.md` | ① 新增 PBRS 定理（Ng 1999）— 保策略不变的充要条件 + 为什么非 PBRS shaping 导致 hacking |
+| `ReinforcementLearning.md` | ② 新增 Exp2 reward hacking 剂量-反应关系实证（Heavy→Light 定量数据表） |
+| `ReinforcementLearning.md` | ③ 新增 TWC 课程学习任务特异性实证（TA 负效果 vs TP 正效果对比表） |
+| `ControlTheory.md` | 新增 $K_p$ 灵敏度实验证据 callout（最优区间 3.5~8.5，窄区间证实刚度悖论，支持 PAI 动机） |
+
+#### 健康检查
+
+- ✅ Foundations/ 11 文件完整
+- ✅ MergeBuffer/ 空（无待处理）
+- ✅ Papers/ vs PapersRecap/ 匹配
+- ✅ 无新远端实验结果（Exp3a 仍运行中）
+- ✅ 所有 heading 链接有效
+- ✅ Canvas JSON 格式有效
+
+---
+
+## 🟢 上次会话完成 (2026-02-28 #5)
 
 ### 首批服务器实验结果处理
 
