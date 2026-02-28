@@ -5,11 +5,45 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-28 (knowledge-graph-management 恢复 + 全局引用修正 + standard-workflow)
+**最后更新**: 2026-02-28 (Canvas 重构 + Obsidian 结构完善 + 经验 Prompt 生成)
 
 ---
 
-## 🟢 本次会话完成 (2026-02-28 #8)
+## 🟢 本次会话完成 (2026-02-28 #9)
+
+### KnowledgeGraph.canvas 全面重构 + Obsidian 结构完善
+
+**触发**：用户要求根据 Obsidian skills（尤其是 json-canvas 规范）重构 Canvas，以 Projects 为绝对核心，保证美观与清晰。
+
+#### Canvas 重构
+
+| 变更 | 详情 |
+|------|------|
+| 新建文件 | `/KnowledgeGraph.canvas`（根目录，备份保留在 `Backups/`） |
+| 总节点数 | 69（含 6 个 Group、1 个标题卡） |
+| 总边数 | 73 |
+| 六层结构 | 🔬实验 → 💡Ideas → 🚀**Projects**(核心) → ⚡突破点 → 📄Papers → 🧠Foundations |
+| 层间距 | 均 ≥ 250px，最大 300px |
+| 节点间距 | 均 ≥ 50px |
+| 新增节点 | title_card, proj_roadmap, proj_exp_status, paper_lipsnet, paper_eureka, paper_anyrotate, paper_hato, found_compgeo*, found_embodied*（及全部 note 对） |
+| Projects 强调 | 最大 Group (1400×700)、红色标识、4 个内容节点 |
+
+#### Obsidian 结构完善
+
+| 变更 | 详情 |
+|------|------|
+| `EmbodiedAI.md` | 补充缺失的 `related` 字段（RL, Repr, Control, Dynamics） |
+| `_FoundationsIndex.base` | 新增卡片视图、关联状态公式、关联数公式、按内容量降序排列 |
+
+#### 新增 Prompt
+
+| 文件 | 用途 |
+|------|------|
+| `.github/prompts/canvas-knowledge-graph.prompt.md` | Canvas 构建/维护完整指南：布局数学、颜色方案、高度估算、验证脚本、经验教训 |
+
+---
+
+## 🟢 上一次会话完成 (2026-02-28 #8)
 
 ### knowledge-graph-management 恢复后全局引用修正 + Standard Workflow
 

@@ -10,6 +10,11 @@ aliases:
   - VLA Models
   - Robot Learning Systems
 created: 2026-02-02
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[RepresentationLearning]]"
+  - "[[ControlTheory]]"
+  - "[[Dynamics]]"
 ---
 
 # Embodied AI - 具身智能系统

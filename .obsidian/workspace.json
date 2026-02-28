@@ -15,9 +15,9 @@
               "state": {
                 "file": "KnowledgeGraph.canvas",
                 "viewState": {
-                  "x": 760,
-                  "y": 2074.1682050781255,
-                  "zoom": -2.0163378342274783
+                  "x": -470.5641101856678,
+                  "y": -2618.0409414244946,
+                  "zoom": -0.6838619023936924
                 }
               },
               "icon": "lucide-layout-dashboard",
@@ -202,8 +202,10 @@
   },
   "active": "a2bda358afde2f94",
   "lastOpenFiles": [
-    "KnowledgeGraph.canvas",
     "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
+    "KnowledgeGraph.canvas",
+    "README.md",
+    "Backups/KnowledgeGraph.canvas",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/_InsightsIndex.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/_ExperimentResultsAll.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-007-Dual Orthogonal Curriculum.md",
@@ -229,7 +231,6 @@
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights/_InsightsIndex.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights/_ExperimentResultsAll.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights/Idea-007-Dual Orthogonal Curriculum.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights/Idea-006-Adaptive Lipschitz Actor.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights",
     "MergeBuffer/all_Insights",
     "Projects/Dynamic Non-Prehensile Manipulation/Insights",

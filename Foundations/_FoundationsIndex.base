@@ -4,6 +4,8 @@ filters:
     - file.ext == "md"
 formulas:
   content_size: (file.size / 1000).round(1) + "k"
+  has_related: 'if(related, "✅", "❌")'
+  domain_count: 'if(related, related.length, 0)'
 properties:
   file.name:
     displayName: 📚 领域
@@ -11,8 +13,14 @@ properties:
     displayName: 🔖 标签
   formula.content_size:
     displayName: 📊 内容量
+  formula.has_related:
+    displayName: 🔗 关联
+  formula.domain_count:
+    displayName: 🔢 关联数
   file.mtime:
     displayName: 🕐 最后更新
+  aliases:
+    displayName: 🏷️ 别名
 views:
   - type: table
     name: 📖 Foundation 概览
@@ -22,13 +30,26 @@ views:
     order:
       - file.name
       - formula.content_size
+      - formula.domain_count
       - file.mtime
     sort:
       - property: formula.content_size
-        direction: ASC
+        direction: DESC
+  - type: cards
+    name: 🃏 领域卡片
+    filters:
+      not:
+        - file.name == "taxonomy"
+    order:
+      - file.name
+      - aliases
+      - formula.content_size
   - type: list
     name: 🕐 最近更新
     order:
       - file.name
       - file.mtime
     limit: 5
+    sort:
+      - property: file.mtime
+        direction: DESC
