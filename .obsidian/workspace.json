@@ -241,8 +241,9 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "828e91fce11bf5ed",
+  "active": "fa2d5fa10800fbf6",
   "lastOpenFiles": [
+    "MergeBuffer/空间智能作为机器人的结构化表征.pdf",
     "PapersRecap/WMPO - World Model-based Policy Optimization for VLA.md",
     "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
     "PapersRecap/OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control.md",
@@ -279,7 +280,6 @@
     "Foundations/ControlTheory.md",
     "Projects/Dynamic Non-Prehensile Manipulation/HDC-元宝纪要.txt",
     "PapersRecap/Reinforcement Learning for Control with Multiple Frequencies.md",
-    "PapersRecap/Path-Constrained Haptic Motion Guidance via Admittance Control.md",
-    "PapersRecap/Visual-tactile Pretraining for Humanlike Manipulation Dexterity.md"
+    "PapersRecap/Path-Constrained Haptic Motion Guidance via Admittance Control.md"
   ]
 }
