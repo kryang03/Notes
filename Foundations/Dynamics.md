@@ -1058,5 +1058,9 @@ $$\mathcal{F} = \{F \mid \|\tau\| \leq 1\} = \{F \mid F^T (J_h J_h^T) F \leq 1\}
 ### Sim-to-Real 与动力学迁移
 - [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation]] — 残差动力学补偿
 - [[Reinforcement Learning for Control with Multiple Frequencies]] — 多频率动力学控制
+- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — **Actuation-aware 动力学建模**：torque-speed envelope 约束策略在执行器物理极限内
+
+### 物理感知预训练
+- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — **Dynamics-lifted 几何预训练**：将粒子动力学统一为 transport equation $\frac{\partial \rho}{\partial t} + \nabla \cdot (v\rho) = 0$，20-60% 数据需求降低
 
 **结论**: 灵巧操作的动力学不再是简单的 $F=ma$。它是一门关于如何在计算资源受限、接触状态高度不确定、系统拓扑动态变化的条件下，寻找最优控制策略的艺术。掌握 RNEA/ABA 是入门，理解 Contact Solver 是进阶，而能够驾驭 Differentiable Physics 或 Neural Dynamics 则是通向未来的钥匙。

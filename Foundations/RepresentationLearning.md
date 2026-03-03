@@ -917,4 +917,10 @@ $$w_{t+1} = w_t - \eta \cdot \arg\max_{\|v\|_p^* \leq 1} \langle v, \nabla L(w_t
 ### 可解释表征
 - [[Weight-sparse transformers have interpretable circuits]] — 稀疏可解释回路
 
+### 物理感知几何表征
+- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — **Dynamics-lifted 几何预训练**：在 transport equation 空间构建 E(3)-equivariant 表征，跨粒子系统泛化
+
+### VLA 潜空间推理
+- [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — **潜在时空链式推理**：在隐空间而非文本空间执行 CoT，MoT 双系统路由
+
 *Format: Markdown for Obsidian Knowledge Base Integration.*

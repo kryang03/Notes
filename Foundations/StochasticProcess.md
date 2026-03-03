@@ -811,6 +811,9 @@ $$\lambda \approx \frac{1}{\epsilon} \ln(1 + \exp(-\epsilon \phi(q)))$$
 - [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]: 规划引导的扩散策略，Score-based 随机微分方程
 - [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization|Physics-Driven Data]]: 基于物理的数据生成，轨迹优化的随机采样
 - [[Dynamic Reinforcement Learning for Actors|Dynamic RL for Actors]]: 动态随机策略学习
+- [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]: Denoising Sub-MDP，扩散策略的 RL 微调框架，consistency distillation
+- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]: **Flow Matching** 策略预训练，条件速度场 $v_\theta(x_t, t|c)$ 建模
+- [[WMPO - World Model-based Policy Optimization for VLA|WMPO]]: 像素空间视频世界模型中的随机轨迹生成 + GRPO 优化
 
 ### MPPI与采样轨迹优化
 - [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|Autoregressive Policies]]: 自回归随机策略，动作链式采样

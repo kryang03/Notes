@@ -1212,6 +1212,9 @@ $$\begin{pmatrix} U_p \\ Y_p \\ U_f \\ Y_f \end{pmatrix} g = \begin{pmatrix} u_{
 - [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References]] — 神经跟踪控制
 - [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills]] — 物理角色动画
 
+### Actuation-Aware 建模与高动态控制
+- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — **Torque-speed envelope** 建模执行器物理极限，power-safety 正则化，actuation-aware 残差 RL 后训练
+
 ------
 
 ## 10. 结论 (Conclusion)

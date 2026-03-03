@@ -157,6 +157,11 @@ created: 2026-01-31
 | [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]] | RL, Control |
 | [[Elastic Time Step Reinforcement Learning, VTS-RL]] | RL, Optimization |
 | [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] | RL, Control |
+| [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training\|GeoPT]] | Dynamics, CompGeo, ReprLearn |
+| [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA\|LaST0]] | EmbodiedAI, ReprLearn, RL |
+| [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control\|OmniXtreme]] | RL, Control, Dynamics |
+| [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | RL, StochasticProcess, Control |
+| [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | RL, EmbodiedAI, StochasticProcess |
 
 ---
 

@@ -1044,6 +1044,16 @@ $$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sig
 
 它不仅是模仿学习的SOTA，现在正逐渐与RL结合（RL-guided Diffusion）。 **Value-add**: 在复杂操作（如双手解绳结）中，动作空间是高度多模态的。Diffusion Policy 是目前唯一能有效捕捉并复现这种多模态分布的架构，标志着从“拟合均值”向“拟合分布”的范式转变 。
 
+
+> [!tip] Denoising Sub-MDP: 扩散策略的 RL 微调框架 ([[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]])
+> 扩散策略的 RL 微调面临核心矛盾：去噪过程的多步推理与 RL 的 MDP 框架不兼容。RL-100 提出将**每一步去噪**视为一个独立的 sub-MDP 步骤：
+>
+> 1. **Denoising Sub-MDP**: 将 $K$ 步去噪展开为 $K$ 步 MDP，每步状态包含 $(s_\text{env}, a_k, k)$，策略在去噪步 $k$ 的输出即为 denoiser 的预测
+> 2. **Consistency Distillation**: 通过一致性蒸馏将 $K$-step DDPM 压缩为 1-step 生成，消除推理延迟（100ms → 10ms），使 RL 梯度可直接通过单步 denoiser 传播
+> 3. **IL→Offline RL→Online RL 三阶段流水线**: BC 预训练 → 离线 RL（CRR loss）消除非最优行为 → 在线 RL 细化
+>
+> **与灵巧操作的关联**: 若采用扩散策略架构，denoising sub-MDP 提供了从模仿到强化学习的完整迁移路径。RL-100 在 7 个真实任务上实现 900/900（100%）成功率。
+
 ------
 
 ### 6.3 RL Scaling Laws: 计算最优的训练资源分配
@@ -1095,6 +1105,30 @@ $$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sig
 > - **探索-利用权衡**: Entropic objective 的 $\beta$ 参数控制探索-利用权衡，类似 [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC|SAC]] 中的温度参数 $\alpha$
 
 ------
+### 6.5 World Model-Based Policy Optimization for VLA (WMPO)
+
+> [!abstract] 像素空间世界模型 + GRPO 对 VLA 的 RL Post-Training
+> [[WMPO - World Model-based Policy Optimization for VLA|WMPO]] 提出在 VLA 上执行 RL post-training，核心创新在于**像素空间**世界模型与分组相对策略优化的结合。
+
+**关键设计选择**：
+
+| 维度 | WMPO 选择 | 传统方法 | 优势 |
+|------|----------|---------|------|
+| **世界模型空间** | 像素空间视频生成 | 隐空间 (DreamerV3) | 与 VLA 预训练视觉特征对齐 |
+| **RL 算法** | GRPO (Group Relative PO) | PPO / REINFORCE | 无需 value network，组内比较更稳定 |
+| **奖励来源** | VLM-as-Judge | 手工设计 | 可扩展到开放任务 |
+| **数据来源** | On-policy rollout in WM | Real-world interaction | 零真实交互成本 |
+
+**GRPO 数学形式**：
+$$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{i=1}^{G} \min\left(r_i(\theta) \hat{A}_i, \text{clip}(r_i(\theta), 1\pm\epsilon)\hat{A}_i\right)$$
+
+其中优势函数通过组内归一化计算：$\hat{A}_i = \frac{R_i - \text{mean}(R_{1:G})}{\text{std}(R_{1:G})}$
+
+**与灵巧操作的关联**：
+- **Dynamic Sampling Strategy**: WMPO 的动态采样策略（筛除"全失败"或"全成功"的 prompt 组）对 [[Dynamic Non-Prehensile Manipulation|DNPM]] 的稀疏奖励问题有直接借鉴——可在课程学习中动态调整 $\alpha$ 分布
+- **VLM-as-Judge**: 为复杂操作任务提供了超越手工奖励的评估路径
+- **与 §6.1 DreamerV3 的对比**: DreamerV3 在隐空间 imagination-based planning；WMPO 在像素空间生成完整视频并用 VLM 评分——后者更适合 VLA 架构
+
 
 ## 7. Conclusion: 走向物理感知的智能
 
@@ -1183,3 +1217,11 @@ $$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sig
 - [[Learning Long-Horizon Robot Manipulation Skills via Privileged Action]]: **特权动作**简化长时程探索
 - [[Dexterous Robotic Manipulation using Deep RL and Knowledge Transfer]]: 知识迁移框架
 - [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力融合课程
+
+### 扩散策略的 RL 微调与 World Model RL
+- [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]: **Denoising Sub-MDP** 框架，IL→Offline RL→Online RL 三阶段流水线，consistency distillation 加速推理
+- [[WMPO - World Model-based Policy Optimization for VLA|WMPO]]: **像素空间世界模型 + GRPO** 对 VLA 进行 RL post-training，VLM-as-Judge 奖励
+- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]: **Flow Matching 预训练 + 残差 RL 后训练**，actuation-aware 动力学建模
+
+### 物理感知预训练与几何表征
+- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]: **Dynamics-lifted 几何预训练**，transport equation 统一粒子动力学范式

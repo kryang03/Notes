@@ -70,6 +70,7 @@ VLA 模型将视觉、语言和动作统一到端到端的神经网络框架中�
 | **RDT-1B** | THU | 1.2B | 双臂操作 | Scalable Diffusion Transformer |
 | **3D-VLA** | - | - | 3D感知 | 3D scene representation |
 | **SpatialVLA** | - | - | 空间推理 | Spatial reasoning enhanced |
+| **LaST0** | HKU/ByteDance | 7B | 潜在时空CoT | Latent Spatio-Temporal Chain-of-Thought，MoT 双系统 |
 
 ### 1.3 VLA 的动作输出范式
 
@@ -112,6 +113,15 @@ $$a_t = \mathcal{D}_\theta(\epsilon, s_t, g)$$
 ```
 
 这与 [[ControlTheory]] 中的**分层控制**思想一致：高层任务规划 + 低层反馈控制。
+
+> [!tip] LaST0: Latent Spatio-Temporal CoT ([[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]])
+> LaST0 提出了一种**隐式双系统**架构，与上述显式分层不同：
+>
+> - **Mixture-of-Thought (MoT)**: 同一 VLM 内部同时维护两条推理路径——"快系统"（直接运动映射）和"慢系统"（空间推理），通过 MoT 路由动态选择
+> - **Latent CoT**: 不在文本空间生成中间推理步骤（避免推理延迟），而是在隐空间执行时空链式推理，实现 14× 推理加速
+> - **关键优势**: 在 SimplerEnv/CALVIN 上 +13-14% SR，且推理速度远超 explicit CoT 方法
+>
+> **与 DNPM 的关联**: MoT 的快-慢双系统直接映射到灵巧操作的**频率困境**——quasi-static phase（慢系统规划握姿转换）vs dynamic phase（快系统反应式力控）。参见 [[TARC - Time-Adaptive Robotic Control|TARC]]。
 
 ---
 
@@ -191,6 +201,18 @@ $$\pi^* = \arg\min_\pi \mathbb{E}_{(s,a)\sim\mathcal{D}} \left[ \mathcal{L}(\pi(
 - 动力学: 质量、摩擦系数、关节阻尼
 - 视觉: 光照、纹理、相机位姿
 - 传感器: 噪声、延迟、dropout
+
+### 2.5 VLA Post-Training: 从模仿到强化
+
+> [!important] VLA 的 RL 后训练范式
+> VLA 模型在大规模 IL 数据上预训练后，需要 RL 后训练以突破模仿质量的天花板。当前有两条主要路径：
+
+| 路径 | 代表 | 核心思路 | 优势 | 劣势 |
+|------|------|---------|------|------|
+| **Real-World RL** | [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | IL→Offline RL→Online RL 三阶段 | 真实环境信号，无 sim-to-real gap | 成本高，安全约束 |
+| **World Model RL** | [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | 像素空间世界模型 + GRPO | 零真实交互，可扩展 | 依赖世界模型质量 |
+
+**关键共识**: 两条路径都表明，仅靠 IL 不足以达到鲁棒部署——RL post-training 是 VLA 走向实用的关键步骤。详见 [[ReinforcementLearning#6.2 Diffusion Policies: 多模态分布的终极解|RL §6.2]] 和 [[ReinforcementLearning#6.5 World Model-Based Policy Optimization for VLA (WMPO)|RL §6.5]]。
 
 ---
 
@@ -469,6 +491,15 @@ Genesis 是一个新兴的通用物理仿真平台，支持多种物理后端：
 - [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)]] — 视触觉遥操作
 - [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]] — 视触觉联觉表征
 - [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] — 纯触觉手内操作
+
+### VLA Post-Training 与 World Model RL
+- [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — 潜在时空链式推理，MoT 双系统 VLA
+- [[WMPO - World Model-based Policy Optimization for VLA|WMPO]] — 像素空间世界模型 + GRPO 对 VLA 进行 RL post-training
+- [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]] — 真实世界 RL，denoising sub-MDP，100% 成功率
+- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — Flow Matching 预训练 + actuation-aware 残差 RL
+
+### 物理感知预训练
+- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — Dynamics-lifted 几何预训练，transport equation 统一范式
 
 ---
 

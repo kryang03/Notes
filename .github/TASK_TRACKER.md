@@ -5,11 +5,66 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-02-28 (Canvas 重构 + Obsidian 结构完善 + 经验 Prompt 生成)
+**最后更新**: 2026-03-01 (5篇新论文处理 + Foundation 多文件更新 + Canvas 更新)
 
 ---
 
-## 🟢 本次会话完成 (2026-02-28 #9)
+## 🟢 本次会话完成 (2026-03-01 #10)
+
+### 5篇 MergeBuffer 论文全流程处理 + Foundation/Canvas 深度更新
+
+**触发**：用户执行 standard-workflow，发现 MergeBuffer/ 中有 5 篇新论文 PDF。
+
+#### 论文处理（5/5 完成）
+
+| # | 论文 | PapersRecap | 核心关联 |
+|---|------|-------------|---------|
+| 1 | GeoPT | ✅ 已创建 | Dynamics, CompGeo, ReprLearn — transport equation 预训练 |
+| 2 | LaST0 | ✅ 已创建 | EmbodiedAI, ReprLearn — 潜在时空 CoT VLA, MoT 双系统 |
+| 3 | OmniXtreme | ✅ 已创建 | RL, Control, Dynamics — Flow Matching + actuation-aware 残差 RL |
+| 4 | RL-100 | ✅ 已创建 | RL, StochasticProcess — denoising sub-MDP, 100% SR |
+| 5 | WMPO | ✅ 已创建 | RL, EmbodiedAI — 像素空间世界模型 + GRPO |
+
+#### Foundation 更新
+
+| Foundation 文件 | 更新内容 |
+|-----------------|---------|
+| **ReinforcementLearning.md** | §6.2 新增 Denoising Sub-MDP callout (RL-100); 新增 §6.5 WMPO 完整章节; §9 新增 2 个论文分类 |
+| **EmbodiedAI.md** | §1.2 VLA 表新增 LaST0; §1.4 新增 LaST0 MoT 双系统 callout; 新增 §2.5 VLA Post-Training 对比; 相关论文新增 5 条 |
+| **ControlTheory.md** | 相关论文新增 OmniXtreme (actuation-aware) |
+| **StochasticProcess.md** | 相关论文新增 RL-100, OmniXtreme, WMPO |
+| **Dynamics.md** | 相关论文新增 OmniXtreme, GeoPT |
+| **RepresentationLearning.md** | 相关论文新增 GeoPT, LaST0 |
+| **taxonomy.md** | 索引表新增 5 篇论文 |
+
+#### Canvas 更新
+
+| 变更 | 详情 |
+|------|------|
+| 新增节点 | paper_rl100, paper_wmpo, paper_last0, paper_omnix, paper_geopt (5 个) |
+| 新增边 | 17 条（含突破点→论文、论文→Foundation、跨论文演进） |
+| 总节点 | 69 → 74 |
+| 总边 | 73 → 90 |
+| papers_group 扩展 | height: 1120 → 1400 |
+
+#### MergeBuffer 清理
+
+| 操作 | 状态 |
+|------|------|
+| 5 PDF → Papers/ | ✅ 已移动 |
+| _MergeIndex.md | ✅ 新增 #25-29 条目 |
+| .DS_Store | ✅ 已删除 |
+
+#### 断链扫描结果
+- 新增内容: 0 个真实断链（8 个检出项均为 false positive: Books/ PDF 引用、表格转义语法、数学表达式）
+- 所有 section-level 引用验证通过
+
+#### 实验状态
+- `_ExperimentResultsAll.md` 无新增结果（Exp3a 仍标记为运行中，自 2026-02-28 起）
+
+---
+
+## 🟢 上次会话完成 (2026-02-28 #9)
 
 ### KnowledgeGraph.canvas 全面重构 + Obsidian 结构完善
 

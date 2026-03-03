@@ -274,8 +274,13 @@ status: pending
 | 22 | Compression-Based Denoisers.pdf | [[InformationTheory]] §5.0 + [[SignalProcessing]] §5.4 | 压缩-去噪对偶性，指导触觉信号处理与状态表征 | 🟢 已整合 |
 | 23 | IsoCompute Playbook.pdf | [[ReinforcementLearning]] §6.3 + DNPM ideas §2.5.4 | RL 缩放定律、easy/hard 熵控制、课程设计 | 🟢 已整合 |
 | 24 | Learning to Discover at Test Time.pdf | [[ReinforcementLearning]] §6.4 + DNPM ideas §4.1 | 测试时 RL、entropic objective、在线适应 | 🟢 已整合 |
+| 25 | GeoPT.pdf | [[Dynamics]] + [[ComputationalGeometry]] + [[RepresentationLearning]] | Dynamics-lifted 几何预训练，transport equation 统一范式 | 🟢 已整合 |
+| 26 | LaST0.pdf | [[EmbodiedAI]] §1.4 + [[RepresentationLearning]] | 潜在时空 CoT VLA，MoT 双系统，14× 推理加速 | 🟢 已整合 |
+| 27 | OmniXtreme.pdf | [[ControlTheory]] + [[ReinforcementLearning]] + [[Dynamics]] | Flow Matching 预训练 + actuation-aware 残差 RL，torque-speed envelope | 🟢 已整合 |
+| 28 | RL-100.pdf | [[ReinforcementLearning]] §6.2 + [[StochasticProcess]] | Denoising sub-MDP，IL→Offline→Online RL 三阶段，consistency distillation | 🟢 已整合 |
+| 29 | WMPO.pdf | [[ReinforcementLearning]] §6.5 + [[EmbodiedAI]] §2.5 | 像素空间世界模型 + GRPO 对 VLA 的 RL post-training | 🟢 已整合 |
 
-**处理时间**: 2026-02-27 (深度整合完成)
+**处理时间**: 2026-02-27 (深度整合完成), 2026-03-01 (#25-29 新增批次)
 
 ---
 
