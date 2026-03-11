@@ -4,19 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "105e599280445571",
+        "id": "f54475e9b22a53ee",
         "type": "tabs",
         "children": [
           {
-            "id": "06f44cf9a7c3d46f",
+            "id": "fd649d4634043807",
             "type": "leaf",
             "state": {
-              "type": "pdf",
+              "type": "markdown",
               "state": {
-                "file": "Papers/LaST0: Latent Spatio-Temporal Chain-of-Thought for Robotic.pdf"
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-file-text",
-              "title": "LaST0: Latent Spatio-Temporal Chain-of-Thought for Robotic"
+              "icon": "lucide-file",
+              "title": "减速器"
             }
           }
         ]
@@ -76,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 215.5
+    "width": 353.5
   },
   "right": {
     "id": "ddd67c62d17972e8",
@@ -192,28 +194,36 @@
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
       "command-palette:打开命令面板": false,
-      "open-vscode:VSCode": false
+      "open-vscode:VSCode": false,
+      "media-extended:Open external media": false
     }
   },
-  "active": "06f44cf9a7c3d46f",
+  "active": "fd649d4634043807",
   "lastOpenFiles": [
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/斜齿轮箱.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/蜗轮蜗杆减速器.mov",
+    "摆线针轮减速器 1.mov",
+    "摆线针轮减速器.mov",
+    "摆线针轮减速器 2.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/滚珠丝杠.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/滚珠.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/导程.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/行星减速器.png",
+    "录屏2026-03-11 21.43.19.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/行星滚柱丝杠.webp",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/RV Reducer.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/谐波减速器.webp",
     "MergeBuffer/谐波减速器与RV减速器在关节模组集成设计中，选型的核心区分依据是什么？.pdf",
-    "MergeBuffer/Grounded Action Transformation.pdf",
-    "MergeBuffer/grounded action transformation for robot learning - Google 学术搜索.html",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/摆线针轮减速器.mov",
+    "Users/yang/Library/Application.md",
+    "Users/yang/Library",
     "MergeBuffer/grounded action transformation for robot learning - Google 学术搜索_files/photo.jpg",
     "MergeBuffer/grounded action transformation for robot learning - Google 学术搜索_files/photo(1).jpg",
-    "MergeBuffer/grounded action transformation for robot learning - Google 学术搜索_files",
-    "MergeBuffer/A Survey of Sim-to-Real Methods in RL- Progress, Prospects and Challenges with Foundation Models.pdf",
-    "MergeBuffer/Reinforcement learning in robotic systems - A review on sim-to-real transfer.pdf",
-    "Books/Opt_book.pdf",
     "MergeBuffer/chat.md",
-    "MergeBuffer/RoboTwin 2.0- A Scalable Data Generator and Benchmark with Strong Domain Randomization for Robust Bimanual Robotic Manipulation.pdf",
     "MergeBuffer/_MergeIndex.md",
     "PapersRecap/LaST0 - Latent Spatio-Temporal CoT for Robotic VLA.md",
-    "PapersRecap/_PapersIndex.base",
-    "Papers/LaST0: Latent Spatio-Temporal Chain-of-Thought for Robotic.pdf",
     "PapersRecap/GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training.md",
-    "MergeBuffer/空间智能作为机器人的结构化表征.pdf",
     "PapersRecap/WMPO - World Model-based Policy Optimization for VLA.md",
     "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
     "PapersRecap/OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control.md",
@@ -234,8 +244,6 @@
     "MergeBuffer/all_Insights_server/_InsightsIndex.md",
     "MergeBuffer/all_Insights_server/_ExperimentResultsAll.md",
     "MergeBuffer/all_Insights_server/Idea-007-Dual Orthogonal Curriculum.md",
-    "MergeBuffer/all_Insights_server/Idea-006-Adaptive Lipschitz Actor.md",
-    "MergeBuffer/all_Insights_server/Idea-005-Test-Time Contact Adaptation.md",
-    "MergeBuffer/all_Insights_server/Idea-004-Convex Safe Set Bootstrapping.md"
+    "MergeBuffer/all_Insights_server/Idea-006-Adaptive Lipschitz Actor.md"
   ]
 }
