@@ -11,6 +11,23 @@
             "id": "fd649d4634043807",
             "type": "leaf",
             "state": {
+              "type": "mx-file",
+              "state": {
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/RV Reducer.mov",
+                "mx": {
+                  "json": {
+                    "hash": {}
+                  }
+                }
+              },
+              "icon": "lucide-file-video",
+              "title": "RV Reducer"
+            }
+          },
+          {
+            "id": "fa7740479c8b1ad7",
+            "type": "leaf",
+            "state": {
               "type": "markdown",
               "state": {
                 "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
@@ -21,7 +38,8 @@
               "title": "减速器"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -198,28 +216,32 @@
       "media-extended:Open external media": false
     }
   },
-  "active": "fd649d4634043807",
+  "active": "fa7740479c8b1ad7",
   "lastOpenFiles": [
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/斜齿轮箱.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星减速器.png",
+    "DexterousHandMechanicalStructure/谐波减速器.webp",
+    "DexterousHandMechanicalStructure/行星滚柱丝杠.webp",
+    "DexterousHandMechanicalStructure/行星减速器.png",
+    "DexterousHandMechanicalStructure/蜗轮蜗杆减速器.mov",
+    "DexterousHandMechanicalStructure/滚珠丝杠.png",
+    "DexterousHandMechanicalStructure/滚珠.png",
+    "DexterousHandMechanicalStructure/斜齿轮箱.mov",
+    "DexterousHandMechanicalStructure/摆线针轮减速器.mov",
+    "DexterousHandMechanicalStructure/导程.png",
+    "DexterousHandMechanicalStructure/减速器.md",
+    "DexterousHandMechanicalStructure/assets",
+    "DexterousHandMechanicalStructure/RV Reducer.mov",
+    "DexterousHandMechanicalStructure",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/RV Reducer.mov",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/蜗轮蜗杆减速器.mov",
-    "摆线针轮减速器 1.mov",
-    "摆线针轮减速器.mov",
-    "摆线针轮减速器 2.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/滚珠丝杠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/滚珠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/导程.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/行星减速器.png",
-    "录屏2026-03-11 21.43.19.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/行星滚柱丝杠.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/RV Reducer.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/谐波减速器.webp",
-    "MergeBuffer/谐波减速器与RV减速器在关节模组集成设计中，选型的核心区分依据是什么？.pdf",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/摆线针轮减速器.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/斜齿轮箱.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/蜗轮蜗杆减速器.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠丝杠.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/导程.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
     "Users/yang/Library/Application.md",
-    "Users/yang/Library",
-    "MergeBuffer/grounded action transformation for robot learning - Google 学术搜索_files/photo.jpg",
-    "MergeBuffer/grounded action transformation for robot learning - Google 学术搜索_files/photo(1).jpg",
     "MergeBuffer/chat.md",
     "MergeBuffer/_MergeIndex.md",
     "PapersRecap/LaST0 - Latent Spatio-Temporal CoT for Robotic VLA.md",
@@ -243,7 +265,6 @@
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/CodeStructure.md",
     "MergeBuffer/all_Insights_server/_InsightsIndex.md",
     "MergeBuffer/all_Insights_server/_ExperimentResultsAll.md",
-    "MergeBuffer/all_Insights_server/Idea-007-Dual Orthogonal Curriculum.md",
-    "MergeBuffer/all_Insights_server/Idea-006-Adaptive Lipschitz Actor.md"
+    "MergeBuffer/all_Insights_server/Idea-007-Dual Orthogonal Curriculum.md"
   ]
 }
