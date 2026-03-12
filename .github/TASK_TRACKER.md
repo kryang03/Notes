@@ -5,11 +5,50 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-13 (12篇论文 PapersRecap + chat.md 融合 + Foundation 6文件更新 + Canvas +12节点 — 在 #11 基础上继续)
+**最后更新**: 2026-03-13 (合并远程 #11 + 本地 #12 分支 + 标准工作流健康检查)
 
 ---
 
-## 🟢 本次会话完成 (2026-03-13 #12)
+## 🟢 本次会话完成 (2026-03-13 #13)
+
+### Git 分支合并 + 标准工作流健康检查
+
+**触发**：本地 commit `6de1b35` (#12 论文处理) 与远程 commit `a5d3765` (#11 机械结构) 发生分歧，需合并后执行标准工作流。
+
+#### Git 合并 (5 冲突全部解决)
+
+| 冲突文件 | 解决策略 |
+|---------|---------|
+| **TASK_TRACKER.md** | 保留双方完整内容，远程 #11 + 本地 #12 按时间排列 |
+| **KnowledgeGraph.canvas** | 本地 86 节点为基底，+1 远程节点 `proj_mech_hw` +3 边，`bt_sim2real` 更新为远程更丰富文本 |
+| **taxonomy.md** | 合并双方全部新增条目（远程 Sim2Real Survey + sim2real 项目索引 / 本地 13 篇论文） |
+| **PapersRecap/A Survey of Sim-to-Real Methods.md** | 取远程版本（120 行，含 5 个 Foundation 关联 + sim2real 逆链），修复 EUREKA 链接 |
+| **.obsidian/workspace.json** | 取本地（无功能影响） |
+
+#### 合并后 Canvas 状态
+
+| 指标 | 值 |
+|------|------|
+| 总节点 | 87（含远程 proj_mech_hw） |
+| 总边 | 121（19 Foundation + 10 突破点 + 3 远程 proj_mech_hw 边） |
+| 悬挂边 | 0 |
+| ID 唯一性 | ✅ |
+
+#### 标准工作流健康检查
+
+| 检查项 | 状态 |
+|--------|------|
+| MergeBuffer/ | ✅ 空（仅 _MergeIndex.md） |
+| Papers/ | 71 PDF |
+| PapersRecap/ | 74 .md |
+| Foundations/ | 12 文件完整 |
+| 断链扫描 | ✅ 0 真实断链（10 项均为媒体资源 false positive） |
+| 实验结果 | 无新增（Exp3a 仍运行中） |
+| 远程新内容 | sim2real.md (347行 新文件)、传动/电机/减速器已增强 |
+
+---
+
+## 🟢 上一次会话完成 (2026-03-13 #12)
 
 ### 12篇 MergeBuffer 论文 PapersRecap 全部完成 + chat.md 深度融合 + Foundation/Canvas 全面更新
 
