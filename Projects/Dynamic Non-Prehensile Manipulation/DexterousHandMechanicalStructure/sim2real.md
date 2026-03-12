@@ -345,3 +345,33 @@ for i in range(num_dofs):
 > 4. **欠驱动耦合在仿真中通常被过度理想化**——接触状态变化时真机行为可能显著偏离仿真
 > 5. **Action Space 的选择应匹配传动方案**——直驱用力矩，有减速器用位置
 > 6. **机械结构选型决定了 RL 技术路线的上限**——硬件设计与算法设计应协同考虑
+
+---
+
+## 7. 相关研究与知识图谱关联
+
+### 7.1 Sim-to-Real 方法论
+
+本文档的硬件级分析构成了 Sim-to-Real Gap 的**底层物理来源**，与以下 RL 层面的迁移方法形成互补：
+
+- [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|RL Sim-to-Real 方法综述]] — Domain Randomization、System ID、Online Adaptation 理论框架
+- [[A Survey of Sim-to-Real Methods in RL]] — MDP 四要素分类法：本文档侧重 Action 和 Transition 层面的 Gap
+- [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer]] — 执行器级建模视角，与本文 §2-§4 直接对应
+- [[Grounded Action Transformation]] — 学习 $a_{real} = h(s, a_{sim})$ 映射修正仿真中的执行器非理想性
+- [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction]] — 在线修正策略，补偿本文分析的硬件非线性
+
+### 7.2 神经动力学补偿
+
+针对本文 §1.2 力矩传递链路模型中难以精确辨识的参数（$\eta$, $\tau_{friction}$, $k$），以下工作用数据驱动方法直接学习残差：
+
+- [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]] — 关节级神经动力学模型，直接学习 $\Delta\tau = f_{NN}(q, \dot{q}, \tau_{cmd})$
+- [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] — 环境编码器从历史序列推断隐式物理参数 $z_t$，实现在线自适应
+- [[Minimalist Compliance Control]] — 方向相关效率模型，以最小参数辨识代价实现谐波减速器力控
+
+### 7.3 对 DNPM 项目的直接影响
+
+> [!tip] 与 DNPM 实验设计的关联
+> 本分析直接影响以下 Idea 的实验设计：
+> - [[Idea-001-Phase-Adaptive Impedance]] — 时变阻抗参数的 DR 范围应参考 §5.2 建议
+> - [[Idea-005-Test-Time Contact Adaptation]] — 在线辨识的参数集应覆盖 §1.2 力矩链路中的 $\eta$, $\tau_{friction}$, $k$
+> - [[Idea-007-Dual Orthogonal Curriculum]] — 物理轴课程的 α-scaling 可结合硬件特性选择参数化方向

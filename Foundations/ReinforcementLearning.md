@@ -860,6 +860,49 @@ $$R = w_1 \cdot \text{dist}(p_{obj}, p_{goal}) + w_2 \cdot \text{quat\_diff}(q_{
 
 在仿真中训练好的策略，往往在真机上直接失败。这是因为仿真无法完美模拟真实的物理世界（摩擦、软体形变、传感器噪声）。
 
+> [!abstract] Sim-to-Real 失败分类学（基于 [[A Survey of Sim-to-Real Methods in RL|MDP 四要素分类框架]]）
+> 从 MDP 四元素 $(S, A, T, R)$ 的视角，Sim-to-Real Gap 来源可分为：
+>
+> | MDP 元素 | Gap 来源 | 典型例子 | 主要解决手段 |
+> |---------|---------|---------|------------|
+> | **State $S$** | 感知差异 | 渲染逼真度、传感器噪声 | 视觉域适应、随机纹理 |
+> | **Action $A$** | 执行差异 | 电机延迟、齿槽效应、减速器背隙 | Action smoothing、[[sim2real\|硬件建模]] |
+> | **Transition $T$** | 动力学差异 | 摩擦、弹性、质量分布 | DR、系统辨识、残差模型 |
+> | **Reward $R$** | 奖励差异 | 仿真观测 vs 真机传感器 | Learned reward、人类反馈 |
+>
+> 对于灵巧操作，**$T$ (Transition) 和 $A$ (Action) 是主要瓶颈**——接触力学非线性 + 执行器非理想性共同构成 Gap 的核心。
+
+### 5.0 系统辨识与在线参数学习 (System Identification & Online Adaptation)
+
+在 DR 之前，系统辨识 (System ID) 是弥合 Sim-to-Real Gap 的传统方法。两种范式互补：
+
+#### 离线系统辨识（Offline System ID）
+
+通过真机上的诊断实验，估计物理参数 $\xi^* = \arg\min_\xi \|f_{sim}(s,a;\xi) - f_{real}(s,a)\|^2$：
+
+- **刚体参数**：质量、惯性矩、质心 → 激励轨迹 + 最小二乘 ([[Dynamics]])
+- **接触参数**：摩擦系数、恢复系数 → 碰撞实验 ([[ContactMechanics]])
+- **执行器参数**：电机常数 $K_t$、减速器效率 $\eta$、Stribeck 摩擦 → 力矩-速度特性曲线 ([[sim2real|硬件Gap分析]])
+
+**局限**：静态辨识无法捕捉温度漂移、磨损等时变效应。
+
+#### 在线自适应（Online Adaptation）
+
+运行时持续校正 Sim-Real 差异：
+
+| 方法 | 机制 | 代表工作 |
+|-----|------|---------|
+| **Rapid Motor Adaptation (RMA)** | 环境编码器 $z = f(h_t)$ 从历史观测序列推断隐式物理参数 | [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] |
+| **Neural Dynamics Model** | 关节级残差神经网络补偿 Sim-Real 动力学差异 | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] |
+| **Online Correction** | 人类在线修正 → 学习修正模型 $\Delta a = g(s, a_{sim})$ | [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction\|TRANSIC]] |
+| **Grounded Action Transform** | 学习 $a_{real} = h(s, a_{sim})$ 映射修正仿真动作 | [[Grounded Action Transformation\|GAT]] |
+
+> [!tip] DR vs. System ID 的互补关系
+> - **System ID**：减小 $\mathbb{E}[\|T_{sim} - T_{real}\|]$（减小均值偏差）
+> - **Domain Randomization**：增大 $\text{Var}[T_{sim}]$（增大覆盖范围）
+> - **最佳实践**：先做 System ID 缩小中心偏差，再用 DR 覆盖残余不确定性
+> - **灵巧手场景**：关节执行器参数（$K_t$, $\eta$, 背隙角度）适合 System ID；接触摩擦适合 DR
+
 ### 5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)
 
 **Standard DR**: 在训练时，随机扰动物理参数 $\xi$（质量、摩擦系数、电机阻尼）。
@@ -1239,3 +1282,16 @@ $$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{i=1}^{G} \min\left(r_i(\theta) \hat{A}_
 
 ### 数据生成与双臂操作
 - [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation|RoboTwin 2.0]]: MLLM 驱动的双臂数据自动生成 + 5 轴域随机化
+
+### 课程学习进阶
+- [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart]]: **示范引导自动课程** — ZVF+手动初始化 state curriculum，LEAP Hand 旋转物体 Sim2Real
+- [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]: **熵引导演示加速** — 倍速专家演示 + H(π) 控制
+- [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力多模态课程的阶梯式训练
+
+### 长时程操作与特权学习
+- [[Learning Long-Horizon Robot Manipulation Skills via Privileged Action]]: **特权动作**简化长时程任务的探索
+- [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]: 3D 部件引导 RL 跨铰接物体 Sim2Real
+
+### 灵巧手 Sim-to-Real 专项
+- [[DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation|DexHiL]]: 首个 arm-hand VLA 人在回路 post-training
+- [[sim2real|硬件 Sim-to-Real Gap 分析]]: 电机/减速器/传动方案对 RL 策略迁移的系统影响

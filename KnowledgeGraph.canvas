@@ -228,7 +228,7 @@
       "width": 350,
       "height": 350,
       "color": "2",
-      "text": "## 🌐 Sim-to-Real 迁移\n\n**痛点**: 动力学域差异\n\n**解决思路**:\n- Real-to-Sim-to-Real\n- 在线校正 (TRANSIC)\n- 数字孪生 RL 鲁棒化\n- 域随机化 + 快速电机适应\n- 🔧 电机/减速器/传动建模\n\n→ [[ReinforcementLearning]] [[Dynamics]]\n→ [[sim2real|硬件Gap分析]]"
+      "text": "## 🌐 Sim-to-Real 迁移\n\n**痛点**: 动力学域差异\n\n**解决思路**:\n- Real-to-Sim-to-Real\n- 在线校正 (TRANSIC)\n- 数字孪生 RL 鲁棒化\n- 域随机化 + 快速电机适应\n- 🔧 电机/减速器/传动建模\n- 🧠 System ID + 神经动力学\n\n**MDP四要素Gap分类**:\nState | Action | Transition | Reward\n\n→ [[ReinforcementLearning]] [[Dynamics]]\n→ [[sim2real|硬件Gap分析]]"
     },
     {
       "id": "bt_privileged",
@@ -846,6 +846,15 @@
       "height": 540,
       "color": "1",
       "text": "## 🔧 灵巧手机械结构\n\n**传动**: 腱绳 · 连杆 · 直驱 · QDD\n**电机**: BLDC(FOC) · 空心杯 · 伺服\n**减速器**: 谐波 · 行星 · RV · 摆线\n\n**Sim-to-Real 核心 Gap**:\n→ 电气时间常数被忽略\n→ 齿隙/非线性摩擦\n→ 欠驱动耦合矩阵 R(q)\n→ 温度漂移\n\n→ [[sim2real|硬件Gap分析]]\n→ [[传动]] [[电机]] [[减速器]]"
+    },
+    {
+      "id": "paper_dexndm",
+      "type": "text",
+      "x": -10,
+      "y": 1600,
+      "width": 350,
+      "height": 210,
+      "text": "## DexNDM (2025)\n**关节级神经动力学**\n\n💡 Joint-wise Neural Dynamics\n残差补偿Sim-Real Gap\n在线适应 (无需DR)\n\n⭐ System ID前沿"
     }
   ],
   "edges": [
@@ -1818,6 +1827,30 @@
       "toNode": "found_control",
       "toSide": "top",
       "color": "6"
+    },
+    {
+      "id": "e_bt5_dexndm",
+      "fromNode": "bt_sim2real",
+      "fromSide": "bottom",
+      "toNode": "paper_dexndm",
+      "toSide": "top",
+      "label": "神经动力学"
+    },
+    {
+      "id": "e_dexndm_dyn",
+      "fromNode": "paper_dexndm",
+      "fromSide": "top",
+      "toNode": "found_dynamics",
+      "toSide": "bottom",
+      "label": "System ID"
+    },
+    {
+      "id": "e_dexndm_rl",
+      "fromNode": "paper_dexndm",
+      "fromSide": "top",
+      "toNode": "found_rl",
+      "toSide": "bottom",
+      "label": "在线适应"
     }
   ]
 }

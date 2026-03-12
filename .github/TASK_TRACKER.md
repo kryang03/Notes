@@ -5,11 +5,82 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-13 (合并远程 #11 + 本地 #12 分支 + 标准工作流健康检查)
+**最后更新**: 2026-03-13 (Session #14 — 标准工作流深度优化：Foundation理论扩展 + Canvas增强)
 
 ---
 
-## 🟢 本次会话完成 (2026-03-13 #13)
+## 🟢 本次会话完成 (2026-03-13 #14)
+
+### Foundation 理论深化 + Canvas 增强 + 全面自检
+
+**触发**：standard-workflow.prompt.md 标准工作流。无新论文/MergeBuffer，聚焦于知识体系深度优化。
+
+#### Phase 0 健康检查
+
+| 检查项 | 状态 |
+|--------|------|
+| MergeBuffer/ | ✅ 空（仅 _MergeIndex.md） |
+| Papers/ | 71 PDF |
+| PapersRecap/ | 73+ .md |
+| Foundations/ | 12 文件完整 |
+| 断链扫描 | ✅ 0 真实断链（false positive 均为 Obsidian 表格 `\|` 转义） |
+| Canvas | ✅ 87 节点 / 121 边 / 0 悬挂 / 0 重复 ID（会话初始） |
+| 实验结果 | 无新增（Exp3a α-training 自 2026-02-28 运行中） |
+
+#### Foundation 链接补充（15+ 新关联）
+
+| Foundation 文件 | 新增子节 / 论文链接 |
+|-----------------|---------------------|
+| **ControlTheory.md** | +5 论文链接、+2 子节（顺应控制与导纳控制、Sim-to-Real 中的控制挑战） |
+| **ReinforcementLearning.md** | +7 论文链接、+3 子节（课程学习进阶、长时程操作与特权学习、灵巧手Sim-to-Real专项） |
+| **Dynamics.md** | +3 论文链接、+1 子节（Sim-to-Real 动力学迁移） |
+
+#### RL.md 理论扩展：§5.0 System Identification & Online Adaptation
+
+| 新增内容 | 详情 |
+|---------|------|
+| MDP 四要素 Gap 分类 | State / Action / Transition / Reward callout（源自 Sim2Real Survey） |
+| 离线 System ID 理论 | 物理参数辨识 → 仿真器校准流程 |
+| 在线适应方法表 | RMA (HORA) / DexNDM / TRANSIC / GAT 四种范式对比 |
+| DR vs System ID 互补性 | callout 阐述两者正交关系 |
+
+#### sim2real.md 交叉引用增强
+
+| 新增 | 详情 |
+|------|------|
+| §7.1 Sim-to-Real方法论 | 5 篇论文链接 + RL Foundation 回链 |
+| §7.2 神经动力学补偿 | DexNDM / HORA / sim2real review 3 篇链接 |
+| §7.3 DNPM项目影响 | Idea-005 / Idea-006 / sim2real 实验方向 3 条链接 |
+
+#### Canvas 更新
+
+| 变更 | 详情 |
+|------|------|
+| 新增节点 | +1 paper_dexndm（关节级神经动力学） |
+| 新增边 | +3（bt_sim2real→paper_dexndm, paper_dexndm→found_dynamics, paper_dexndm→found_rl） |
+| bt_sim2real 文本更新 | 新增 System ID + 神经动力学条目、MDP四要素Gap分类框 |
+| 总节点 | 87 → 88 |
+| 总边 | 121 → 124 |
+| 验证 | JSON 有效，0 悬挂边，0 重复 ID |
+
+#### 教科书审查（Phase 1.5）
+
+| 教科书 | 检查结果 |
+|--------|---------|
+| Murray - Robotic Manipulation | ContactMechanics.md 已有 Murray 引用（Ch.5 接触模型）；ControlTheory.md §8 Contact-Implicit MPC 已有完整 LCP + 松弛 + 分层架构 |
+| 其余教科书 | 现有 Foundation 覆盖充分，无需大幅扩展 |
+
+#### 断链扫描结果
+- Python 脚本 `/tmp/scan_wikilinks3.py` 扫描全库：0 真实断链
+- 所有 false positive 均为 Obsidian 表格中 `\|` 管道符转义
+
+#### 实验状态
+- `_ExperimentResultsAll.md` 无新增结果
+- Exp3a α-training 持续运行中（2026-02-28 启动，已运行 13+ 天）
+
+---
+
+## 🟢 上一次会话完成 (2026-03-13 #13)
 
 ### Git 分支合并 + 标准工作流健康检查
 
