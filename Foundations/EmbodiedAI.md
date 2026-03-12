@@ -82,12 +82,20 @@ $$a_t = \arg\max_a P(a | s_{1:t}, g; \theta)$$
 **扩散 (Diffusion) 方式**:
 $$a_t = \mathcal{D}_\theta(\epsilon, s_t, g)$$
 
-从噪声中逐步去噪生成连续动作。代表：Diffusion Policy, π₀, RDT
+从噪声中逐步去噪生成连续动作。代表：Diffusion Policy, RDT
+
+**流匹配 (Flow Matching) 方式**:
+$$a_t = x_0 + \int_0^1 v_\theta(x_\tau, \tau, s_t) d\tau, \quad x_0 \sim \mathcal{N}(0, I)$$
+
+沿学习到的 ODE 速度场从噪声直线传输到动作空间。代表：π₀, LaST0, OmniXtreme
 
 > [!note] 设计权衡
 > - 自回归：推理快，但离散化损失精度
-> - 扩散：动作平滑，但计算量大，延迟高
-> - 混合策略：粗调用 AR，细调用 Diffusion
+> - 扩散：动作平滑，但 NFE 高（100-1000 步），延迟大
+> - **流匹配**：直线最优传输路径，NFE 极低（4-10 步），兼具多模态建模与实时性
+> - 混合策略：粗调用 AR，细调用 Flow Matching（如 LaST0 的 MoT 双系统）
+>
+> 详见 [[RepresentationLearning#2.2.3 Flow Matching：从 SDE 到 ODE 的范式迁移]]
 
 ### 1.4 分层双系统 VLA (Hierarchical Dual-System)
 
@@ -117,9 +125,12 @@ $$a_t = \mathcal{D}_\theta(\epsilon, s_t, g)$$
 > [!tip] LaST0: Latent Spatio-Temporal CoT ([[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]])
 > LaST0 提出了一种**隐式双系统**架构，与上述显式分层不同：
 >
-> - **Mixture-of-Thought (MoT)**: 同一 VLM 内部同时维护两条推理路径——"快系统"（直接运动映射）和"慢系统"（空间推理），通过 MoT 路由动态选择
-> - **Latent CoT**: 不在文本空间生成中间推理步骤（避免推理延迟），而是在隐空间执行时空链式推理，实现 14× 推理加速
-> - **关键优势**: 在 SimplerEnv/CALVIN 上 +13-14% SR，且推理速度远超 explicit CoT 方法
+> - **Mixture-of-Transformers (MoT)**: 同一 VLM 内部将 QKV 投影、FFN、LayerNorm 参数完全解耦为两套：慢推理专家（Reasoning Expert）和快动作专家（Acting Expert）。梯度更新互不干涉，避免高级推理特征与低级动作特征的特征干扰（Feature Interference）。
+> - **共享注意力 + KV Cache**: 两套专家共处同一 $d=2048$ 维隐空间。慢专家生成 Latent CoT 后将 $K_{slow}, V_{slow}$ 冻结入 KV Cache；快专家通过序列拼接 $K_{total} = [K_{slow}; K_{fast}]$ 以 $O(1)$ 复杂度提取慢专家的物理推理结果。
+> - **带锁均摊同步调度**: 系统以 $\kappa=4$ 的周期运行——关键帧（$t \bmod \kappa = 0$）存在同步阻塞（慢专家 78.7ms + 快专家 45.2ms），后续 3 帧快专家自由滑行（各 45.2ms）。均摊频率 $= 4 / (123.9 + 3 \times 45.2) \approx 15.4$ Hz。
+> - **混合频率训练**: SFT 阶段混合 $\kappa \in \{1,2,4,8\}$ 联合训练，使快专家对"过期 Cache"具备鲁棒性。
+> - **Latent CoT**: 不在文本空间生成中间推理步骤（避免推理延迟），而在隐空间自回归预测未来 2D 语义 + 3D 几何 + 本体感受状态。训练时用 Uni3D 点云编码器提供 3D GT（推理时完全抛弃），通过余弦相似度损失实现跨模态知识蒸馏。
+> - **关键结果**: 10 项真实任务 +13-14% SR，推理速度 14× 于显式 CoT（15.4 Hz vs 1.1 Hz）
 >
 > **与 DNPM 的关联**: MoT 的快-慢双系统直接映射到灵巧操作的**频率困境**——quasi-static phase（慢系统规划握姿转换）vs dynamic phase（快系统反应式力控）。参见 [[TARC - Time-Adaptive Robotic Control|TARC]]。
 
@@ -500,6 +511,17 @@ Genesis 是一个新兴的通用物理仿真平台，支持多种物理后端：
 
 ### 物理感知预训练
 - [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — Dynamics-lifted 几何预训练，transport equation 统一范式
+
+### VLA Post-Training (Human-in-the-Loop)
+- [[DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation|DexHiL]] — 首个臂手系统 HiL VLA 后训练框架，干预感知采样 + DAgger 循环
+
+### 空间智能与世界模型
+- [[空间智能作为机器人的结构化表征|PointWorld]]: **3D Flow 统一状态-动作表征**，载体无关世界模型预训练；机器人迁移效率比 NLP 低 100 倍的量化分析
+
+### 数据生成与 Sim-to-Real
+- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation|RoboTwin 2.0]] — MLLM 自动化双臂数据生成 + 5 轴域随机化
+- [[A Survey of Sim-to-Real Methods in RL|Sim-to-Real Survey]] — MDP 四要素分类框架
+- [[Grounded Action Transformation|GAT]] — 仿真器 grounding 奠基性工作 (AAAI 2017)
 
 ---
 

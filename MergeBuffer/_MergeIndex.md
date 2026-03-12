@@ -284,6 +284,47 @@ status: pending
 
 ---
 
+## 2026-03-13 新增文件处理
+
+### 30-41. MergeBuffer 批量处理 (12 PDFs + 1 chat.md)
+
+> [!success] 全部处理完成
+> **处理时间**: 2026-03-13
+> **来源**: MergeBuffer 积累的 12 个 PDF + 1 个 Gemini 对话记录
+
+#### chat.md 处理
+| # | 文件 | 处理方式 | 融合目标 |
+|---|------|---------|---------|
+| 30 | chat.md (LaST0 深度分析) | 🟢 核心内容融合 → Foundations | [[RepresentationLearning#2.2.3 Flow Matching]] + [[EmbodiedAI#§1.3/1.4]] |
+
+#### 论文 PDF 处理
+| # | 论文名称 | 状态 | 处理方式 |
+|---|---------|------|---------|
+| 31 | Contact-Grounded Policy (CGP) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→ContactMech+Control+ReprLearn+SignalProc |
+| 32 | Minimalist Compliance Control (MCC) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→Control+Dynamics+ContactMech+DNPM |
+| 33 | DexHiL (HiL VLA Post-Training) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→EmbodiedAI+RL+ReprLearn |
+| 34 | Tacmap (Penetration Depth Map) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→SignalProc+CompGeo+RL+ContactMech |
+| 35 | Emerging Extrinsic Dexterity (DAPL) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→RL+ContactMech+Dynamics+ReprLearn |
+| 36 | Grounded Action Transformation (GAT) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→RL+Dynamics |
+| 37 | STOLA (Touch-Language MoE) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→SignalProc+ReprLearn+InfoTheory |
+| 38 | RoboTwin 2.0 (Bimanual Data Gen.) | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→EmbodiedAI+RL |
+| 39 | Survey of Sim-to-Real in RL | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→RL+EmbodiedAI |
+| 40 | RL in Robotic Systems: Sim2Real Review | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→RL+Dynamics |
+| 41 | 空间智能作为机器人的结构化表征 | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→EmbodiedAI+ReprLearn+CompGeo+Dynamics |
+| 42 | 谐波减速器与RV减速器选型依据 | 🟢 | PDF→Papers/, 笔记→PapersRecap/, 关联→Dynamics+Control |
+
+#### Foundation 更新汇总
+- [[ReinforcementLearning]]: +6 论文链接 (sim-to-real surveys, GAT, DAPL, SToLa, RoboTwin 2.0)
+- [[ContactMechanics]]: +3 论文链接 (CGP, Tacmap, MCC)
+- [[EmbodiedAI]]: +5 论文链接 (DexHiL, PointWorld, RoboTwin 2.0, Sim2Real Survey, GAT)
+- [[SignalProcessing]]: +3 论文链接 (Tacmap, CGP, SToLa)
+- [[Dynamics]]: +3 论文链接 (谐波减速器, MCC, DAPL)
+- [[ComputationalGeometry]]: +2 论文链接 (PointWorld, Tacmap)
+- [[RepresentationLearning]]: +1 新增 §2.2.3 Flow Matching 完整节
+- [[taxonomy.md]]: +13 论文索引条目
+
+---
+
 ## 历史参考（已归档）
 
 ### 原合并策略（已完成）

@@ -1225,3 +1225,17 @@ $$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{i=1}^{G} \min\left(r_i(\theta) \hat{A}_
 
 ### 物理感知预训练与几何表征
 - [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]: **Dynamics-lifted 几何预训练**，transport equation 统一粒子动力学范式
+
+### Sim-to-Real 综述与经典方法
+- [[A Survey of Sim-to-Real Methods in RL]]: **MDP 四要素分类框架** (State/Action/Transition/Reward)，首个覆盖 Foundation Model 时代的 sim-to-real 综述
+- [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer|Tiwari et al. Survey]]: 执行器级建模视角的 sim-to-real 综述
+- [[Grounded Action Transformation|GAT]]: **仿真器 grounding 经典方法**，学习动作映射函数修正 sim-real 差异 (AAAI 2017)
+
+### 非紧握操作与外在灵巧性
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]]: **动力学感知策略学习**，世界模型条件化 RL 实现杂乱场景外在灵巧性
+
+### 触觉与多模态推理
+- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|SToLa]]: MoE 触觉-语言融合框架
+
+### 数据生成与双臂操作
+- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation|RoboTwin 2.0]]: MLLM 驱动的双臂数据自动生成 + 5 轴域随机化

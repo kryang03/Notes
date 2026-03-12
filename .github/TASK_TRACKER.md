@@ -5,11 +5,84 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-01 (5篇新论文处理 + Foundation 多文件更新 + Canvas 更新)
+**最后更新**: 2026-03-13 (12篇新论文 + chat.md 融合 + Foundation 6文件更新 + Canvas +12节点)
 
 ---
 
-## 🟢 本次会话完成 (2026-03-01 #10)
+## 🟢 本次会话完成 (2026-03-13 #11)
+
+### 12篇 MergeBuffer 论文 + chat.md 深度融合 + Foundation/Canvas 全面更新
+
+**触发**：用户执行 standard-workflow，MergeBuffer/ 发现 12 篇新论文 PDF + 1 个 chat.md（LaST0 深度分析 8 轮 Gemini 对话）。为知识库历史最大批量处理。
+
+#### chat.md 深度融合
+
+| 操作 | 详情 |
+|------|------|
+| RepresentationLearning.md | 新增 §2.2.3「Flow Matching：从 SDE 到 ODE 的范式迁移」— OT-FM 路径、速度场、FM loss、与 Diffusion 对比表 |
+| EmbodiedAI.md §1.3 | Flow Matching 作为第三种 VLA 动作范式；π₀ 从 Diffusion 移至 FM 类别 |
+| EmbodiedAI.md §1.4 | LaST0 MoT callout 丰富化（参数解耦、KV Cache、摊销调度、混合频率训练） |
+
+#### 论文处理（12/12 完成）
+
+| # | 论文 | PapersRecap | 核心关联 |
+|---|------|-------------|---------|
+| 1 | CGP (Contact-Grounded Policy) | ✅ | ContactMechanics, SignalProcessing, ReprLearn |
+| 2 | MCC (Minimalist Compliance Control) | ✅ | ControlTheory, Dynamics — **DNPM Idea-001 高度相关** |
+| 3 | DexHiL | ✅ | EmbodiedAI, RL — 首个 arm-hand HiL VLA post-training |
+| 4 | Tacmap | ✅ | SignalProcessing, ContactMechanics, CompGeo |
+| 5 | DAPL (Emerging Extrinsic Dexterity) | ✅ | RL, Dynamics — 世界模型 + 动力学条件化，**直接关联 DNPM** |
+| 6 | GAT (Grounded Action Transformation) | ✅ | RL — AAAI 2017 sim-to-real 经典 |
+| 7 | SToLa | ✅ | ReprLearn, SignalProcessing — MoE 触觉-语言 |
+| 8 | RoboTwin 2.0 | ✅ | EmbodiedAI, RL — MLLM 驱动双臂数据生成 |
+| 9 | Sim-to-Real Survey (Da et al.) | ✅ | RL — MDP 四元素分类法 |
+| 10 | Sim-to-Real Robotics Review (Tiwari et al.) | ✅ | RL, Dynamics — 执行器建模视角 |
+| 11 | 空间智能 (PointWorld) | ✅ | CompGeo, EmbodiedAI — 3D Flow 统一表征 |
+| 12 | 谐波减速器 vs RV 减速器 | ✅ | Dynamics — 7 维选型矩阵，LinkerHand 直接相关 |
+
+#### Foundation 更新
+
+| Foundation 文件 | 更新内容 |
+|-----------------|---------|
+| **RepresentationLearning.md** | 新增 §2.2.3 Flow Matching 完整章节 |
+| **EmbodiedAI.md** | §1.3 FM 范式 + §1.4 MoT 丰富 + 相关论文 +7 条目（DexHiL, PointWorld, RoboTwin 2.0, Sim2Real Survey, GAT 等） |
+| **ReinforcementLearning.md** | 相关论文 +6 子类（Sim-to-Real 综述、GAT、DAPL、SToLa、RoboTwin） |
+| **ContactMechanics.md** | 相关论文 +3（CGP, Tacmap, MCC） |
+| **SignalProcessing.md** | 相关论文 +3 子类（Tacmap, CGP, SToLa） |
+| **Dynamics.md** | 相关论文 +3（减速器, MCC, DAPL） |
+| **ComputationalGeometry.md** | 相关论文 +2（PointWorld, Tacmap） |
+| **taxonomy.md** | 索引表新增 13 篇论文 |
+
+#### Canvas 更新
+
+| 变更 | 详情 |
+|------|------|
+| 新增节点 | 12 个论文文本节点（CGP, MCC, DexHiL, Tacmap, DAPL, GAT, SToLa, RoboTwin 2.0, Sim2Real Survey, Sim2Real Review, PointWorld, 谐波减速器） |
+| 新增边 | 29 条（19 Foundation关联 + 10 突破点关联） |
+| 总节点 | 74 → 86 |
+| 总边 | 89 → 118 |
+| papers_group 扩展 | height: 1400 → 1830 |
+| 验证 | JSON 有效，所有 ID 唯一，零悬挂边 |
+
+#### MergeBuffer 清理
+
+| 操作 | 状态 |
+|------|------|
+| 12 PDF → Papers/ | ✅ 已移动 |
+| chat.md | ✅ 融合后删除 |
+| .DS_Store | ✅ 已删除 |
+| _MergeIndex.md | ✅ 新增 #30-42 条目 |
+
+#### 断链扫描结果
+- 发现 2 处真实断链并修复：EUREKA 缺冒号（A Survey → PapersRecap）、TRANSIC 缺横线（GAT → PapersRecap）
+- 其余 10 项为 false positive（代码中 numpy 数组、Projects 本地媒体文件）
+
+#### 实验状态
+- `_ExperimentResultsAll.md` 无新增结果（自 2026-02-27 EXP-002 后无更新）
+
+---
+
+## 🟢 上一次会话完成 (2026-03-01 #10)
 
 ### 5篇 MergeBuffer 论文全流程处理 + Foundation/Canvas 深度更新
 
