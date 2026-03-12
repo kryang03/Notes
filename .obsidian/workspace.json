@@ -8,38 +8,18 @@
         "type": "tabs",
         "children": [
           {
-            "id": "fd649d4634043807",
-            "type": "leaf",
-            "state": {
-              "type": "mx-file",
-              "state": {
-                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/RV Reducer.mov",
-                "mx": {
-                  "json": {
-                    "hash": {}
-                  }
-                }
-              },
-              "icon": "lucide-file-video",
-              "title": "RV Reducer"
-            }
-          },
-          {
             "id": "fa7740479c8b1ad7",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "image",
               "state": {
-                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
-                "mode": "source",
-                "source": false
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png"
               },
-              "icon": "lucide-file",
-              "title": "减速器"
+              "icon": "lucide-image",
+              "title": "连杆传动"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -216,31 +196,37 @@
       "media-extended:Open external media": false
     }
   },
-  "active": "fa7740479c8b1ad7",
+  "active": "83ac6868d741d647",
   "lastOpenFiles": [
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星减速器.png",
-    "DexterousHandMechanicalStructure/谐波减速器.webp",
-    "DexterousHandMechanicalStructure/行星滚柱丝杠.webp",
-    "DexterousHandMechanicalStructure/行星减速器.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/电机.md",
+    "MergeBuffer/灵巧手结构方案对比分析：连杆、腱绳与直驱方案 - 艾邦机器人.pdf",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/未命名.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/伺服电机.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯转子无铁芯.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
+    "Pasted image 20260312161540.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Inside a Coreless DC Motor. Coreless DC Motors Unveiled!.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/电动机是如何工作的？（直流电机）.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Servo Motors, how do they work?.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Brushless Motor - How they work BLDC ESC PWM.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/直流无刷电机旋转.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/直流有刷电机旋转.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/有刷直流电机.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/三相BLDC.webp",
+    "MergeBuffer/未确认 423820.crdownload",
+    "Pasted image 20260312154625.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚柱丝杠.png",
     "DexterousHandMechanicalStructure/蜗轮蜗杆减速器.mov",
-    "DexterousHandMechanicalStructure/滚珠丝杠.png",
-    "DexterousHandMechanicalStructure/滚珠.png",
     "DexterousHandMechanicalStructure/斜齿轮箱.mov",
     "DexterousHandMechanicalStructure/摆线针轮减速器.mov",
-    "DexterousHandMechanicalStructure/导程.png",
     "DexterousHandMechanicalStructure/减速器.md",
     "DexterousHandMechanicalStructure/assets",
     "DexterousHandMechanicalStructure/RV Reducer.mov",
-    "DexterousHandMechanicalStructure",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/RV Reducer.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/斜齿轮箱.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/蜗轮蜗杆减速器.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠丝杠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/导程.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
     "Users/yang/Library/Application.md",
     "MergeBuffer/chat.md",
     "MergeBuffer/_MergeIndex.md",
@@ -258,13 +244,6 @@
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-007-Dual Orthogonal Curriculum.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-006-Adaptive Lipschitz Actor.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-005-Test-Time Contact Adaptation.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-004-Convex Safe Set Bootstrapping.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-003-Causal Mediator Reward.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-002-Autoregressive Exploration.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-001-Phase-Adaptive Impedance.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/CodeStructure.md",
-    "MergeBuffer/all_Insights_server/_InsightsIndex.md",
-    "MergeBuffer/all_Insights_server/_ExperimentResultsAll.md",
-    "MergeBuffer/all_Insights_server/Idea-007-Dual Orthogonal Curriculum.md"
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-004-Convex Safe Set Bootstrapping.md"
   ]
 }
