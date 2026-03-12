@@ -4,11 +4,40 @@
     "type": "split",
     "children": [
       {
-        "id": "f54475e9b22a53ee",
+        "id": "c97bbdfb1f95c6a8",
         "type": "tabs",
         "children": [
           {
-            "id": "fa7740479c8b1ad7",
+            "id": "a2bda358afde2f94",
+            "type": "leaf",
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "Papers/Visual-tactile pretraining and online multitask learningfor humanlike manipulation dexterity.pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Visual-tactile pretraining and online multitask learningfor humanlike manipulation dexterity"
+            }
+          },
+          {
+            "id": "312dd4d91efdb44c",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "KnowledgeGraph.canvas",
+                "viewState": {
+                  "x": -69.35629912467256,
+                  "y": 1774.362802760039,
+                  "zoom": -0.7237765192797315
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "KnowledgeGraph"
+            }
+          },
+          {
+            "id": "828e91fce11bf5ed",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -20,8 +49,23 @@
               "icon": "lucide-file",
               "title": "sim2real"
             }
+          },
+          {
+            "id": "e84cd4c241ee3668",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "PapersRecap/RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation"
+            }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -78,7 +122,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 353.5
+    "width": 613.5
   },
   "right": {
     "id": "ddd67c62d17972e8",
@@ -177,7 +221,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 300
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -194,58 +238,57 @@
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
       "command-palette:打开命令面板": false,
-      "open-vscode:VSCode": false,
-      "media-extended:Open external media": false
+      "open-vscode:VSCode": false
     }
   },
-  "active": "fa7740479c8b1ad7",
+  "active": "828e91fce11bf5ed",
   "lastOpenFiles": [
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
+    "KnowledgeGraph.canvas",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
+    "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
+    "PapersRecap/A Survey of Sim-to-Real Methods in RL.md",
+    "Papers/Tacmap- Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.pdf",
+    "Papers/STOLA- Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning in Open-Ended Scenarios.pdf",
+    "Papers/RoboTwin 2.0- A Scalable Data Generator and Benchmark with Strong Domain Randomization for Robust Bimanual Robotic Manipulation.pdf",
+    "Papers/Reinforcement learning in robotic systems - A review on sim-to-real transfer.pdf",
+    "Papers/Minimalist Compliance Control.pdf",
+    "Papers/Grounded Action Transformation.pdf",
+    "Papers/Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning.pdf",
+    "Papers/DexHiL- A Human-in-the-Loop Framework for Vision-Language-Action Model Post-Training in Dexterous Manipulation.pdf",
+    "Papers/Contact-Grounded Policy- Dexterous Visuotactile Policy with Generative Contact Grounding.pdf",
+    "Papers/A Survey of Sim-to-Real Methods in RL- Progress, Prospects and Challenges with Foundation Models.pdf",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/电机.md",
-    "MergeBuffer/灵巧手结构方案对比分析：连杆、腱绳与直驱方案 - 艾邦机器人.pdf",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/未命名.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/伺服电机.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯转子无铁芯.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
-    "Pasted image 20260312161540.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Inside a Coreless DC Motor. Coreless DC Motors Unveiled!.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/电动机是如何工作的？（直流电机）.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Servo Motors, how do they work?.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Inside a Coreless DC Motor. Coreless DC Motors Unveiled!.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Brushless Motor - How they work BLDC ESC PWM.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/直流无刷电机旋转.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/直流有刷电机旋转.mov",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/有刷直流电机.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/三相BLDC.webp",
-    "MergeBuffer/未确认 423820.crdownload",
-    "Pasted image 20260312154625.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星减速器.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯转子无铁芯.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠丝杠.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚柱丝杠.png",
-    "DexterousHandMechanicalStructure/蜗轮蜗杆减速器.mov",
-    "DexterousHandMechanicalStructure/斜齿轮箱.mov",
-    "DexterousHandMechanicalStructure/摆线针轮减速器.mov",
-    "DexterousHandMechanicalStructure/减速器.md",
-    "DexterousHandMechanicalStructure/assets",
-    "DexterousHandMechanicalStructure/RV Reducer.mov",
-    "Users/yang/Library/Application.md",
     "MergeBuffer/chat.md",
-    "MergeBuffer/_MergeIndex.md",
-    "PapersRecap/LaST0 - Latent Spatio-Temporal CoT for Robotic VLA.md",
-    "PapersRecap/GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training.md",
     "PapersRecap/WMPO - World Model-based Policy Optimization for VLA.md",
     "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
     "PapersRecap/OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control.md",
-    "KnowledgeGraph.canvas",
-    "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
-    "README.md",
-    "Backups/KnowledgeGraph.canvas",
+    "PapersRecap/LaST0 - Latent Spatio-Temporal CoT for Robotic VLA.md",
+    "PapersRecap/GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/_InsightsIndex.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/_ExperimentResultsAll.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-007-Dual Orthogonal Curriculum.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-006-Adaptive Lipschitz Actor.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-005-Test-Time Contact Adaptation.md"
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-005-Test-Time Contact Adaptation.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-004-Convex Safe Set Bootstrapping.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-003-Causal Mediator Reward.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-002-Autoregressive Exploration.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-001-Phase-Adaptive Impedance.md",
+    "Backups/KnowledgeGraph.canvas"
   ]
 }

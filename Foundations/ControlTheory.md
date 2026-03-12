@@ -504,7 +504,7 @@ $$M_d \ddot{x}_{ref} + B_d \dot{x}_{ref} + K_d x_{ref} = F_{meas}$$
 | **特性**       | **阻抗控制 (Impedance)**                          | **导纳控制 (Admittance)**                  |
 | -------------- | ------------------------------------------------- | ------------------------------------------ |
 | **底层控制环** | 力矩控制 (Torque Control)                         | 位置/速度控制 (Position/Velocity Control)  |
-| **硬件要求**   | 直驱/准直驱电机，低摩擦 (e.g., Franka, KUKA iiwa) | 通用工业机器人，高减速比 (e.g., UR, Fanuc) |
+| **硬件要求**   | 直驱/准直驱电机，低摩擦 (e.g., Franka, KUKA iiwa)（参见 [[传动#3. 直驱 (Direct Drive)|直驱]] / [[传动#4. 准直驱 (Quasi-Direct Drive, QDD)|QDD]]） | 通用工业机器人，高减速比 (e.g., UR, Fanuc)（参见 [[减速器]]） |
 | **适应环境**   | 刚性环境 (Stiff Environment)                      | 自由空间或柔性环境 (Soft Environment)      |
 | **劣势**       | 在自由空间的位置精度受摩擦力影响大                | 与刚性环境接触时容易发生接触不稳定性       |
 

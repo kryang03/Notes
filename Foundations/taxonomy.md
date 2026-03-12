@@ -162,9 +162,11 @@ created: 2026-01-31
 | [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control\|OmniXtreme]] | RL, Control, Dynamics |
 | [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | RL, StochasticProcess, Control |
 | [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | RL, EmbodiedAI, StochasticProcess |
+| [[A Survey of Sim-to-Real Methods in RL\|Sim2Real Survey]] | RL, Dynamics, EmbodiedAI |
 
 ---
 
 ## 相关项目
 
 - [[Dynamic Non-Prehensile Manipulation]] - 动态非抓取灵巧操作研究
+  - [[sim2real\|硬件 Sim-to-Real Gap 分析]] — 电机/减速器/传动选型对 RL 仿真迁移的影响
