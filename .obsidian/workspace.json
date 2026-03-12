@@ -11,12 +11,14 @@
             "id": "fa7740479c8b1ad7",
             "type": "leaf",
             "state": {
-              "type": "image",
+              "type": "markdown",
               "state": {
-                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png"
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-image",
-              "title": "连杆传动"
+              "icon": "lucide-file",
+              "title": "sim2real"
             }
           }
         ]
@@ -196,10 +198,11 @@
       "media-extended:Open external media": false
     }
   },
-  "active": "83ac6868d741d647",
+  "active": "fa7740479c8b1ad7",
   "lastOpenFiles": [
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/电机.md",
     "MergeBuffer/灵巧手结构方案对比分析：连杆、腱绳与直驱方案 - 艾邦机器人.pdf",
@@ -243,7 +246,6 @@
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/_ExperimentResultsAll.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-007-Dual Orthogonal Curriculum.md",
     "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-006-Adaptive Lipschitz Actor.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-005-Test-Time Contact Adaptation.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-004-Convex Safe Set Bootstrapping.md"
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/Idea-005-Test-Time Contact Adaptation.md"
   ]
 }
