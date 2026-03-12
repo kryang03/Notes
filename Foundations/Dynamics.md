@@ -802,6 +802,8 @@ $$\tau = J_1^T F_1 + (I - J_1^T \bar{J}_1^T)[J_2^T F_2 + (I - J_2^T \bar{J}_2^T)
 
 > [!tip] 参考资料
 > 详见 [[Books/A Mathematical Introduction to Robotic Manipulation.pdf]] Chapter 6, Section 4。
+> 关于灵巧手传动机构的工程设计和选型，参见 [[传动]]、[[电机]]、[[减速器]]。
+> 传动方案对仿真建模的影响分析参见 [[sim2real|Sim-to-Real Gap 分析]]。
 
 腱驱动（Tendon-Driven）是灵巧手的主流传动方式，特别是类人灵巧手（如 Shadow Hand, LEAP Hand）。与直驱不同，腱驱动通过柔性绳索将远端执行器与近端电机解耦，从而实现紧凑的指尖设计和良好的后向可驱动性。
 

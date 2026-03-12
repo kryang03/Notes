@@ -5,15 +5,15 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-13 (12篇新论文 + chat.md 融合 + Foundation 6文件更新 + Canvas +12节点)
+**最后更新**: 2026-03-13 (12篇论文 PapersRecap + chat.md 融合 + Foundation 6文件更新 + Canvas +12节点 — 在 #11 基础上继续)
 
 ---
 
-## 🟢 本次会话完成 (2026-03-13 #11)
+## 🟢 本次会话完成 (2026-03-13 #12)
 
-### 12篇 MergeBuffer 论文 + chat.md 深度融合 + Foundation/Canvas 全面更新
+### 12篇 MergeBuffer 论文 PapersRecap 全部完成 + chat.md 深度融合 + Foundation/Canvas 全面更新
 
-**触发**：用户执行 standard-workflow，MergeBuffer/ 发现 12 篇新论文 PDF + 1 个 chat.md（LaST0 深度分析 8 轮 Gemini 对话）。为知识库历史最大批量处理。
+**触发**：合并远程 #11 (机械结构知识体系) 后执行 standard-workflow，完成 #11 中标记为「待创建」的全部 PapersRecap + 新增 chat.md 内容融合。
 
 #### chat.md 深度融合
 
@@ -59,9 +59,9 @@
 |------|------|
 | 新增节点 | 12 个论文文本节点（CGP, MCC, DexHiL, Tacmap, DAPL, GAT, SToLa, RoboTwin 2.0, Sim2Real Survey, Sim2Real Review, PointWorld, 谐波减速器） |
 | 新增边 | 29 条（19 Foundation关联 + 10 突破点关联） |
-| 总节点 | 74 → 86 |
-| 总边 | 89 → 118 |
-| papers_group 扩展 | height: 1400 → 1830 |
+| 总节点 | 75 → 87+ |
+| 总边 | 92 → 121+ |
+| papers_group 扩展 | height → 1830 |
 | 验证 | JSON 有效，所有 ID 唯一，零悬挂边 |
 
 #### MergeBuffer 清理
@@ -82,9 +82,72 @@
 
 ---
 
-## 🟢 上一次会话完成 (2026-03-01 #10)
+## 🟢 上一次会话完成 (2026-03-05 #11)
 
-### 5篇 MergeBuffer 论文全流程处理 + Foundation/Canvas 深度更新
+### 灵巧手机械结构知识体系构建 + 标准工作流
+
+**触发**：用户请求完善 `DexterousHandMechanicalStructure/` 文件夹 (传动/电机/减速器)，生成 sim2real.md 分析文档，并执行标准工作流。
+
+#### 机械结构笔记增强 (3 文件)
+
+| 文件 | 增强内容 |
+|------|---------|
+| **传动.md** | 新增 §4 QDD (准直驱)、§5 综合对比含 QDD 列、腱绳耦合矩阵 R(q) 公式、驱动模式分类（全驱动/冗余/欠驱动）、反映惯量公式、Sim-to-Real 友好度行 |
+| **电机.md** | 新增 §0 电机动力学模型 (电气/机械方程 + Kt/Ke/Km 常数)、§2.2 ESC+FOC (Clarke-Park 变换)、BLDC DLRK 绕组 + 12N14P + 叠片涡流细节、空心杯装配工艺、伺服复合齿轮组 + H桥 + 力额定 |
+| **减速器.md** | 新增 Stribeck 摩擦模型完整公式、谐波非线性刚度 k(θ) 模型 + 迟滞、温度漂移因素、柔轮冲击脆弱性/精度保持性、空心轴集成优势、RV vs 谐波核心选型逻辑、6轴机器人关节配置参考 |
+
+#### sim2real.md 创建 (新文件)
+
+| 章节 | 内容 |
+|------|------|
+| §1 仿真器理想化假设 | IsaacGym/MuJoCo 关节力矩模型 vs 真实力矩传递链完整方程 |
+| §2 电机选型 Gap | 5 类电机对比、电气时间常数、齿槽扭矩、热降额 |
+| §3 减速器选型 Gap | 6 类减速器对比、齿隙 DR 代码示例、Stribeck 摩擦、扭转柔顺、效率不对称 |
+| §4 传动方案 Gap | 欠驱动耦合、腱绳挑战、直驱优势、QDD 平衡 |
+| §5 综合选型矩阵 | Sim-to-Real 友好度排名、DR 参数推荐表、动作空间设计建议 |
+| §6 实现指南 | IsaacGym Python 配置代码、URDF mimic joint XML 示例 |
+
+#### Foundation 逆链更新
+
+| Foundation 文件 | 更新内容 |
+|-----------------|---------|
+| **Dynamics.md** | §8 Tendon-Driven Dynamics tip callout 新增 [[传动]] [[电机]] [[减速器]] [[sim2real]] 逆链 |
+| **ControlTheory.md** | 阻抗/导纳对比表新增 [[传动#3. 直驱\|直驱]] / [[传动#4. 准直驱\|QDD]] / [[减速器]] 内联链接 |
+
+#### Canvas 更新
+
+| 变更 | 详情 |
+|------|------|
+| 新增节点 | `proj_mech_hw` (灵巧手机械结构摘要卡) |
+| 更新节点 | `bt_sim2real` (增加硬件建模解决思路 + sim2real 链接, height 280→350) |
+| 扩展组 | `proj_dnpm_core` width 1400→1900, `breakthrough_group` height 480→550 |
+| 新增边 | 3 条: proj_mech_hw→bt_sim2real (硬件Gap), proj_mech_hw→found_dynamics, proj_mech_hw→found_control |
+| 总节点 | 74 → 75 |
+| 总边 | 89 → 92 |
+
+#### MergeBuffer 处理 (12 项)
+
+| # | 文件 | 类型 | 状态 | 处理 |
+|---|------|------|------|------|
+| 11 | 谐波减速器与RV减速器.pdf | WeChat博文 | 🟢 已完成 | 内容整合至 减速器.md |
+| 12 | 空间智能作为机器人的结构化表征.pdf | WeChat博文 | 🟢 已完成 (#12 处理) | → RepresentationLearning + EmbodiedAI |
+| 13 | A Survey of Sim-to-Real Methods in RL.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 14-22 | 其余 9 篇论文 | 论文 | 🟢 已完成 (#12 处理) | 全部 PapersRecap 已创建 |
+
+#### 其他更新
+
+| 项目 | 详情 |
+|------|------|
+| **taxonomy.md** | 论文索引新增 Sim2Real Survey; 项目索引新增 sim2real 硬件 Gap 分析 |
+| **断链扫描** | 修复 1 个断链: `[[ReinforcementLearning#5. Sim-to-Real]]` → `[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]]` |
+| **资产验证** | DexterousHandMechanicalStructure/assets/ 全部 20 个媒体文件确认完整 |
+
+#### 实验状态
+- `_ExperimentResultsAll.md` 无新增结果（Exp3a 仍运行中，自 2026-02-28 起）
+
+---
+
+## 🟢 上一次会话完成 (2026-03-01 #10)
 
 **触发**：用户执行 standard-workflow，发现 MergeBuffer/ 中有 5 篇新论文 PDF。
 

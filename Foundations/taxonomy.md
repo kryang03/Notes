@@ -161,7 +161,8 @@ created: 2026-01-31
 | [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA\|LaST0]] | EmbodiedAI, ReprLearn, RL |
 | [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control\|OmniXtreme]] | RL, Control, Dynamics |
 | [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | RL, StochasticProcess, Control |
-| [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | RL, EmbodiedAI, StochasticProcess || [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]] | ContactMech, Control, ReprLearn, SignalProc |
+| [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | RL, EmbodiedAI, StochasticProcess |
+| [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]] | ContactMech, Control, ReprLearn, SignalProc |
 | [[Minimalist Compliance Control|MCC]] | Control, Dynamics, ContactMech |
 | [[DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation|DexHiL]] | EmbodiedAI, RL, ReprLearn |
 | [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map|Tacmap]] | SignalProc, CompGeo, RL, ContactMech |
@@ -169,12 +170,14 @@ created: 2026-01-31
 | [[Grounded Action Transformation|GAT]] | RL, Dynamics |
 | [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|SToLa]] | SignalProc, ReprLearn, InfoTheory |
 | [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation|RoboTwin 2.0]] | EmbodiedAI, RL |
-| [[A Survey of Sim-to-Real Methods in RL|Sim-to-Real Survey]] | RL, EmbodiedAI |
+| [[A Survey of Sim-to-Real Methods in RL\|Sim2Real Survey]] | RL, Dynamics, EmbodiedAI |
 | [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer|Tiwari Sim2Real]] | RL, Dynamics |
 | [[空间智能作为机器人的结构化表征|PointWorld]] | EmbodiedAI, ReprLearn, CompGeo, Dynamics |
 | [[谐波减速器与RV减速器选型核心区分依据|谐波 vs RV]] | Dynamics, Control |
+
 ---
 
 ## 相关项目
 
 - [[Dynamic Non-Prehensile Manipulation]] - 动态非抓取灵巧操作研究
+  - [[sim2real\|硬件 Sim-to-Real Gap 分析]] — 电机/减速器/传动选型对 RL 仿真迁移的影响
