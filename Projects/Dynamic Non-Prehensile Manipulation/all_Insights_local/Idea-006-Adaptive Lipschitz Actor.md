@@ -295,7 +295,7 @@ ALA 约束的是**均值** $\mu_\theta(s)$ 的平滑性，CA-ARP 控制的是**�
 
 ### 与 Foundations 的联系
 - [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]] — Lipschitz 约束与阻抗的联系：低 $K(s)$ 等价于高柔顺性（低等效刚度）
-- [[Optimization#2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] — Lipschitz 约束改善 loss landscape 的平滑性，有利于优化
+- [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] — Lipschitz 约束改善 loss landscape 的平滑性，有利于优化
 - [[ReinforcementLearning#2.5 PPO]] — 谱归一化与 PPO 的 trust region 机制兼容性分析
 
 ### 与已有论文的联系

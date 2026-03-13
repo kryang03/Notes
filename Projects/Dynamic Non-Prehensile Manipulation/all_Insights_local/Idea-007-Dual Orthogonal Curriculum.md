@@ -296,7 +296,7 @@ done
 
 ### 与 Foundations 的联系
 - [[ReinforcementLearning#6.3 RL Scaling Laws: 计算最优的训练资源分配]] — ZVF 的"只在有效难度下训练"思想与 Scaling Law 的"最优计算分配"一脉相承
-- [[Optimization#2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] — 双轴课程将 landscape 的探索难度在两个独立维度上渐进学习
+- [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] — 双轴课程将 landscape 的探索难度在两个独立维度上渐进学习
 - [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]] — 状态初始化课程本质上是 intrinsic motivation 的显式替代
 
 ### 与已有论文的联系

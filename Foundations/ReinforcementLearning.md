@@ -164,7 +164,65 @@ $$a_{safe} = \text{Exp}_q( \pi(s) )$$
 > [!note] 从离散到连续的桥梁
 > 如何将 DQN 的稳定训练机制扩展到连续动作空间？这催生了两条演进路线：
 > - **Actor-Critic 路线** → DDPG → TD3 → SAC
-> - **Policy Gradient 路线** → TRPO → PPO
+> - **Policy Gradient 路线** → REINFORCE → TRPO → PPO
+
+### 2.3.5 策略梯度定理与 REINFORCE (Policy Gradient Theorem & REINFORCE)
+
+> [!note] 教科书参考
+> 本节基于 Wang & Xiong **Deep Reinforcement Learning Notes** Chapter 3.1，
+> 以及 Sutton & Barto 策略梯度定理的经典推导。
+
+策略梯度是连续控制的理论根基。在转入 Actor-Critic 和 PPO 之前，必须掌握策略梯度定理的严格推导。
+
+#### 物理直觉
+
+策略梯度的核心问题：如何对一个**随机过程的期望回报**求关于策略参数的梯度？
+
+目标函数：
+
+$$J(\pi_\theta) = \mathbb{E}_{\tau \sim p_\theta(\tau)} \left[ \sum_{t=1}^{T} r(s_t, a_t) \right] = \int p_\theta(\tau) r(\tau) \, d\tau$$
+
+#### 形式化推导
+
+> [!theorem] 策略梯度定理 (Policy Gradient Theorem)
+> $$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim p_\theta(\tau)} \left[ \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_t \mid s_t) \cdot \left( \sum_{t'=t}^{T} r(s_{t'}, a_{t'}) \right) \right]$$
+> 
+> **证明关键**：利用对数导数恒等式 (log-derivative trick)：
+> $$\nabla_\theta p_\theta(\tau) = p_\theta(\tau) \nabla_\theta \log p_\theta(\tau)$$
+> 
+> 展开 $\log p_\theta(\tau)$：
+> $$\log p_\theta(\tau) = \log p(s_1) + \sum_{t=1}^{T} \left[ \log \pi_\theta(a_t \mid s_t) + \log p(s_{t+1} \mid s_t, a_t) \right]$$
+> 
+> 环境转移概率 $p(s_{t+1} \mid s_t, a_t)$ 与 $\theta$ 无关，对 $\theta$ 求导后消失。这是策略梯度能够在**不知道环境模型**的情况下估计梯度的根本原因。
+
+**因果性修正 (Reward-to-go)**：时刻 $t$ 的策略不影响时刻 $t' < t$ 的奖励。因此用 $\hat{Q}^\pi_{t} = \sum_{t'=t}^{T} r(s_{t'}, a_{t'})$（reward-to-go）替代全轨迹奖励可降低方差而不引入偏差。
+
+#### REINFORCE 算法
+
+基于策略梯度定理的最简实现：
+
+1. 用当前策略 $\pi_\theta$ 采样 $N$ 条轨迹
+2. 估计梯度：$\nabla_\theta J \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_{i,t} \mid s_{i,t}) \cdot \hat{Q}^\pi_{i,t}$
+3. 梯度上升更新：$\theta \leftarrow \theta + \alpha \nabla_\theta J$
+
+#### 方差控制：基线技巧 (Baseline)
+
+> [!tip] 基线不改变期望，但大幅降低方差
+> 减去一个与动作无关的基线 $b(s)$：
+> $$\nabla_\theta J = \mathbb{E}\left[\nabla_\theta \log \pi_\theta(a \mid s) \cdot (\hat{Q}^\pi - b(s))\right]$$
+> 
+> **无偏性证明**：$\mathbb{E}[\nabla_\theta \log \pi_\theta(a \mid s) \cdot b(s)] = b(s) \int \nabla_\theta \pi_\theta(a \mid s) \, da = b(s) \nabla_\theta 1 = 0$
+> 
+> 最常用基线：$b(s) = V^\pi(s)$（状态价值函数），此时 $\hat{Q}^\pi - V^\pi = \hat{A}^\pi$（**优势函数**），这正是 Actor-Critic 框架的雏形。
+
+**REINFORCE 的局限性**：
+- **高方差**：即使使用基线，蒙特卡洛估计的方差仍然很大
+- **On-Policy**：采样的数据只能用一次（不能重用），样本效率极低
+- **步长敏感**：步长过大导致策略崩溃，过小导致收敛缓慢
+
+这些局限性直接催生了两条演进路线：
+- Actor-Critic（用 Critic 替代蒙特卡洛回报估计 → DDPG/TD3/SAC）
+- Trust Region（约束策略更新幅度 → TRPO/PPO）
 
 ### 2.4 Off-Policy 演进线：从 DDPG 到 SAC
 
@@ -852,7 +910,7 @@ $$R = w_1 \cdot \text{dist}(p_{obj}, p_{goal}) + w_2 \cdot \text{quat\_diff}(q_{
 > 3. Shaping term 的边际效用**严格递减且可能为负** — 每增加一个 term 都引入新的 hacking 通道
 > 4. **任务特异性**：TA 偏好 Light（3 terms），TP 偏好 Medium（4 terms），说明最优 shaping 复杂度取决于任务动力学
 >
-> **理论解释**：多 shaping term 的联合优化景观中，梯度方向被 shaping reward 主导，策略学会最大化 shaping 信号而非完成任务。这与 [[Optimization#2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观]] 中的鞍点逃逸失败一致 — shaping reward 创造了更深的局部极小值。
+> **理论解释**：多 shaping term 的联合优化景观中，梯度方向被 shaping reward 主导，策略学会最大化 shaping 信号而非完成任务。这与 [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观]] 中的鞍点逃逸失败一致 — shaping reward 创造了更深的局部极小值。
 
 ------
 

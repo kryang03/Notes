@@ -24,7 +24,8 @@ related:
 > [!tip] 与理论基础的关联
 > - [[ControlTheory]] - CBF 形式化定义（安全集、Lie 导数、HJ 可达性联系）
 > - [[ReinforcementLearning]] - CMDP 与 Lagrangian 方法
-> - [[Optimization]] - 拉格朗日对偶与可行性
+> - [[Optimization#2.4.3 拉格朗日对偶理论 (Lagrangian Duality)|拉格朗日对偶理论]] - 本文的 PPO-Lagrangian 和 SAC-Lagrangian 直接依赖对偶分解，将安全约束通过拉格朗日乘子 $\lambda$ 转化为无约束优化
+> - [[Optimization#2.4.4 KKT 条件 (Karush-Kuhn-Tucker Conditions)|KKT 条件]] - RCRL 的最优可行集边界对应 KKT 互补松弛性：约束活跃当且仅当在可行集边界上
 >
 > **核心技术**: Hamilton-Jacobi Reachability, Safety Value Function, Self-consistency
 

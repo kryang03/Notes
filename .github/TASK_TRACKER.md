@@ -5,11 +5,72 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-05 (灵巧手机械结构笔记增强 + sim2real 创建 + MergeBuffer 12 项处理 + Canvas 更新)
+**最后更新**: 2026-03-06 (教科书→Foundation 深度整合: 凸优化对偶性/策略梯度定理/VC维 + Canvas更新)
 
 ---
 
-## 🟢 本次会话完成 (2026-03-05 #11)
+## 🟢 本次会话完成 (2026-03-06 #12)
+
+### 教科书知识整合 — textbook-integration 工作流
+
+**触发**：用户执行 `textbook-integration.prompt.md`，系统性提取教科书理论并整合到 Foundations。
+
+#### 教科书→Foundation 整合 (3 文件，~220 行新增)
+
+| Foundation 文件 | 新增章节 | 教科书来源 | 核心内容 |
+|-----------------|---------|-----------|---------|
+| **Optimization.md** | §2.4 凸优化基础与对偶性理论 (4 小节) | Opt_book.pdf + Wright 2025 | 凸集/凸函数定义、拉格朗日对偶理论（弱/强对偶、Slater条件）、KKT条件（互补松弛→ContactMechanics LCP 关联、约束资格层次 LICQ⊃MFCQ⊃ACQ） |
+| **ReinforcementLearning.md** | §2.3.5 策略梯度定理与 REINFORCE | Deep RL (Wang & Xiong) | PG定理 + log-导数技巧证明、REINFORCE算法、baseline方差缩减无偏证明、reward-to-go因果修正、Actor-Critic起源 |
+| **RepresentationLearning.md** | §6.3.2 VC维与打散 | Theory of Deep Learning (Arora) | 打散定义、VC维、经典例子（线性分类器）、VC泛化界、VC vs Rademacher对比、过参数化悖论 |
+
+#### 章节重编号 (3 文件)
+
+| 文件 | 重编号 |
+|------|--------|
+| Optimization.md | old §2.4→§2.5 (复杂度), old §2.5→§2.6 (非凸景观), 连带所有子节 |
+| RepresentationLearning.md | old §6.3.2→§6.3.3, §6.3.3→§6.3.4, §6.3.4→§6.3.5, §6.3.5→§6.3.6 |
+| ReinforcementLearning.md | 无需重编号 (在 §2.3 DQN 和 §2.4 Off-Policy 之间插入) |
+
+#### 跨文件引用修复 (6 文件)
+
+| 文件 | 修复 |
+|------|------|
+| ReinforcementLearning.md | `Optimization#2.5` → `#2.6` |
+| Idea-004 | `Optimization#2.5` → `#2.6` |
+| Idea-006 | `Optimization#2.5` → `#2.6` |
+| Idea-007 | `Optimization#2.5` → `#2.6` |
+| ideas.md | 2处 `#2.5` → `#2.6`, `#2.5.2` → `#2.6.2` |
+
+#### PapersRecap 反向链接 (2 文件 + 1 新增)
+
+| 文件 | 更新 |
+|------|------|
+| Reachability Constrained RL.md | 新增教科书 callout: 链接到 §2.4.3 拉格朗日对偶 + §2.4.4 KKT |
+| Curriculum Learning.md | 更新 callout: 链接到 §2.4 凸优化基础 + §2.6 非凸景观 |
+| Optimization.md 相关论文 | 新增"约束优化与对偶方法"小节 (3篇论文反向链接) |
+
+#### Canvas 更新
+
+| 变更 | 详情 |
+|------|------|
+| found_optim_note | 更新: 新增"凸优化基础·对偶性·KKT" |
+| found_rl_note | 更新: 新增"PG定理·REINFORCE" |
+| found_repr_note | 更新: 新增"VC维·泛化理论" |
+| bt_curriculum | 更新: Continuation Method 增加"(凸→非凸)"说明 + 精确链接 |
+
+#### 断链扫描
+- 全局 section-level wikilink 扫描：0 个真实断链
+- `Optimization#2.5` 旧引用：已全部迁移到 `#2.6`
+
+#### 实验状态
+- `_ExperimentResultsAll.md` 无新增结果（EXP-004 α固定消融仍运行中，自 2026-02-28 起）
+
+#### MergeBuffer 状态
+- 未变化：9 PDF + 2 博文待处理（同 #11）
+
+---
+
+## 🟢 上次会话完成 (2026-03-05 #11)
 
 ### 灵巧手机械结构知识体系构建 + 标准工作流
 

@@ -182,10 +182,10 @@ Sparse reward 指的是系统只在极少数状态获得非零奖励。Delayed r
 2. **Reward Hacking（奖励黑客）**：策略进入高惯性状态后，收敛到 hacking plateau 而非真正的成功。
 
 > [!note] 与 [[ReinforcementLearning]] 的联系
-> 这里的 value landscape 崎岖性可以用 [[Optimization#2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观理论]] 中的框架来分析：
+> 这里的 value landscape 崎岖性可以用 [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观理论]] 中的框架来分析：
 > - Risk Aversion 对应虚假局部极小值（spurious local minimum）
 > - Hacking Plateau 对应鞍点区域
-> - 稀疏踏脚石对应 PL 不等式（[[Optimization#2.5.2 良好景观的特征：无虚假局部极小|良好景观特征]]）不成立的区域
+> - 稀疏踏脚石对应 PL 不等式（[[Optimization#2.6.2 良好景观的特征：无虚假局部极小|良好景观特征]]）不成立的区域
 
 ### 2.2 方法：Homotopic Dynamics Curriculum（HDC）
 

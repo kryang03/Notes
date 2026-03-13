@@ -115,14 +115,134 @@ $$Q_{FC} = \min_{w_{ext}, \|w_{ext}\|=1} \max_{\lambda \in FC} \alpha \quad \tex
 
 近期的研究致力于构建**可微的抓取质量评估（Differentiable Grasp Quality）**。例如，通过 Log-Barrier 近似摩擦锥，或者学习一个 Neural Signed Distance Field (SDF) 来平滑地引导手指走向稳定构型。这使得我们能够计算 $\nabla_q Q_{FC}$，从而在轨迹优化中直接优化抓取稳定性 。
 
-### 2.4 优化算法的复杂度理论基础
+### 2.4 凸优化基础与对偶性理论 (Convex Optimization Foundations & Duality)
+
+> [!note] 教科书参考
+> 本节基于 **Optimization in Theory and Practice** (Wright 2025) Section 2, 5 以及
+> 优化教材 (Opt_book) Chapter 3-4 (Convex Sets/Functions) 和 Chapter 6 (Optimality Conditions & Duality)
+
+灵巧操作中的许多子问题（力分配 QP、抓取规划、MPC 子问题）都是凸优化问题或可松弛为凸问题。掌握凸集/凸函数的严格定义和对偶性理论，是理解这些算法计算高效性的根基。
+
+#### 2.4.1 凸集 (Convex Sets)
+
+**定义**：集合 $C \subseteq \mathbb{R}^n$ 是**凸集**，当且仅当对任意 $x, y \in C$ 和 $\theta \in [0, 1]$：
+
+$$\theta x + (1 - \theta) y \in C$$
+
+**关键凸集类型**：
+
+| 凸集 | 定义 | 灵巧操作中的对应 |
+|------|------|---|
+| **超平面** | $\{x \mid a^T x = b\}$ | 接触约束的线性化 |
+| **半空间** | $\{x \mid a^T x \leq b\}$ | 摩擦锥的多面体线性化 |
+| **多面体** | $\{x \mid Ax \preceq b\}$ | 力分配可行域 |
+| **椭球** | $\{x \mid (x - x_c)^T P^{-1}(x - x_c) \leq 1\}$ | 不确定性椭球 (估计) |
+| **二阶锥** | $\{(x, t) \mid \|x\| \leq t\}$ | 摩擦锥 $\|\lambda_t\| \leq \mu \lambda_n$ |
+
+**保凸运算**：凸集在**交集**、**仿射映射**、**透视函数**下封闭。这意味着：
+- 多个接触约束的交集仍是凸集
+- 抓取矩阵 $G$ 对摩擦锥的线性映射保持凸性
+
+#### 2.4.2 凸函数 (Convex Functions)
+
+**定义（一阶条件）**：若 $f$ 可微，则 $f$ 是凸函数当且仅当 $\text{dom}\, f$ 是凸集且：
+
+$$f(x + s) \geq f(x) + \nabla f(x)^T s, \quad \forall x, s$$
+
+**物理直觉**：凸函数在任意点的切平面都是全局下界。这意味着**一阶驻点即为全局最优**。
+
+**强凸函数**（模 $\mu > 0$）：
+
+$$f(x + s) \geq f(x) + \nabla f(x)^T s + \frac{\mu}{2} \|s\|^2$$
+
+等价条件（二阶）：$\nabla^2 f(x) \succeq 0$（凸），$\nabla^2 f(x) \succeq \mu I$（$\mu$-强凸）。
+
+**凸函数的保持性**：
+- 非负加权和：$\alpha f + \beta g$（$\alpha, \beta \geq 0$）
+- 仿射复合：$f(Ax + b)$
+- 逐点上确界：$\sup_{y \in A} f(x, y)$（支撑函数即为此结构）
+
+> [!tip] 灵巧操作中的凸性
+> - 力分配问题的目标函数 $\|f_c\|^2$（最小力范数）是强凸的
+> - 摩擦锥约束 $\|\lambda_t\| \leq \mu \lambda_n$ 定义了**二阶锥约束**，对应 SOCP
+> - Ferrari-Canny 度量的不可微性正是因为它是凸包运算（逐点上确界）的结果
+
+#### 2.4.3 拉格朗日对偶理论 (Lagrangian Duality)
+
+考虑一般非线性规划（NLP）：
+
+$$\min_{x} f_0(x) \quad \text{s.t.} \quad f_i(x) \leq 0, \; i = 1, \ldots, m, \quad h_j(x) = 0, \; j = 1, \ldots, p$$
+
+**拉格朗日函数**：
+
+$$L(x, \lambda, \nu) = f_0(x) + \sum_{i=1}^{m} \lambda_i f_i(x) + \sum_{j=1}^{p} \nu_j h_j(x)$$
+
+其中 $\lambda_i \geq 0$ 是不等式约束的拉格朗日乘子，$\nu_j$ 是等式约束的乘子。
+
+**拉格朗日对偶函数**：
+
+$$g(\lambda, \nu) = \inf_{x \in \mathcal{D}} L(x, \lambda, \nu)$$
+
+> [!theorem] 弱对偶性 (Weak Duality)
+> 对任意 $\lambda \geq 0$ 和任意 $\nu$：$g(\lambda, \nu) \leq p^*$
+> 
+> **证明思路**：设 $\tilde{x}$ 为原始可行点，则 $\sum \lambda_i f_i(\tilde{x}) \leq 0$，故 $L(\tilde{x}, \lambda, \nu) \leq f_0(\tilde{x})$，取 $\inf$ 后结论成立。
+
+**对偶问题**：
+
+$$\max_{\lambda, \nu} g(\lambda, \nu) \quad \text{s.t.} \quad \lambda \geq 0$$
+
+对偶问题**始终是凸优化**（即使原始问题非凸），因为 $g$ 是仿射函数族的逐点下确界，因此是凹函数。
+
+**对偶间隙**：$p^* - d^* \geq 0$。当 $p^* = d^*$ 时，称为**强对偶性**。
+
+> [!theorem] Slater 条件与强对偶性
+> 若原始问题是凸的（$f_0, f_i$ 凸，$h_j$ 仿射），且存在**严格可行点** $\tilde{x}$：
+> $$f_i(\tilde{x}) < 0, \quad i = 1, \ldots, m$$
+> 则**强对偶性成立**：$p^* = d^*$。
+> 
+> **灵巧操作含义**：Slater 条件在力分配 QP 中几乎总是满足的（只要存在某个严格在摩擦锥内部的力分配），因此可以放心使用对偶方法。
+
+#### 2.4.4 KKT 条件 (Karush-Kuhn-Tucker Conditions)
+
+> [!note] 教科书参考
+> 本节基于 Opt_book Chapter 6, Proposition 98 (Karush-Kuhn-Tucker conditions)
+
+对于一般 NLP，KKT 条件是约束优化的一阶必要条件（在适当约束规范条件下）：
+
+$$\nabla f_0(x^*) + \sum_{i=1}^{m} \lambda_i^* \nabla f_i(x^*) + \sum_{j=1}^{p} \nu_j^* \nabla h_j(x^*) = 0 \quad \text{(驻点性)}$$
+$$f_i(x^*) \leq 0, \quad h_j(x^*) = 0 \quad \text{(原始可行性)}$$
+$$\lambda_i^* \geq 0 \quad \text{(对偶可行性)}$$
+$$\lambda_i^* f_i(x^*) = 0, \quad \forall i \quad \text{(互补松弛性)}$$
+
+**互补松弛性的物理意义**：在最优解处，要么约束不活跃（$f_i < 0$，此时 $\lambda_i = 0$），要么约束恰好活跃（$f_i = 0$，此时 $\lambda_i > 0$）。
+
+**约束规范条件层级**：
+
+| 约束规范 | 缩写 | 含义 | 强度 |
+|---------|------|------|------|
+| Slater | SCQ | 存在严格可行点（凸约束） | 较弱 |
+| Mangasarian-Fromovitz | MFCQ | 活跃约束梯度允许严格下降方向 | 中等 |
+| 线性独立 | LICQ | 活跃约束梯度线性无关 | 较强 |
+
+关系链：LICQ $\Rightarrow$ MFCQ $\Rightarrow$ ACQ（Abadie）。
+
+> [!abstract] 凸问题的 KKT：充要条件
+> 当原始问题是凸的且 Slater 条件满足时，KKT 条件是全局最优的**充分且必要条件**。这是使得凸优化可以高效求解的根本原因。
+>
+> **灵巧操作应用**：
+> - 力分配 QP 中，KKT 条件等价于 $G f_c = w_d$（力平衡）+ $f_c \in \mathcal{K}(\mu)$（摩擦锥）+ 互补松弛
+> - 内点法的每步迭代本质上是在求解一个扰动的 KKT 系统（将互补条件松弛为 $\lambda_i f_i = -\mu$）
+> - 接触力学中的 LCP 条件 $0 \leq \phi \perp \lambda \geq 0$ 正是 KKT 互补松弛的特殊形式（详见 [[ContactMechanics#4.1 线性互补问题 (LCP) 的构建]]）
+
+### 2.5 优化算法的复杂度理论基础
 
 > [!tip] 参考资料
 > 详见 [[Books/Optimization in Theory and Practice.pdf]] (Wright 2025)。
 
 本小节建立优化算法复杂度分析的理论框架，这些概念对于理解 MPC 和轨迹优化的计算瓶颈至关重要。
 
-#### 2.4.1 近似最优性条件 (Approximate Optimality)
+#### 2.5.1 近似最优性条件 (Approximate Optimality)
 
 对于无约束优化 $\min_x f(x)$：
 
@@ -134,7 +254,7 @@ $$Q_{FC} = \min_{w_{ext}, \|w_{ext}\|=1} \max_{\lambda \in FC} \alpha \quad \tex
 
 **Oracle 复杂度模型**：定义"信息单元"（oracle）如 $(f(x), \nabla f(x))$，算法复杂度用达到 $\epsilon$-近似解所需的 oracle 调用次数衡量。
 
-#### 2.4.2 梯度下降的收敛率
+#### 2.5.2 梯度下降的收敛率
 
 设 $f$ 是 $L$-Lipschitz 光滑函数（$\|\nabla f(x) - \nabla f(y)\| \leq L \|x - y\|$）。
 
@@ -154,7 +274,7 @@ $$f(x_k) - f^* \leq \left(1 - \frac{\mu}{L}\right)^k (f(x_0) - f^*) = O\left((1 
 | 强凸，光滑 | 线性 $(1-\mu/L)^k$ | $O(\kappa \log(1/\epsilon))$ |
 | 非凸，光滑 | $O(1/\sqrt{k})$ → 驻点 | $O(1/\epsilon^2)$ |
 
-#### 2.4.3 Nesterov 加速与下界
+#### 2.5.3 Nesterov 加速与下界
 
 > [!important] Nesterov 加速梯度法
 > 对于凸光滑函数，最优一阶方法的复杂度为：
@@ -164,7 +284,7 @@ $$f(x_k) - f^* \leq \left(1 - \frac{\mu}{L}\right)^k (f(x_0) - f^*) = O\left((1 
 
 **灵巧操作应用**：轨迹优化中的代价函数通常是非凸的（由于接触约束），但在接触模式固定的局部区域内近似强凸。加速方法在这些局部区域内能显著加速收敛。
 
-#### 2.4.3.1 牛顿法与拟牛顿法 (Newton & Quasi-Newton Methods)
+#### 2.5.3.1 牛顿法与拟牛顿法 (Newton & Quasi-Newton Methods)
 
 **核心思想**：利用二阶信息（Hessian）构建局部二次模型，实现**超线性/二次收敛**：
 
@@ -184,7 +304,7 @@ $$x_{k+1} = x_k - [\nabla^2 f(x_k)]^{-1} \nabla f(x_k)$$
 > 
 > 因此，Newton 法是几乎所有高阶轨迹优化算法的**计算内核**。
 
-#### 2.4.4 线性规划：单纯形法 vs 内点法
+#### 2.5.4 线性规划：单纯形法 vs 内点法
 
 > [!abstract] LP 复杂度对比
 > | 方法 | 最坏情况复杂度 | 典型实践性能 |
@@ -197,7 +317,7 @@ $$x_{k+1} = x_k - [\nabla^2 f(x_k)]^{-1} \nabla f(x_k)$$
 
 **平滑分析 (Spielman-Teng)**：单纯形法在随机扰动下的期望迭代次数是多项式的，解释了其实践中的良好表现。
 
-#### 2.4.4.1 原始-对偶内点法详解 (Primal-Dual Interior Point Methods)
+#### 2.5.4.1 原始-对偶内点法详解 (Primal-Dual Interior Point Methods)
 
 > [!note] 教科书参考
 > 本节基于 Wright "Optimization in Theory and Practice" (2025) Section 4
@@ -232,7 +352,7 @@ $$\begin{pmatrix} 0 & A^T & I \\ A & 0 & 0 \\ S & 0 & X \end{pmatrix} \begin{pma
 
 > **灵巧操作应用**：内点法在求解抓取规划的二次规划子问题（如力分配 QP）中是首选方法。其对初始点不敏感、收敛快速的特性非常适合 MPC 的实时需求。
 
-#### 2.4.5 接触优化的复杂度困境
+#### 2.5.5 接触优化的复杂度困境
 
 **为什么接触优化特别难？**
 
@@ -248,14 +368,14 @@ $$\begin{pmatrix} 0 & A^T & I \\ A & 0 & 0 \\ S & 0 & X \end{pmatrix} \begin{pma
 | **Fischer-Burmeister** | $C^1$ | 精确（极限） | 中 |
 | **Randomized Smoothing** | 期望意义 | $O(\sigma)$ | 高 |
 
-### 2.5 非凸优化景观理论 (Nonconvex Optimization Landscapes)
+### 2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)
 
 > [!note] 教科书参考
 > 本节基于 Arora et al. "Theory of Deep Learning" Chapter 6-7
 
 深度学习和轨迹优化都涉及非凸损失函数。理解非凸景观的几何结构对于设计高效算法和分析收敛性至关重要。
 
-#### 2.5.1 关键障碍的形式化定义
+#### 2.6.1 关键障碍的形式化定义
 
 **全局/局部极小值 (Global/Local Minimum)**:
 
@@ -286,7 +406,7 @@ $$w \text{ 是鞍点 } \Leftrightarrow \nabla f(w) = 0 \text{ 且 } \nabla^2 f(w
 - $\nabla^2 f(w) \prec 0$ $\Rightarrow$ 局部极大
 - $\nabla^2 f(w)$ 有正负特征值 $\Rightarrow$ 鞍点
 
-#### 2.5.2 良好景观的特征：无虚假局部极小
+#### 2.6.2 良好景观的特征：无虚假局部极小
 
 许多非凸目标函数虽然不是凸的，但具有"良好"的景观结构——所有局部极小都是全局极小。
 
@@ -311,7 +431,7 @@ $$\langle \nabla f(w), w - w^* \rangle \geq \mu \|w - w^*\|^2$$
 
 **灵巧操作应用**：在接触模式固定的局部区域内，轨迹优化目标函数通常满足 RSI 条件，这解释了为什么 iLQR 在"模式内"收敛很快。
 
-#### 2.5.3 对称性与鞍点的必然性
+#### 2.6.3 对称性与鞍点的必然性
 
 神经网络和许多物理系统具有**置换对称性**。考虑两层网络 $h_\theta(x) = \sum_{i=1}^k \sigma(\langle w_i, x \rangle)$：
 
@@ -330,7 +450,7 @@ $$\nabla f(w) = 0 \text{ 且 } \nabla^2 f(w) \succeq 0$$
 
 这是"好的"临界点——不是鞍点。优化目标应是找 SOSP 而非任意临界点。
 
-#### 2.5.4 鞍点逃逸：扰动梯度下降
+#### 2.6.4 鞍点逃逸：扰动梯度下降
 
 > [!theorem] 鞍点逃逸定理 (Ge et al. 2015)
 > **扰动梯度下降 (Perturbed GD)**：
@@ -349,7 +469,7 @@ $$\nabla f(w) = 0 \text{ 且 } \nabla^2 f(w) \succeq 0$$
 
 > **灵巧操作应用**：在 RL for manipulation 中，策略梯度方法经常遇到鞍点（如对称抓取姿态）。熵正则化（如 SAC 的 $-\alpha \mathcal{H}(\pi)$）相当于隐式添加了扰动，有助于鞍点逃逸。
 
-#### 2.5.5 深度学习景观的经验发现
+#### 2.6.5 深度学习景观的经验发现
 
 虽然深度网络的损失景观理论分析仍是开放问题，实验发现了以下规律：
 
@@ -833,8 +953,13 @@ def optimize_grasp_pose(hand_model, object_sdf, initial_q):
 
 ### 奖励与课程优化
 - [[EUREKA: Human-Level Reward Design via Coding Large Language Models]] — LLM 奖励设计
-- [[Curriculum Learning]] — 课程学习理论
+- [[Curriculum Learning]] — 课程学习理论（continuation method 与凸→非凸渐进）
 - [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration]] — 熵引导示范加速
+
+### 约束优化与对偶方法
+- [[Reachability Constrained Reinforcement Learning]] — PPO/SAC-Lagrangian（拉格朗日对偶分解安全约束）
+- [[Reinforcement Learning for Optimal Primary Frequency Control - A Lyapunov Approach]] — 单调性约束的凸优化
+- [[Safe Model-based Reinforcement Learning with Stability Guarantees]] — CLF-CBF 对偶框架
 
 ### 稀疏与可解释优化
 - [[Weight-sparse transformers have interpretable circuits]] — $L_0$ 稀疏优化

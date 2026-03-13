@@ -21,8 +21,9 @@ related:
 > 提出**课程学习**范式：像人类教育一样，从简单样本开始训练，逐渐增加难度。这是一种**延续方法 (Continuation Method)** 的实例，能帮助非凸优化找到更好的局部极小值，并加速收敛。
 
 > [!tip] 与理论基础的关联
-> - [[Optimization#2. 核心概念：物理直觉与数学定义 (Core Concepts: Physics & Mathematics)]] - 课程学习与非凸景观的深层联系
-> - [[Optimization#3. 技术演进脉络与深度洞察 (Evolution & Insights)]] - 课程学习与优化的continuation方法
+> - [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] - 课程学习与非凸景观的深层联系
+> - [[Optimization#2.4 凸优化基础与对偶性理论 (Convex Optimization Foundations & Duality)]] - 课程从凸子问题开始，渐进引入非凸性；这正是 continuation method 的精髓
+> - [[Optimization#3. 技术演进脉络与深度洞察 (Evolution & Insights)]] - 课程学习与优化的 continuation 方法
 > - [[ReinforcementLearning]] - RL中的课程学习应用
 > - [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] - 分布偏移问题
 >

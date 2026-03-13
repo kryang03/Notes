@@ -744,7 +744,45 @@ $$Attention(Q_{tactile}, K_{vision}, V_{vision}) = softmax(\frac{Q K^T}{\sqrt{d_
 
 泛化的核心问题是：**如何控制泛化误差？**
 
-#### 6.3.2 Rademacher 复杂度与表征的关系
+#### 6.3.2 VC 维与打散 (VC Dimension & Shattering)
+
+> [!note] 教科书参考
+> 本节基于 **Theory of Deep Learning** (书籍) Chapter 5, Theorem 5.2.1 及 ρ-cover 分析
+
+Rademacher 复杂度之前，经典泛化理论的核心工具是 **VC 维**。理解 VC 维有助于把握泛化理论的历史脉络及其对深度学习的启示与局限。
+
+**定义（打散, Shattering）**：假设类 $\mathcal{H}$（二分类器集合）**打散**样本集 $S = \{x_1, \ldots, x_m\}$，如果对于 $S$ 上的**所有** $2^m$ 种标签赋值，都存在 $h \in \mathcal{H}$ 能正确分类。
+
+**定义（VC 维）**：$\mathcal{H}$ 的 VC 维 $d_{VC}(\mathcal{H})$ 是 $\mathcal{H}$ 能打散的**最大**样本集大小：
+
+$$d_{VC}(\mathcal{H}) = \max \{m : \exists S, |S| = m, \; \mathcal{H} \text{ shatters } S\}$$
+
+**经典例子**：
+- $\mathbb{R}^2$ 中的线性分类器：$d_{VC} = 3$（可以打散任意 3 个一般位置点，但无法打散 4 个点——XOR 问题）
+- $\mathbb{R}^d$ 中的线性分类器：$d_{VC} = d + 1$
+
+> [!theorem] VC 泛化界
+> 设 $\mathcal{H}$ 的 VC 维为 $d$，损失取值 $[0, 1]$。以高概率 $1 - \delta$：
+> $$R(h) \leq \hat{R}(h) + O\left(\sqrt{\frac{d \log(m/d) + \log(1/\delta)}{m}}\right)$$
+> 
+> 即训练样本数 $m \gg d$ 时泛化误差趋于零。
+
+**VC 维 vs Rademacher 复杂度**：
+
+| 度量 | 依赖数据？ | 对深度学习的适用性 |
+|------|-----------|-----------------|
+| **VC 维** | 否（仅依赖假设类） | 过于宽松（给出 trivial bound） |
+| **Rademacher 复杂度** | 是（依赖数据分布） | 更紧，但仍不够解释过参数化 |
+
+**为什么 VC 维对深度学习失效？**
+
+有限精度的 $k$ 参数网络的 VC 维约为 $O(k^2)$（Bartlett 1998），远大于训练样本数——这预言了严重过拟合。但实践中深度网络泛化良好。这一悖论推动了从 VC/Rademacher 复杂度转向**隐式正则化**理论（§6.3.6）的范式转移。
+
+**灵巧操作含义**：
+- VC 维分析适用于简单策略类（线性策略），但对深度策略网络的泛化预测无效
+- Sim-to-Real 泛化更适合用**域适应**理论（§6.3.5）而非 VC 维分析
+
+#### 6.3.3 Rademacher 复杂度与表征的关系
 
 **定义（Rademacher 复杂度）**：
 
@@ -758,7 +796,7 @@ $$R(f) \leq \hat{R}(f) + 2\mathfrak{R}_n(\mathcal{F}) + O\left(\sqrt{\frac{\log(
 
 **物理直觉**：Rademacher 复杂度衡量函数类 $\mathcal{F}$ 拟合随机噪声的能力。如果 $\mathcal{F}$ 能完美拟合任意噪声，则它可能过拟合；如果 $\mathcal{F}$ 无法拟合噪声，则它有更好的泛化性。
 
-#### 6.3.3 为什么好的表征等于好的泛化？
+#### 6.3.4 为什么好的表征等于好的泛化？
 
 考虑两阶段模型：$f(x) = g(\phi(x))$，其中：
 - $\phi: \mathcal{X} \to \mathcal{Z}$ 是表征映射（encoder）
@@ -775,7 +813,7 @@ $$\mathfrak{R}_n(\mathcal{G} \circ \phi) \leq \mathfrak{R}_n(\mathcal{G}) \cdot 
 - **VAE 的瓶颈** 强制低维表征，降低复杂度
 - **对比学习** 通过将相似样本拉近，减少有效维度
 
-#### 6.3.4 Sim-to-Real 的泛化理论视角
+#### 6.3.5 Sim-to-Real 的泛化理论视角
 
 Sim-to-Real 问题可以被形式化为**域自适应（Domain Adaptation）**：
 
@@ -795,7 +833,7 @@ $$R_{real}(f) \leq R_{sim}(f) + d_{\mathcal{H}}(P_{sim}, P_{real}) + \lambda$$
 2. **域不变表征** 学习一个 $\phi$ 使得 $\phi(x_{sim})$ 与 $\phi(x_{real})$ 不可区分
 3. **系统辨识** 在线估计 $P_{real}$ 的参数，直接最小化 $R_{real}$
 
-#### 6.3.5 隐式正则化：为什么过参数化模型能泛化？(Algorithmic Regularization: Why Overparameterized Models Generalize)
+#### 6.3.6 隐式正则化：为什么过参数化模型能泛化？(Algorithmic Regularization: Why Overparameterized Models Generalize)
 
 > [!note] 教科书参考
 > 本节基于 **Theory of Deep Learning** (书籍) Chapter 8: Algorithmic Regularization，以及 mirror descent 与隐式偏置的经典分析。

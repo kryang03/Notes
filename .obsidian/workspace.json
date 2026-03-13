@@ -42,12 +42,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "sim2real"
+              "title": "传动"
             }
           },
           {
@@ -243,8 +243,8 @@
   },
   "active": "828e91fce11bf5ed",
   "lastOpenFiles": [
-    "KnowledgeGraph.canvas",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
+    "KnowledgeGraph.canvas",
     "PapersRecap/TARC - Time-Adaptive Robotic Control.md",
     "PapersRecap/A Survey of Sim-to-Real Methods in RL.md",
     "Papers/Tacmap- Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.pdf",
