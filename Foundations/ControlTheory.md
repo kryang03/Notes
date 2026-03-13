@@ -1215,6 +1215,14 @@ $$\begin{pmatrix} U_p \\ Y_p \\ U_f \\ Y_f \end{pmatrix} g = \begin{pmatrix} u_{
 ### Actuation-Aware 建模与高动态控制
 - [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — **Torque-speed envelope** 建模执行器物理极限，power-safety 正则化，actuation-aware 残差 RL 后训练
 
+### 顺应控制与导纳控制
+- [[Minimalist Compliance Control|MCC]] — **方向相关效率 + 系列弹性元件**：最小模型辨识的力控框架，谐波减速器非对称效率补偿
+- [[Path-Constrained Haptic Motion Guidance via Admittance Control]] — **路径约束导纳控制**：自适应相位导纳实现触觉引导
+
+### Sim-to-Real 迁移中的控制挑战
+- [[sim2real|硬件 Sim-to-Real Gap 分析]] — 电机/减速器/传动方案对控制策略迁移的系统影响分析
+- [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]] — 接触基准策略：力-触觉反馈闭环的 sim-to-real 对齐
+
 ------
 
 ## 10. 结论 (Conclusion)

@@ -478,6 +478,9 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 - [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]]: 纯触觉策略中的接触信号处理
 - [[Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture|Dextrous Tactile]]: 模块化触觉信号流架构
 - [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]: 触觉/本体感觉融合的滤波与同步
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]]: **统一 Deform Map** — 穿透深度作为域不变触觉几何空间
+- [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]]: KL-正则化触觉 VAE 压缩 + 接触一致性映射
+- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|STOLA]]: MoE 路由触觉-语言模态的常识推理
 
 ### 时序信号与频率域
 - [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|Autoregressive Policies]]: 自回归时序建模在控制中的应用

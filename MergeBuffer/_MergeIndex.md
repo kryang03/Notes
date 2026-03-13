@@ -219,20 +219,21 @@ status: pending
 ### 12. 空间智能作为机器人的结构化表征.pdf
 **类型**: 技术博文 (WeChat) — Wenlong Huang (Stanford SVL, Fei-Fei Li组) 演讲整理
 **主题**: 3D空间表征、PointWorld、结构化泛化、VLA数据效率
-**状态**: 🔴 待处理
+**状态**: � 已完成
 
-| 内容模块 | 目标文件 | 优先级 |
+| 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|-------|
-| 3D空间表征作为结构化先验 | [[RepresentationLearning]] | 高 |
-| PointWorld 3D世界建模 | [[ComputationalGeometry]] | 中 |
-| VLA数据效率讨论 | [[EmbodiedAI]] | 高 |
+| 3D Flow 载体无关动作表征、PointWorld | [[RepresentationLearning#4.6 3D Flow 作为载体无关的动作表征]] | ✅ 新增§4.6 |
+| VLA 数据效率、迁移效率 100× gap | [[EmbodiedAI]] | ✅ 新增"3D 世界模型与空间智能"小节 |
+
+**处理结果**: 核心内容融合到 RepresentationLearning.md §4.6 + EmbodiedAI.md (2026-03-13)
 
 ---
 
 ### 13. A Survey of Sim-to-Real Methods in RL (2025)
 **类型**: 学术论文 (arXiv:2502.13187)
 **作者**: Da et al. (Arizona State + DARPA)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成 — PapersRecap 已创建 (Session #13)
 
 | 关联 | 说明 |
 |------|------|
@@ -240,149 +241,147 @@ status: pending
 | [[sim2real]] | Domain Randomization / Adaptation / Grounding 综述 |
 | bt_sim2real Canvas节点 | 直接关联 |
 
-**优先级**: ⭐⭐⭐⭐⭐ — 与项目 Sim-to-Real 突破点高度相关
+**处理结果**: [[A Survey of Sim-to-Real Methods in RL]] PapersRecap (Session #13)
 
 ---
 
 ### 14. Contact-Grounded Policy (2026)
 **类型**: 学术论文 (arXiv:2603.05687)
 **作者**: Xu et al. (Purdue + Meta Reality Labs)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[RepresentationLearning]] | 视触觉策略 + 生成式接触基础 |
-| [[ContactMechanics]] | 接触生成/基础 |
-| bt_representation Canvas节点 | 触觉表征 |
+| [[RepresentationLearning]] | ✅ 相关论文已链接 |
+| [[ContactMechanics]] | ✅ 相关论文已链接 |
+| [[SignalProcessing]] | ✅ 触觉信号处理已链接 |
 
-**优先级**: ⭐⭐⭐⭐ — 视触觉灵巧操作前沿
+**处理结果**: [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|Contact-Grounded Policy]] PapersRecap (Session #15)
 
 ---
 
 ### 15. DexHiL (2026)
 **类型**: 学术论文 (arXiv:2603.09121)
 **作者**: Han et al. (CASIA + SJTU + Shanghai AI Lab)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[EmbodiedAI]] | VLA post-training / Human-in-the-Loop |
-| [[ReinforcementLearning]] | HiL 策略微调 |
+| [[EmbodiedAI]] | ✅ VLA Post-Training 已链接 |
+| [[ReinforcementLearning]] | ✅ HiL 策略微调 |
 
-**优先级**: ⭐⭐⭐ — VLA灵巧操作后训练
+**处理结果**: [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation]] PapersRecap (Session #15)
 
 ---
 
 ### 16. Emerging Extrinsic Dexterity in Cluttered Scenes (2026)
 **类型**: 学术论文 (arXiv:2603.09882)
 **作者**: Zheng et al. (PKU + Galbot + BAAI)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[ContactMechanics]] | 外在灵巧性(extrinsic dexterity) |
-| [[ReinforcementLearning]] | Dynamics-aware策略学习 |
-| [[Dynamics]] | 接触动力学感知 |
+| [[ContactMechanics]] | ✅ 接触丰富的非抓取操作已链接 |
+| [[RepresentationLearning]] | ✅ 物理感知几何表征已链接 |
+| [[EmbodiedAI]] | ✅ 3D 世界模型已链接 |
 
-**优先级**: ⭐⭐⭐⭐ — 外在灵巧性 + 动力学感知与项目直接相关
+**处理结果**: [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning]] PapersRecap (Session #15)
 
 ---
 
 ### 17. Grounded Action Transformation (AAAI 2017)
 **类型**: 学术论文 (AAAI-17)
 **作者**: Hanna & Stone (UT Austin)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[ReinforcementLearning]] | Grounded Simulation Learning 经典方法 |
-| [[sim2real]] | 动作空间对齐/仿真器修正 |
+| [[ReinforcementLearning]] | ✅ Grounded Simulation Learning 已链接 |
+| [[sim2real]] | ✅ 动作空间对齐 |
 
-**优先级**: ⭐⭐⭐ — Sim-to-Real 经典方法论
+**处理结果**: [[Grounded Action Transformation]] PapersRecap (Session #15)
 
 ---
 
 ### 18. Minimalist Compliance Control (2025/2026)
 **类型**: 学术论文 (Stanford, Karen Liu + Shuran Song)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[ControlTheory]] | 极简柔顺控制 |
-| bt_impedance Canvas节点 | 变阻抗/柔顺控制 |
+| [[ControlTheory]] | ✅ 顺应控制与导纳控制已链接 |
+| bt_impedance Canvas节点 | ✅ 变阻抗/柔顺控制 |
 
-**优先级**: ⭐⭐⭐⭐ — 阻抗控制方向核心参考
+**处理结果**: [[Minimalist Compliance Control]] PapersRecap (Session #15)
 
 ---
 
 ### 19. RL in robotic systems: sim-to-real review (2026)
 **类型**: 学术论文 (Robotics and Autonomous Systems)
 **作者**: Tiwari et al. (IIIT-Naya Raipur)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[ReinforcementLearning]] | Sim-to-Real 综述 |
-| [[sim2real]] | 与 #13 互补参考 |
+| [[ReinforcementLearning]] | ✅ Sim-to-Real 综述已链接 |
+| [[sim2real]] | ✅ 与 #13 互补参考 |
 
-**优先级**: ⭐⭐⭐ — 期刊综述，与 #13 形成交叉验证
+**处理结果**: [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer]] PapersRecap (Session #15)
 
 ---
 
 ### 20. RoboTwin 2.0 (2025)
 **类型**: 学术论文 (arXiv)
 **作者**: Chen et al. (SJTU + HKU + Shanghai AI Lab)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[EmbodiedAI]] | 双手操作数据生成 + Domain Randomization 基准 |
-| [[ReinforcementLearning]] | 数据增强策略 |
+| [[EmbodiedAI]] | ✅ 3D 世界模型与空间智能已链接 |
+| [[ReinforcementLearning]] | ✅ 数据增强策略 |
 
-**优先级**: ⭐⭐⭐ — 双手操作数据生态
+**处理结果**: [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation]] PapersRecap (Session #15)
 
 ---
 
 ### 21. STOLA (2026, AAAI)
 **类型**: 学术论文 (AAAI 2026)
 **作者**: Cheng et al.
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[SignalProcessing]] | 触觉常识推理 |
-| [[RepresentationLearning]] | Touch-Language 多模态 |
+| [[SignalProcessing]] | ✅ 触觉信号处理已链接 |
+| [[RepresentationLearning]] | ✅ 触觉仿真表征已链接 |
 
-**优先级**: ⭐⭐ — 触觉语言融合，间接相关
+**处理结果**: [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning]] PapersRecap (Session #15)
 
 ---
 
 ### 22. Tacmap (2026)
 **类型**: 学术论文 (arXiv:2602.21625)
 **作者**: Su et al. (Sharpa + HKUST + NVIDIA)
-**状态**: 🔴 待处理 → 移至 Papers/ + 创建 PapersRecap
+**状态**: � 已完成
 
-| 关联 | 说明 |
+| 关联 | 融合状态 |
 |------|------|
-| [[SignalProcessing]] | 触觉穿透深度图 |
-| [[sim2real]] | 触觉 Sim-to-Real Gap |
-| bt_sim2real Canvas节点 | 传感器层面的 Sim-to-Real |
+| [[SignalProcessing]] | ✅ 触觉信号处理已链接 |
+| [[ContactMechanics]] | ✅ 触觉感知与抓取已链接 |
+| [[RepresentationLearning]] | ✅ 触觉仿真表征已链接 |
 
-**优先级**: ⭐⭐⭐⭐ — 触觉 Sim-to-Real 与项目直接相关
+**处理结果**: [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map]] PapersRecap (Session #15)
 
 ---
 
-> [!warning] Phase 2 待处理
-> **已完成**: 2/12 (谐波减速器已整合, chat.md 已处理)
-> **待处理**: 10/12 (10篇学术论文需要移至 Papers/ 并创建 PapersRecap)
->
-> **推荐处理顺序** (按与项目相关度排序):
-> 1. ⭐⭐⭐⭐⭐ #13 Sim-to-Real Survey
-> 2. ⭐⭐⭐⭐ #16 Emerging Extrinsic Dexterity
-> 3. ⭐⭐⭐⭐ #18 Minimalist Compliance Control
-> 4. ⭐⭐⭐⭐ #22 Tacmap
-> 5. ⭐⭐⭐⭐ #14 Contact-Grounded Policy
-> 6. 其余按需处理
+> [!success] Phase 2 全部完成
+> **处理时间**: 2026-03-05 (谐波减速器) → 2026-03-13 (Session #15 批量处理)
+> **总文件数**: 12
+> **处理结果**: 12/12 全部完成
+> - 1 篇技术博文 → Foundations 直接整合 (谐波减速器 → Dynamics)
+> - 1 篇演讲整理 → Foundations 直接整合 (空间智能 → RepresentationLearning §4.6 + EmbodiedAI)
+> - 10 篇学术论文 → Papers/ + PapersRecap/ + Foundation 反向链接
+>   - Session #13: A Survey of Sim-to-Real Methods in RL
+>   - Session #15: CGP, DexHiL, DAPL, GAT, MCC, RL sim-to-real review, RoboTwin 2.0, STOLA, Tacmap
 
 ## 后续处理记录
 

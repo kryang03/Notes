@@ -163,6 +163,15 @@ created: 2026-01-31
 | [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | RL, StochasticProcess, Control |
 | [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | RL, EmbodiedAI, StochasticProcess |
 | [[A Survey of Sim-to-Real Methods in RL\|Sim2Real Survey]] | RL, Dynamics, EmbodiedAI |
+| [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding\|CGP]] | ReprLearn, Contact, Signal |
+| [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation\|DexHiL]] | EmbodiedAI, RL |
+| [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning\|DAPL]] | Contact, ReprLearn, EmbodiedAI |
+| [[Grounded Action Transformation\|GAT]] | RL, Dynamics |
+| [[Minimalist Compliance Control\|MCC]] | Control, Contact |
+| [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer\|RL Sim2Real Review]] | RL, Dynamics |
+| [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation\|RoboTwin 2.0]] | EmbodiedAI, RL |
+| [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning\|STOLA]] | Signal, ReprLearn |
+| [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map\|Tacmap]] | Signal, Contact, ReprLearn |
 
 ---
 

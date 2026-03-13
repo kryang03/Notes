@@ -23,7 +23,7 @@
 		{"id":"bt_sparse","type":"text","x":-810,"y":-640,"width":350,"height":280,"color":"2","text":"## 🔍 稀疏奖励探索\n\n**痛点**: 长因果链导致奖励稀疏\n\n**解决思路**:\n- 目标重标注 (HER)\n- 速度缩放拉开惯性窗口\n- 特权动作简化探索\n- 隐式课程学习\n\n→ [[ReinforcementLearning]] [[InformationTheory]]"},
 		{"id":"bt_impedance","type":"text","x":-410,"y":-640,"width":350,"height":350,"color":"2","text":"## 🎛️ 变阻抗控制\n\n**痛点**: 固定PD低频僵硬\n\n**解决思路**:\n- 刚度作为动作空间维度\n- 接触时低刚度顺从\n- 运动时高刚度精确\n- 末端空间参数化\n\n📊 **Exp2验证**: Kp最优3.5~8.5\n灵敏度极高→支持变阻抗\n\n→ [[ControlTheory]] [[ContactMechanics]]"},
 		{"id":"bt_curriculum","type":"text","x":-10,"y":-640,"width":350,"height":350,"color":"2","text":"## 📚 物理参数课程\n\n**痛点**: 直接学习高动态任务困难\n\n**解决思路**:\n- α-scaling 速度缩放\n- 从简单到复杂分布\n- 重力/摩擦渐进\n- Continuation Method (凸→非凸)\n\n⚡ **Exp2发现**: TWC对TP有效\n但对TA无效! → 需任务特化课程\n\n→ [[Optimization#2.4 凸优化基础与对偶性理论|凸优化]] [[ReinforcementLearning]]"},
-		{"id":"bt_sim2real","type":"text","x":390,"y":-640,"width":350,"height":350,"color":"2","text":"## 🌐 Sim-to-Real 迁移\n\n**痛点**: 动力学域差异\n\n**解决思路**:\n- Real-to-Sim-to-Real\n- 在线校正 (TRANSIC)\n- 数字孪生 RL 鲁棒化\n- 域随机化 + 快速电机适应\n- 🔧 电机/减速器/传动建模\n\n→ [[ReinforcementLearning]] [[Dynamics]]\n→ [[sim2real|硬件Gap分析]]"},
+		{"id":"bt_sim2real","type":"text","x":390,"y":-640,"width":350,"height":350,"color":"2","text":"## 🌐 Sim-to-Real 迁移\n\n**痛点**: 动力学域差异\n\n**解决思路**:\n- Real-to-Sim-to-Real\n- 在线校正 (TRANSIC)\n- 数字孪生 RL 鲁棒化\n- 域随机化 + 快速电机适应\n- 🔧 电机/减速器/传动建模\n- 🧠 System ID + 神经动力学\n\n**MDP四要素Gap分类**:\nState | Action | Transition | Reward\n\n→ [[ReinforcementLearning]] [[Dynamics]]\n→ [[sim2real|硬件Gap分析]]"},
 		{"id":"bt_privileged","type":"text","x":790,"y":-640,"width":350,"height":280,"color":"2","text":"## 🔮 特权动作\n\n**痛点**: 物理边界阻碍探索\n\n**解决思路**:\n- 禁用碰撞穿透学习\n- 虚拟力辅助\n- 课程恢复物理约束\n- 从作弊到真实\n\n→ [[ContactMechanics]] [[ReinforcementLearning]]"},
 		{"id":"bt_representation","type":"text","x":1190,"y":-640,"width":350,"height":280,"color":"2","text":"## 🧩 感知与表征\n\n**痛点**: 高维观测空间\n\n**解决思路**:\n- 视触觉融合\n- 扩散策略分布建模\n- 点云几何特征\n- 物理属性嵌入\n\n→ [[RepresentationLearning]] [[SignalProcessing]]"},
 		{"id":"papers_group","type":"group","x":-1260,"y":30,"width":2920,"height":1400,"color":"4","label":"📄 PapersRecap: 核心算法与洞见"},
@@ -74,7 +74,13 @@
 		{"id":"paper_wmpo","type":"text","x":-810,"y":1100,"width":350,"height":200,"color":"4","text":"## WMPO (2025)\n**世界模型策略优化**\n\n💡 像素空间世界模型\nGRPO + VLM-as-Judge\nVLA RL Post-Training\n\n⭐ 动态采样策略"},
 		{"id":"paper_last0","type":"text","x":-410,"y":1100,"width":350,"height":200,"color":"4","text":"## LaST0 (2025)\n**潜在时空CoT VLA**\n\n💡 Mixture-of-Thought\n快慢双系统路由\n14× 推理加速\n\n⭐ 频率困境新视角"},
 		{"id":"paper_omnix","type":"text","x":-10,"y":1100,"width":350,"height":200,"color":"5","text":"## OmniXtreme (2025)\n**高动态人形控制**\n\n💡 Flow Matching预训练\nActuation-aware残差RL\nTorque-speed envelope\n\n⭐ Sim2Real执行器建模"},
-		{"id":"paper_geopt","type":"text","x":390,"y":1100,"width":350,"height":200,"color":"4","text":"## GeoPT (2025)\n**Dynamics-Lifted预训练**\n\n💡 Transport equation\nE(3)-equivariant\n数据需求↓20-60%\n\n⭐ 物理感知表征"}
+		{"id":"paper_geopt","type":"text","x":390,"y":1100,"width":350,"height":200,"color":"4","text":"## GeoPT (2025)\n**Dynamics-Lifted预训练**\n\n💡 Transport equation\nE(3)-equivariant\n数据需求↓20-60%\n\n⭐ 物理感知表征"},
+		{"id":"paper_dexndm","type":"text","x":790,"y":1100,"width":350,"height":210,"color":"5","text":"## DexNDM (2025)\n**关节级神经动力学**\n\n💡 Joint-wise Neural Dynamics\n残差补偿Sim-Real Gap\n在线适应 (无需DR)\n\n⭐ System ID前沿"},
+		{"id":"paper_cgp","type":"text","x":1190,"y":840,"width":350,"height":200,"color":"4","text":"## CGP (2026)\n**Contact-Grounded Policy**\n\n💡 视触觉融合+接触基础策略\n生成式接触预测引导操作\n\n⭐ 接触感知表征前沿"},
+		{"id":"paper_mcc","type":"text","x":-410,"y":840,"width":350,"height":200,"color":"4","text":"## MCC (2026)\n**极简柔顺控制**\n\n💡 残差力学习替代阻抗调参\n2参数(Kp,Kd)→极简框架\nStanford (Karen Liu)\n\n⭐ 阻抗控制极简化"},
+		{"id":"paper_gat","type":"text","x":790,"y":590,"width":350,"height":200,"color":"5","text":"## GAT (2017)\n**Grounded Action Transform**\n\n💡 仿真→真实动作映射\n学习逆动力学修正\n无需域随机化\n\n⭐ Sim2Real经典方法"},
+		{"id":"paper_dapl","type":"text","x":-10,"y":590,"width":350,"height":200,"color":"4","text":"## DAPL (2026)\n**Dynamics-Aware Policy**\n\n💡 点级世界模型(位置+质量)\n方差感知正则化+课程学习\nSparse 71.88% (2×CORN)\n\n⭐ 外在灵巧性+动力学感知"},
+		{"id":"paper_tacmap","type":"text","x":1190,"y":1100,"width":350,"height":200,"color":"5","text":"## Tacmap (2026)\n**触觉穿透深度图**\n\n💡 统一变形图 d(u,v)\n几何一致触觉Sim-to-Real\n88.21% IoU / 零样本迁移\n\n⭐ 触觉Sim2Real前沿"}
 	],
 	"edges":[
 		{"id":"e_exp2_i001","fromNode":"exp2_findings","fromSide":"right","toNode":"idea_001","toSide":"left","color":"5","label":"Kp+基线"},
@@ -168,6 +174,26 @@
 		{"id":"e_rl100_wmpo","fromNode":"paper_rl100","fromSide":"right","toNode":"paper_wmpo","toSide":"left","label":"互补: 真实vs世界模型"},
 		{"id":"e_mech_bt5","fromNode":"proj_mech_hw","fromSide":"bottom","toNode":"bt_sim2real","toSide":"top","color":"3","label":"硬件Gap"},
 		{"id":"e_mech_dyn","fromNode":"proj_mech_hw","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","color":"6"},
-		{"id":"e_mech_ctrl","fromNode":"proj_mech_hw","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"}
+		{"id":"e_mech_ctrl","fromNode":"proj_mech_hw","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"},
+		{"id":"e_bt5_dexndm","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_dexndm","toSide":"top","label":"神经动力学"},
+		{"id":"e_dexndm_dyn","fromNode":"paper_dexndm","fromSide":"bottom","toNode":"found_dynamics","toSide":"top","label":"System ID"},
+		{"id":"e_dexndm_rl","fromNode":"paper_dexndm","fromSide":"bottom","toNode":"found_rl","toSide":"top","label":"在线适应"},
+		{"id":"e_bt3_mcc","fromNode":"bt_impedance","fromSide":"bottom","toNode":"paper_mcc","toSide":"top","color":"4","label":"极简化"},
+		{"id":"e_mcc_ctrl","fromNode":"paper_mcc","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"},
+		{"id":"e_bt7_cgp","fromNode":"bt_representation","fromSide":"bottom","toNode":"paper_cgp","toSide":"top","color":"4","label":"视触觉"},
+		{"id":"e_cgp_repr","fromNode":"paper_cgp","fromSide":"bottom","toNode":"found_repr","toSide":"top","color":"6"},
+		{"id":"e_cgp_contact","fromNode":"paper_cgp","fromSide":"bottom","toNode":"found_contact","toSide":"top","color":"6"},
+		{"id":"e_cgp_signal","fromNode":"paper_cgp","fromSide":"bottom","toNode":"found_signal","toSide":"top","color":"6"},
+		{"id":"e_bt5_gat","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_gat","toSide":"top","color":"5","label":"经典方法"},
+		{"id":"e_gat_rl","fromNode":"paper_gat","fromSide":"bottom","toNode":"found_rl","toSide":"top","color":"6"},
+		{"id":"e_bt4_dapl","fromNode":"bt_curriculum","fromSide":"bottom","toNode":"paper_dapl","toSide":"top","color":"4","label":"动力学课程"},
+		{"id":"e_bt5_dapl","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_dapl","toSide":"top","color":"5"},
+		{"id":"e_dapl_contact","fromNode":"paper_dapl","fromSide":"bottom","toNode":"found_contact","toSide":"top","color":"6"},
+		{"id":"e_dapl_repr","fromNode":"paper_dapl","fromSide":"bottom","toNode":"found_repr","toSide":"top","color":"6"},
+		{"id":"e_bt5_tacmap","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_tacmap","toSide":"top","color":"5","label":"触觉Sim2Real"},
+		{"id":"e_bt7_tacmap","fromNode":"bt_representation","fromSide":"bottom","toNode":"paper_tacmap","toSide":"top","color":"4"},
+		{"id":"e_tacmap_signal","fromNode":"paper_tacmap","fromSide":"bottom","toNode":"found_signal","toSide":"top","color":"6"},
+		{"id":"e_tacmap_contact","fromNode":"paper_tacmap","fromSide":"bottom","toNode":"found_contact","toSide":"top","color":"6"},
+		{"id":"e_mcc_facet","fromNode":"paper_mcc","fromSide":"left","toNode":"paper_facet","toSide":"bottom","color":"3","label":"互补范式"}
 	]
 }

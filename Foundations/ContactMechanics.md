@@ -441,6 +441,10 @@ $$\frac{\partial z^*}{\partial \theta} = - \left( \frac{\partial R}{\partial z} 
 - [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)]] — 视触觉遥操作
 - [[Proximity Perception-Based Grasping Intelligence (P2GI)]] — 近距离感知抓取
 - [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation]] — 触觉反馈与课程学习
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] — 穿透深度作为域不变触觉表征，zero-shot sim-to-real
+
+### 接触丰富的非抓取操作
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — 杂乱场景中选择性利用环境接触的 extrinsic dexterity
 
 ------
 

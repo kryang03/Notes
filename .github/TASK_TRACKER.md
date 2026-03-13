@@ -5,11 +5,132 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-06 (教科书→Foundation 深度整合: 凸优化对偶性/策略梯度定理/VC维 + Canvas更新)
+**最后更新**: 2026-03-13 (Session #15 — 合并 #14 commit + 标准工作流 ✅ 完成)
 
 ---
 
-## 🟢 本次会话完成 (2026-03-06 #12)
+## 🟢 Session #15 完成 (2026-03-13)
+
+### 合并远程 #14 commit + 标准工作流 (Phase 0-2 全部完成)
+
+**触发**：用户提供 git commit 2fc1fdb（Session #13-#14 变更），需合并至当前工作区（Session #12 状态）后执行标准工作流。
+
+#### 合并内容（来自 Session #14）
+
+| 文件 | 合并操作 |
+|------|---------|
+| ControlTheory.md | +2 论文子节（顺应控制与导纳控制、Sim-to-Real 控制挑战） |
+| Dynamics.md | +3 论文链接合并至"Sim-to-Real 与动力学迁移"节 |
+| ReinforcementLearning.md | +MDP Gap 分类 callout, +§5.0 System ID & Online Adaptation, +3 论文子节 |
+| KnowledgeGraph.canvas | +paper_dexndm 节点, bt_sim2real 文本更新, +3 条边 → 76节点/95边 |
+| sim2real.md | +§7 相关研究与知识图谱关联 |
+
+#### PapersRecap 创建 (9 篇新笔记 + 1 博文整合)
+
+| # | 论文 | 核心贡献 | 关联 Foundation |
+|---|------|---------|-----------------|
+| 1 | **CGP** — Contact-Grounded Policy | 视触觉融合+生成式接触预测引导策略 | RepresentationLearning, ContactMechanics, SignalProcessing |
+| 2 | **MCC** — Minimalist Compliance Control | 残差力学习 2参数极简阻抗框架 (Stanford Karen Liu) | ControlTheory |
+| 3 | **GAT** — Grounded Action Transformation | 仿真→真实动作映射, 逆动力学修正经典方法 (AAAI 2017) | ReinforcementLearning |
+| 4 | **DexHiL** | 首个 VLA 灵巧后训练 HiL 框架, P*(intervention)=0.5 最优干预 | EmbodiedAI, RL |
+| 5 | **DAPL** — Dynamics-Aware Policy Learning | 点级世界模型(位+质+速), 方差感知正则, 课程 61.3→71.88% (2×CORN) | ContactMechanics, RepresentationLearning, EmbodiedAI |
+| 6 | **Tacmap** | 统一变形图 d(u,v), 几何一致触觉 Sim2Real, 88.21% IoU, 零样本迁移 | SignalProcessing, ContactMechanics, RepresentationLearning |
+| 7 | **STOLA** | MoE 触觉语言框架, token级路由, PhysiClear 69.80% | SignalProcessing, RepresentationLearning |
+| 8 | **RoboTwin 2.0** | MLLM代码生成+sim-in-loop, 5轴DR, +24.4% few-shot / +20.5% zero-shot | EmbodiedAI, RL |
+| 9 | **RL Sim2Real Review** | 统一框架(模型优化/知识迁移/迭代优化), System ID vs DR 互补 | RL, Dynamics |
+| — | **空间智能 (博文)** | Wenlong Huang PointWorld, 3D Flow 动作表征, 迁移效率 100× gap | → RepresentationLearning §4.6 + EmbodiedAI |
+
+#### Foundation 逆链更新 (4 文件)
+
+| Foundation 文件 | 新增内容 |
+|-----------------|---------|
+| **RepresentationLearning.md** | +§4.6 "3D Flow 作为载体无关的动作表征" (PointWorld/PTV3/迁移效率), +相关论文: DAPL, Tacmap, STOLA |
+| **EmbodiedAI.md** | +DexHiL (VLA Post-Training), +新小节 "3D 世界模型与空间智能" (DAPL, RoboTwin 2.0) |
+| **ContactMechanics.md** | +Tacmap (触觉感知与抓取), +DAPL (接触丰富的非抓取操作) |
+| **SignalProcessing.md** | +Tacmap, +CGP, +STOLA (触觉信号处理与传感融合) |
+
+#### Canvas 更新 (76→81 节点, 95→112 边)
+
+| 新增节点 | 关联突破点 | 说明 |
+|---------|-----------|------|
+| paper_cgp | bt_representation | 视触觉接触基础策略 |
+| paper_mcc | bt_impedance | 极简柔顺控制 |
+| paper_gat | bt_sim2real | Sim2Real 经典方法 |
+| paper_dapl | bt_curriculum + bt_sim2real | 动力学感知课程 |
+| paper_tacmap | bt_sim2real + bt_representation | 触觉 Sim2Real |
+
+| 新增边 | 数量 |
+|--------|------|
+| 突破点→论文 | 8 条 |
+| 论文→Foundation | 8 条 |
+| 论文间演进关系 | 1 条 (MCC↔FACET 互补范式) |
+
+#### _MergeIndex.md 更新
+
+| 操作 | 详情 |
+|------|------|
+| Phase 2 全部完成 | 12/12 项目 🟢 (10 学术论文 + 1 博文 + 1 技术文) |
+| 汇总 callout 更新 | [!warning] → [!success] Phase 2 全部完成 |
+
+#### taxonomy.md 更新
+- 相关论文索引: +9 条新增 (CGP, DexHiL, DAPL, GAT, MCC, RL Sim2Real Review, RoboTwin 2.0, STOLA, Tacmap)
+
+#### 实验状态
+- `_ExperimentResultsAll.md` 无新增结果（EXP-004 α固定消融仍运行中，自 2026-02-28 起）
+
+#### 知识库统计
+| 指标 | Session #14 → #15 |
+|------|-------------------|
+| Canvas 节点 | 76 → 81 (+5) |
+| Canvas 边 | 95 → 112 (+17) |
+| PapersRecap 总数 | +9 篇新增 |
+| MergeBuffer Phase 2 | 2/12 → 12/12 (全部完成) |
+| Foundation 更新 | 4 文件修改 |
+
+---
+
+## 🟢 远程 Session #14 完成 (2026-03-13)
+
+### Foundation 理论深化 + Canvas 增强 + 全面自检
+
+**触发**：standard-workflow.prompt.md 标准工作流。无新论文/MergeBuffer，聚焦于知识体系深度优化。
+
+#### RL.md 理论扩展：§5.0 System Identification & Online Adaptation
+
+| 新增内容 | 详情 |
+|---------|------|
+| MDP 四要素 Gap 分类 | State / Action / Transition / Reward callout（源自 Sim2Real Survey） |
+| 离线 System ID 理论 | 物理参数辨识 → 仿真器校准流程 |
+| 在线适应方法表 | RMA (HORA) / DexNDM / TRANSIC / GAT 四种范式对比 |
+| DR vs System ID 互补性 | callout 阐述两者正交关系 |
+
+#### Foundation 链接补充（15+ 新关联）
+
+| Foundation 文件 | 新增子节 / 论文链接 |
+|-----------------|---------------------|
+| **ControlTheory.md** | +5 论文链接、+2 子节（顺应控制与导纳控制、Sim-to-Real 中的控制挑战） |
+| **ReinforcementLearning.md** | +7 论文链接、+3 子节（课程学习进阶、长时程操作与特权学习、灵巧手Sim-to-Real专项） |
+| **Dynamics.md** | +3 论文链接（Sim-to-Real 动力学迁移） |
+
+#### sim2real.md 交叉引用增强
+
+| 新增 | 详情 |
+|------|------|
+| §7.1 Sim-to-Real方法论 | 5 篇论文链接 + RL Foundation 回链 |
+| §7.2 神经动力学补偿 | DexNDM / HORA / sim2real review 3 篇链接 |
+| §7.3 DNPM项目影响 | Idea-005 / Idea-006 / sim2real 实验方向 3 条链接 |
+
+---
+
+## 🟢 远程 Session #13 完成 (2026-03-13)
+
+### Git 分支合并 + 标准工作流健康检查
+
+**触发**：合并远程 #11 分支与本地 #12 分支，解决分支分叉后执行健康检查。
+
+---
+
+## 🟢 本地 Session #12 完成 (2026-03-06)
 
 ### 教科书知识整合 — textbook-integration 工作流
 
@@ -118,17 +239,17 @@
 | # | 文件 | 类型 | 状态 | 处理 |
 |---|------|------|------|------|
 | 11 | 谐波减速器与RV减速器.pdf | WeChat博文 | 🟢 已完成 | 内容整合至 减速器.md |
-| 12 | 空间智能作为机器人的结构化表征.pdf | WeChat博文 | 🔴 待处理 | → RepresentationLearning + EmbodiedAI |
+| 12 | 空间智能作为机器人的结构化表征.pdf | WeChat博文 | � 已完成 | → RepresentationLearning §4.6 + EmbodiedAI |
 | 13 | A Survey of Sim-to-Real Methods in RL.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
-| 14 | Contact-Grounded Policy.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 15 | DexHiL.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 16 | Emerging Extrinsic Dexterity.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 17 | Grounded Action Transformation.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 18 | Minimalist Compliance Control.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 19 | RL in robotic systems sim-to-real review.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 20 | RoboTwin 2.0.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 21 | STOLA.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
-| 22 | Tacmap.pdf | 论文 | 🟡 已归档 | → Papers/ (PapersRecap 待创建) |
+| 14 | Contact-Grounded Policy.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 15 | DexHiL.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 16 | Emerging Extrinsic Dexterity.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 17 | Grounded Action Transformation.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 18 | Minimalist Compliance Control.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 19 | RL in robotic systems sim-to-real review.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 20 | RoboTwin 2.0.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 21 | STOLA.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
+| 22 | Tacmap.pdf | 论文 | 🟢 已完成 | → Papers/ + PapersRecap 已创建 |
 
 **_MergeIndex.md** 已更新完整分析（含关联映射 + 优先级排序）。
 **推荐下次优先处理**: #16 Emerging Extrinsic Dexterity, #18 Minimalist Compliance, #22 Tacmap, #14 Contact-Grounded

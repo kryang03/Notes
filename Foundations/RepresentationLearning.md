@@ -569,6 +569,31 @@ RGB-D → 点云分割 → 物体点云 → PointNet++/Transformer → 物体几
 | **坐标系** | 物体中心坐标系 | 保证平移不变性 |
 | **数据增强** | 随机旋转 + 抖动 | 提升 SO(3) 鲁棒性 |
 
+### 4.6 3D Flow 作为载体无关的动作表征 (3D Flow as Embodiment-Agnostic Action Representation)
+
+> [!tip] 空间智能核心论点 (Wenlong Huang, Stanford SVL / Fei-Fei Li)
+> **动作的本质是 3D 的** — 人类闭眼可在 3D 空间移动手臂，动作感知天生是 3D 属性。场景观测可以是 2D，但动作表征**必须是 3D**。
+
+传统动作表征（末端执行器位姿、关节空间指令）无法跨载体泛化：不同机器人的自由度、夹爪几何结构各异。**3D Flow** 提供了统一解法：
+
+- 在机器人每个连杆上基于 URDF 网格采样端点 → 正运动学计算 → **点流** (Point Flow)
+- 场景状态同样用 RGBD → 静态点云表征 → **模态统一** (状态与动作均为 3D 点云)
+- 对点数量具有不变性 → 自动适配不同 DOF / 不同夹爪数量
+
+**PointWorld (Stanford, 2026)** 将此表征应用于 3D 世界模型：
+
+$$\text{Input: } (P_{\text{scene}}, P_{\text{robot\_flow}}) \xrightarrow{\text{PTV3 Transformer}} P_{\text{scene\_flow}} \text{ (场景未来动态)}$$
+
+核心发现：
+1. PTV3 等现代 Transformer 在相近内存下可扩容至图基模型的 ~300×
+2. 仅基于夹爪的 3D 点流 > 全身点流 > 低维表征（关节位置/EE pose）
+3. 模型**隐式**学习了目标检测、材料属性估计、形状补全、物体间动态交互
+
+> [!warning] 迁移效率差距
+> 基于 TRI 技术报告的量化分析，机器人学领域的预训练→微调迁移效率比 NLP 低 **~100×**。要达到 NLP 水平需 ~1.25 亿小时机器人操作数据（当前数据集的 74000×）。这激励了世界模型作为更高效预训练目标的研究方向。
+
+与灵巧操作的关联：3D Flow 天然适配高 DOF 灵巧手 — 每个手指连杆均可采样为点流，无需设计手指专用的动作空间。
+
 ------
 
 ## 5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)
@@ -957,6 +982,11 @@ $$w_{t+1} = w_t - \eta \cdot \arg\max_{\|v\|_p^* \leq 1} \langle v, \nabla L(w_t
 
 ### 物理感知几何表征
 - [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — **Dynamics-lifted 几何预训练**：在 transport equation 空间构建 E(3)-equivariant 表征，跨粒子系统泛化
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — **动力学感知表征**：点级世界模型 (位置+质量+速度) 条件化 RL，extrinsic dexterity 涌现
+
+### 触觉仿真表征
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] — **统一 Deform Map 表征**：穿透深度作为域不变触觉几何空间，zero-shot sim-to-real
+- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|STOLA]] — **MoE 触觉-语言模型**：动态路由区分触觉与语言模态
 
 ### VLA 潜空间推理
 - [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — **潜在时空链式推理**：在隐空间而非文本空间执行 CoT，MoT 双系统路由

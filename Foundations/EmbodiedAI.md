@@ -497,6 +497,11 @@ Genesis 是一个新兴的通用物理仿真平台，支持多种物理后端：
 - [[WMPO - World Model-based Policy Optimization for VLA|WMPO]] — 像素空间世界模型 + GRPO 对 VLA 进行 RL post-training
 - [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]] — 真实世界 RL，denoising sub-MDP，100% 成功率
 - [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — Flow Matching 预训练 + actuation-aware 残差 RL
+- [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]] — HiL 干预感知加权 VLA 后训练，灵巧操作
+
+### 3D 世界模型与空间智能
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — 动力学感知表征条件化 RL，extrinsic dexterity 涌现
+- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]] — 5 轴 DR 双臂数据生成框架，VLA 后训练验证
 
 ### 物理感知预训练
 - [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — Dynamics-lifted 几何预训练，transport equation 统一范式
