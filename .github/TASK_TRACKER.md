@@ -5,7 +5,38 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-13 (Session #15 — 合并 #14 commit + 标准工作流 ✅ 完成)
+**最后更新**: 2026-03-13 (Session #16 — 智能合并 2fc1fdb + standard-workflow ✅ 完成)
+
+---
+
+## 🟢 Session #16 完成 (2026-03-13)
+
+### 智能合并 2fc1fdb + 标准工作流
+
+**触发**：用户要求比较当前 HEAD 与 `2fc1fdb2ba142346fbd7c3298f74fc3a7bbe40d0`，保留双方有效知识并完成一次 merge 提交，随后执行 `/standard-workflow`。
+
+#### 智能合并策略
+
+| 类型 | 处理策略 |
+|------|---------|
+| 冲突文件（追踪/索引） | 手工语义合并，去重并保留唯一有效条目 |
+| `KnowledgeGraph.canvas` | 采用目标提交侧版本（节点/边覆盖更广，含 DexNDM 与 Sim-to-Real 扩展） |
+| `ReinforcementLearning.md` | 保留双方内容，新增 Sim-to-Real 综述与经典方法等段落 |
+| `taxonomy.md` | 去重重复论文项，并保留 PointWorld / 谐波vsRV / Sim2Real Review 条目 |
+| add/add 论文笔记冲突 | 采用当前分支版本，避免正文回退 |
+
+#### 标准工作流执行结果 (Phase 0-2)
+
+| 检查项 | 状态 |
+|--------|------|
+| TASK_TRACKER 读取 | ✅ 已完成 |
+| MergeBuffer / Papers / PapersRecap 扫描 | ✅ 已完成 |
+| Foundations 结构完整性检查 | ✅ 12 文件齐全 |
+| 实验结果汇总检查 | ✅ 无新增结果（`all_Insights_local/_ExperimentResultsAll.md` 最近更新时间仍为 2026-02-28） |
+
+#### 本次关键结论
+- `2fc1fdb` 的核心增量（ControlTheory / Dynamics / RL §5.0 / sim2real §7 / DexNDM 相关）已在当前知识体系中得到保留。
+- 本次合并额外保留了双方在 taxonomy 与 RL 论文索引层面的互补信息，避免单侧覆盖造成知识丢失。
 
 ---
 

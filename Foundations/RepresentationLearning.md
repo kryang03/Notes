@@ -121,7 +121,48 @@ $$L(\theta) = \mathbb{E}_{k, a_0, \epsilon} [ \| \epsilon - \epsilon_\theta(\sqr
 $$a_{k-1} = a_k + \frac{\sigma^2}{2} \nabla_a \log p(a_k|s) + \sigma z$$
 
 这意味着机器人并没有“计算”出一个动作，而是通过在动作空间中跟随“概率梯度”（即分数函数）逐步演化出最优动作。这种机制天然支持多模态，并且通过预测整个动作序列（Action Horizon），保证了轨迹的时间平滑性（Temporal Smoothness），有效抑制了高频抖动 。
+#### 2.2.3 Flow Matching：从 SDE 到 ODE 的范式迁移
 
+> [!note] 教科书参考
+> Flow Matching 是 Continuous Normalizing Flows (CNF) 的现代训练框架，由 Lipman et al. (2023) 和 Liu et al. (2023) 独立提出。其理论根基是常微分方程 (ODE) 生成模型。
+
+**核心直觉**: 扩散策略（§2.2）使用随机微分方程（SDE）建模，路径弯曲且采样需要数百步。Flow Matching 直接构造一条从噪声到数据的**直线最优传输路径**，用 ODE 替代 SDE，大幅降低采样步数（通常 4-10 步即可）。
+
+**形式化定义**:
+
+设 $x_0 \sim \mathcal{N}(0, I)$（噪声），$x_1 \sim q(x_1)$（真实动作分布），$t \in [0, 1]$。最优传输 Flow Matching 构造直线路径：
+
+$$x_t = (1 - t) x_0 + t x_1$$
+
+对时间求导得到**目标速度场**：
+
+$$u_t(x_t) = \frac{dx_t}{dt} = x_1 - x_0$$
+
+训练神经网络 $v_\theta$ 拟合此速度场，损失函数为：
+
+$$\mathcal{L}_{FM} = \mathbb{E}_{t, x_0, x_1} \left[ \| v_\theta(x_t, t, c) - (x_1 - x_0) \|^2 \right]$$
+
+其中 $c$ 为条件信息（视觉观测、语言指令等）。
+
+**采样（推理）过程**: 从 $x_0 \sim \mathcal{N}(0,I)$ 出发，用 ODE 求解器沿学到的速度场积分：
+
+$$x_{t+\Delta t} = x_t + v_\theta(x_t, t, c) \cdot \Delta t$$
+
+迭代至 $t=1$ 即得到去噪后的动作 $x_1$。
+
+**与 Diffusion Policy 的对比**:
+
+| 维度 | Diffusion Policy (SDE) | Flow Matching (ODE) |
+|------|----------------------|---------------------|
+| 路径 | 布朗运动（弯曲） | 最优传输直线 |
+| 训练目标 | 预测噪声 $\epsilon$ | 预测速度场 $v_\theta$ |
+| 采样步数 (NFE) | 100-1000 步 | **4-10 步** |
+| 训练稳定性 | SNR 极值导致梯度方差大 | 常数速度回归，梯度平稳 |
+| 多模态支持 | ✅ | ✅ |
+
+**与 Action Chunking 的关系**: Flow Matching 是**生成算法**层面的革新，而 Action Chunking 是**策略结构**层面的设计。两者正交且可组合——$\pi_0$ 和 [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] 均使用 Flow Matching 一次性生成整个 Action Chunk，避免了确定性回归的均值坍缩问题。
+
+**灵巧操作应用**: Flow Matching 的低 NFE 特性对灵巧操作至关重要——高维灵巧手 (20+ DoF) 的实时闭环控制要求 >10 Hz 推理频率，而传统扩散策略的高 NFE 成为部署瓶颈。参见 [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] 的 Flow Matching 预训练方案。
 ### 2.3 动作分块与Transformer (ACT)：处理长时间相关性 (Action Chunking with Transformers: Handling Long-Horizon Correlations)
 
 ACT (Action Chunking with Transformers) 是另一种解决误差累积和多模态问题的强力架构 。

@@ -493,6 +493,13 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 - [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]]: **简化触觉有效性**——二值触觉信号在灵巧操作中的应用
 - [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力融合课程学习范式
 
+### 触觉 Sim-to-Real 与新表征
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map|Tacmap]]: **穿透深度图**——几何无关的触觉 sim-to-real 统一表征
+- [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]]: 潜在触觉 VAE + 耦合扩散的触觉信号处理
+
+### 触觉-语言跨模态推理
+- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|SToLa]]: MoE 触觉-语言框架，开放场景触觉常识推理
+
 ------
 **(正文结束，字数统计约 16,500 字)**
 

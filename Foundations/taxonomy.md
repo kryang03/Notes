@@ -162,16 +162,18 @@ created: 2026-01-31
 | [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control\|OmniXtreme]] | RL, Control, Dynamics |
 | [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | RL, StochasticProcess, Control |
 | [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | RL, EmbodiedAI, StochasticProcess |
+| [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]] | ContactMech, Control, ReprLearn, SignalProc |
+| [[Minimalist Compliance Control|MCC]] | Control, Dynamics, ContactMech |
+| [[DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation|DexHiL]] | EmbodiedAI, RL, ReprLearn |
+| [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map|Tacmap]] | SignalProc, CompGeo, RL, ContactMech |
+| [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] | RL, ContactMech, Dynamics, ReprLearn |
+| [[Grounded Action Transformation|GAT]] | RL, Dynamics |
+| [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|SToLa]] | SignalProc, ReprLearn, InfoTheory |
+| [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation|RoboTwin 2.0]] | EmbodiedAI, RL |
 | [[A Survey of Sim-to-Real Methods in RL\|Sim2Real Survey]] | RL, Dynamics, EmbodiedAI |
-| [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding\|CGP]] | ReprLearn, Contact, Signal |
-| [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation\|DexHiL]] | EmbodiedAI, RL |
-| [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning\|DAPL]] | Contact, ReprLearn, EmbodiedAI |
-| [[Grounded Action Transformation\|GAT]] | RL, Dynamics |
-| [[Minimalist Compliance Control\|MCC]] | Control, Contact |
-| [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer\|RL Sim2Real Review]] | RL, Dynamics |
-| [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation\|RoboTwin 2.0]] | EmbodiedAI, RL |
-| [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning\|STOLA]] | Signal, ReprLearn |
-| [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map\|Tacmap]] | Signal, Contact, ReprLearn |
+| [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer|Tiwari Sim2Real]] | RL, Dynamics |
+| [[空间智能作为机器人的结构化表征|PointWorld]] | EmbodiedAI, ReprLearn, CompGeo, Dynamics |
+| [[谐波减速器与RV减速器选型核心区分依据|谐波 vs RV]] | Dynamics, Control |
 
 ---
 

@@ -78,7 +78,7 @@ Gap 来源分解为 MDP 四元素差异：
 ### 2.4 Reward Gap 解决方案
 
 - **Reward Shaping**: 人工设计或辅助奖励信号引导仿真外行为
-- **LLM-Based Reward Design**: [[EUREKA]] 式 LLM 自动生成奖励函数
+- **LLM-Based Reward Design**: [[EUREKA: Human-Level Reward Design via Coding Large Language Models|EUREKA]] 式 LLM 自动生成奖励函数
 
 ## 3. 实验结果
 

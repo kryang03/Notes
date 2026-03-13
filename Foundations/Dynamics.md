@@ -1068,4 +1068,16 @@ $$\mathcal{F} = \{F \mid \|\tau\| \leq 1\} = \{F \mid F^T (J_h J_h^T) F \leq 1\}
 ### 物理感知预训练
 - [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — **Dynamics-lifted 几何预训练**：将粒子动力学统一为 transport equation $\frac{\partial \rho}{\partial t} + \nabla \cdot (v\rho) = 0$，20-60% 数据需求降低
 
+### 执行器建模与关节传动
+- [[谐波减速器与RV减速器选型核心区分依据|谐波 vs RV 减速器]]: 谐波柔轮弹性对 sim-to-real gap 的影响，7 维选型决策矩阵
+- [[Minimalist Compliance Control|MCC]]: **方向相关效率模型**——谐波减速器传动效率 70-90% 的非线性补偿
+
+### 动力学感知策略学习
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]]: 世界模型预测接触诱导动力学，条件化 RL 策略
+
+### Sim-to-Real 动力学迁移
+- [[A Survey of Sim-to-Real Methods in RL]]: **MDP 四要素分类框架**——Transition 迁移即动力学域差异的核心
+- [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]: 铰接物体动力学的 Sim2Real
+- [[sim2real|硬件 Sim-to-Real Gap 分析]]: 力矩传递链路完整建模——$\tau_{joint} = \eta \cdot i \cdot K_t I - \tau_{friction} - k(\theta) \cdot \theta$
+
 **结论**: 灵巧操作的动力学不再是简单的 $F=ma$。它是一门关于如何在计算资源受限、接触状态高度不确定、系统拓扑动态变化的条件下，寻找最优控制策略的艺术。掌握 RNEA/ABA 是入门，理解 Contact Solver 是进阶，而能够驾驭 Differentiable Physics 或 Neural Dynamics 则是通向未来的钥匙。
