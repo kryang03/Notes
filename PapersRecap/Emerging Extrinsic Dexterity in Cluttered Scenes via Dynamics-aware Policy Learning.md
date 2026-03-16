@@ -11,6 +11,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: arXiv
+paper-pdf: "[[Papers/Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

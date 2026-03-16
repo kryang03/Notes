@@ -10,6 +10,7 @@ aliases:
   - Joint-wise Dynamics
 paper-year: 2024
 read-date: 2026-01-31
+paper-pdf: "[[Papers/DEXNDM: CLOSING THE REALITY GAP FOR DEXTEROUS IN-HAND ROTATION VIA JOINT-WISE NEURAL DYNAMICS MODEL.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

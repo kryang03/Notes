@@ -10,6 +10,7 @@ aliases:
 paper-year: 2024
 read-date: 2026-02-08
 venue: arXiv (Google DeepMind)
+paper-pdf: "[[Papers/DemoStart: Demonstration-led auto-curriculum applied to sim-to-real with multi-fingered robots.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

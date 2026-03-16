@@ -10,6 +10,7 @@ aliases:
   - Neural Tracking Controller
 paper-year: 2025
 read-date: 2026-01-31
+paper-pdf: "[[Papers/DEXTRACK: TOWARDS GENERALIZABLE NEURAL TRACKING CONTROL FOR DEXTEROUS MANIPULATION FROM HUMAN REFERENCES.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

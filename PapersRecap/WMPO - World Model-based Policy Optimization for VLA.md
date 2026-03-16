@@ -11,6 +11,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-03-03
 venue: arXiv
+paper-pdf: "[[Papers/WMPO: World Model-based Policy Optimization for.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[EmbodiedAI]]"

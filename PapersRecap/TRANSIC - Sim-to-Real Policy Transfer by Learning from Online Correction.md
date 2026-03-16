@@ -9,6 +9,7 @@ aliases:
   - TRANSIC
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/TRANSIC Sim-to-Real Policy Transfer by Learning from Online Correction.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

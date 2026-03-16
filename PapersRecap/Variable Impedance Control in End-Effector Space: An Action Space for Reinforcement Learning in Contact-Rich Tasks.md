@@ -10,6 +10,7 @@ aliases:
   - Variable Impedance Control in End-Effector Space
 paper-year: 2019
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Variable Impedance Control in End-Effector Space:.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

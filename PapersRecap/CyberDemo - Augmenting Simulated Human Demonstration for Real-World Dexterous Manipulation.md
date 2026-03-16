@@ -9,6 +9,7 @@ aliases:
   - CyberDemo
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/CyberDemo - Augmenting Simulated Human Demonstration.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

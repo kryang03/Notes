@@ -11,6 +11,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: arXiv
+paper-pdf: "[[Papers/Contact-Grounded Policy- Dexterous Visuotactile Policy with Generative Contact Grounding.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ContactMechanics]]"

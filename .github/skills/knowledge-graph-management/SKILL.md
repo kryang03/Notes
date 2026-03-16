@@ -606,6 +606,7 @@ aliases:
 paper-year: 2024            # ✅ 统一用 paper-year，不用 year
 read-date: 2026-02-01       # ✅ 统一用 read-date，不用 created
 venue: CoRL 2024            # 会议/期刊
+paper-pdf: "[[Papers/<精确PDF文件名>.pdf]]"  # ✅ 直接写 Obsidian 链接；必须加双引号（防止 YAML 误解析）
 authors:                    # 作者列表
   - Author Name
 related:                    # 关联的 Foundation
@@ -620,6 +621,7 @@ related:                    # 关联的 Foundation
 |-----------|-------------------|------|
 | `paper-year` | `year` | 避免与通用 year 字段混淆 |
 | `read-date` | `created` | 明确表示阅读日期 |
+| `paper-pdf` | 公式推断路径 | 直接 Obsidian 链接字符串，格式 `"[[Papers/<精确PDF文件名>.pdf]]"`，必须加双引号 |
 | `paper` (tag) | `paper-recap` | 简洁统一 |
 
 **Projects 项目笔记的标准 frontmatter**:
@@ -668,6 +670,41 @@ formulas:
 formulas:
   content_size: (file.size / 1000).round(1) + "k"
 ```
+
+**PDF 直链属性规范**（`_PapersIndex.base` 标准写法）:
+
+> [!warning] 不再使用 `formula.paper_pdf` 生成链接。
+> PDF 链接由每篇笔记的 `paper-pdf` 属性直接提供，索引表直接展示该属性。
+
+```yaml
+# ✅ 推荐 — 在 frontmatter 直接写链接属性
+paper-pdf: "[[Papers/OmniXtreme: Breaking the Generality Barrier in.pdf]]"
+
+# ✅ _PapersIndex.base 直接展示 paper-pdf 属性
+properties:
+  paper-pdf:
+    displayName: 📎 论文PDF
+views:
+  - type: table
+    order:
+      - file.name
+      - read-date
+      - paper-year
+      - paper-pdf
+```
+
+**为什么必须加双引号**：
+```yaml
+# ❌ 错误 — 逗号/冒号路径会触发 YAML 误解析
+paper-pdf: [[Papers/A Survey of Sim-to-Real Methods in RL- Progress, Prospects.pdf]]
+paper-pdf: [[Papers/EUREKA: HUMAN-LEVEL REWARD DESIGN VIA CODING LARGE LANGUAGE MODELS.pdf]]
+
+# ✅ 正确 — 双引号强制整体为字符串
+paper-pdf: "[[Papers/A Survey of Sim-to-Real Methods in RL- Progress, Prospects.pdf]]"
+paper-pdf: "[[Papers/EUREKA: HUMAN-LEVEL REWARD DESIGN VIA CODING LARGE LANGUAGE MODELS.pdf]]"
+```
+
+**字段值格式**：`"[[Papers/<精确文件名>.pdf]]"`（库根目录相对路径，文件名需与 `Papers/` 完全一致）
 
 ---
 

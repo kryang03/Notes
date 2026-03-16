@@ -9,9 +9,11 @@ tags:
   - point-cloud
 date: 2025-02-02
 paper-year: 2024
+read-date: 2026-03-16
 aliases:
   - GLIDE
   - Planning-Guided-Diffusion
+paper-pdf: "[[Papers/GLIDE - Planning-Guided Diffusion Policy.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ContactMechanics]]"

@@ -11,6 +11,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-02-02
 venue: Science Robotics
+paper-pdf: "[[Papers/Visual-tactile pretraining and online multitask learningfor humanlike manipulation dexterity.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

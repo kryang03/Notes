@@ -10,6 +10,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-03-03
 venue: arXiv
+paper-pdf: "[[Papers/RL-100: Performant Robotic Manipulation with Real-World.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"

@@ -6,9 +6,11 @@ tags:
   - speculative
 date: 2026-02-01
 paper-year: 2025
+read-date: 2026-03-16
 aliases:
   - Dynamic RL for Actors
   - Chaos Exploration RL
+paper-pdf: "[[Papers/Dynamic Reinforcement Learning for Actors.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"

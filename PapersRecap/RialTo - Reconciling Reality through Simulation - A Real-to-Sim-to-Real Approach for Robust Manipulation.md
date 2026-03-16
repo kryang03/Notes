@@ -11,6 +11,7 @@ aliases:
   - Real-to-Sim-to-Real
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/RialTo - Real-to-Sim-to-Real.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ComputationalGeometry]]"

@@ -9,6 +9,7 @@ aliases:
   - 课程学习
 paper-year: 2009
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Curriculum Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Optimization]]"

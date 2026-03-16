@@ -11,6 +11,7 @@ aliases:
   - Human-in-the-Loop SERL
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

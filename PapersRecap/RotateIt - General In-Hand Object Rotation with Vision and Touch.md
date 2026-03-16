@@ -9,6 +9,7 @@ aliases:
   - RotateIt
 paper-year: 2023
 read-date: 2026-02-01
+paper-pdf: "[[Papers/General In-Hand Object Rotation with Vision and Touch.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

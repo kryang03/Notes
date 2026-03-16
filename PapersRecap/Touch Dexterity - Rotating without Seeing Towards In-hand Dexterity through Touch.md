@@ -10,6 +10,7 @@ aliases:
   - Rotating without Seeing
 paper-year: 2023
 read-date: 2026-02-01
+paper-pdf: "[[Papers/Touch Dexterity - Rotating without Seeing.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

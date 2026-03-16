@@ -19,6 +19,7 @@ authors:
   - Angela P. Schoellig
   - Andreas Krause
 institution: ETH Zurich, University of Toronto
+paper-pdf: "[[Papers/NIPS-2017-safe-model-based-reinforcement-learning-with-stability-guarantees-Paper.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

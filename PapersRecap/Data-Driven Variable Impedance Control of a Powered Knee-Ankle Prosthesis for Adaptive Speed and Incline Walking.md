@@ -10,6 +10,7 @@ aliases:
   - Prosthesis Impedance
 paper-year: 2022
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Data-driven variable impedance control of a powered knee–ankle prosthesis for adaptive speed and inc.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[Dynamics]]"

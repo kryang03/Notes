@@ -11,6 +11,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-02-02
 venue: arXiv
+paper-pdf: "[[Papers/Learning_Long-Horizon_Robot_Manipulation_Skills_via Privileged Action.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ContactMechanics]]"

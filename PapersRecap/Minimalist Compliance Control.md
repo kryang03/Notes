@@ -11,6 +11,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: arXiv (Stanford)
+paper-pdf: "[[Papers/Minimalist Compliance Control.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[Dynamics]]"

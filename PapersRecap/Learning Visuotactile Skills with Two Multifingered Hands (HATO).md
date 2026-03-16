@@ -10,6 +10,7 @@ aliases:
   - Visuotactile Bimanual
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/Learning Visuotactile Skills with Two Multifingered Hands.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

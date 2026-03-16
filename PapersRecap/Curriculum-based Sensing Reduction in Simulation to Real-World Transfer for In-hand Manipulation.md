@@ -10,6 +10,7 @@ aliases:
   - Curriculum Sensing Reduction
 paper-year: 2024
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

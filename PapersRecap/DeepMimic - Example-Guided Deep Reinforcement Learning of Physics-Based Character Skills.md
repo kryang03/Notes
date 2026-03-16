@@ -9,6 +9,7 @@ aliases:
   - DeepMimic
 paper-year: 2018
 read-date: 2026-02-01
+paper-pdf: "[[Papers/DeepMimic Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Dynamics]]"

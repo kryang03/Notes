@@ -9,6 +9,7 @@ aliases:
   - Part-Guided 3D RL
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/Part-Guided 3D RL for Sim2Real Articulated Object Manipulation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ComputationalGeometry]]"

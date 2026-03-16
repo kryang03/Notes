@@ -10,6 +10,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-03-05
 venue: arXiv (2502.13187)
+paper-pdf: "[[Papers/A Survey of Sim-to-Real Methods in RL- Progress, Prospects and Challenges with Foundation Models.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Dynamics]]"

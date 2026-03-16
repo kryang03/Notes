@@ -10,6 +10,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: AAAI 2026
+paper-pdf: "[[Papers/STOLA- Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning in Open-Ended Scenarios.pdf]]"
 related:
   - "[[SignalProcessing]]"
   - "[[RepresentationLearning]]"

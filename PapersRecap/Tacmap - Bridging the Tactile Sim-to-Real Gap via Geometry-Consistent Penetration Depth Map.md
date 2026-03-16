@@ -9,6 +9,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: arXiv
+paper-pdf: "[[Papers/Tacmap- Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.pdf]]"
 related:
   - "[[ContactMechanics]]"
   - "[[SignalProcessing]]"

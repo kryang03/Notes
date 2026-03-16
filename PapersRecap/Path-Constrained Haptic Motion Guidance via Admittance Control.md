@@ -10,6 +10,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-02-02
 venue: IEEE TRO
+paper-pdf: "[[Papers/Path-Constrained_Haptic_Motion_Guidance_via_Adaptive_Phase-Based_Admittance_Control.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[Dynamics]]"

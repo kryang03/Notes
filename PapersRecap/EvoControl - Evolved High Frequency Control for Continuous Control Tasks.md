@@ -6,6 +6,8 @@ tags:
   - Neuroevolution
   - Robotics
 date: 2026-02-01
+read-date: 2026-03-16
+paper-pdf: "[[Papers/Evolving Control: Evolved High Frequency Control.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

@@ -147,6 +147,7 @@ aliases:
 paper-year: YYYY
 read-date: YYYY-MM-DD
 venue: [会议/期刊]
+paper-pdf: "[[Papers/<论文PDF精确文件名>.pdf]]"
 related:
   - "[[Foundation1]]"
   - "[[Foundation2]]"

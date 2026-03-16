@@ -20,6 +20,7 @@ authors:
   - Zachary Manchester
   - Andrea Bajcsy
 institution: Carnegie Mellon University
+paper-pdf: "[[Papers/How to Train Your Latent Control Barrier Function: Smooth Safety Filtering Under Hard-to-Model Constraints.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

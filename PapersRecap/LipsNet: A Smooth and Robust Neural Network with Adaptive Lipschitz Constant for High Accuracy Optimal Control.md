@@ -11,6 +11,7 @@ aliases:
 paper-year: 2023
 venue: ICML
 read-date: 2026-01-31
+paper-pdf: "[[Papers/LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

@@ -9,6 +9,7 @@ aliases:
   - Robot Synesthesia
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/Robot Synesthesia In-Hand Manipulation with Visuotactile Sensing.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

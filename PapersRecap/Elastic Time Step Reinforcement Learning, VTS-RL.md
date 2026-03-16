@@ -10,6 +10,7 @@ aliases:
   - MOSEAC
 paper-year: 2024
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Elastic Time Step Reinforcement Learnin.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

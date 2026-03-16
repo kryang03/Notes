@@ -10,6 +10,7 @@ aliases:
   - Residual DMP
 paper-year: 2022
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

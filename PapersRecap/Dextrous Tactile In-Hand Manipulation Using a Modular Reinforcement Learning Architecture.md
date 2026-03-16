@@ -11,6 +11,7 @@ aliases:
   - Modular RL Architecture
 paper-year: 2023
 read-date: 2026-02-01
+paper-pdf: "[[Papers/Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[SignalProcessing]]"

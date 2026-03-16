@@ -8,7 +8,9 @@ aliases:
   - Sparse Transformers Interpretability
   - Weight Sparsity Circuits
 paper-year: 2024
+read-date: 2026-03-16
 venue: OpenAI
+paper-pdf: "[[Papers/Weight-sparse transformers have interpretable circuits.pdf]]"
 related:
   - "[[RepresentationLearning]]"
   - "[[Optimization]]"

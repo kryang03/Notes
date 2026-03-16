@@ -9,9 +9,11 @@ tags:
   - waypoint-guidance
 date: 2025-02-02
 paper-year: 2025
+read-date: 2026-03-16
 aliases:
   - FingerGaiting
   - ICIRA25-FingerGaiting
+paper-pdf: "[[Papers/Learning Human-like Finger Gaiting.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ContactMechanics]]"

@@ -9,6 +9,7 @@ aliases:
 paper-year: 2017
 read-date: 2026-02-02
 venue: NeurIPS
+paper-pdf: "[[Papers/Hindsight Experience Replay.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Optimization]]"

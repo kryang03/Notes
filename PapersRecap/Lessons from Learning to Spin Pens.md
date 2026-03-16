@@ -21,6 +21,7 @@ authors:
   - Jitendra Malik
   - Xiaolong Wang
 institution: UC San Diego, CMU, UC Berkeley
+paper-pdf: "[[Papers/Lessons from Learning to Spin Pens.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ContactMechanics]]"

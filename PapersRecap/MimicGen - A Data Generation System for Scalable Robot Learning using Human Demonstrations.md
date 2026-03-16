@@ -9,6 +9,7 @@ aliases:
   - MimicGen
 paper-year: 2023
 read-date: 2026-02-01
+paper-pdf: "[[Papers/MimicGen: A Data Generation System for Scalable Robot Learning using Human Demonstrations.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

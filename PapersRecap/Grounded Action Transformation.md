@@ -9,6 +9,7 @@ aliases:
 paper-year: 2017
 read-date: 2026-03-13
 venue: AAAI 2017
+paper-pdf: "[[Papers/Grounded Action Transformation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Dynamics]]"

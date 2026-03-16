@@ -5,6 +5,8 @@ tags:
   - PWM
   - LowRelevance
 date: 2026-02-01
+read-date: 2026-03-16
+paper-pdf: "[[Papers/The Sampling Theorem With Constant Amplitude Variable Width Pulses.pdf]]"
 related:
   - "[[SignalProcessing]]"
 ---

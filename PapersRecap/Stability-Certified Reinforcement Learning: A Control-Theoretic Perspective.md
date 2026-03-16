@@ -9,6 +9,7 @@ aliases:
   - Safe RL
 paper-year: 2024
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

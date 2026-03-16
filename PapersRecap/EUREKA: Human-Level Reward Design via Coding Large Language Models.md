@@ -10,6 +10,7 @@ aliases:
   - LLM Reward Design
 paper-year: 2023
 read-date: 2026-01-31
+paper-pdf: "[[Papers/EUREKA: HUMAN-LEVEL REWARD DESIGN VIA CODING LARGE LANGUAGE MODELS.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

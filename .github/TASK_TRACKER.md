@@ -5,7 +5,180 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-13 (Session #16 — 智能合并 2fc1fdb + standard-workflow ✅ 完成)
+**最后更新**: 2026-03-16 (Session #21 — 取消公式，改为 `paper-pdf` 直链属性 ✅)
+
+
+## 🟢 Session #21 完成 (2026-03-16)
+
+### PDF 链接方案切换：不使用公式，直接属性链接
+
+**触发**：用户要求“不要使用公式”，改为在 PapersRecap 的 `paper-pdf` property 直接写链接（如 `"[[Papers/OmniXtreme: ...pdf]]"`），并同步更新指示文件。
+
+#### 变更内容
+
+| 文件 | 变更 |
+|------|------|
+| `PapersRecap/*.md`（74 篇） | `paper-pdf` 统一为 `"[[Papers/<精确PDF文件名>.pdf]]"` 直链格式 |
+| `PapersRecap/_PapersIndex.base` | 移除 `formula.paper_pdf` 依赖，所有视图直接使用 `paper-pdf` 属性列 |
+| `.github/copilot-instructions.md` | 模板更新为 `paper-pdf: "[[Papers/<论文PDF精确文件名>.pdf]]"` |
+| `.github/skills/knowledge-graph-management/SKILL.md` | §3.5 与 §3.6 同步为“属性直链规范”，不再推荐公式生成链接 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| PapersRecap 文件数 | 74 |
+| `paper-pdf` 符合 `"[[Papers/...pdf]]"` 格式 | 74/74 ✅ |
+| `_PapersIndex.base` 中 `formula.paper_pdf` 引用 | 0 ✅ |
+
+
+## 🟢 Session #20 完成 (2026-03-16)
+
+### PDF 链接彻底修复：YAML 强制引号 + choice() 函数
+
+**触发**：用户反馈全部条目显示 `⚠️ PDF缺失`，提供根因分析（YAML 逗号陷阱 + 公式歧义），要求修复并更新 instructions/skills。
+
+#### 双重根因
+
+| 根因 | 说明 | 影响范围 |
+|------|------|---------|
+| YAML 逗号陷阱 | 含 `,` 的路径未加引号 → YAML 解析为数组；`link()` 收到数组返回 null | 含逗号文件名 |
+| YAML 冒号陷阱 | 含 `: ` 的路径未加引号 → YAML 解析为嵌套映射；字段被截断 | 含冒号文件名（19个） |
+| `if()` 歧义 | Bases 公式将 `paper-pdf` 解析为 `paper 减去 pdf`，结果恒为 0（falsy）→ 全部回退到 `⚠️ PDF缺失` | **全部条目** |
+
+#### 变更文件
+
+| 文件 | 变更 |
+|------|------|
+| `PapersRecap/*.md`（全部 74 篇） | `paper-pdf:` 值统一加双引号：`paper-pdf: "Papers/..."` |
+| `PapersRecap/_PapersIndex.base` | 公式从 `if(paper-pdf, ...)` 改为 `choice(paper-pdf, ...)` |
+| `.github/copilot-instructions.md` | frontmatter 模板更新为 `paper-pdf: "Papers/<文件名>.pdf"` |
+| `.github/skills/knowledge-graph-management/SKILL.md §3.5` | 字段说明加引号规范 |
+| `.github/skills/knowledge-graph-management/SKILL.md §3.6` | 新增 YAML 逗号/冒号陷阱说明 + `choice()` vs `if()` 规范 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| 修改后加引号的文件 | 74/74 ✅ |
+| 公式类型 | `choice()` ✅ |
+| 有问题的裸值（逗号+冒号） | 0 ✅ |
+
+---
+
+## 🟢 Session #19 完成 (2026-03-16)
+
+### PDF 链接修复：link() 函数 + 规范文档同步
+
+**触发**：用户添加了 HORA/MimicGen/HIL-SERL 三篇 PDF；用户反馈链接仍然全部不可点击；提供 Obsidian Bases 函数官方文档 URL 要求彻底修复并更新规范。
+
+#### 根因分析
+
+| 问题 | 说明 |
+|------|------|
+| Session #18 公式 `"[[" + paper-pdf + "|..."]]"` | 字符串拼接产生的是文本，不是 Obsidian `Link` 类型，无法点击 |
+| 用户手动编辑为 `file(![[paper_pdf]])` | `![[...]]` 是笔记正文嵌入语法，在 Bases formula 上下文中无效 |
+
+#### 修复依据
+
+查阅 `https://help.obsidian.md/bases/functions` 官方 API 文档，确认：
+- 正确函数签名：`link(path: string | file, display?: value): Link`
+- 必须使用 `link()` 函数才能返回 `Link` 类型，才可点击
+
+#### 变更文件
+
+| 文件 | 变更 |
+|------|------|
+| `PapersRecap/_PapersIndex.base` | 公式修复为 `if(paper-pdf, link(paper-pdf, "📄 打开PDF"), "⚠️ PDF缺失")` |
+| `PapersRecap/In-Hand Object Rotation via Rapid Motor Adaptation (HORA).md` | 新增 `paper-pdf: Papers/In-Hand Object Rotation via Rapid Motor Adaptation.pdf` |
+| `PapersRecap/MimicGen - ....md` | 新增 `paper-pdf: Papers/MimicGen: A Data Generation System for Scalable Robot Learning using Human Demonstrations.pdf` |
+| `PapersRecap/HIL-SERL - ....md` | 新增 `paper-pdf: Papers/HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning.pdf` |
+| `.github/copilot-instructions.md` | frontmatter 模板新增 `paper-pdf: Papers/<论文PDF精确文件名>.pdf` |
+| `.github/skills/knowledge-graph-management/SKILL.md §3.5` | frontmatter 字段规范新增 `paper-pdf` 说明 |
+| `.github/skills/knowledge-graph-management/SKILL.md §3.6` | 新增 PDF 直链公式规范：❌ 字符串拼接、❌ embed 语法、✅ `link()` 函数 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| PapersRecap 总数（paper 类） | 74（会话摘要中 77 为计数误差） |
+| 已配置 `paper-pdf` | 74/74 ✅ |
+| `paper-pdf` 目标 PDF 存在性 | 74/74 ✅ |
+| Bases 公式类型 | `Link`（可点击）✅ |
+
+---
+
+## 🟢 Session #18 完成 (2026-03-16)
+
+### PapersRecap PDF 链接修复（基于 Skills 规范）
+
+**触发**：用户反馈 `_PapersIndex.base` 当前 PDF 链接方式有问题，要求阅读 Skills 后修复并验证。
+
+#### 规范依据
+
+- 已阅读 `.github/skills/knowledge-graph-management/SKILL.md`，重点遵循：
+  - Frontmatter 字段标准化（`read-date` 等）
+  - Obsidian Bases 依赖可靠字段，不应依赖脆弱推断
+
+#### 根因与修复
+
+| 问题 | 修复 |
+|------|------|
+| `_PapersIndex.base` 用 `file.name + ".pdf"` 推断 PDF 路径，遇到冒号/大小写/截断标题即失效 | 在 `PapersRecap` 论文笔记中增加显式字段 `paper-pdf`（74 篇） |
+| 索引无法区分“无 PDF”与“链接错误” | 更新公式为：优先读取 `paper-pdf`，缺失时显示 `⚠️ PDF缺失` |
+
+#### 变更文件
+
+| 文件 | 变更 |
+|------|------|
+| `PapersRecap/_PapersIndex.base` | `paper_pdf` 公式改为 `paper-pdf` 驱动，缺失提示 `⚠️ PDF缺失` |
+| `PapersRecap/*.md`（74 文件） | frontmatter 新增 `paper-pdf: Papers/<真实PDF名>.pdf` |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| PapersRecap 总数 | 77 |
+| 已配置 `paper-pdf` | 74 |
+| `paper-pdf` 目标存在性 | 74/74 ✅ |
+| 缺失 PDF 条目 | 3（`HORA` / `MimicGen` / `HIL-SERL`） |
+
+> 注：上述 3 条在 `Papers/` 目录下当前无对应 PDF 文件，索引中会显示 `⚠️ PDF缺失`，避免误链到错误论文。
+
+---
+
+---
+
+## 🟢 Session #17 完成 (2026-03-16)
+
+### PapersRecap 索引增强：按阅读日期 + 论文 PDF 直链
+
+**触发**：用户要求在 `PapersRecap/_PapersIndex.base` 中新增 `read-date` 索引方式，并为每个条目加入可直接打开 `Papers/` 对应论文的链接；同时补全所有 recap 缺失的 `read-date` 字段。
+
+#### Phase 0 状态检查
+
+| 检查项 | 状态 |
+|--------|------|
+| TASK_TRACKER 读取 | ✅ 已完成 |
+| MergeBuffer / Papers / PapersRecap 扫描 | ✅ 已完成 |
+| Foundations 结构完整性检查 | ✅ 12 文件齐全 |
+| 实验结果汇总检查 | ✅ 无新增结果（`_ExperimentResultsAll.md` 仍为 2026-02-28） |
+
+#### 本次改动
+
+| 文件 | 改动 |
+|------|------|
+| `PapersRecap/_PapersIndex.base` | 新增 `read-date` 属性展示；新增视图 `🗓️ 按阅读日期`；新增公式列 `paper_pdf`（`[[Papers/<论文名>.pdf]]` 直链）；各视图补充 `read-date` 与 PDF 列排序 |
+| `PapersRecap/*.md`（11 文件） | 为缺失项补全 `read-date: 2026-03-16` |
+
+#### 质量检查
+
+| 检查项 | 结果 |
+|--------|------|
+| `read-date` 缺失扫描 | ✅ 0 个缺失 |
+| `_PapersIndex.base` 结构校验 | ✅ YAML 结构完整 |
+
+---
 
 ---
 

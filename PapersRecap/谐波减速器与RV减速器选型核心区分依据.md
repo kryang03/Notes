@@ -11,6 +11,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: WeChat (Zane Zhang / Zane Hub)
+paper-pdf: "[[Papers/谐波减速器与RV减速器在关节模组集成设计中，选型的核心区分依据是什么？.pdf]]"
 related:
   - "[[Dynamics]]"
   - "[[ControlTheory]]"

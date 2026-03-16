@@ -11,6 +11,7 @@ aliases:
 paper-year: 2023
 read-date: 2026-02-02
 venue: arXiv (RRC Competition)
+paper-pdf: "[[Papers/Dexterous Robotic Manipulation using Deep Reinforcement.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Optimization]]"

@@ -17,6 +17,7 @@ authors:
   - Ruigang Wang
   - Ian R. Manchester
 institution: University of Sydney
+paper-pdf: "[[Papers/On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[RepresentationLearning]]"

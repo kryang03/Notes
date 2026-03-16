@@ -10,6 +10,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-02-02
 venue: arXiv
+paper-pdf: "[[Papers/TARC: Time-Adaptive Robotic Control.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

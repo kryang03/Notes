@@ -10,6 +10,7 @@ aliases:
   - Autoregressive Policy
 paper-year: 2019
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Autoregressive Policies for Continuous Control Deep Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"

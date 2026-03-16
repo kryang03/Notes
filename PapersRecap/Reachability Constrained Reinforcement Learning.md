@@ -10,6 +10,7 @@ aliases:
   - Reachability CRL
 paper-year: 2022
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Reachability Constrained Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

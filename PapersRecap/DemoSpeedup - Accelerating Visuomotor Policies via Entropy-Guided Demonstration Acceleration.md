@@ -8,12 +8,15 @@ tags:
   - diffusion-policy
   - policy-speedup
 date: 2025-02-02
+read-date: 2026-03-16
 aliases:
   - DemoSpeedup
+paper-pdf: "[[Papers/DemoSpeedup.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[InformationTheory]]"
   - "[[SignalProcessing]]"
+paper-year: 2025
 ---
 
 # DemoSpeedup: Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration

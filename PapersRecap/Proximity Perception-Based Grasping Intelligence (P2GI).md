@@ -8,13 +8,16 @@ tags:
   - real-time-control
   - point-cloud
 date: 2025-02-02
+read-date: 2026-03-16
 aliases:
   - P2GI
+paper-pdf: "[[Papers/P2GI - Proximity Perception-Based Grasping Intelligence.pdf]]"
 related:
   - "[[RepresentationLearning]]"
   - "[[ComputationalGeometry]]"
   - "[[SignalProcessing]]"
   - "[[EmbodiedAI]]"
+paper-year: 2025
 ---
 
 # Proximity Perception-Based Grasping Intelligence: Toward the Seamless Control of a Dexterous Prosthetic Hand

@@ -20,6 +20,7 @@ authors:
   - Luca Sabbioni
   - Marcello Restelli
 institution: Politecnico di Milano
+paper-pdf: "[[Papers/Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

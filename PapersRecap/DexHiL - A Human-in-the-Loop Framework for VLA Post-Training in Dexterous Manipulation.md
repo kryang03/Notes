@@ -9,6 +9,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: arXiv
+paper-pdf: "[[Papers/DexHiL- A Human-in-the-Loop Framework for Vision-Language-Action Model Post-Training in Dexterous Manipulation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[EmbodiedAI]]"

@@ -11,6 +11,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-03
 venue: ICML 2026 (Submission)
+paper-pdf: "[[Papers/LaST0: Latent Spatio-Temporal Chain-of-Thought for Robotic.pdf]]"
 related:
   - "[[EmbodiedAI]]"
   - "[[RepresentationLearning]]"

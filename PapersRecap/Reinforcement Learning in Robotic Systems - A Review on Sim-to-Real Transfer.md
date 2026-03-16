@@ -10,6 +10,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-13
 venue: Robotics and Autonomous Systems
+paper-pdf: "[[Papers/Reinforcement learning in robotic systems - A review on sim-to-real transfer.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Dynamics]]"

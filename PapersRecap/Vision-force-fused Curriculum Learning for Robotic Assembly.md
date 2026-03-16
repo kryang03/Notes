@@ -11,6 +11,7 @@ aliases:
 paper-year: 2023
 read-date: 2026-02-02
 venue: Frontiers in Neurorobotics
+paper-pdf: "[[Papers/Vision-force-fused curriculum learning for robotic contact-rich assembly tasks.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[SignalProcessing]]"

@@ -11,6 +11,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-03-13
 venue: arXiv
+paper-pdf: "[[Papers/RoboTwin 2.0- A Scalable Data Generator and Benchmark with Strong Domain Randomization for Robust Bimanual Robotic Manipulation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[EmbodiedAI]]"

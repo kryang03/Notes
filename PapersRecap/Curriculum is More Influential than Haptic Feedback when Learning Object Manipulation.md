@@ -6,6 +6,8 @@ tags:
   - Tactile
   - InHand
 date: 2026-02-01
+read-date: 2026-03-16
+paper-pdf: "[[Papers/Curriculum is more influential than haptic feedbackwhen learning object manipulation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ContactMechanics]]"

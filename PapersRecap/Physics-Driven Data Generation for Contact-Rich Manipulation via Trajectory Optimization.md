@@ -10,6 +10,7 @@ aliases:
   - Physics-Driven Data Generation
 paper-year: 2025
 read-date: 2026-02-01
+paper-pdf: "[[Papers/Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization.pdf]]"
 related:
   - "[[Optimization]]"
   - "[[Dynamics]]"

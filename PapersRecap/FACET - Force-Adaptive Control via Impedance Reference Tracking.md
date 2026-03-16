@@ -10,6 +10,7 @@ aliases:
 paper-year: 2025
 read-date: 2026-02-08
 venue: arXiv (Tsinghua University / Shanghai AI Lab)
+paper-pdf: "[[Papers/FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

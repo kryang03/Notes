@@ -9,6 +9,7 @@ aliases:
   - AnyRotate
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/AnyRotate Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ContactMechanics]]"

@@ -11,6 +11,7 @@ aliases:
   - Sample-Efficient Robotic RL
 paper-year: 2024
 read-date: 2026-02-01
+paper-pdf: "[[Papers/SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

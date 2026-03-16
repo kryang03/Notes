@@ -11,6 +11,7 @@ aliases:
   - Rapid Motor Adaptation
 paper-year: 2022
 read-date: 2026-02-01
+paper-pdf: "[[Papers/In-Hand Object Rotation via Rapid Motor Adaptation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Dynamics]]"

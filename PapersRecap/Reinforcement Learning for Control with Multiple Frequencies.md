@@ -11,6 +11,7 @@ aliases:
   - Multiple Control Frequencies
 paper-year: 2020
 read-date: 2026-01-31
+paper-pdf: "[[Papers/Reinforcement Learning for Control with Multiple Frequencies.pdf]]"
 related:
   - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"

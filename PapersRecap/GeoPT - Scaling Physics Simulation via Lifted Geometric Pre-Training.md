@@ -10,6 +10,7 @@ aliases:
 paper-year: 2026
 read-date: 2026-03-03
 venue: arXiv (Preliminary)
+paper-pdf: "[[Papers/GeoPT: Scaling Physics Simulation via Lifted Geometric Pre-Training.pdf]]"
 related:
   - "[[ComputationalGeometry]]"
   - "[[Dynamics]]"

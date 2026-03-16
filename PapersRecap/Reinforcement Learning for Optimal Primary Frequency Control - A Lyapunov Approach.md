@@ -17,6 +17,7 @@ authors:
   - Yan Jiang
   - Baosen Zhang
 institution: University of Washington
+paper-pdf: "[[Papers/Reinforcement Learning for Optimal Primary Frequency Control: A Lyapunov Approach.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"

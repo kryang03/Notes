@@ -2,22 +2,25 @@ filters:
   and:
     - file.folder == "PapersRecap"
     - file.hasTag("paper")
-formulas:
-  word_count: file.size / 5
-  has_foundation: 'related.length > 0 ? "✅" : "❌"'
 properties:
   file.name:
     displayName: 📄 论文标题
   paper-year:
     displayName: 📅 年份
+  read-date:
+    displayName: 🗓️ 阅读日期
   aliases:
     displayName: 🏷️ 简称
   tags:
     displayName: 🔖 标签
   related:
     displayName: 🔗 Foundation
-  formula.has_foundation:
-    displayName: 关联状态
+  paper-pdf:
+    displayName: 📎 论文PDF
+  note.read-date:
+    displayName: 编辑时间
+  note.paper-pdf:
+    displayName: 原文链接
 views:
   - type: table
     name: 📚 全部论文（按年份）
@@ -26,7 +29,23 @@ views:
       direction: DESC
     order:
       - file.name
+      - read-date
+      - paper-pdf
+    sort:
+      - property: read-date
+        direction: DESC
+    columnSize:
+      note.paper-year: 131
+  - type: table
+    name: 🗓️ 按阅读日期
+    groupBy:
+      property: read-date
+      direction: DESC
+    order:
+      - file.name
+      - read-date
       - paper-year
+      - paper-pdf
       - aliases
       - related
   - type: table
@@ -36,7 +55,9 @@ views:
         - related.length > 0
     order:
       - file.name
+      - read-date
       - paper-year
+      - paper-pdf
       - related
   - type: cards
     name: 🤖 灵巧操作核心
@@ -47,7 +68,9 @@ views:
         - file.hasTag("tactile-sensing")
     order:
       - file.name
+      - read-date
       - paper-year
+      - paper-pdf
       - aliases
   - type: table
     name: 🎮 强化学习相关
@@ -58,7 +81,9 @@ views:
         - file.hasTag("model-based-RL")
     order:
       - file.name
+      - read-date
       - paper-year
+      - paper-pdf
       - aliases
       - related
   - type: table
@@ -69,11 +94,15 @@ views:
         - file.hasTag("domain-randomization")
     order:
       - file.name
+      - read-date
       - paper-year
+      - paper-pdf
       - related
   - type: list
     name: 📖 最近添加
     order:
       - file.name
+      - read-date
       - paper-year
+      - paper-pdf
     limit: 10

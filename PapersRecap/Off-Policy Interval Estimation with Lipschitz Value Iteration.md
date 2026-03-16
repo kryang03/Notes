@@ -19,6 +19,7 @@ authors:
   - Jian Peng
   - Qiang Liu
 institution: UT Austin, Tsinghua, UIUC
+paper-pdf: "[[Papers/Off-Policy Interval Estimation with Lipschitz Value Iteration.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[Optimization]]"
