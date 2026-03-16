@@ -4,40 +4,24 @@
     "type": "split",
     "children": [
       {
-        "id": "c97bbdfb1f95c6a8",
+        "id": "9048b49e4c4d9744",
         "type": "tabs",
         "children": [
           {
-            "id": "06313d05f471e70a",
-            "type": "leaf",
-            "pinned": true,
-            "state": {
-              "type": "bases",
-              "state": {
-                "file": "PapersRecap/_PapersIndex.base",
-                "viewName": "📚 全部论文（按年份）"
-              },
-              "pinned": true,
-              "icon": "lucide-table",
-              "title": "_PapersIndex"
-            }
-          },
-          {
-            "id": "1b85fc5862878a96",
+            "id": "72f382deec352716",
             "type": "leaf",
             "state": {
-              "type": "split-diff-view",
+              "type": "markdown",
               "state": {
-                "aFile": "PapersRecap/_PapersIndex.base",
-                "bFile": "PapersRecap/_PapersIndex.base",
-                "aRef": ""
+                "file": "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "diff",
-              "title": "Diff: _PapersIndex.base  (Working Tree)"
+              "icon": "lucide-file",
+              "title": "减速器"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -94,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 613.5
+    "width": 353.5
   },
   "right": {
     "id": "ddd67c62d17972e8",
@@ -193,7 +177,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -210,57 +194,58 @@
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
       "command-palette:打开命令面板": false,
-      "open-vscode:VSCode": false
+      "open-vscode:VSCode": false,
+      "media-extended:Open external media": false
     }
   },
-  "active": "1b85fc5862878a96",
+  "active": "72f382deec352716",
   "lastOpenFiles": [
-    "PapersRecap/_PapersIndex.base",
-    "PapersRecap/MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations.md",
-    "PapersRecap/Learning Human-like Finger Gaiting on an Anthropomorphic Hand.md",
-    "PapersRecap/Proximity Perception-Based Grasping Intelligence (P2GI).md",
-    "PapersRecap/DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration.md",
-    "PapersRecap/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.md",
-    "Papers/谐波减速器与RV减速器在关节模组集成设计中，选型的核心区分依据是什么？.pdf",
-    "Papers/OmniXtreme: Breaking the Generality Barrier in.pdf",
-    "PapersRecap/OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control.md",
-    "Papers/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.pdf",
-    "PapersRecap/Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning.md",
-    "Foundations/ReinforcementLearning.md",
-    "PapersRecap/Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation.md",
-    "PapersRecap/AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch.md",
-    "PapersRecap/未命名.md",
-    "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.md",
-    "PapersRecap/空间智能作为机器人的结构化表征.md",
-    "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
-    "Papers/HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning.pdf",
-    "Papers/未确认 604931.crdownload",
-    "Papers/DexHiL: A Human-in-the-Loop Framework for Vision-Language-Action Model Post-Training in Dexterous Manipulation.pdf",
-    "Papers/未确认 800662.crdownload",
+    "2026-03-13.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
     "Papers/MimicGen: A Data Generation System for Scalable Robot Learning using Human Demonstrations.pdf",
     "Papers/In-Hand Object Rotation via Rapid Motor Adaptation.pdf",
-    "Foundations/RepresentationLearning.md",
-    "PapersRecap/谐波减速器与RV减速器选型核心区分依据.md",
-    "2026-03-13.md",
-    "PapersRecap/RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation.md",
-    "PapersRecap/LaST0 - Latent Spatio-Temporal CoT for Robotic VLA.md",
-    "KnowledgeGraph.canvas",
-    "PapersRecap/A Survey of Sim-to-Real Methods in RL.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
-    "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map.md",
-    "PapersRecap/RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation.md",
-    "PapersRecap/DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation.md",
+    "Papers/HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning.pdf",
+    "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.md",
+    "PapersRecap/RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation.md",
+    "PapersRecap/DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation.md",
+    "MergeBuffer/World Guidance: World Modeling in Condition.pdf",
+    "MergeBuffer/Lee_Controllable_Long-term_Motion_Generation_with_Extended_Joint_Targets.pdf",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星减速器.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/电机.md",
+    "MergeBuffer/灵巧手结构方案对比分析：连杆、腱绳与直驱方案 - 艾邦机器人.pdf",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/未命名.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/伺服电机.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯转子无铁芯.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠丝杠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠.png",
+    "Pasted image 20260312161540.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Inside a Coreless DC Motor. Coreless DC Motors Unveiled!.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/电动机是如何工作的？（直流电机）.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Servo Motors, how do they work?.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Brushless Motor - How they work BLDC ESC PWM.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/直流无刷电机旋转.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/直流有刷电机旋转.mov",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/有刷直流电机.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/三相BLDC.webp",
+    "MergeBuffer/未确认 423820.crdownload",
+    "Pasted image 20260312154625.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚柱丝杠.png",
-    "Backups/KnowledgeGraph.canvas"
+    "DexterousHandMechanicalStructure/减速器.md",
+    "Users/yang/Library/Application.md",
+    "MergeBuffer/chat.md",
+    "MergeBuffer/_MergeIndex.md",
+    "PapersRecap/LaST0 - Latent Spatio-Temporal CoT for Robotic VLA.md",
+    "PapersRecap/GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training.md",
+    "PapersRecap/WMPO - World Model-based Policy Optimization for VLA.md",
+    "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
+    "PapersRecap/OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control.md",
+    "KnowledgeGraph.canvas",
+    "Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md",
+    "README.md",
+    "Backups/KnowledgeGraph.canvas",
+    "Projects/Dynamic Non-Prehensile Manipulation/all_Insights_local/_InsightsIndex.md"
   ]
 }
