@@ -35,7 +35,7 @@ views:
       - property: read-date
         direction: DESC
     columnSize:
-      note.paper-year: 131
+      file.name: 942
   - type: table
     name: 🗓️ 按阅读日期
     groupBy:

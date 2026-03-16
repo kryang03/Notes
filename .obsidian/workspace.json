@@ -10,17 +10,34 @@
           {
             "id": "06313d05f471e70a",
             "type": "leaf",
+            "pinned": true,
             "state": {
               "type": "bases",
               "state": {
                 "file": "PapersRecap/_PapersIndex.base",
                 "viewName": "📚 全部论文（按年份）"
               },
+              "pinned": true,
               "icon": "lucide-table",
               "title": "_PapersIndex"
             }
+          },
+          {
+            "id": "1b85fc5862878a96",
+            "type": "leaf",
+            "state": {
+              "type": "split-diff-view",
+              "state": {
+                "aFile": "PapersRecap/_PapersIndex.base",
+                "bFile": "PapersRecap/_PapersIndex.base",
+                "aRef": ""
+              },
+              "icon": "diff",
+              "title": "Diff: _PapersIndex.base  (Working Tree)"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -196,10 +213,11 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "06313d05f471e70a",
+  "active": "1b85fc5862878a96",
   "lastOpenFiles": [
-    "PapersRecap/Learning Human-like Finger Gaiting on an Anthropomorphic Hand.md",
     "PapersRecap/_PapersIndex.base",
+    "PapersRecap/MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations.md",
+    "PapersRecap/Learning Human-like Finger Gaiting on an Anthropomorphic Hand.md",
     "PapersRecap/Proximity Perception-Based Grasping Intelligence (P2GI).md",
     "PapersRecap/DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration.md",
     "PapersRecap/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.md",
@@ -233,7 +251,6 @@
     "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map.md",
     "PapersRecap/RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation.md",
     "PapersRecap/DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation.md",
-    "PapersRecap/Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
