@@ -523,3 +523,89 @@ status: pending
 ~~### Phase 3: 原文件处理~~
 
 **状态**: ✅ 全部完成
+
+---
+
+### 14. gemini-chat/chat.md
+**主题**: Contact-Grounded Policy (CGP) 论文深度讨论 — PD 控制器、Contact-Consistency Mapping、VAE+Diffusion 推理
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| CGP 完整数学推导 + 推理伪代码 | [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding\|CGP PapersRecap]] | ✅ 完整重写 |
+| 用户算法颗粒度偏好提取 | SKILL.md §2.3.1 + copilot-instructions.md | ✅ 规范化为标准 |
+
+**处理结果**: 内容已整合 (2026-03-24)，原文件保留供参考
+
+---
+
+### 15. gemini-chat/PPO-损失函数组成详解.md
+**主题**: PPO 三部分损失函数详解 — 三阶段数据流、核心代码、多峰分布讨论
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| PPO 完整损失分解 + 三阶段数据流 | [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] | ✅ 新增三节 |
+| 核心 PyTorch 代码 | [[ReinforcementLearning]] | ✅ 核心张量操作 |
+| 单峰高斯局限 + 多峰替代方案 | [[ReinforcementLearning]] | ✅ 新增讨论节 |
+| 灵巧操作工程避坑 | [[ReinforcementLearning]] | ✅ 维度/归一化/熵系数 |
+
+**处理结果**: 内容已整合到 ReinforcementLearning.md (2026-03-24)
+
+---
+
+### 16. Lee_Controllable_Long-term_Motion_Generation_with_Extended_Joint_Targets.pdf
+**主题**: COMET — Transformer 条件 VAE 自回归运动生成 + GMM 参考引导反馈
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 论文精读笔记 | [[COMET - Controllable Long-term Motion Generation with Extended Joint Targets]] | ✅ 新建 |
+| PDF 归档 | Papers/ | ✅ 已移动 |
+
+**处理结果**: PDF 移至 Papers/，PapersRecap 已创建 (2026-03-24)
+
+---
+
+### 17. World Guidance: World Modeling in Condition.pdf
+**主题**: WoG — 条件空间世界建模用于 VLA 动作生成
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 论文精读笔记 | [[WoG - World Guidance for VLA Action Generation]] | ✅ 新建 |
+| PDF 归档 | Papers/ | ✅ 已移动 |
+
+**处理结果**: PDF 移至 Papers/，PapersRecap 已创建 (2026-03-24)
+
+---
+
+### 18. PhyGile: Physics-Prefix Guided Motion Generation.pdf
+**主题**: PhyGile — Physics-prefix 引导的敏捷人形运动生成与跟踪 (arXiv 2603.19305)
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 论文精读笔记 | [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking]] | ✅ 新建 |
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| 课程 MoE + PPO 微调 | [[ReinforcementLearning]] §9 | ✅ 新增链接 |
+| TP-MoE token 级参数混合 | [[RepresentationLearning]] 相关论文 | ✅ 新增链接 |
+| 262D 机器人原生动力学 | [[EmbodiedAI]] 相关论文 | ✅ 新增链接 |
+
+**处理结果**: PDF 移至 Papers/，PapersRecap 已创建，3 个 Foundation 文件已更新 (2026-03-27)
+
+---
+
+### 19. Precise Manipulation with Efficient Online RL.pdf
+**主题**: RLT — RL Tokens: 冻结 VLA + 轻量级 actor-critic 在线精细化 (Physical Intelligence, 2026-03-19)
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 论文精读笔记 | [[RLT - Precise Manipulation with Efficient Online RL Tokens]] | ✅ 新建 |
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| VLA 在线精细化: RL Tokens | [[ReinforcementLearning]] §5.2+ | ✅ 新增子节 |
+| VLA Post-Training 三条路径 | [[EmbodiedAI]] §2.5 | ✅ 表格扩展 |
+| RL Token 信息瓶颈表征 | [[RepresentationLearning]] 相关论文 | ✅ 新增链接 |
+
+**处理结果**: PDF 移至 Papers/，PapersRecap 已创建，3 个 Foundation 文件已更新 (2026-03-27)

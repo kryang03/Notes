@@ -211,3 +211,9 @@ $$\bar{R}_F^\pi - \underline{R}_F^\pi \to 0$$
 - [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks]] — 策略的 Lipschitz 约束
 - [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] — 自适应 Lipschitz 网络
 - [[ReinforcementLearning]] — Off-Policy 学习基础
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **策略评估**: 转笔训练中可用 Lipschitz 约束的 OPE 方法在不部署真机的情况下估计策略质量的可信区间
+2. **可信度量化**: 为 Sim-to-Real 迁移提供理论保证——在仿真中评估的策略在真机上的性能边界
+3. **局限**: 僅为评估工具，不直接改善策略质量

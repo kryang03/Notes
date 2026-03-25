@@ -5,8 +5,123 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-16 (Session #21 — 取消公式，改为 `paper-pdf` 直链属性 ✅)
+**最后更新**: 2026-03-27 (Session #23 — MergeBuffer 2 PDF 处理 + Foundation 3 文件更新 + Canvas 扩展 ✅)
 
+
+## 🟢 Session #23 完成 (2026-03-27)
+
+### MergeBuffer 新 PDF 处理 + Foundation 理论导师更新 + Canvas 扩展
+
+**触发**：用户执行 `/standard-workflow`，发现 MergeBuffer 中 2 篇新 PDF。
+
+#### 变更内容 — Phase 1: MergeBuffer PDF 处理
+
+| 文件 | 变更 |
+|------|------|
+| `Papers/PhyGile: Physics-Prefix Guided Motion Generation.pdf` | 从 MergeBuffer 移入 |
+| `Papers/Precise Manipulation with Efficient Online RL.pdf` | 从 MergeBuffer 移入 |
+| `PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md` | 新建 — 课程 MoE + TP-MoE 扩散 + PPO 闭环微调，262D 人形全身运动 |
+| `PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md` | 新建 — VLA RL Token 信息瓶颈 + 轻量级 actor-critic + 残差动作编辑 |
+
+#### 变更内容 — Phase 2: Foundation 理论导师更新 (3 文件 5 处)
+
+| 文件 | 变更 |
+|------|------|
+| `Foundations/ReinforcementLearning.md` §5.2+ | 新增「VLA 在线精细化: RL Tokens」子节（RL token 提取 + 残差动作公式 + 灵巧操作关联） |
+| `Foundations/ReinforcementLearning.md` §9 | 新增「VLA 在线精细化与人形运动」— PhyGile + RLT 链接 |
+| `Foundations/EmbodiedAI.md` §2.5 | VLA Post-Training 表格扩展：两条路径 → 三条路径（新增 Lightweight Online RL） |
+| `Foundations/EmbodiedAI.md` 相关论文 | 新增「VLA 在线精细化与人形运动控制」节 — PhyGile + RLT |
+| `Foundations/RepresentationLearning.md` 相关论文 | 新增「信息瓶颈与运动生成表征」节 — RLT 信息瓶颈 + PhyGile TP-MoE |
+
+#### 变更内容 — Phase 3: Canvas 更新
+
+| 文件 | 变更 |
+|------|------|
+| `KnowledgeGraph.canvas` | papers_group 宽度 2920→3300；新增 paper_phygile + paper_rlt 节点；新增 11 条边 |
+
+#### 变更内容 — Phase 4: 索引更新
+
+| 文件 | 变更 |
+|------|------|
+| `MergeBuffer/_MergeIndex.md` | 新增 §18 (PhyGile) + §19 (RLT) 处理记录 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| PapersRecap 总数 | 76 → 78 ✅ |
+| Papers PDF 总数 | 76 → 78 ✅ |
+| Foundations 更新 | 3 文件 5 处 ✅ |
+| Canvas 节点新增 | 2 (PhyGile + RLT) ✅ |
+| Canvas 边新增 | 11 ✅ |
+| 断链检查 | 0 断链 ✅ |
+| 实验结果 | Exp3a 仍在运行，无新结果 |
+
+---
+
+## 🟢 Session #22 完成 (2026-03-24)
+
+### 算法颗粒度标准建立 + 全库 PapersRecap 升级 + Standard Workflow
+
+**触发**：用户要求从 MergeBuffer/gemini-chat 中两份对话（CGP 论文讨论 + PPO 损失函数详解）提取算法颗粒度偏好，规范化写入 SKILL.md 和 copilot-instructions.md，再将全部 74 篇 PapersRecap 对齐到新标准，最后执行 standard-workflow。
+
+#### 变更内容 — Phase 1: 颗粒度标准建立
+
+| 文件 | 变更 |
+|------|------|
+| `.github/skills/knowledge-graph-management/SKILL.md` | 新增 §2.3.1「Algorithm Granularity Standard」— 10 维度需求表 + MergeBuffer gemini-chat 处理流程图 |
+| `.github/copilot-instructions.md` | §论文笔记标准模板重写为 7 节展开结构 + `[!important] 算法颗粒度标准` callout |
+
+#### 变更内容 — Phase 2: CGP 论文合并 + 全库升级
+
+| 文件 | 变更 |
+|------|------|
+| `PapersRecap/Contact-Grounded Policy - *.md` | 完整重写（~200 行）：全数学推导 + 推理伪代码 + 训练细节 + 工程技巧 + 3 条灵巧操作启发 |
+| `PapersRecap/Hindsight Experience Replay.md` | 新增 §3.2 核心代码逻辑（Python `her_relabel()` + `compute_reward()`） |
+| 22+ PapersRecap 文件 | 新增「与用户研究的启发（灵巧手转笔/Sim-to-Real）」节 |
+
+#### 变更内容 — Phase 3: PPO 内容整合
+
+| 文件 | 变更 |
+|------|------|
+| `Foundations/ReinforcementLearning.md` §2.5 | 新增 PPO 完整损失函数分解（3 部分表格）+ 三阶段数据流（Rollout/Advantage/Update）+ 核心 PyTorch 代码 + 工程避坑 + 单峰高斯局限讨论 |
+
+#### 变更内容 — Phase 4: MergeBuffer 新 PDF 处理
+
+| 文件 | 变更 |
+|------|------|
+| `Papers/Lee_Controllable_Long-term_Motion_Generation_*.pdf` | 从 MergeBuffer 移入 |
+| `Papers/World Guidance: World Modeling in Condition.pdf` | 从 MergeBuffer 移入 |
+| `PapersRecap/COMET - Controllable Long-term Motion Generation with Extended Joint Targets.md` | 新建 — CVAE + GMM 参考引导反馈 |
+| `PapersRecap/WoG - World Guidance for VLA Action Generation.md` | 新建 — 条件空间世界建模 VLA |
+| `MergeBuffer/_MergeIndex.md` | 新增 §14-17 处理记录 |
+
+#### 变更内容 — Phase 5: 断链修复 (27 处)
+
+| 类别 | 修复数量 | 受影响文件 |
+|------|---------|-----------|
+| 文件级断链（DexHiL/Tacmap/RoboTwin 文件名） | 10 处 | 6 个 Foundations 文件 |
+| PapersRecap → Foundation 章节锚点 | 8 处 | 7 个 PapersRecap 文件 |
+| Projects → Foundation 章节锚点 | 4 处 | 4 个 Idea 文件 |
+| Projects 内部锚点（电机/减速器） | 5 处 | sim2real.md + 电机.md |
+
+#### 变更内容 — Phase 6: Canvas 更新
+
+| 文件 | 变更 |
+|------|------|
+| `KnowledgeGraph.canvas` | 新增 WoG 节点（VLA 世界模型） + COMET 节点（运动生成）+ 6 条边 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| PapersRecap 总数 | 74 → 76 ✅ |
+| Papers PDF 总数 | 74 → 76 ✅ |
+| Foundations 完整性 | 11 + taxonomy + index ✅ |
+| 断链修复 | 27/27 ✅ |
+| Canvas 节点新增 | 2 (WoG + COMET) ✅ |
+
+---
 
 ## 🟢 Session #21 完成 (2026-03-16)
 

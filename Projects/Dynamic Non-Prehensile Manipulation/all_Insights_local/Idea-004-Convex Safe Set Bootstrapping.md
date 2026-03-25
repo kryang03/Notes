@@ -241,7 +241,7 @@ $$s_0 \sim \begin{cases} \text{GraspCache} & \text{w.p. } 1-\epsilon \\ \text{Un
 
 ### 与 Foundations 的联系
 - [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] — CSS 将 Value Landscape 中的 "稀疏踏脚石" 用凸几何连接起来
-- [[InformationTheory#6.1 Empowerment]] — CSS 可视为 empowerment 的几何替代：处于 CSS 内的状态 "对未来有更多控制力"
+- [[InformationTheory#6.1 赋能 (Empowerment)：最大化信道容量]] — CSS 可视为 empowerment 的几何替代：处于 CSS 内的状态 "对未来有更多控制力"
 - [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]] — CSS 边界探索是 intrinsic motivation 的几何实例化
 
 ### 与已有论文的联系

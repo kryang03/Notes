@@ -186,3 +186,9 @@ $$\max_{v_t} \|\kappa(x_t + v_t; \theta) - \kappa(x_t; \theta)\| \quad \text{s.t
 - [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] — Lipschitz 自适应控制
 - [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]] — 控制论视角的稳定 RL
 - [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints]] — Margin function 平滑性分析
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **Lipschitz 约束提升 Sim-to-Real 鲁棒性**: 转笔策略的 sim-to-real gap 本质是观测扰动，Lipschitz 有界策略可保证在状态扰动 $\|\delta s\|$ 下动作变化 $\|\delta a\| \leq L \cdot \|\delta s\|$ 有界
+2. **平滑控制**: Lipschitz 约束自然产生平滑控制信号，减少转笔中的高频护动
+3. **实现建议**: 在 PPO 的 Actor 网络中使用 Lipschitz-bounded 层（如 spectral normalization）作为即插即用的鲁棒性提升

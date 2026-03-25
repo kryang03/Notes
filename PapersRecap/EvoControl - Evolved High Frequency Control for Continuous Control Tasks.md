@@ -159,3 +159,9 @@ Low-Level Policy β (Neuroevolution, 500Hz)
 - [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning]] - 频率自适应
 - [[Reinforcement Learning for Control with Multiple Frequencies]] - AP-AC 多频率控制
 - [[ControlTheory]] - PD 控制器基础
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **高频底层控制**: 转笔要求极快的反应速度，EvoControl 提出的「进化的高频控制器」思路可将 PD 控制器参数作为可进化参数，在训练期间自动搜索最优控制频率
+2. **分层控制**: 转笔中“高层策略 (RL, 20-50Hz)” + “底层 PD 控制器 (500-1000Hz)”的分层结构与 EvoControl 的思想一致
+3. **局限**: 进化算法的样本效率低，对于 24-DoF 灵巧手的参数空间可能不可行，需结合梯度优化

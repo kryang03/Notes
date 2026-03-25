@@ -222,3 +222,9 @@ for n = 1, 2, ... do
 
 - [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] — Lipschitz 网络设计
 - [[ControlTheory]] — Lyapunov 稳定性理论基础
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **安全探索边界**: 转笔训练中，策略探索可能导致灵巧手关节达到极限位置或产生过大力矩。Lyapunov 约束的 ROA（吸引域）可以为探索设置安全边界，避免物理损伤
+2. **GP 动力学模型**: 用高斯过程建模接触动力学的不确定性（摩擦系数的不确定型），可作为 Sim-to-Real 中动力学 gap 的软补偿
+3. **局限**: 基于 GP 的方法在高维动作空间（20+ 关节）上计算代价过高，需做 sparse GP 或局部近似

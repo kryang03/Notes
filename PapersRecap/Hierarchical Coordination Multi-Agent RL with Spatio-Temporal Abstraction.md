@@ -98,3 +98,9 @@ Low-Level Policy (细粒度时间)
 - [[ReinforcementLearning]] - 层次化 RL、稀疏奖励
 - [[RepresentationLearning]] - 图神经网络
 - [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks]] - 另一种层次化控制
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **多指协作作为多智能体问题**: 灵巧手的多指协作可建模为 multi-agent 问题，每个手指为一个 agent，用层次化时空抽象处理协作
+2. **时间抽象**: 「发动 snap」、「空中等待」、「接住笔」可作为不同时间尺度的子任务进行抽象
+3. **局限**: 本文的 MARL 开销在灵巧手场景下可能过高，较为简单的偏好是用 centralized training 配合老师-学生架构

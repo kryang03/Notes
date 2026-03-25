@@ -82,7 +82,7 @@ $$\mathcal{L}_{\text{dyn}} = \sum_i \| \hat{p}_i^{t+1} - p_i^{t+1} \|_2^2 + \lam
 1. **动力学 > 几何**: 在接触丰富的杂乱场景中，物体"如何响应接触"比"长什么样"更关键 → 与 [[ContactMechanics]] 的核心论点一致
 2. **自适应行为涌现**: 相同几何布局、不同质量分配 → 策略自动切换接触对象（利用重物作锚点 vs 回避轻物），表明 dynamics representation 成功编码了物理属性
 3. **点级预测 >> 物体级预测**: 粗粒度 6DoF 位姿监督不足以捕获接触传播的精细物理 → 密集表示的优势
-4. **训练效率优势**: 动力学先验使策略在 ~10⁴ 迭代即达 70% SR，而几何方法需 3-4× 更多迭代 → 与 [[ReinforcementLearning#5.1 Domain Randomization 与 Sim-to-Real|DR]] 中 "好的表征减少采样需求" 的原理一致
+4. **训练效率优势**: 动力学先验使策略在 ~10⁴ 迭代即达 70% SR，而几何方法需 3-4× 更多迭代 → 与 [[ReinforcementLearning#5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)|DR]] 中 "好的表征减少采样需求" 的原理一致
 5. **Zero-shot sim-to-real**: 通过 student-teacher distillation + 观测噪声注入实现 → 与 [[Dynamics#Sim-to-Real 与动力学迁移|System ID]] 互补的迁移方案
 
 ## 5. 与知识体系的联系

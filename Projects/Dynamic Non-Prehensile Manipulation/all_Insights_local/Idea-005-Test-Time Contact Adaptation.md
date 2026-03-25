@@ -240,7 +240,7 @@ $$\pi_T = \arg\max_\theta \mathbb{E}_{\phi \sim p(\phi)} [\mathbb{E}_{\pi_T(\cdo
 
 ### 与 Foundations 的联系
 - [[Dynamics#10. Future Outlook: Differentiable Physics (可微物理)]] — 可微物理的在线辨识是 TTCA 的理论基础
-- [[ContactMechanics#6. 仿真到现实 (Sim2Real)]] — 接触参数的 Sim-Real gap 是本文攻击的核心问题
+- [[ContactMechanics#6. 仿真到现实 (Sim2Real) 与工程实现]] — 接触参数的 Sim-Real gap 是本文攻击的核心问题
 - [[SignalProcessing]] — 探测信号的处理和参数估计本质是信号处理问题
 - [[InformationTheory]] — 主动探测设计是 Active Perception 的直接应用
 

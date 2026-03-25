@@ -494,7 +494,7 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 - [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力融合课程学习范式
 
 ### 触觉 Sim-to-Real 与新表征
-- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map|Tacmap]]: **穿透深度图**——几何无关的触觉 sim-to-real 统一表征
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]]: **穿透深度图**——几何无关的触觉 sim-to-real 统一表征
 - [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]]: 潜在触觉 VAE + 耦合扩散的触觉信号处理
 
 ### 触觉-语言跨模态推理

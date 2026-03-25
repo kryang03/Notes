@@ -154,3 +154,8 @@ Dynamic RL 需要**正 Lyapunov 指数**（混沌），而 [[Stability-Certified
 - [[ReinforcementLearning]] - 探索策略章节
 - [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach]] - 理论视角
 - [[StochasticProcess]] - Lyapunov 指数与混沌
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **动态探索-利用平衡**: 转笔训练中，早期需要大的探索（尝试不同抓取姿态），后期需精确的利用（稳定转动）。动态 RL 的 Lyapunov 稳定性角度提供了理论框架
+2. **局限**: 本文为概念性论文，缺乏实验验证，实际指导价值有限

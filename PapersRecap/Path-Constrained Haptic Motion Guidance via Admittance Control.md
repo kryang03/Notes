@@ -183,3 +183,9 @@ $$
 
 **参考文献**:
 - Shahriari, E. et al. "Path-Constrained Haptic Motion Guidance via Adaptive Phase-Based Admittance Control." IEEE TRO, 2025.
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **路径约束的转笔应用**: 将转笔的理想轨迹作为「路径约束」，用 admittance 控制引导策略的探索范围，可加速早期 RL 训练的收敛
+2. **相位自适应**: 本文的 phase-adaptive 控制与转笔中的动作阶段（snap/rotate/catch）切换有类似结构，可借鉴其平滑的相位越迁机制
+3. **局限**: 本文面向工业扮演/操作家场景，所需带宽/力度与灵巧手高速操作差异大

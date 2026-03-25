@@ -441,7 +441,7 @@ $$\mathbf{v}_{c, \text{virtual}} = G^T \mathbf{v}_{obj}$$
 
 ### 3D 空间智能与点云表征
 - [[空间智能作为机器人的结构化表征|PointWorld]]: **3D Flow 作为统一动作表征**，PTV3 点云 Transformer，仅机械爪 3D 点流 > 全身点流 > 关节表征
-- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map|Tacmap]]: 曲面指尖的穿透深度几何计算
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]]: 曲面指尖的穿透深度几何计算
 
 ------
 

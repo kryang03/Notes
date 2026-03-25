@@ -113,9 +113,29 @@ Gap 来源分解为 MDP 四元素差异：
 ### 与 [[EmbodiedAI]] 的联系
 - Foundation Model 在 Sim-to-Real 中的应用代表了 VLA/VLM 与具身智能的交叉前沿
 
+## 5.1 工程关键细节 (Engineering Tricks)
+
+- **ADR (Active Domain Randomization)**: 不均匀随机化，优先训练「当前最困难的」物理参数配置 → 比均匀 DR 训练效率高 3-5 倍
+- **Grounding 方法的时间对齐**: GAT 系列方法要求 sim/real 的 state-action 严格时间对齐，否则学到带相位延迟的动作映射
+- **Foundation Model 作为跨域锚点**: VLM 提取的语义特征（如 SigLIP/DINOv2 embeddings）天然跨仿真-真实域不变
+
+## 5.2 与用户研究（灵巧手转笔/Sim-to-Real）的启发
+
+> [!quote] 对 DNPM 项目的直接映射
+> 灵巧手转笔的 Sim-to-Real 挑战可按 MDP 四元素精确定位：
+
+| Gap 维度 | 转笔任务中的具体表现 | 推荐方案 |
+|---------|-------------------|--------|
+| $\Delta_S$ | 触觉传感器（仿真力 vs 真机指腹传感器）的模态差异 | Cross-Modal Alignment (对比学习) |
+| $\Delta_A$ | PD 控制器参数 ($K_p$, $K_d$) 在真机上的非线性响应 | 阻抗参数域随机化 + 在线自适应 |
+| $\Delta_T$ | 笔与手指间的接触动力学（摩擦系数、滑移阈值）差异 | ADR + System Identification |
+| $\Delta_R$ | 仿真中基于精确位姿的奖励在真机中不可直接测量 | 基于视觉/触觉的间接奖励估计 |
+
+**核心 takeaway**: 转笔任务中 $\Delta_T$（接触动力学）是最大瓶颈，Grounding Methods（GAT→GARAT 演进线）是比域随机化更精准的一条路线。
+
 ## 6. 局限与未来方向
 
-1. **硬件-软件联合建模**: 综述缺乏对执行器物理特性 (电气时间常数、齿隙、非线性摩擦) 的讨论——这正是 [[sim2real]] 和机械结构笔记所覆盖的内容
+1. **硬件-软件联合建模**: 综述缺乏对执行器物理特性 (电气时间常数、齿隙、非线性摩擦) 的讨论——这正是真机部署的核心gap
 2. **多域联合迁移**: 同时处理 Observation + Transition Gap 的联合方法尚不成熟
 3. **在线适应与安全**: 部署时在线修正策略的安全保证仍需加强
 4. **领域特异性**: 不同应用领域的 Sim-to-Real 挑战差异巨大，通用方案可能不存在

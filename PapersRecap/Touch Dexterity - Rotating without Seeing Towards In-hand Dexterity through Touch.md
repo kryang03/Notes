@@ -186,3 +186,11 @@ $$
 - **机构**: HKUST, UC San Diego
 - **项目页**: http://touchdexterity.github.io
 - **ArXiv**: 2303.10880
+
+## 8. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+**核心 takeaway**: 纯触觉即可实现手内旋转，视觉不是必需的。
+
+1. **触觉表征的充分性**: 本文证明触觉单独就能提供足够的状态信息用于接触丰富任务。对于转笔，指腹触觉可能比视觉更重要（高速旋转时视觉模糊）
+2. **Teacher-Student 触觉策略**: 可借鉴本文的 teacher-student 架构——仿真中用特权信息（精确接触力）训练 teacher，然后蒸馏到仅用触觉读数的 student 策略
+3. **Sim-to-Real 触觉 Gap**: 仿真触觉<->真机触觉的差异是本文和用户研究的共同挑战，可结合 [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] 的穿透深度图方法处理

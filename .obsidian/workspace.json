@@ -23,21 +23,32 @@
             }
           },
           {
-            "id": "1b85fc5862878a96",
+            "id": "62943baf6cc6185f",
             "type": "leaf",
             "state": {
-              "type": "split-diff-view",
+              "type": "markdown",
               "state": {
-                "aFile": "PapersRecap/_PapersIndex.base",
-                "bFile": "PapersRecap/_PapersIndex.base",
-                "aRef": ""
+                "file": "MergeBuffer/gemini-chat/PPO-损失函数组成详解.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "diff",
-              "title": "Diff: _PapersIndex.base  (Working Tree)"
+              "icon": "lucide-file",
+              "title": "PPO-损失函数组成详解"
+            }
+          },
+          {
+            "id": "f90eae7ea8bc26f6",
+            "type": "leaf",
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "Papers/Lessons from Learning to Spin Pens.pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Lessons from Learning to Spin Pens"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -197,6 +208,7 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "media-extended:Open external media": false,
       "omnisearch:Omnisearch": false,
       "obsidian-git:Open Git source control": false,
       "bases:新建数据库": false,
@@ -213,18 +225,37 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "1b85fc5862878a96",
+  "active": "06313d05f471e70a",
   "lastOpenFiles": [
+    "PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md",
+    "PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md",
+    "Papers/Precise Manipulation with Efficient Online RL.pdf",
+    "Papers/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
+    "Papers/Contact-Grounded Policy- Dexterous Visuotactile Policy with Generative Contact Grounding.pdf",
     "PapersRecap/_PapersIndex.base",
+    "MergeBuffer/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
+    "MergeBuffer/未确认 283799.crdownload",
+    "MergeBuffer/Precise Manipulation with Efficient Online RL.pdf",
+    "Papers/Lessons from Learning to Spin Pens.pdf",
+    "MergeBuffer/gemini-chat/PPO-损失函数组成详解.md",
+    "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
+    "MergeBuffer/gemini-chat/chat.md",
+    "MergeBuffer/gemini-chat",
+    "PapersRecap/DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model.md",
+    "PapersRecap/EvoControl - Evolved High Frequency Control for Continuous Control Tasks.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
+    "README.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/RSS26.pdf",
+    "2026-03-13.md",
     "PapersRecap/MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations.md",
     "PapersRecap/Learning Human-like Finger Gaiting on an Anthropomorphic Hand.md",
     "PapersRecap/Proximity Perception-Based Grasping Intelligence (P2GI).md",
     "PapersRecap/DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration.md",
     "PapersRecap/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.md",
-    "Papers/谐波减速器与RV减速器在关节模组集成设计中，选型的核心区分依据是什么？.pdf",
-    "Papers/OmniXtreme: Breaking the Generality Barrier in.pdf",
     "PapersRecap/OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control.md",
-    "Papers/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.pdf",
     "PapersRecap/Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning.md",
     "Foundations/ReinforcementLearning.md",
     "PapersRecap/Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation.md",
@@ -232,25 +263,7 @@
     "PapersRecap/未命名.md",
     "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.md",
     "PapersRecap/空间智能作为机器人的结构化表征.md",
-    "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
-    "Papers/HIL-SERL: Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning.pdf",
-    "Papers/未确认 604931.crdownload",
-    "Papers/DexHiL: A Human-in-the-Loop Framework for Vision-Language-Action Model Post-Training in Dexterous Manipulation.pdf",
-    "Papers/未确认 800662.crdownload",
-    "Papers/MimicGen: A Data Generation System for Scalable Robot Learning using Human Demonstrations.pdf",
-    "Papers/In-Hand Object Rotation via Rapid Motor Adaptation.pdf",
-    "Foundations/RepresentationLearning.md",
-    "PapersRecap/谐波减速器与RV减速器选型核心区分依据.md",
-    "2026-03-13.md",
-    "PapersRecap/RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation.md",
-    "PapersRecap/LaST0 - Latent Spatio-Temporal CoT for Robotic VLA.md",
     "KnowledgeGraph.canvas",
-    "PapersRecap/A Survey of Sim-to-Real Methods in RL.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
-    "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map.md",
-    "PapersRecap/RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation.md",
-    "PapersRecap/DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",

@@ -1032,4 +1032,8 @@ $$w_{t+1} = w_t - \eta \cdot \arg\max_{\|v\|_p^* \leq 1} \langle v, \nabla L(w_t
 ### VLA 潜空间推理
 - [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — **潜在时空链式推理**：在隐空间而非文本空间执行 CoT，MoT 双系统路由
 
+### 信息瓶颈与运动生成表征
+- [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]] — **RL Token 信息瓶颈**：编码器-解码器压缩 VLA embedding 为紧凑状态表征，残差动作编辑实现高效在线 RL
+- [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]] — **TP-MoE token 级参数混合**：每个文本 token 混合不同专家参数实现细粒度时间-语义对齐，262D 机器人原生空间扩散生成
+
 *Format: Markdown for Obsidian Knowledge Base Integration.*

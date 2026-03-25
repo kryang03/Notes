@@ -448,7 +448,7 @@ $$\frac{\partial z^*}{\partial \theta} = - \left( \frac{\partial R}{\partial z} 
 
 ### 视触觉策略生成
 - [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]]: **接触 grounding 扩散策略**，耦合状态-触觉扩散 + 接触一致性映射
-- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Penetration Depth Map|Tacmap]]: **穿透深度图**作为统一触觉 sim-to-real 表征
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]]: **穿透深度图**作为统一触觉 sim-to-real 表征
 
 ### 柔顺控制与力学建模
 - [[Minimalist Compliance Control|MCC]]: **无传感器柔顺控制**，利用电机电流估计接触力，方向相关效率模型

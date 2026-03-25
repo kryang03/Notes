@@ -25,7 +25,7 @@
 		{"id":"bt_sim2real","type":"text","x":390,"y":-640,"width":350,"height":350,"color":"2","text":"## 🌐 Sim-to-Real 迁移\n\n**痛点**: 动力学域差异\n\n**解决思路**:\n- Real-to-Sim-to-Real\n- 在线校正 (TRANSIC)\n- 数字孪生 RL 鲁棒化\n- 域随机化 + 快速电机适应\n- 🔧 电机/减速器/传动建模\n- 🧠 System ID + 神经动力学\n\n**MDP四要素Gap分类**:\nState | Action | Transition | Reward\n\n→ [[ReinforcementLearning]] [[Dynamics]]\n→ [[sim2real|硬件Gap分析]]"},
 		{"id":"bt_privileged","type":"text","x":790,"y":-640,"width":350,"height":280,"color":"2","text":"## 🔮 特权动作\n\n**痛点**: 物理边界阻碍探索\n\n**解决思路**:\n- 禁用碰撞穿透学习\n- 虚拟力辅助\n- 课程恢复物理约束\n- 从作弊到真实\n\n→ [[ContactMechanics]] [[ReinforcementLearning]]"},
 		{"id":"bt_representation","type":"text","x":1190,"y":-640,"width":350,"height":280,"color":"2","text":"## 🧩 感知与表征\n\n**痛点**: 高维观测空间\n\n**解决思路**:\n- 视触觉融合\n- 扩散策略分布建模\n- 点云几何特征\n- 物理属性嵌入\n\n→ [[RepresentationLearning]] [[SignalProcessing]]"},
-		{"id":"papers_group","type":"group","x":-1260,"y":30,"width":2920,"height":1830,"color":"4","label":"📄 PapersRecap: 核心算法与洞见"},
+		{"id":"papers_group","type":"group","x":-1260,"y":30,"width":3300,"height":1830,"color":"4","label":"📄 PapersRecap: 核心算法与洞见"},
 		{"id":"paper_tarc","type":"text","x":-1210,"y":90,"width":350,"height":200,"color":"5","text":"## TARC (2025)\n**时间自适应控制**\n\n💡 策略输出 (a, Δt)\n惯性阶段→低频\n接触切换→高频\n\n⭐ 直接解决频率困境"},
 		{"id":"paper_pfqi","type":"text","x":-1210,"y":340,"width":350,"height":200,"color":"5","text":"## Action Persistence (2020)\n**动作持续理论框架**\n\n💡 k-persistent MDP\n性能损失 ∝ 环境演化速度\n\n⭐ 频率选择的理论基础"},
 		{"id":"paper_multifreq","type":"text","x":-1210,"y":590,"width":350,"height":200,"color":"5","text":"## Multi-Frequency RL (2020)\n**多频率控制理论**\n\n💡 高层低频决策\n底层高频跟踪\n层次化频率分配\n\n⭐ 频率分离框架"},
@@ -87,7 +87,11 @@
 		{"id":"paper_sim2real_review","type":"text","x":-810,"y":1600,"width":350,"height":210,"text":"## Sim2Real Review (2026)\n**执行器级建模视角**\n\n💡 仿真逼真度+域随机化\n执行器非线性\n多保真度学习\n\n⭐ 综述"},
 		{"id":"paper_reducers","type":"text","x":-410,"y":1600,"width":350,"height":210,"text":"## 谐波vs RV减速器 (2026)\n**关节传动选型**\n\n💡 谐波:轻载紧凑空心轴\nRV:重载高刚度\n7维决策矩阵\n\n⭐ 硬件基础"},
 		{"id":"proj_mech_hw","type":"text","x":750,"y":-1640,"width":400,"height":540,"color":"1","text":"## 🔧 灵巧手机械结构\n\n**传动**: 腱绳 · 连杆 · 直驱 · QDD\n**电机**: BLDC(FOC) · 空心杯 · 伺服\n**减速器**: 谐波 · 行星 · RV · 摆线\n\n**Sim-to-Real 核心 Gap**:\n→ 电气时间常数被忽略\n→ 齿隙/非线性摩擦\n→ 欠驱动耦合矩阵 R(q)\n→ 温度漂移\n\n→ [[sim2real|硬件Gap分析]]\n→ [[传动]] [[电机]] [[减速器]]"},
-		{"id":"paper_dexndm","type":"text","x":-10,"y":1600,"width":350,"height":210,"text":"## DexNDM (2025)\n**关节级神经动力学**\n\n💡 Joint-wise Neural Dynamics\n残差补偿Sim-Real Gap\n在线适应 (无需DR)\n\n⭐ System ID前沿"}
+		{"id":"paper_dexndm","type":"text","x":-10,"y":1600,"width":350,"height":210,"text":"## DexNDM (2025)\n**关节级神经动力学**\n\n💡 Joint-wise Neural Dynamics\n残差补偿Sim-Real Gap\n在线适应 (无需DR)\n\n⭐ System ID前沿"},
+		{"id":"paper_wog","type":"text","x":390,"y":1600,"width":350,"height":210,"color":"4","text":"## WoG (2026)\n**条件空间世界建模**\n\n💡 未来观测→紧凑条件空间\n2阶段: Guidance→Inference\nQ-Former+DiT Rectified Flow\n\n⭐ VLA世界模型新范式"},
+		{"id":"paper_comet","type":"text","x":790,"y":1600,"width":350,"height":210,"text":"## COMET (2025)\n**可控长时域运动生成**\n\n💡 Transformer CVAE自回归\nGMM参考引导反馈\n任意关节子集控制\n\n⭐ 运动生成→灵巧操作迁移"},
+		{"id":"paper_phygile","type":"text","x":1190,"y":1600,"width":350,"height":210,"color":"5","text":"## PhyGile (2026)\n**Physics-Prefix运动生成**\n\n💡 课程MoE跟踪 + 262D扩散\n物理前缀引导去噪\nTP-MoE细粒度对齐\n\n⭐ 闭环生成-执行"},
+		{"id":"paper_rlt","type":"text","x":1590,"y":1100,"width":350,"height":210,"color":"5","text":"## RLT (2026)\n**RL Token在线精细化**\n\n💡 VLA→RL Token信息瓶颈\n轻量actor-critic本地训练\n残差动作编辑 15min适应\n\n⭐ VLA最后一毫米精度"}
 	],
 	"edges":[
 		{"id":"e_exp2_i001","fromNode":"exp2_findings","fromSide":"right","toNode":"idea_001","toSide":"left","color":"5","label":"Kp+基线"},
@@ -213,6 +217,21 @@
 		{"id":"e_mech_ctrl","fromNode":"proj_mech_hw","fromSide":"bottom","toNode":"found_control","toSide":"top","color":"6"},
 		{"id":"e_bt5_dexndm","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_dexndm","toSide":"top","label":"神经动力学"},
 		{"id":"e_dexndm_dyn","fromNode":"paper_dexndm","fromSide":"top","toNode":"found_dynamics","toSide":"bottom","label":"System ID"},
-		{"id":"e_dexndm_rl","fromNode":"paper_dexndm","fromSide":"top","toNode":"found_rl","toSide":"bottom","label":"在线适应"}
+		{"id":"e_dexndm_rl","fromNode":"paper_dexndm","fromSide":"top","toNode":"found_rl","toSide":"bottom","label":"在线适应"},
+		{"id":"e_wog_embodied","fromNode":"paper_wog","fromSide":"top","toNode":"found_embodied","toSide":"bottom","label":"VLA世界模型"},
+		{"id":"e_wog_repr","fromNode":"paper_wog","fromSide":"top","toNode":"found_repr","toSide":"bottom","label":"条件空间"},
+		{"id":"e_bt7_wog","fromNode":"bt_representation","fromSide":"bottom","toNode":"paper_wog","toSide":"top","color":"4","label":"条件表征"},
+		{"id":"e_comet_repr","fromNode":"paper_comet","fromSide":"top","toNode":"found_repr","toSide":"bottom","label":"CVAE"},
+		{"id":"e_comet_stoch","fromNode":"paper_comet","fromSide":"top","toNode":"found_stochastic","toSide":"bottom","label":"GMM"},
+		{"id":"e_bt4_phygile","fromNode":"bt_curriculum","fromSide":"bottom","toNode":"paper_phygile","toSide":"top","color":"5","label":"课程MoE"},
+		{"id":"e_bt7_phygile","fromNode":"bt_representation","fromSide":"bottom","toNode":"paper_phygile","toSide":"top","label":"TP-MoE"},
+		{"id":"e_phygile_rl","fromNode":"paper_phygile","fromSide":"top","toNode":"found_rl","toSide":"bottom","label":"PPO+课程"},
+		{"id":"e_phygile_repr","fromNode":"paper_phygile","fromSide":"top","toNode":"found_repr","toSide":"bottom","label":"扩散生成"},
+		{"id":"e_phygile_dyn","fromNode":"paper_phygile","fromSide":"top","toNode":"found_dynamics","toSide":"bottom","label":"262D机器人"},
+		{"id":"e_bt5_rlt","fromNode":"bt_sim2real","fromSide":"bottom","toNode":"paper_rlt","toSide":"top","color":"5","label":"在线适应"},
+		{"id":"e_rlt_rl","fromNode":"paper_rlt","fromSide":"top","toNode":"found_rl","toSide":"bottom","label":"在线RL"},
+		{"id":"e_rlt_embodied","fromNode":"paper_rlt","fromSide":"top","toNode":"found_embodied","toSide":"bottom","label":"VLA后训练"},
+		{"id":"e_rlt_repr","fromNode":"paper_rlt","fromSide":"top","toNode":"found_repr","toSide":"bottom","label":"信息瓶颈"},
+		{"id":"e_rlt_wmpo","fromNode":"paper_rlt","fromSide":"left","toNode":"paper_wmpo","toSide":"right","label":"互补: 轻量vs全模型"}
 	]
 }

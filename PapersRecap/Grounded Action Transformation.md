@@ -41,7 +41,7 @@ related:
 - **System ID**：修正仿真器参数使 $T_{sim} \approx T_{real}$
 - **GAT**：不修改仿真器参数，而是在动作空间中补偿差异
 
-> [!tip] 与 [[ReinforcementLearning#5.0 系统辨识与在线参数学习|System ID]] 的联系
+> [!tip] 与 [[ReinforcementLearning#5.0 系统辨识与在线参数学习 (System Identification & Online Adaptation)|System ID]] 的联系
 > GAT 与 System ID 互补：System ID 减小 $\mathbb{E}[\|T_{sim} - T_{real}\|]$，GAT 在动作层面修正残差。在灵巧手场景中，GAT 可用于补偿执行器非线性（齿隙、摩擦）导致的动作空间偏移。
 
 ## 3. 实验结果
@@ -70,3 +70,9 @@ related:
 - 需要真机数据收集（非零样本）
 - 动作搜索过程计算量大
 - 仅验证在低维动作空间（关节角度）——高维灵巧手场景有效性待验证
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **Grounding 作为 Sim-to-Real 校正**: GAT 系列的「用真机数据修正仿真动作」思想可应用于转笔——在仿真中训练基策略，用真机数据学习动作变换函数
+2. **低数据量要求**: GAT 仅需真机上的少量数据学习映射，适合灵巧手转笔的缺乏真机训练场景
+3. **局限**: 高维动作空间（24-DoF）下的 Grounding 质量未验证，可能需要将动作变换分解到关节级别

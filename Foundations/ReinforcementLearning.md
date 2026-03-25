@@ -436,6 +436,82 @@ $$L^{CLIP}(\theta) = \mathbb{E}\left[\min\left(r_t(\theta)A_t, \text{clip}(r_t(\
 | 真机训练 | SAC | Replay Buffer 允许重用历史数据 |
 | 高维连续动作 | SAC | 最大熵探索更有效 |
 
+##### PPO 完整损失函数分解
+
+PPO 的总损失由三部分组成——策略损失、价值损失、熵正则项：
+
+$$L_{t}^{CLIP+VF+S}(\theta) = \hat{\mathbb{E}}_{t} \left[L_{t}^{CLIP}(\theta) - c_1 L_{t}^{VF}(\theta) + c_2 S[\pi_\theta](s_t)\right]$$
+
+| 组成部分 | 对应网络 | 输出 | 拟合目标 | 核心作用 |
+|---------|---------|------|---------|---------|
+| **Policy Loss** $L^{CLIP}$ | Actor | $\pi_\theta(a\|s)$ | 优势函数 $\hat{A}_t$ | 提升高回报动作概率，Clip 保证训练稳健 |
+| **Value Loss** $L^{VF}$ | Critic | $V_\theta(s_t)$ | 实际回报 $G_t^{target}$ | 提供准确基线，减少策略梯度方差 |
+| **Entropy Bonus** $S$ | Actor | $\pi_\theta(a\|s)$ | 最大化分布随机性 | 维持探索能力，防止陷入局部最优 |
+
+##### PPO 三阶段数据流与梯度属性
+
+> [!warning] 核心洞察
+> 损失函数中的变量产生于**不同时间阶段**，且具有**不同的梯度属性**（detached 常量 vs 可导变量）。理解这一点是正确实现 PPO 的关键。
+
+**阶段 1: Rollout（数据收集）** — 参数固定为 $\theta_{old}$，所有产出为 **detached tensors**：
+- $s_t$: 环境观测（关节角/物体位置/速度）
+- $a_t$: 从 $\mathcal{N}(\mu_{\theta_{old}}(s_t), \sigma)$ 中**采样**
+- $\log \pi_{\theta_{old}}(a_t|s_t)$: 采样时立刻保存（网络更新后无法再获得旧分布值）
+- $V_{\theta_{old}}(s_t)$: Critic 基线评估
+- $r_t, d_t$: 环境反馈的奖励与终止标志
+
+**阶段 2: Advantage 计算（后处理）** — 离线计算，仍为常量：
+- $\hat{A}_t$: 通过 GAE 反向遍历 Rollout Buffer 计算
+- $G_t^{target} = \hat{A}_t + V_{\theta_{old}}(s_t)$: Critic 拟合目标
+
+**阶段 3: Network Update** — 重新激活计算图，参数 $\theta$ 开始更新：
+- $\pi_\theta(a_t|s_t)$: 将缓存的 $s_t$ 输入**更新中的** Actor，计算旧动作 $a_t$ 在新分布下的概率
+- $r_t(\theta) = \exp(\log \pi_\theta - \log \pi_{\theta_{old}})$: 利用 log-exp 技巧避免概率直除的数值不稳定
+- $V_\theta(s_t)$: 更新中的 Critic 输出（带梯度）
+- $S[\pi_\theta]$: 当前分布的信息熵
+
+```python
+# PPO Update — 核心张量操作 (PyTorch)
+def compute_ppo_loss(obs, actions, old_log_probs, advantages, returns,
+                     actor_critic, clip_param=0.2, c1=0.5, c2=0.01):
+    # 阶段3: 重新前向传播，建立计算图
+    action_dist, new_values = actor_critic(obs)
+    new_log_probs = action_dist.log_prob(actions).sum(dim=-1)  # ⚠️ 多维动作必须在 dim=-1 求和
+    entropy = action_dist.entropy().sum(dim=-1).mean()
+    
+    # Policy Loss
+    ratio = torch.exp(new_log_probs - old_log_probs)  # log-exp 技巧
+    surr1 = ratio * advantages
+    surr2 = torch.clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages
+    policy_loss = -torch.min(surr1, surr2).mean()
+    
+    # Value Loss + 组装
+    value_loss = (returns - new_values.squeeze(-1)).pow(2).mean()
+    total_loss = policy_loss + c1 * value_loss - c2 * entropy
+    return total_loss
+```
+
+> [!warning] 灵巧操作工程避坑
+> 1. **维度陷阱**: 24-DoF 灵巧手的 `log_prob` 必须在动作维度求和（联合概率 = 各维度 log 概率之和）。漏掉 `.sum(dim=-1)` 会导致张量广播错误，网络默默学出无用策略
+> 2. **Advantage 归一化**: Minibatch 级别 `(adv - mean) / (std + 1e-8)` 是必须的，否则策略更新步长不受控，Actor 极易崩溃
+> 3. **$c_2$（熵系数）敏感性**: 灵巧操作中 $c_2$ 过小 → 手部动作迅速陷入无效颤动；$c_1$ 不合适 → 优势估计偏差放大导致 Actor 失效
+
+##### PPO 的单峰高斯局限与多峰分布讨论
+
+PPO 默认输出对角高斯 $\mathcal{N}(\mu(s), \sigma)$，对于多模态动作分布（如"绕左或绕右"）会拟合到均值导致无效动作。替代方案的困难在于：
+
+| 替代方案 | 理论障碍 |
+|---------|---------|
+| **Diffusion Models** | 无法精确计算 $\log p_\theta(a_t\|s_t)$（只能算 ELBO 或用代价高昂的 ODE 求解器），$r_t(\theta)$ 引入巨大偏差 |
+| **GMM** | 高维空间中混合高斯概率密度数值下溢严重，梯度爆炸 |
+| **Normalizing Flows** | 理论上可行（有精确 log-prob），但雅可比行列式计算开销大 |
+
+> [!tip] 实践中的解决路线
+> 灵巧操作领域目前绕开此问题的方式：
+> - **Diffusion Policy**（[[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|扩散策略]]）: 放弃 PPO 框架，直接用条件扩散模型做行为克隆
+> - **Curriculum + Reward Shaping**: 用课程学习引导策略避开多模态区域
+> - **层级策略**: 高层离散选择模态，低层单峰高斯执行
+
 #### 理论基础：Policy Gradient as Policy Iteration
 
 > [!note] 教科书参考
@@ -1118,6 +1194,25 @@ $$\mathcal{B}_{\text{train}} = \text{sample}(\mathcal{B}_{\text{demo}}, 50\%) \c
 | 重置 | 前向-后向策略 | 自动化训练 |
 | 控制器 | 阻抗控制 | 接触安全 |
 
+#### VLA 在线精细化: RL Tokens
+
+> [!tip] 论文参考
+> [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT (Physical Intelligence, 2026)]]
+
+**核心思想**: 大型 VLA 模型在部署时难以端到端微调，但精密操作阶段（如螺丝对准、插线）仍需在线改进。RLT 的解决方案是**不微调 VLA**，而是：
+
+1. **RL Token 提取**: 在 VLA 中训练一个编码器-解码器 Transformer，将 VLA 内部 embedding 压缩为单个紧凑 token（信息瓶颈）
+2. **轻量级 Actor-Critic**: 仅对 RL token 训练极小的 actor-critic 网络，在机器人本地以每秒数百次更新的速度训练
+3. **残差动作编辑**: Actor 接收 VLA 预测动作作为输入，学习 $\Delta a$ 修正（而非替代），正则化约束不远离 VLA 先验
+
+$$a = \pi_\theta(z_{\text{RL\_token}}, a_{\text{VLA}}) = a_{\text{VLA}} + \Delta a_\theta$$
+
+**关键工程技巧**: Reference-action dropout 防止 actor 退化为恒等映射；Action chunk 结构与 VLA 对齐保持时序一致性。
+
+**实验结果**: 仅 15 分钟真实数据 → 精密操作 3× 加速，执行速度超越人类遥操作。
+
+**与灵巧操作的关联**: 灵巧手的精密接触阶段（转笔关键接触切换点）可用 RLT 架构实现部署时在线精细化，避免重训全 VLA。与 [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation|残差学习]] 形成呼应。
+
 ### 5.3 Offline RL: 从静态数据中学习
 
 很多时候我们不希望在真机上进行危险的探索，而是利用现有的历史数据。
@@ -1339,7 +1434,7 @@ $$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{i=1}^{G} \min\left(r_i(\theta) \hat{A}_
 - [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|SToLa]]: MoE 触觉-语言融合框架
 
 ### 数据生成与双臂操作
-- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation|RoboTwin 2.0]]: MLLM 驱动的双臂数据自动生成 + 5 轴域随机化
+- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]]: MLLM 驱动的双臂数据自动生成 + 5 轴域随机化
 
 ### 课程学习进阶
 - [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart]]: **示范引导自动课程** — ZVF+手动初始化 state curriculum，LEAP Hand 旋转物体 Sim2Real
@@ -1351,5 +1446,9 @@ $$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{i=1}^{G} \min\left(r_i(\theta) \hat{A}_
 - [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]: 3D 部件引导 RL 跨铰接物体 Sim2Real
 
 ### 灵巧手 Sim-to-Real 专项
-- [[DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation|DexHiL]]: 首个 arm-hand VLA 人在回路 post-training
+- [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]]: 首个 arm-hand VLA 人在回路 post-training
 - [[sim2real|硬件 Sim-to-Real Gap 分析]]: 电机/减速器/传动方案对 RL 策略迁移的系统影响
+
+### VLA 在线精细化与人形运动
+- [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]]: **RL Token 信息瓶颈** — 冻结 VLA + 轻量级 actor-critic 在线精细化，15 分钟真实数据实现 3× 加速
+- [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]]: **Physics-prefix 引导的运动生成** — 课程 MoE + 262D 机器人原生扩散 + PPO 闭环微调，解决长尾敏捷运动

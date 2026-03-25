@@ -223,7 +223,9 @@ $$\pi^* = \arg\min_\pi \mathbb{E}_{(s,a)\sim\mathcal{D}} \left[ \mathcal{L}(\pi(
 | **Real-World RL** | [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | IL→Offline RL→Online RL 三阶段 | 真实环境信号，无 sim-to-real gap | 成本高，安全约束 |
 | **World Model RL** | [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | 像素空间世界模型 + GRPO | 零真实交互，可扩展 | 依赖世界模型质量 |
 
-**关键共识**: 两条路径都表明，仅靠 IL 不足以达到鲁棒部署——RL post-training 是 VLA 走向实用的关键步骤。详见 [[ReinforcementLearning#6.2 Diffusion Policies: 多模态分布的终极解|RL §6.2]] 和 [[ReinforcementLearning#6.5 World Model-Based Policy Optimization for VLA (WMPO)|RL §6.5]]。
+| **Lightweight Online RL** | [[RLT - Precise Manipulation with Efficient Online RL Tokens\|RLT]] | VLA → RL Token (信息瓶颈) → 轻量级 actor-critic | 15分钟真实数据，机器人本地实时训练 | 仅改进精密阶段 |
+
+**关键共识**: 仅靠 IL 不足以达到鲁棒部署——RL post-training 是 VLA 走向实用的关键步骤。三条路径在计算成本和适用范围上互补：Real-World RL 适合大规模端到端改进，World Model RL 避免真实交互成本，Lightweight Online RL (RLT) 适合部署时针对精密操作阶段的快速微调。详见 [[ReinforcementLearning#5.2 真实世界高效 RL: SERL 与 Human-in-the-Loop|RL §5.2]] 和 [[ReinforcementLearning#6.5 World Model-Based Policy Optimization for VLA (WMPO)|RL §6.5]]。
 
 ---
 
@@ -518,13 +520,17 @@ Genesis 是一个新兴的通用物理仿真平台，支持多种物理后端：
 - [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — Dynamics-lifted 几何预训练，transport equation 统一范式
 
 ### VLA Post-Training (Human-in-the-Loop)
-- [[DexHiL - Human-in-the-Loop VLA Post-Training for Dexterous Manipulation|DexHiL]] — 首个臂手系统 HiL VLA 后训练框架，干预感知采样 + DAgger 循环
+- [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]] — 首个臂手系统 HiL VLA 后训练框架，干预感知采样 + DAgger 循环
 
 ### 空间智能与世界模型
 - [[空间智能作为机器人的结构化表征|PointWorld]]: **3D Flow 统一状态-动作表征**，载体无关世界模型预训练；机器人迁移效率比 NLP 低 100 倍的量化分析
 
+### VLA 在线精细化与人形运动控制
+- [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]]: **RL Token 信息瓶颈** — 冻结 VLA + 轻量级 actor-critic，15 分钟真实数据实现精密操作 3× 加速
+- [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]]: **Physics-prefix 引导运动生成** — 课程 MoE + 262D 机器人原生扩散 + PPO 闭环微调
+
 ### 数据生成与 Sim-to-Real
-- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Robotic Manipulation|RoboTwin 2.0]] — MLLM 自动化双臂数据生成 + 5 轴域随机化
+- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]] — MLLM 自动化双臂数据生成 + 5 轴域随机化
 - [[A Survey of Sim-to-Real Methods in RL|Sim-to-Real Survey]] — MDP 四要素分类框架
 - [[Grounded Action Transformation|GAT]] — 仿真器 grounding 奠基性工作 (AAAI 2017)
 

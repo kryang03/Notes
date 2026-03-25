@@ -175,3 +175,9 @@ $$
 
 **参考文献**:
 - Jin, P. et al. "Vision-force-fused curriculum learning for robotic contact-rich assembly tasks." Frontiers in Neurorobotics, 2023.
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **视觉-力融合课程**: 转笔中可借鉴本文的多模态融合课程——先纯本体感觉，再叠加触觉，最后融合视觉
+2. **接触丰富任务的课程设计**: 本文在装配任务中的力控课程可映射到转笔的接触力度课程（从轻接触到快速 snap）
+3. **92% 成功率的参考**: 本文在 contact-rich 任务上的高成功率证明了和力融合课程的有效性

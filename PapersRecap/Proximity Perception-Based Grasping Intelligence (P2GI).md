@@ -219,3 +219,9 @@ EMG 模式识别 → 视觉辅助共享自主 → 近距离感知(P2GI)
 
 - Heo & Park. IEEE/ASME Transactions on Mechatronics (2023)
 - Hardware: Allegro Hand (Wonik Robotics), VL6180X (STMicroelectronics), T265 (Intel RealSense)
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **接近觉作为触觉补充**: 转笔中笔即将接触手指时，接近觉可提前感知并提前准备接住动作，比纯触觉反馈更早
+2. **Shared Autonomy**: P2GI 的人-机共享自主性思想可用于转笔的人在回路微调——用户提供高层意图，算法处理底层控制
+3. **局限**: P2GI 采用 Allegro Hand，但仅用于静态抓取，未验证动态操作场景

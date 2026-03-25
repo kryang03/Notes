@@ -59,7 +59,7 @@ related:
 
 ## 3. 核心洞见 (Insights)
 
-1. **System ID 与 DR 互补**: 前者提升仿真保真度，后者提升策略鲁棒性 → 与 [[ReinforcementLearning#5.0 System Identification & Online Adaptation|RL §5.0]] 的"正交关系"分析一致
+1. **System ID 与 DR 互补**: 前者提升仿真保真度，后者提升策略鲁棒性 → 与 [[ReinforcementLearning#5.0 系统辨识与在线参数学习 (System Identification & Online Adaptation)|RL §5.0]] 的"正交关系"分析一致
 2. **执行器建模被低估**: 大多数 sim-to-real 工作忽视电机/驱动器级别建模 → 与 [[ControlTheory#Sim-to-Real 迁移中的控制挑战|ControlTheory sim-to-real]] 中的硬件 Gap 分析呼应
 3. **统一框架思维**: 从信息流角度审视迁移方法，有助于识别方法组合策略
 
@@ -82,3 +82,9 @@ related:
 - 作为综述，缺乏新的实验验证
 - 对灵巧操作场景的覆盖较少（多为 locomotion/navigation 视角）
 - 对 VLA 等最新范式的覆盖不足
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **Sim-to-Real 分类学习**: 本综述对 DR/DA/Transfer Learning 的分类框架可为转笔项目的 sim-to-real 方案选型提供系统性参考
+2. **Gap 分析思维**: 将 sim-to-real gap 分解为力学/视觉/触觉/执行器多个维度，逐一定位和解决，而非笼统地“加域随机化”
+3. **补充参考**: 本综述侧重 locomotion，灯巧操作特定的 sim-to-real 应参考 [[A Survey of Sim-to-Real Methods in RL|AwesomeSim2Real]] 综述中的 MDP 四元素框架

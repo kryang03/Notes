@@ -77,13 +77,13 @@ related:
 ## 4. 核心洞见 (Insights)
 
 1. **Clean sim data 无用**: VLA 在无 DR 的仿真数据微调后，真实世界提升可忽略 → 域随机化是必要条件而非锦上添花
-2. **DR 预训练具有后续迁移性**: 即使下游任务用 clean data 训练，DR 预训练的 backbone 仍保持鲁棒性 → 与 [[ReinforcementLearning#5.1 Domain Randomization 与 Sim-to-Real|DR]] 理论一致
+2. **DR 预训练具有后续迁移性**: 即使下游任务用 clean data 训练，DR 预训练的 backbone 仍保持鲁棒性 → 与 [[ReinforcementLearning#5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)|DR]] 理论一致
 3. **MLLM→仿真代码闭环**: 用大语言模型生成操作代码 + simulation 验证，可扩展性远超人工编程
 4. **10 real demo 即足够**: 10 条真实数据 + 1000 合成 → 367% 相对提升，暗示仿真数据的多样性比真实数据量更重要
 
 ## 5. 与知识体系的联系
 
-### 与 [[ReinforcementLearning#5.1 Domain Randomization 与 Sim-to-Real|Domain Randomization]] 的联系
+### 与 [[ReinforcementLearning#5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)|Domain Randomization]] 的联系
 - 5 轴 DR 是系统性的 DR 实践 → 桌高随机化尤为独特（物理+感知双重影响）
 - 验证了 DR 预训练的"保护"效应 — 下游 clean 训练不会丧失 DR 带来的鲁棒性
 
@@ -100,3 +100,9 @@ related:
 - 仿真代码生成依赖 skill API → 对 API 库外的新技能不适用
 - 5 轴 DR 的贡献消融不足（哪些轴最关键？）
 - 仅 4 个真实世界任务验证
+
+## 7. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **数据生成范式**: RoboTwin 的「少量人工演示 → 自动扩展」范式可迁移到转笔——少量人工转笔演示通过域随机化扩展为大量训练数据
+2. **5 轴 DR 思想的借鉴**: 将 DR 分解为多个独立轴（视觉/物理/控制/场景/动力学），逐轴调参，对转笔的域随机化策略设计有参考
+3. **局限**: 本文聚焦双臂操作，对单手灵巧操作的直接参考有限

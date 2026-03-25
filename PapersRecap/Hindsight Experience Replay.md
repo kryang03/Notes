@@ -77,7 +77,54 @@ $$
    - 其中 $g' = m(s_T)$ 是轨迹末态的映射
    - $r'_t = r(s_t, a_t, g')$ 重新计算奖励
 
-### 3.2 采样策略
+### 3.2 核心代码逻辑
+
+```python
+import torch
+import numpy as np
+
+def her_relabel(episode, k=4, strategy='future'):
+    """HER 目标重标注核心逻辑
+    episode: list of (obs, action, reward, next_obs, goal, achieved_goal)
+    k: 每个 transition 额外产生的 hindsight 样本数
+    """
+    T = len(episode)
+    augmented_transitions = []
+
+    for t in range(T):
+        obs, action, _, next_obs, goal, achieved = episode[t]
+        
+        # 1. 原始 transition（保留原始目标）
+        reward = compute_reward(achieved, goal)  # 通常 -1 或 0
+        augmented_transitions.append((obs, action, reward, next_obs, goal))
+        
+        # 2. Hindsight relabeling: 用未来达到的状态替换目标
+        if strategy == 'future':
+            # 从当前步之后随机采样 k 个时间步
+            future_indices = np.random.choice(range(t, T), size=min(k, T - t), replace=False)
+        elif strategy == 'final':
+            future_indices = [T - 1] * k  # 只用最终状态
+        
+        for idx in future_indices:
+            # 关键: 用 episode[idx] 的 achieved_goal 替换为新目标
+            new_goal = episode[idx][5]  # achieved_goal of future step
+            new_reward = compute_reward(episode[t][5], new_goal)  # 通常 = 0 (成功)
+            augmented_transitions.append((obs, action, new_reward, next_obs, new_goal))
+    
+    return augmented_transitions  # 每个原始样本产生 1+k 个有效样本
+
+def compute_reward(achieved_goal, desired_goal, threshold=0.05):
+    """二值稀疏奖励: 达到目标附近 → 0, 否则 → -1"""
+    dist = torch.norm(achieved_goal - desired_goal)
+    return 0.0 if dist < threshold else -1.0
+```
+
+**物理量来源追踪**:
+- `achieved_goal`: 来自环境步进后的实际状态（Rollout 阶段，detached）
+- `new_goal`: 来自同一 episode 未来时步的 achieved_goal（Rollout 数据重组）
+- `new_reward`: 基于重标注目标重新计算，不涉及网络前向传播
+
+### 3.3 采样策略
 
 论文提出多种目标采样策略：
 

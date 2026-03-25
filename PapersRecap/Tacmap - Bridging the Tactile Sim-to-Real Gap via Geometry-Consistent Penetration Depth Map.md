@@ -80,7 +80,7 @@ $$d(u,v) = \max(0, z_s - \max(z_u, z_o))$$
 ## 4. 核心洞见 (Insights)
 
 1. **几何抽象胜过光学模拟**: 通过 deform map 解耦传感器光学特性 → sim-to-real gap 的本质是接触几何而非视觉外观
-2. **穿透深度作为通用表征**: 与 SDF（[[ComputationalGeometry#Signed Distance Field|签名距离场]]）思想类似 — 用标量场描述接触状态
+2. **穿透深度作为通用表征**: 与 SDF（[[ComputationalGeometry#4. 有向距离场 (SDF)：连续操作优化的基石|签名距离场]]）思想类似 — 用标量场描述接触状态
 3. **法线空间投影**: 支持曲面指尖的关键创新 → 对拟人灵巧手至关重要（现有方法多假设平面传感器）
 4. **效率-保真平衡**: 射线投射介于解析着色器和 FEM 之间 → 实现了 RL 可用的触觉仿真
 
@@ -88,7 +88,7 @@ $$d(u,v) = \max(0, z_s - \max(z_u, z_o))$$
 
 ### 与 [[ContactMechanics]] 的联系
 - 穿透深度直接关联接触力学：$d(u,v)$ 是接触压力分布的几何代理
-- 与 [[ContactMechanics#Hertz 弹性接触理论|Hertz 理论]] 中穿透量 $\delta$ 概念直接对接
+- 与 [[ContactMechanics#3.3 超越Hertz理论：大变形与软体抓取|Hertz 理论]] 中穿透量 $\delta$ 概念直接对接
 - Deform IoU > 85% 意味着仿真接触流形与真实世界高度一致
 
 ### 与 [[SignalProcessing]] 的联系
@@ -100,7 +100,7 @@ $$d(u,v) = \max(0, z_s - \max(z_u, z_o))$$
 - Deform map 作为 2.5D 表征 → 与深度图、SDF 同族
 
 ### 与 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|Sim-to-Real]] 的联系
-- 触觉 sim-to-real gap 是 [[ReinforcementLearning#MDP Gap 四要素分类|MDP Gap]] 中 **State Gap** 的子问题 — 传感器域移位
+- 触觉 sim-to-real gap 是 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|MDP Gap]] 中 **State Gap** 的子问题 — 传感器域移位
 - Zero-shot 迁移验证了统一表征空间对消除域移位的有效性
 
 ## 6. 局限与未来方向

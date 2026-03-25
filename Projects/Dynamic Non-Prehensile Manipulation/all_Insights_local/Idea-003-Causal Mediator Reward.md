@@ -279,7 +279,7 @@ r_mediator = w1 * (omega_norm > omega_threshold).float() * (F_n_norm > fn_thresh
 
 ### 与 Foundations 的联系
 - [[ReinforcementLearning#4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)]] — CMR 的理论定位：介于 dense 和 sparse 之间的原理性 reward design
-- [[InformationTheory#6.1 Empowerment]] — Mediator 的信息论解读：$V_M$ 编码了 mediator 对最终结果的互信息
+- [[InformationTheory#6.1 赋能 (Empowerment)：最大化信道容量]] — Mediator 的信息论解读：$V_M$ 编码了 mediator 对最终结果的互信息
 - [[Dynamics#2.2 Coriolis & Centrifugal Forces (科里奥利力与离心力)]] — 因果链第2步（角速度→离心力→接触力）的物理基础
 - [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] — 因果链第3-4步（接触力→摩擦力）的物理基础
 

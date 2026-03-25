@@ -105,7 +105,7 @@ $$\hat{f}_{ext}^p = \frac{(\hat{u}^T J_p) \tau_{ext}}{(\hat{u}^T J_p)(\hat{u}^T 
 - 弹簧-质量-阻尼器模型的临界阻尼设计 $K_d = 2K_p^{1/2}$
 
 ### 与 [[Dynamics]] 的联系
-- 雅可比映射 $J_p$ 将关节力矩投影到任务空间——正是 [[Dynamics#8. 腱驱动动力学|腱驱动动力学]] 中的核心运算
+- 雅可比映射 $J_p$ 将关节力矩投影到任务空间——正是 [[Dynamics#8. 腱驱动动力学 (Tendon-Driven Dynamics)|腱驱动动力学]] 中的核心运算
 - 重力补偿 $\tau_{grav}$ 需要动力学模型
 
 ### 与 [[ContactMechanics]] 的联系
