@@ -23,20 +23,6 @@
             }
           },
           {
-            "id": "cf11b931f8ab06b1",
-            "type": "leaf",
-            "state": {
-              "type": "split-diff-view",
-              "state": {
-                "aFile": ".obsidian/workspace.json",
-                "bFile": ".obsidian/workspace.json",
-                "aRef": ""
-              },
-              "icon": "diff",
-              "title": "Diff: workspace.json  (Working Tree)"
-            }
-          },
-          {
             "id": "62943baf6cc6185f",
             "type": "leaf",
             "state": {
@@ -240,7 +226,7 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "cf11b931f8ab06b1",
+  "active": "fa2d5fa10800fbf6",
   "lastOpenFiles": [
     "conflict-files-obsidian-git.md",
     "PapersRecap/_PapersIndex.base",
