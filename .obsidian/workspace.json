@@ -23,6 +23,20 @@
             }
           },
           {
+            "id": "cf11b931f8ab06b1",
+            "type": "leaf",
+            "state": {
+              "type": "split-diff-view",
+              "state": {
+                "aFile": ".obsidian/workspace.json",
+                "bFile": ".obsidian/workspace.json",
+                "aRef": ""
+              },
+              "icon": "diff",
+              "title": "Diff: workspace.json  (Working Tree)"
+            }
+          },
+          {
             "id": "62943baf6cc6185f",
             "type": "leaf",
             "state": {
@@ -48,7 +62,8 @@
               "title": "Lessons from Learning to Spin Pens"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -225,14 +240,15 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "06313d05f471e70a",
+  "active": "cf11b931f8ab06b1",
   "lastOpenFiles": [
+    "conflict-files-obsidian-git.md",
+    "PapersRecap/_PapersIndex.base",
     "PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md",
     "PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md",
     "Papers/Precise Manipulation with Efficient Online RL.pdf",
     "Papers/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
     "Papers/Contact-Grounded Policy- Dexterous Visuotactile Policy with Generative Contact Grounding.pdf",
-    "PapersRecap/_PapersIndex.base",
     "MergeBuffer/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
     "MergeBuffer/未确认 283799.crdownload",
     "MergeBuffer/Precise Manipulation with Efficient Online RL.pdf",
@@ -261,8 +277,6 @@
     "PapersRecap/Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation.md",
     "PapersRecap/AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch.md",
     "PapersRecap/未命名.md",
-    "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.md",
-    "PapersRecap/空间智能作为机器人的结构化表征.md",
     "KnowledgeGraph.canvas",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
