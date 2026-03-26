@@ -10,6 +10,7 @@ aliases:
   - MOSEAC
 paper-year: 2024
 read-date: 2026-01-31
+venue: PhD Thesis
 paper-pdf: "[[Papers/Elastic Time Step Reinforcement Learnin.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -172,7 +173,46 @@ while training:
 
 ```
 
-### 4.3 关键 Trick
+### 4.3 核心 PyTorch 代码逻辑
+
+```python
+class MOSEACActor(nn.Module):
+    """MOSEAC Actor: 同时输出动作和持续时间"""
+    def __init__(self, obs_dim, act_dim, d_min, d_max):
+        super().__init__()
+        self.backbone = nn.Sequential(
+            nn.Linear(obs_dim, 256), nn.ReLU(),
+            nn.Linear(256, 256), nn.ReLU()
+        )
+        self.action_head = nn.Linear(256, act_dim)
+        self.duration_head = nn.Linear(256, 1)
+        self.d_min, self.d_max = d_min, d_max
+
+    def forward(self, obs):
+        h = self.backbone(obs)                           # (B, 256)
+        action = torch.tanh(self.action_head(h))         # (B, act_dim)
+        duration = self.d_min + (self.d_max - self.d_min) * torch.sigmoid(
+            self.duration_head(h)
+        )                                                # (B, 1)
+        return action, duration
+
+
+def moseac_reward(r_task, duration, d_min, alpha_m, alpha_eps):
+    """R = alpha_m * r_task * (d_min / dt) - alpha_eps"""
+    r_time = d_min / duration                            # 时间缩放因子
+    return alpha_m * r_task * r_time - alpha_eps
+
+
+def adaptive_update(alpha_m, alpha_eps, reward_history, psi, alpha_max):
+    """自适应调整 alpha_m 和 alpha_eps"""
+    slope = (reward_history[-1] - reward_history[-10]) / 10
+    if slope < 0:
+        alpha_m = min(alpha_m + psi, alpha_max)
+    alpha_eps = 1.0 / (1.0 + torch.exp(torch.tensor(alpha_m)))
+    return alpha_m, alpha_eps
+```
+
+### 4.4 关键 Trick
 
 * **Duration Mapping**: 神经网络输出通常是无界的或归一化的，必须将其线性映射到物理时间 。例如 Trackmania 中是 。
 * **Sigmoid Linkage**:  不是独立调整的，而是通过 Sigmoid 函数与  绑定反向变化，防止两个参数“打架”。
@@ -192,11 +232,32 @@ while training:
 
 3. **学习曲线**：虽然引入了时间维度增加了探索空间，但 MOSEAC 的收敛速度（Wall-clock time）并没有显著慢于 SAC，甚至因为跳过了无效步长，在某些任务上更快。
 
-### 5.2 局限性与弱点 (Critical Analysis)
+### 5.2 Ablation 因果链分析
 
-* **奖励设计的敏感性**：尽管 MOSEAC 试图自动调整 ，但引入的新超参数 （调整步长）本身也是一个超参数。这有点“套娃”解决问题的嫌疑。
-* **安全隐患**：在变长的时间步  内，Agent 是“盲”的（Open-loop control）。如果  预测得过长（例如闭眼开了 2 秒车），中间突然出现障碍物，Agent 无法反应。这在高度动态环境中是致命的。
-* **稀疏奖励难题**：在 Trackmania 中，作者提到由于奖励稀疏，训练初期非常慢。加入时间维度让探索空间变大（），加剧了探索难度。
+| 去掉组件 | 结果变化 | 因果机制 |
+|---------|---------|--------|
+| 去掉 alpha_eps (能量惩罚) | 步数不降，计算无节省 | Agent 无动机选择长步长 |
+| 去掉自适应 alpha_m | 性能波动大，训练不稳定 | 任务/节能目标失衡 |
+| 去掉 duration head | 退化为标准 SAC | 无时间步自适应能力 |
+| 去掉历史注入 (a_{t-1}, dt_{t-1}) | 性能 -30%+ | 马尔可夫性被破坏 |
+| dt clip 范围扩大 | 安全性下降，偶发碰撞 | 过长 open-loop 区间 |
+
+### 5.3 局限性深度分析
+
+**理论层面**：
+- 奖励标量化假设多目标可线性组合，忽略了帕累托前沿的非凸性
+- Lyapunov 证明依赖于 alpha_m 有界假设，但未给出最优 alpha_max 的选取准则
+- **替代方案**：约束优化（CMDP）可避免权重调参；Hamilton-Jacobi RL 可处理连续时间
+
+**算法层面**：
+- 自适应 psi 本身仍是超参数（“套娃”问题）
+- 稀疏奖励下探索空间扩大（A × [d_min, d_max]），加剧探索难度
+- **替代方案**：将 duration 作为 option 的终止条件（Option-Critic），或用课程学习逐步开放 duration 范围
+
+**工程层面**：
+- 变长步内 Agent 是“盲”的（Open-loop），过长 dt 在动态环境中致命
+- 物理引擎需改造以支持变步长 step，标准 Gym 接口不兼容
+- **替代方案**：在 open-loop 期间加入安全检查中断（guardian policy），或限制 dt 上界为安全响应时间
 
 ---
 
@@ -231,7 +292,42 @@ while training:
 
 ---
 
-希望这份深度分析能帮助你彻底理解 Dong Wang 的博士论文工作。这篇论文的核心价值不在于算法的微创新，而在于它切实地解决了 **Robot Learning** 中“算力受限”这一痛点，具有很高的工程参考价值。
+## 6. 与知识体系的联系（含数学关联）
+
+### 与 [[ReinforcementLearning]] 的联系
+
+VTS-RL 将标准 MDP 扩展为 Semi-MDP。标准 Bellman 方程：
+$$Q^\pi(s, a) = r(s,a) + \gamma \sum_{s'} P(s'|s,a) V^\pi(s')$$
+在 Semi-MDP 中变为（持续时间 $\tau$）：
+$$Q^\pi(s, a, \tau) = \int_0^\tau \gamma^t r(s_t, a) dt + \gamma^\tau V^\pi(s_\tau)$$
+折扣因子 $\gamma^\tau$ 随持续时间指数衰减——长步长等价于更强的 myopic bias。
+
+### 与 [[ControlTheory]] 的联系
+
+变频控制对应自适应采样率控制。Shannon 采样定理要求：
+$$f_s \geq 2 f_{\max}$$
+VTS-RL 在低动力学复杂度段自动降低 $f_s$（增大 $\tau$），在高频动态段提高 $f_s$，实现自适应 Nyquist 约束。
+
+### 与 [[Optimization]] 的联系
+
+多目标奖励本质是加权和标量化：
+$$\min_{\pi} \; -J_{task}(\pi) + \lambda \cdot J_{energy}(\pi)$$
+Lyapunov 候选函数 $L(\alpha_m) = (\alpha_m - \alpha_m^*)^2$ 的 $\dot{L} \leq 0$ 保证自适应权重不发散，这是 Lyapunov 方法在非平稳优化中的应用。
+
+## 7. 跨方法对比
+
+| 维度 | VTS-RL/MOSEAC | [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning\|PFQI]] | [[Reinforcement Learning for Control with Multiple Frequencies\|AP-AC]] | FiGAR |
+|-----|--------------|------|------|-------|
+| 时间步 | 连续可变 | 离散固定 k | 多变量各自固定 | 离散重复 n |
+| 学习频率 | ✅ 端到端 | ✖ 网格搜索 | ✖ 预设 | ✖ 学习重复数 |
+| 理论保证 | Lyapunov 收敛 | Bellman 收缩 | 最优性证明 | 无 |
+| 计算节省 | ✅ 真实推理减少 | ✅ 值函数层面 | 部分 | ✖ 仅逻辑跳步 |
+| 多动作变量 | ✖ | ✖ | ✅ | ✖ |
+| 适用场景 | 嵌入式部署 | Batch/离线 | 异构执行器 | Atari 等 |
+
+---
+
+这篇论文的核心价值不在于算法的微创新，而在于它切实地解决了 **Robot Learning** 中“算力受限”这一痛点，具有很高的工程参考价值。
 
 ## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
 

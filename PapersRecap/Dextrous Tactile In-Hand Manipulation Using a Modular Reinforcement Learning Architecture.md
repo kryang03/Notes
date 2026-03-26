@@ -11,6 +11,7 @@ aliases:
   - Modular RL Architecture
 paper-year: 2023
 read-date: 2026-02-01
+venue: RA-L 2023
 paper-pdf: "[[Papers/Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -122,6 +123,40 @@ r_g = \begin{cases}
 \end{cases}
 $$
 
+### 3.3b 核心 PyTorch 代码逻辑
+
+```python
+# 可微分粒子滤波器 (DPF) 核心逻辑
+class DifferentiableParticleFilter(nn.Module):
+    def __init__(self, N_particles, state_dim, obs_dim, action_dim):
+        super().__init__()
+        self.N = N_particles
+        self.motion_model = nn.Sequential(
+            nn.Linear(state_dim + action_dim, 128), nn.ReLU(), nn.Linear(128, state_dim))
+        self.obs_model = nn.Sequential(
+            nn.Linear(state_dim + obs_dim, 128), nn.ReLU(), nn.Linear(128, 1))  # log-likelihood
+    
+    def forward(self, particles, weights, action, obs):
+        # particles: (B, N, state_dim), weights: (B, N)
+        # 1. Propagate: learned motion model
+        a_expand = action.unsqueeze(1).expand(-1, self.N, -1)
+        particles = particles + self.motion_model(torch.cat([particles, a_expand], -1))
+        
+        # 2. Update: learned observation likelihood
+        obs_expand = obs.unsqueeze(1).expand(-1, self.N, -1)
+        log_w = self.obs_model(torch.cat([particles, obs_expand], -1)).squeeze(-1)
+        weights = F.softmax(log_w + torch.log(weights + 1e-8), dim=-1)
+        
+        # 3. Soft resample (保持可微性)
+        indices = torch.multinomial(weights, self.N, replacement=True)
+        particles = particles.gather(1, indices.unsqueeze(-1).expand_as(particles))
+        weights = torch.ones_like(weights) / self.N
+        
+        # 4. 加权状态估计
+        state_est = (particles * weights.unsqueeze(-1)).sum(dim=1)  # (B, state_dim)
+        return particles, weights, state_est
+```
+
 ### 3.4 迭代精化流程
 
 ```
@@ -151,6 +186,23 @@ $$
 - **训练**: PyBullet, 120 并行 worker
 - **算法**: SAC
 
+### 训练超参数
+
+| 参数 | 值 |
+|------|------|
+| 算法 | SAC (off-policy, 自动温度调节) |
+| 仿真器 | PyBullet |
+| 并行 Worker | 120 |
+| Replay Buffer | 1M transitions |
+| Batch Size | 256 |
+| 学习率 (Actor/Critic) | 3e-4 (Adam) |
+| 折扣因子 γ | 0.99 |
+| 控制频率 | 20 Hz |
+| 观测历史窗口 | 0.5s (10 帧堆叠) |
+| DPF 粒子数 N | 100 |
+| 迭代精化轮数 | 3-4 轮 (策略↔估计器交替) |
+| 奖励系数 | $\lambda_{\text{drop}}=-10$, $\lambda_\theta=1$, $\lambda_{\text{pos}}=0.5$, $\lambda_{\text{succ}}=5$ |
+
 ### 关键结果
 
 | 指标 | 仿真 | 真实世界 |
@@ -163,6 +215,19 @@ $$
 - **无状态估计**: 策略失效（无法判断何时停止）
 - **端到端训练**: 更难调试，性能更差
 - **短历史窗口**: 估计精度下降
+
+> [!warning] Ablation 因果链
+> - 去掉状态估计模块 → 策略无法感知物体朝向 → 无法判断"是否已到达目标" → 成功率趋近 0（**感知-控制解耦的必要性**）
+> - 端到端替代模块化 → 梯度流过估计器和策略 → 优化困难（高维+稀疏奖励）→ 收敛慢 + 不可调试（**模块化的优化优势**）
+> - 缩短观测历史窗口 (0.5s → 0.1s) → 粒子滤波缺乏时序信息 → 姿态估计方差增大 → 策略输入噪声增大 → 成功率下降 ~15%（**时序积分对状态估计的关键性**）
+
+### 工程关键细节 (Engineering Tricks)
+
+1. **八面体群对称性利用**: 立方体 24 种等价方位 → 减少策略输出空间 24 倍，避免多值歧义
+2. **阻抗控制器作为安全层**: 动作空间为关节角度增量 → 通过 $\tilde{q} = \text{clip}(q + \pi(o) \cdot \frac{\tau_\max}{K_p})$ 转为扭矩 → 防止关节过力
+3. **迭代精化避免鸡蛋问题**: 先用 GT 训练策略 → 用策略生成数据训练估计器 → 交替迭代，避免冷启动
+4. **120 并行 worker**: PyBullet 多进程收集，SAC 的 replay buffer 需要大量多样数据
+5. **手朝下设置**: 强制力闭合约束（重力不辅助），更接近实际应用但增加训练难度
 
 ## 5. 批判性分析 (Critical Analysis)
 
@@ -180,6 +245,21 @@ $$
 - 扩展到未知几何物体
 - 连续目标方位跟踪
 - 与视觉融合的多模态估计
+
+### 局限性深度分析（理论/算法/工程三维度）
+
+| 维度 | 局限 | 根因 | 替代方案 |
+|------|------|------|----------|
+| **理论** | 假设已知物体几何（八面体群） | 对称性利用依赖先验几何 | 学习未知物体的隐式对称群 (Equivariant Networks) |
+| **算法** | 离散目标集合（24种方位） | 策略输出为分类 + 到达判断 | 连续旋转目标 (如 AnyRotate 的轴角表示) |
+| **算法** | DPF 粒子退化问题 | 高维状态空间中有效粒子数衰减 | Rao-Blackwellized PF / Normalizing Flow 后验 |
+| **工程** | DLR-Hand II 非商用 | 扭矩控制手成本高 | 迁移至 Allegro Hand + 力/扭矩传感器 |
+
+### 对转笔/Sim-to-Real 的启发
+
+1. **模块化分离可直接应用于转笔**: 转笔中物体状态（笔的位姿+角速度）估计同样困难，可借鉴 DPF 从关节扭矩历史估计笔状态 → 比纯视觉更适合高速旋转下的遮挡场景
+2. **迭代精化解决 Sim-to-Real 的估计器冷启动**: 仿真中 GT 可用 → 先训练策略 → 再用策略数据训练估计器 → 最终估计器可迁移到真实世界
+3. **力闭合（手朝下）的操作范式**: 转笔需要在重力环境下保持笔不掉落，本文的手朝下设置直接相关——策略必须学会持续施加闭合力
 
 ## 6. 对灵巧操作的启发 (Implications)
 
@@ -199,6 +279,16 @@ $$
 | 可微分滤波 | 端到端梯度流动 |
 | 迭代精化 | 打破估计-策略的鸡蛋问题 |
 
+### 与 Foundations 的数学关联
+
+**[[ReinforcementLearning#3.1 Soft Actor-Critic (SAC) Core Logic|SAC]]**: 策略优化目标为最大熵 RL:
+$$J(\pi) = \sum_t \mathbb{E}_{(s_t,a_t)\sim\rho_\pi}\left[r(s_t,a_t) + \alpha \mathcal{H}(\pi(\cdot|s_t))\right]$$
+模块化架构中 $s_t = (\hat{x}_t, \hat{R}_t, q_t, R_\text{goal})$ 由 DPF 估计器提供。
+
+**[[SignalProcessing|粒子滤波]]**: 贝叶斯递推中，后验 $p(x_t|z_{1:t})$ 通过粒子集合 $\{x_t^{(i)}, w_t^{(i)}\}_{i=1}^N$ 近似。DPF 用神经网络参数化运动/观测模型使整个滤波过程可微，梯度可反传至编码器。
+
+**[[StochasticProcess#4.1 从 EKF 到粒子滤波：非连续性的挑战|非连续性]]**: 接触状态切换导致状态转移非光滑 → EKF 线性化失效 → 粒子滤波天然适配多模态分布 → DPF 进一步通过软重采样保持梯度。
+
 ## 7. 演进脉络定位 (Evolution Context)
 
 ```
@@ -217,6 +307,16 @@ $$
 ├── 连续目标跟踪
 └── 视触觉融合估计
 ```
+
+### 跨方法对比
+
+| 方法 | 传感模态 | 架构 | 手姿态 | 目标类型 | Sim2Real |
+|------|---------|------|--------|---------|----------|
+| **OpenAI Dactyl** | 视觉（MoCap）| 端到端 LSTM | 手朝上 | 连续旋转 | DR |
+| **HORA** | 视觉+本体 | 端到端 | 手朝上 | 连续旋转 | DR + Teacher-Student |
+| **DLR Modular (本文)** | **纯触觉** | **模块化（DPF+SAC）** | **手朝下** | **24 离散方位** | **模块化迁移** |
+| AnyRotate | 触觉+本体 | Teacher-Student | 手朝下 | 绕任意轴旋转 | DR + 触觉适应 |
+| DexNDM | 视觉+本体 | 神经动力学 | 手朝上 | 连续旋转 | NDP |
 
 ---
 

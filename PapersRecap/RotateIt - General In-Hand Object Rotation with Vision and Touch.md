@@ -9,6 +9,7 @@ aliases:
   - RotateIt
 paper-year: 2023
 read-date: 2026-02-01
+venue: CoRL 2023
 paper-pdf: "[[Papers/General In-Hand Object Rotation with Vision and Touch.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -135,10 +136,11 @@ $$
 
 ## 4. 实验与验证 (Experiments)
 
-### 实验设置
-- **硬件**: 16-DoF Allegro Hand + 4 个全向视觉触觉传感器
-- **仿真**: IsaacGym
-- **评估指标**: RotR (旋转角度), TTF (任务完成时间), RotP (旋转精度)
+### 训练设置
+- **仿真**: IsaacGym, 4096 并行环境
+- **算法**: PPO (Asymmetric Actor-Critic)
+- **控制频率**: 策略 ~10 Hz，PD 控制器 1 kHz
+- **域随机化**: 物体质量/摩擦/尺度 + 各物理参数
 
 ### 关键结果
 
@@ -153,29 +155,70 @@ $$
 2. 视觉和触觉都对性能有贡献
 3. 学到的表示能恢复 3D 形状
 
+### Ablation 因果链
+
+| 移除组件 | 效果变化 | 因果机制 |
+|---------|---------|--------|
+| 去掉 PointNet 形状编码 | x/y 轴 RotR 下降 ~30% | 非 z 轴旋转强依赖物体几何，无形状信息策略只能学到"平均"手势 |
+| 去掉触觉 | RotR 下降 ~15%，掉落率上升 | 触觉提供接触状态实时反馈，缺失后无法感知滑动/脱手 |
+| 去掉视觉深度 | 性能下降但弱于去触觉 | 深度主要贡献形状先验（与 PointNet 冗余），触觉提供不可替代的实时物理信号 |
+| MLP 替换 Transformer | 性能下降 ~20% | MLP 仅处理当前帧，无法利用时序一致性推断时变物理属性 |
+| 去掉 $r_{\text{rotp}}$ 惩罚 | 非目标轴旋转严重偏离 | 无交叉轴惩罚时策略倾向于绕阻力最小轴（z 轴）旋转 |
+
+### 工程关键细节 (Engineering Tricks)
+
+- **前景分割**: SAM 分割真实深度图前景物体，消除背景深度噪声对 sim-to-real 的干扰
+- **触觉离散化**: 接触位置 one-hot 而非连续坐标 → 对传感器定位误差更鲁棒
+- **深度归一化**: 深度图归一化到手掌参考系，消除相机外参偏差
+- **PD 控制**: 低频策略 (~10 Hz) + 高频 PD (1 kHz)，避免力矩空间的 sim-to-real gap
+- **每轴独立**: 虽限制通用性，但避免多目标旋转的模式坍缩
+
 ## 5. 批判性分析 (Critical Analysis)
 
-### 优势
-- **首次视触觉融合**: 在手内旋转任务上验证多模态感知的价值
-- **多轴旋转**: 突破 z 轴限制
-- **可解释性**: 潜在表示可恢复 3D 形状
+### 5.1 理论局限性三维度分析
 
-### 局限性
-- 每个旋转轴需要单独训练策略（后续在附录讨论融合）
-- 触觉表示仍是离散化的
-- 需要 Segment Anything 做前景分割
+| 维度 | 局限性 | 替代方案 |
+|------|--------|--------|
+| **理论** | Transformer 时序建模无物理先验——隐式推断无法保证收敛到真实物理参数 | 引入 [[Dynamics]] 惯性矩阵结构约束 extrinsics 空间 |
+| **算法** | 每轴独立策略无法处理任意姿态轨迹；Teacher-Student 蒸馏存在 $\hat{z}_t$ 信息瓶颈 | 多轴统一课程（如 [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart]]）|
+| **工程** | SAM 分割增加 ~50ms 延迟；4 个全向触觉传感器成本高；触觉 sim-to-real gap 显著 | 轻量化分割 + 低成本触觉（如 [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]] 的 ALLSIGHT）|
 
-### 未来方向
-- 统一多轴策略
-- 更丰富的触觉表示（力+滑动）
-- 与力控制结合
+### 5.2 与灵巧手转笔的可迁移启发
 
-## 6. 对灵巧操作的启发 (Implications)
+> [!tip] 对 PPO 转笔方案的具体启发
+> 1. **形状编码**: 笔杆近圆柱体时 PointNet 可能冗余，但泛化到不规则笔形时显式形状编码成为关键
+> 2. **$r_{\text{rotp}}$ 惩罚**: 转笔也面临非目标轴偏移，可直接借鉴交叉轴角速度惩罚设计
+> 3. **触觉降维**: binary 触觉在 sim-to-real 上比连续量更鲁棒，对转笔触觉 reward shaping 有参考价值
+> 4. **时序融合**: 若引入触觉/视觉应考虑 Transformer backbone 替代 MLP 拼接
+> 5. **分阶段课程**: 每轴独立→融合的路线可迁移为转笔课程（先水平旋转→竖直轴→任意轴）
 
-1. **形状很重要**: 对于通用操作，显式编码物体形状比隐式推断更有效
-2. **多模态融合**: Transformer 是处理异质多模态时序数据的有效架构
-3. **深度 > RGB**: 对于 sim-to-real 迁移，深度表示更鲁棒
-4. **旋转惩罚项**: $r_{\text{rotp}}$ 是稳定多轴旋转的关键
+## 6. 与知识体系的联系
+
+### 与 [[ReinforcementLearning]] 的联系
+- PPO + Teacher-Student：Oracle 在特权信息 $z_t$ 下训练 → Student 通过 Transformer 从历史观测推断 $\hat{z}_t$，对应 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|Sim-to-Real 特权学习]]
+- 奖励工程：$r = r_{\text{rotr}} + \lambda_{\text{rotp}} r_{\text{rotp}} + ...$ 是典型多目标奖励分解
+
+### 与 [[SignalProcessing]] 的联系
+- Transformer 自注意力 $\text{Attn}(Q,K,V) = \text{softmax}(QK^T/\sqrt{d})V$ 本质是多传感器信号的自适应滤波
+- 触觉 one-hot 编码类似空间量化，牺牲分辨率换取噪声鲁棒性
+
+### 与 [[RepresentationLearning]] 的联系
+- PointNet 形状编码：permutation-invariant $z_t^{shape} = \text{MaxPool}(\text{MLP}(p_i))$
+- Teacher-Student 蒸馏是从特权表征到感知表征的信息压缩
+
+### 与 [[ContactMechanics]] 的联系
+- 触觉传感器捕获的接触位置直接编码了接触点几何信息
+
+## 7. 跨方法结构性对比
+
+| 维度 | RotateIt | HORA | AnyRotate | Touch Dexterity |
+|------|----------|------|-----------|----------------|
+| **感知模态** | 视觉+触觉+本体 | 仅本体 | 触觉+本体 | 触觉+本体 |
+| **旋转轴** | x/y/z（分别训练） | 仅 z | z（任意重力） | z |
+| **物体编码** | PointNet 显式 | 隐式适应 | 隐式+子目标 | 无 |
+| **时序模型** | Transformer | MLP+适应 | TCN | LSTM |
+| **Sim-to-Real** | SAM+DR | DR | DR+触觉蒸馏 | 二值化触觉 |
+| **PPO适用性** | Teacher-Student可迁移 | RMA范式最近 | 子目标课程有借鉴 | 二值触觉最易复现 |
 
 ## 7. 演进脉络定位 (Evolution Context)
 

@@ -9,6 +9,7 @@ aliases:
   - DeepMimic
 paper-year: 2018
 read-date: 2026-02-01
+venue: ACM SIGGRAPH 2018
 paper-pdf: "[[Papers/DeepMimic Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -151,6 +152,16 @@ $$
 - **Atlas 机器人**: 回旋踢
 - **恐龙/龙**: 行走、飞行
 
+### 训练细节
+
+- **算法**: PPO (clip ratio $\epsilon = 0.2$, GAE $\lambda = 0.95$)
+- **网络**: 2 层 MLP, 1024/512 隐藏单元, ReLU 激活
+- **Discount**: $\gamma = 0.95$
+- **时间步**: 每策略 ~$10^8$ 环境步
+- **仿真**: Bullet Physics, 30 Hz 控制, 1200 Hz 物理步
+- **角色**: 34 DoF 人形刚体关节链, PD 控制器 $K_p = 300$, $K_d = 30$
+- **训练时间**: 单技能约 1-2 天 (单 GPU)
+
 ### 关键发现
 
 | 消融 | 效果 |
@@ -160,11 +171,24 @@ $$
 | 仅姿态奖励 | 抖动、不自然 |
 | 全部奖励项 | 最佳质量 |
 
+> [!note] Ablation 因果链
+> - **去掉 RSI** → 后空翻等高动态技能完全失败 → 因为初始状态分布过窄，智能体从未访问到空中/落地阶段的高回报区域，策略梯度估计方差爆炸
+> - **去掉 Early Termination** → 收敛速度大幅降低 → 因为智能体在不可恢复的摔倒状态浪费大量样本（>60% 经验无效），等效降低了有意义经验的比例
+> - **去掉速度/末端/质心奖励** → 动作高频抖动 → 因为纯姿态匹配允许无穷多速度解（$r^p$ 相同但 $\dot{q}$ 任意），PD 控制器在多解间振荡
+> - **四项奖励联合** → 最佳质量 → 位置-速度-末端-质心互补约束消除了运动歧义，唯一确定物理可行的运动轨迹
+
 ### 任务+模仿
 可以同时:
 - 模仿参考行走
 - 追随用户指定方向
 - 将球投向目标
+
+## 4.5 工程关键细节 (Engineering Tricks)
+
+1. **控制频率 30Hz vs 物理 1200Hz**：策略以 30Hz 输出目标角度，仿真以 1200Hz 运行 PD——40:1 的频率比确保 PD 有充足时间追踪目标，避免欠采样抖动
+2. **指数核奖励 $\exp(-k\|e\|^2)$**：相比线性奖励 $\max(0, 1-k\|e\|)$，指数核在误差小时有更强梯度（$\nabla \propto ke^{-ke^2}$），在误差大时仍非零（提供全局回归信号）
+3. **PD 增益选择**：$K_p$ 需足够大以追踪高动态运动（否则角色"发软"），但不能过大导致数值振荡——自然频率 $\omega_n = \sqrt{K_p/I}$ 需远低于仿真频率
+4. **Early Termination 阈值设计**：多条件联合判定（质心高度 + 异常接触 + 姿态偏离），避免单条件过严导致探索不足
 
 ## 5. 批判性分析 (Critical Analysis)
 
@@ -179,6 +203,13 @@ $$
 - 每个技能需要对应参考片段
 - 新技能需要重新训练
 - 技能转换需要额外设计
+
+> [!warning] 三维度局限性分析
+> - **理论层面**：奖励函数是手工设计的加权高斯核，缺乏理论最优性保证；RSI 假设参考轨迹覆盖了所有关键状态，对高维灵巧手可能不成立
+> - **算法层面**：技能间无共享表征，每技能独立训练 O(N) 线性增长；多片段 max 操作符在片段数增多时导致奖励模糊（$\max_i r_i$ 在 $i$ 大时梯度稀疏）
+> - **工程层面**：依赖 Bullet Physics 仿真精度，sim-to-real gap 论文未验证；PD 控制器增益需为每个技能手动调参
+>
+> **替代方案**：AMP 用对抗判别器替代手工奖励；ASE 引入技能嵌入实现 O(1) 复用；GAIL 从无标注数据学习
 
 ### 未来方向
 - 从无结构数据学习（→ AMP）
@@ -197,6 +228,20 @@ $$
 > - 用人类遥操作演示作为参考运动
 > - RSI + Early Termination 加速训练
 > - 物理模拟中学习自动获得力控能力
+
+### 对转笔 / Sim-to-Real 的具体启发
+
+1. **RSI 在转笔中的应用**：转笔轨迹是周期性的（$\phi \in [0, 2\pi]$），RSI 可从旋转的任意相位初始化，让策略学习到完整旋转周期而非仅起始抓持
+2. **Early Termination 对转笔的阈值**：失败条件定义为笔脱手（$\|f_c\| < \epsilon$）或笔轴偏离过大（$\|e_{axis}\| > \theta_{max}$），比全身运动判定更精确
+3. **Sim-to-Real 风险**：指数核奖励 $\exp(-k\|e\|^2)$ 对 sim-to-real gap 敏感——仿真中 $0.01$ rad 误差在真机上可能因减速器回差放大到 $0.05$ rad，需配合域随机化
+
+### 与 Foundation 的数学联系
+
+**与 [[ReinforcementLearning]] 的联系**：RSI 本质上改变了 MDP 初始状态分布，从 $\rho_0 = \delta(s_0)$ 变为 $\rho_0 = \mathcal{U}(\hat{s}_{0:T})$，这等效于降低策略梯度方差 $\text{Var}[\nabla_\theta J] \propto 1/|\text{supp}(\rho_0)|$
+
+**与 [[Dynamics]] 的联系**：PD 控制器 $\tau = K_p(q^* - q) - K_d \dot{q}$ 是操作空间动力学 $M(q)\ddot{q} + C\dot{q} + g = \tau$ 的线性化近似控制律（[[Dynamics#4. Implementation: 核心算法详解 (Algorithmic Core)]]），DeepMimic 将策略输出映射到 $q^*$ 而非直接 $\tau$，利用了 PD 的被动稳定性
+
+**与 [[ControlTheory]] 的联系**：30 Hz 策略 + 1200 Hz PD 构成双速率控制架构，类似 [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] 中的内外环设计——内环 PD 保证稳定性，外环策略负责任务规划
 
 ## 7. 演进脉络定位 (Evolution Context)
 
@@ -218,32 +263,51 @@ $$
 └── 灵巧操作: 人类演示模仿
 ```
 
+### 跨方法对比
+
+| 维度 | DeepMimic | AMP (2021) | GAIL | DAgger |
+|-----|-----------|------------|------|--------|
+| 参考数据需求 | 精确时间对齐 | 无需对齐 | 无需对齐 | 专家在线 |
+| 奖励设计 | 手工加权高斯核 | 对抗判别器 | 对抗判别器 | 监督损失 |
+| 多技能扩展 | Max/条件策略 | 技能嵌入(ASE) | 多判别器 | N/A |
+| 物理鲁棒性 | ✅ 强 | ✅ 强 | ⚠️ 中等 | ❌ 弱 |
+| 训练稳定性 | ✅ 稳定(PPO) | ⚠️ GAN波动 | ⚠️ GAN波动 | ✅ 稳定 |
+| Sim-to-Real | 未验证 | 已验证 | 有限 | 直接真机 |
+
 ## 8. 核心代码概念
 
 ```python
-# 伪代码：DeepMimic 训练循环
-for episode in range(num_episodes):
-    # Reference State Initialization
-    t_ref = random.uniform(0, T)
-    s_0 = reference_trajectory[t_ref]
+# DeepMimic 核心逻辑 (PyTorch tensor ops)
+import torch
+
+def compute_imitation_reward(state: torch.Tensor, ref_state: torch.Tensor) -> torch.Tensor:
+    """批量计算模仿奖励, state/ref_state: (B, D)"""
+    # 关节角度匹配 (B,)
+    q, q_ref = state[:, :34], ref_state[:, :34]
+    r_pose = torch.exp(-2.0 * torch.sum((q - q_ref)**2, dim=-1))
     
-    for t in range(max_steps):
-        # Policy outputs target joint angles
-        a_t = policy(s_t, phase_t, goal)
-        
-        # PD controller converts to torques
-        tau = kp * (a_t - q_t) - kd * dq_t
-        
-        # Physics simulation
-        s_{t+1} = simulate(s_t, tau)
-        
-        # Imitation reward
-        r_I = compute_imitation_reward(s_{t+1}, reference[t_ref + t])
-        
-        # Task reward (optional)
-        r_G = compute_task_reward(s_{t+1}, goal)
-        
-        # Early termination check
-        if is_failure_state(s_{t+1}):
-            break
+    # 关节速度匹配
+    dq, dq_ref = state[:, 34:68], ref_state[:, 34:68]
+    r_vel = torch.exp(-0.1 * torch.sum((dq - dq_ref)**2, dim=-1))
+    
+    # 末端效应器位置 (hands+feet, 4x3=12)
+    ee, ee_ref = state[:, 68:80], ref_state[:, 68:80]
+    r_ee = torch.exp(-40.0 * torch.sum((ee - ee_ref)**2, dim=-1))
+    
+    # 质心位置 (3D)
+    com, com_ref = state[:, 80:83], ref_state[:, 80:83]
+    r_com = torch.exp(-10.0 * torch.sum((com - com_ref)**2, dim=-1))
+    
+    return 0.65 * r_pose + 0.1 * r_vel + 0.15 * r_ee + 0.1 * r_com
+
+def reference_state_init(ref_traj: torch.Tensor, batch_size: int):
+    """RSI: 从参考轨迹均匀随机采样初始状态"""
+    T = ref_traj.shape[0]
+    indices = torch.randint(0, T, (batch_size,))
+    return ref_traj[indices], indices  # (B, D), (B,) 相位索引
+
+def pd_controller(q_target: torch.Tensor, q_cur: torch.Tensor,
+                  dq_cur: torch.Tensor, kp: float = 300., kd: float = 30.):
+    """PD 控制器: 策略输出 → 关节扭矩"""
+    return kp * (q_target - q_cur) - kd * dq_cur
 ```

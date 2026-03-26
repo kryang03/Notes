@@ -11,6 +11,7 @@ aliases:
   - Multiple Control Frequencies
 paper-year: 2020
 read-date: 2026-01-31
+venue: NeurIPS 2020
 paper-pdf: "[[Papers/Reinforcement Learning for Control with Multiple Frequencies.pdf]]"
 related:
   - "[[ControlTheory]]"
@@ -245,6 +246,22 @@ $$\pi_t^k(a^k | s) = \pi^k_{\phi(t,k)}(a^k | s)$$
 3. **收敛稳定**：尽管策略空间更大，训练依然稳定
 4. **频率差异越大效果越明显**
 
+### 4.4 Ablation 因果链分析
+
+| 去掉/改变 | 结果变化 | 因果机制 |
+|---------|---------|--------|
+| 用平稳策略替代周期策略 | 性能下降 15-25% | 平稳策略无法区分不同相位的最优动作 |
+| 所有动作用最高频率（Fast-Repeat） | 性能下降，低频变量频繁切换带来损耗 | 强制高频更新低频变量引入不必要的噪声 |
+| 所有动作用最低频率（Low-Freq） | 性能最差 | 高频变量反应迟缓，无法精细控制 |
+| 减少相位数（共享策略头） | 性能下降 | 不同相位需要不同策略，共享导致干扰 |
+
+### 4.5 工程关键细节 (Engineering Tricks)
+
+- **相位索引的 buffer 存储**：Replay buffer 中需额外存储每个样本的时间步 $t$，用于计算 $\phi(t, k) = t \mod c^k$。这在并行 env 中需要仔细同步
+- **周期 $T = \text{lcm}(c^1, \ldots, c^m)$**：当频率比差异大时 $T$ 可能很大（如 $\text{lcm}(3,7)=21$），导致策略头数量爆炸——推荐用 2 的幂次作为频率比（$c \in \{1,2,4,8\}$）
+- **策略头参数共享**：为节省参数，可让不同相位共享 backbone，仅用独立的输出头，并用相位 embedding 条件化
+- **检查点**：单元测试中，验证 $\phi(t,k)=0$ 时动作变化、$\phi(t,k) \neq 0$ 时动作保持，避免索引 bug
+
 ---
 
 ## 5. 批判性分析 (Critical Analysis)
@@ -255,11 +272,22 @@ $$\pi_t^k(a^k | s) = \pi^k_{\phi(t,k)}(a^k | s)$$
 - **实用性强**：时间复杂度增长温和
 - **无需手动设计**：自动学习每个相位的策略
 
-### 局限性
-- **频率需预先指定**：$c$ 向量需要人工设定
-- **周期固定**：不能动态调整控制频率
-- **策略空间增大**：$T$ 大时参数量显著增加
-- **离散时间**：未处理连续时间情况
+### 局限性深度分析
+
+**理论层面**：
+- 收敛证明依赖表格形式的有限 MDP，未扩展至连续状态空间
+- 周期  $T = \text{lcm}(c^1, \ldots, c^m)$ 可能爆炸性增长
+- **替代方案**：连续时间公式化（Hamilton-Jacobi 框架）可避免离散化问题
+
+**算法层面**：
+- 频率 $c$ 向量需预先指定，不能自适应学习
+- 策略空间随周期 $T$ 线性增长，可能超过网络容量
+- **替代方案**：将 persistence 作为可学习输出（如 [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]] 的 duration head）
+
+**工程层面**：
+- 多策略头增加显存占用，$m$ 个动作变量×各自 $c^k$ 个头
+- 未处理连续时间情况，与真实机器人的异步通信不匹配
+- **替代方案**：用权重共享 + 相位 embedding 压缩参数量
 
 ### 与其他方法的对比
 
@@ -297,6 +325,12 @@ $$\pi_t^k(a^k | s) = \pi^k_{\phi(t,k)}(a^k | s)$$
 AP-AC 可以统一处理这些不同频率！
 ```
 
+### 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **多频率灵巧手控制**：转笔任务中，手指关节 PD 控制可以 500Hz（$c^{finger}=1$），而手腕姿态只需 50Hz（$c^{wrist}=10$），视觉反馈更低频（$c^{vision}=16$）。AP-AC 可直接统一处理这种异构频率
+2. **触觉-视觉融合**：触觉传感器 1000Hz vs 视觉 30Hz 的异构采样频率，可将触觉反应式动作设为 $c=1$，视觉引导动作设为 $c=33$
+3. **周期策略洞察**：转笔的“发力-空中-接住”自然具有周期性，与 AP-AC 的周期非平稳策略天然契合
+
 ### 与其他论文的联系
 
 - **VICES**：阻抗增益可以低频更新，位置高频更新
@@ -329,9 +363,25 @@ Action Persistence / Repetition
 未来: 自适应频率学习
 ```
 
----
+## 9. 与知识体系的联系（含数学关联）
 
-## 8. 核心代码逻辑
+### 与 [[ControlTheory]] 的联系
+
+AP-AC 的多频率控制直接对应控制理论中的多速率采样系统。每个动作变量的采样频率为 $f^k = f_{base} / c^k$，Nyquist 约束要求：
+$$f^k \geq 2 \cdot \text{BW}(\text{subsystem}_k)$$
+其中 $\text{BW}(\text{subsystem}_k)$ 是第 $k$ 个子系统的带宽。快子系统（手指）需高频，慢子系统（手臂）可低频。
+
+### 与 [[ReinforcementLearning]] 的联系
+
+周期非平稳策略的策略梯度计算需要按相位分组：
+$$\nabla_\theta J = \sum_{\phi=0}^{T-1} \mathbb{E}_{t: t \mod T = \phi} \left[ \nabla_\theta \log \pi_{\phi}(a_t|s_t) \cdot Q^{\bar{\pi}_c}(s_t, a_t) \right]$$
+这是标准策略梯度定理的多相位扩展，保持了 Actor-Critic 的无偏性。
+
+### 与 [[Dynamics]] 的联系
+
+快慢子系统分解对应动力学中的奇异摆动理论。当 $c^{fast} \ll c^{slow}$ 时，快变量在慢变量的一个持续周期内经历多次更新，形成类似于​ $\dot{x}_{fast} = f(x_{fast}, x_{slow})$ 的双时间尺度动力学。
+
+---
 
 ```python
 class ActionPersistentActorCritic:

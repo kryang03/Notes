@@ -9,6 +9,7 @@ aliases:
   - Safe RL
 paper-year: 2024
 read-date: 2026-01-31
+venue: arXiv 2024
 paper-pdf: "[[Papers/Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective.pdf]]"
 related:
   - "[[ControlTheory]]"
@@ -216,6 +217,68 @@ Minimize gamma subject to LMI
 * 
 **Input Sparsity（输入稀疏性）**：在多智能体设置中，Agent  可能只观测到部分状态 。利用这一结构信息（即 ），可以在SDP中设置对应的 ，从而大幅放松对其他非零梯度的限制。实验证明这能将认证的Lipschitz常数提升50%以上 。
 
+### 4.4 核心 PyTorch 实现
+
+```python
+import torch
+import torch.nn as nn
+
+class StabilityCertifiedPolicy(nn.Module):
+    """带偏导数界约束的策略网络"""
+    def __init__(self, state_dim, action_dim, hidden=64, xi_max=None):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(state_dim, hidden), nn.Tanh(),
+            nn.Linear(hidden, hidden), nn.Tanh(),
+            nn.Linear(hidden, action_dim)
+        )
+        # xi_max: (action_dim, state_dim) 偏导数上界矩阵
+        self.xi_max = xi_max  # 来自 SDP 离线求解
+
+    def forward(self, s):
+        return self.net(s)
+
+def stability_penalty(policy, states, xi_upper, xi_lower):
+    """计算偏导数违反惩罚 (Eq. 软约束)
+    
+    Args:
+        policy: 策略网络
+        states: (B, n_s) 状态 batch
+        xi_upper: (n_a, n_s) 偏导数上界
+        xi_lower: (n_a, n_s) 偏导数下界
+    Returns:
+        penalty: scalar, 梯度越界的惩罚量
+    """
+    states.requires_grad_(True)
+    actions = policy(states)  # (B, n_a)
+    
+    penalty = torch.tensor(0.0)
+    for i in range(actions.shape[1]):  # 遍历每个 action 维度
+        # 计算 ∂a_i/∂s: (B, n_s)
+        grad_i = torch.autograd.grad(
+            actions[:, i].sum(), states,
+            create_graph=True  # 需保留计算图以反向传播
+        )[0]
+        
+        # 超出上界的惩罚
+        upper_violation = torch.relu(grad_i - xi_upper[i])
+        # 超出下界的惩罚
+        lower_violation = torch.relu(xi_lower[i] - grad_i)
+        
+        penalty = penalty + (upper_violation**2 + lower_violation**2).mean()
+    
+    return penalty
+
+def hard_threshold_rescale(policy, certified_lip):
+    """硬阈值投影：若 Lipschitz 常数超限则缩放权重"""
+    estimated_lip = estimate_lipschitz(policy)  # 近似估算
+    if estimated_lip > certified_lip:
+        scale = certified_lip / estimated_lip
+        with torch.no_grad():
+            for p in policy.parameters():
+                p.mul_(scale ** (1.0 / len(list(policy.parameters()))))
+```
+
 
 
 ---
@@ -230,6 +293,21 @@ Minimize gamma subject to LMI
 
 * 
 **电力系统频率调节 (Power System Frequency Regulation)**：IEEE 39节点系统，控制发电机功率以维持频率稳定 。
+
+### 5.1.1 训练细节
+
+| 超参数 | 飞行编队 | 电力系统 |
+|--------|---------|----------|
+| RL 算法 | TRPO/PPO | TRPO/PPO |
+| 策略网络 | 2×64 MLP + Tanh | 2×64 MLP + Tanh |
+| 训练迭代 | 1000 episodes | 500 episodes |
+| SDP 求解器 | MOSEK (离线) | MOSEK (离线) |
+| 惩罚系数 $\alpha$ | 0.1 (软约束) | 0.1 |
+| 折扣因子 $\gamma$ | 0.99 | 0.99 |
+
+**监督信号**：标准 RL 奖励（负代价函数）+ 稳定性惩罚项 $\alpha \cdot L_{\text{penalty}}$
+
+**数据来源**：仿真环境中的 on-policy rollout，每个 episode 200 步
 
 
 
@@ -246,9 +324,16 @@ Minimize gamma subject to LMI
 3. 
 **防止崩溃**：在电力系统实验中，未加约束的RL在训练后期（约500次迭代后）梯度爆炸导致系统失稳，而Stability-Certified RL保持了长期稳定 。
 
+### 5.3 Ablation 因果链分析
 
+| 去掉的组件 | 结果变化 | 因果机制 |
+|-----------|---------|----------|
+| 去掉偏导数约束 → 仅用全局 Lipschitz | 认证范围缩小 3× | 全局 Lip 不区分输入维度，对稀疏依赖结构过度约束 |
+| 去掉 Input Sparsity 利用 | 认证 Lip 常数从 2.5→0.8 | 忽略了「Agent $i$ 不依赖远距离 Agent $j$ 状态」的结构先验 |
+| 软惩罚 → 硬阈值 | 性能略降（~5%） | 硬投影直接截断梯度搜索方向，软惩罚允许临时越界后自然回退 |
+| 去掉稳定性正则化 | 训练后期系统失稳 | 策略梯度无限制 → 网络灵敏度持续增大 → 闭环增益超出稳定裕度 |
 
-### 5.3 局限性与弱点
+### 5.4 局限性与弱点
 
 * 
 **标称系统必须稳定**：定理要求矩阵  是Hurwitz的（稳定的）。如果被控对象本身是不稳定的（如倒立摆），需要先设计一个预控制器（Nominal Controller）将其镇定，然后RL只学习残差部分 。
@@ -289,6 +374,33 @@ Minimize gamma subject to LMI
 
 
 * *关系*：另一条利用Lyapunov函数进行Safe RL的路径，侧重于Model-based，而本文侧重于Model-free/Control-theoretic。
+
+### 6.4 与 Foundation 的数学联系
+
+**与 [[ControlTheory]] 的数学联系 — 小增益定理**：
+
+本文的稳定性证书本质是小增益定理的推广。经典小增益定理要求 $\|G\|_{\mathcal{L}_2} \cdot \|\Delta\|_{\mathcal{L}_2} < 1$；本文将策略网络 $\kappa$ 视为 $\Delta$，通过偏导数界精细刻画其 $\mathcal{L}_2$ 增益的各分量上界：
+$$\left\|\frac{\partial \kappa_i}{\partial s_j}\right\| \leq \bar{\xi}_{ij} \implies \text{闭环 } \mathcal{L}_2\text{-stable}$$
+
+**与 [[Optimization]] 的数学联系 — SDP 松弛**：
+
+S-procedure 将非凸二次约束 $x^T M_1 x \leq 0 \implies x^T M_2 x \leq 0$ 转化为等价的 LMI $M_2 - \lambda M_1 \succeq 0$，使得稳定性验证可通过内点法在多项式时间内求解。本文的 SDP 矩阵维度为 $O(n_s + n_a)$，实际求解时间在秒级。
+
+### 6.5 跨方法对比
+
+| 维度 | Stability-Certified RL | [[Safe Model-based Reinforcement Learning with Stability Guarantees\|Lyapunov RL (Berkenkamp)]] | [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|Lipschitz-Bounded RL]] | [[Reachability Constrained Reinforcement Learning\|RCRL]] |
+|------|----------------------|------------------------------|-------------------------------------|--------|
+| 安全定义 | $\mathcal{L}_2$ 增益有界 | 吸引域前向不变 | 输出灵敏度有界 | 可行集内可达 |
+| 约束施加 | SDP → 偏导数界 | Lyapunov 下降条件 | 架构设计 (Sandwich) | Safety Q-function |
+| 模型依赖 | 需要标称 LTI 模型 | 需要 GP 动力学模型 | Model-free | Model-free |
+| 可扩展性 | SDP 维度限制 | GP 高维困难 | 良好 | 良好 |
+| 最优性 | 非保守（充要条件） | 保守（GP 置信区间） | 取决于 $\gamma$ 选择 | 最大可行集 |
+
+### 6.6 与用户研究的启发（灵巧手转笔 / Sim-to-Real）
+
+1. **偏导数约束 → 关节解耦**：灵巧手转笔中，食指关节角变化对动作的影响远大于手腕关节。偏导数界允许为不同关节设置不同的灵敏度上限，比全局 Lipschitz 更适合高自由度灵巧手
+2. **SDP 离线认证**：可在仿真中离线求解 SDP 得到安全界限，然后在 real-world 部署时只需检查偏导数是否在界限内，计算开销低
+3. **局限**：SDP 矩阵维度为 $O(n_s + n_a)$，对 20+ 关节灵巧手（$n_a > 20$, $n_s > 40$）求解可能需要分层或分解策略
 
 
 

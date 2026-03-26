@@ -10,6 +10,7 @@ aliases:
   - Autoregressive Policy
 paper-year: 2019
 read-date: 2026-01-31
+venue: ICLR 2020
 paper-pdf: "[[Papers/Autoregressive Policies for Continuous Control Deep Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -229,7 +230,23 @@ $$\Pi_M \subset \Pi_H$$
 | 200 Hz | 800 | **2900** |
 
 **发现**：Gaussian 性能随频率急剧下降，ARP 保持稳定。
+### 4.5 Ablation 因果链分析
 
+| 去掉/改变 | 结果变化 | 因果机制 |
+|---------|---------|--------|
+| 去掉 AR（退化为高斯白噪声） | 稀疏奖励性能 -60% | 时间不一致的噪声无法产生有意义的状态空间探索 |
+| 降低 AR 阶数（p=4→p=1） | 性能下降 15-20% | 一阶 AR 只有指数衰减相关，无法描述更复杂的时间结构 |
+| 增大 α（α=0.99） | 探索过度平滑，收敛变慢 | 变量几乎恍定，无法覆盖动作空间 |
+| 降低 α（α=0.1） | 接近高斯策略 | 时间相关性过弱，失去 AR 优势 |
+| 提高控制频率（固定 α） | Gaussian 崩溃，ARP 稳定 | 高频 + 白噪声 = “原地震动”，AR 的低通效应抑制抖动 |
+
+### 4.6 工程关键细节 (Engineering Tricks)
+
+- **AR 过程重置**：每个 episode 开始时必须重置 AR 历史缓冲，否则跨 episode 的时间相关性会引入偏差
+- **Log-prob 计算**：$\log \pi(a_t|s_t, \xi_{<t}) = \log \mathcal{N}(\xi_t | \sum_k \phi_k \xi_{t-k}, \sigma_\eta^2)$，注意用 $\eta_t$ 的分布而非 $\xi_t$ 的边缘分布
+- **多维独立 AR**：每个动作维度独立运行 AR 过程（对角化），避免跨维相关矩阵的计算开销
+- **数值稳定性**：$\sigma_\eta^2 = \prod_{k=1}^p (1-\alpha_k^2)$ 在 $\alpha \to 1$ 时趋近零，可能导致数值下溢。实践中应在 log 空间计算并 clamp $\alpha \in [0, 0.99]$
+- **推理延迟**：高阶 AR 的顺序依赖增加推理延迟，对 1000Hz 控制器需评估实时性——p=4 在 GPU 上额外开销可忽略，但 CPU 推理需测试
 ---
 
 ## 5. 批判性分析 (Critical Analysis)
@@ -240,11 +257,22 @@ $$\Pi_M \subset \Pi_H$$
 - **安全性**：平滑轨迹减少硬件损伤
 - **可调性**：$\alpha$ 连续调节平滑度
 
-### 局限性
-- **超参数选择**：$\alpha$ 和 $p$ 需要调优
-- **非马尔可夫**：需要存储历史
-- **固定平滑度**：不根据状态自适应
-- **单一尺度**：不处理多频率动作
+### 局限性深度分析
+
+**理论层面**：
+- 平稳性要求固定 $\alpha$，无法根据状态自适应调整探索平滑度
+- 历史依赖以 $p$ 阶截断，无法捕捉长程依赖（与 LSTM/Transformer 策略相比）
+- **替代方案**：状态依赖的 $\alpha(s)$ 网络；用扩散过程替代 AR 实现时间相关探索
+
+**算法层面**：
+- $\alpha$ 和 $p$ 仍需调优，卧数优化硬监控显示区间为 $\alpha \in [0.85, 0.95]$, $p \in [2, 6]$
+- 单一尺度平滑，不处理多频率动作（与 AP-AC 互补）
+- **替代方案**：结合 AP-AC 的多频率框架，对不同动作变量用不同 $\alpha$
+
+**工程层面**：
+- AR 过程需存储历史 $\xi_{t-1}, \ldots, \xi_{t-p}$，在并行环境中需为每个 env 维护独立状态
+- episode 边界的历史重置可能引入瞬态抢动
+- **替代方案**：在 Isaac Gym 的向量化 env 中，用 tensor 批量维护 AR 状态
 
 ### 与其他方法的对比
 
@@ -412,13 +440,23 @@ def train_with_arp(env, policy, q_net, n_episodes):
 
 ---
 
-## 9. 与 Foundation 的链接更新
+## 9. 与知识体系的联系（含数学关联）
 
-### 需要添加到 StochasticProcess.md
-添加"自回归过程在 RL 中的应用"部分，说明平稳性约束的设计。
+### 与 [[StochasticProcess]] 的联系
 
-### 需要添加到 ReinforcementLearning.md
-在"探索策略"部分添加"时间一致探索"作为高效探索的新范式。
+AR-p 过程是平稳高斯过程的子集，其功率谱密度为：
+$$S(\omega) = \frac{\sigma_\eta^2}{|1 - \sum_{k=1}^p \phi_k e^{-ik\omega}|^2}$$
+$\alpha \to 1$ 时谱集中于低频，对应时间平滑的探索轨迹。这与 [[StochasticProcess]] 中 Ornstein-Uhlenbeck 过程的离散化 $X_{t+1} = e^{-\theta \Delta t} X_t + \sigma \sqrt{\frac{1-e^{-2\theta\Delta t}}{2\theta}} \eta_t$ 是等价的（取 $\alpha = e^{-\theta \Delta t}$）。
+
+### 与 [[ReinforcementLearning]] 的联系
+
+ARP 的 log-prob 计算保持解析性，与 PPO/SAC 兼容：
+$$\log \pi(a_t | s_t, \xi_{<t}) = \log \mathcal{N}\left(\eta_t \mid 0, \sigma_\eta^2\right) - \log \sigma_\theta(s_t)$$
+其中 $\eta_t = \xi_t - \sum_k \phi_k \xi_{t-k}$ 是创新项。这保证了 ARP 可作为任意 on-policy/off-policy 算法的 drop-in 替换。
+
+### 与 [[SignalProcessing]] 的联系
+
+AR 过程的低通滤波效应：$\alpha = 0.9$ 时截止频率约为 $f_c \approx \frac{-\ln \alpha}{2\pi \Delta t}$，对于 100Hz 控制器 $f_c \approx 1.7\text{Hz}$。这自然地将探索频率限制在机械系统的有效带宽内，避免激发高频共振。
 
 ## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
 

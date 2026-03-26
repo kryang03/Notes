@@ -91,9 +91,86 @@ $$m^{eef}\ddot{x}^{eef}_{ref} = f^{eef}_{spring} + f^{eef}_{ext}$$
 
 其中 $a \in [0,1]$ 控制末端力是否传导到基座。$a=1$ 允许通过拉末端来牵引整个机器人（运动学示教）。
 
+## 3.5 核心代码逻辑
+
+```python
+import torch
+
+class ImpedanceReferenceModel:
+    """FACET 虚拟弹簧-质量-阻尼参考模型"""
+    def __init__(self, m: float = 1.0, dt: float = 0.02):
+        self.m = m
+        self.dt = dt
+
+    def step(self, x_ref: torch.Tensor, dx_ref: torch.Tensor,
+             x_des: torch.Tensor, dx_des: torch.Tensor,
+             Kp: torch.Tensor, Kd: torch.Tensor,
+             f_ext: torch.Tensor) -> tuple:
+        """积分参考动力学一步"""
+        ddx = (Kp * (x_des - x_ref) + Kd * (dx_des - dx_ref) + f_ext) / self.m
+        dx_ref_new = dx_ref + ddx * self.dt
+        x_ref_new = x_ref + dx_ref_new * self.dt
+        return x_ref_new, dx_ref_new
+
+
+def temporal_smoothing_reward(
+    x_sim: torch.Tensor, dx_sim: torch.Tensor,
+    ref_model: ImpedanceReferenceModel,
+    x_des: torch.Tensor, dx_des: torch.Tensor,
+    Kp: torch.Tensor, Kd: torch.Tensor, f_ext: torch.Tensor,
+    history_offsets: list = [8, 16, 32],
+    stored_states: dict = None
+) -> torch.Tensor:
+    """
+    时间平滑奖励：混合不同历史时刻的参考轨迹
+    stored_states: {offset: (x_ref_t', dx_ref_t')} 从各历史时刻积分到当前的参考状态
+    """
+    reward = torch.tensor(0.0)
+    for offset in history_offsets:
+        x_ref_t, dx_ref_t = stored_states[offset]
+        pos_err = torch.exp(-torch.sum((x_sim - x_ref_t) ** 2))
+        vel_err = torch.exp(-torch.sum((dx_sim - dx_ref_t) ** 2))
+        reward = reward + pos_err + vel_err
+    return reward / (2 * len(history_offsets))
+
+
+class FACETPolicy(torch.nn.Module):
+    """策略输出 (x_des, Kp, Kd) 接口"""
+    def __init__(self, obs_dim: int, hidden: int = 512):
+        super().__init__()
+        self.backbone = torch.nn.Sequential(
+            torch.nn.Linear(obs_dim, hidden), torch.nn.ELU(),
+            torch.nn.Linear(hidden, hidden), torch.nn.ELU(),
+        )
+        self.x_des_head = torch.nn.Linear(hidden, 3)
+        self.Kp_head = torch.nn.Linear(hidden, 3)
+        self.Kd_head = torch.nn.Linear(hidden, 3)
+
+    def forward(self, obs):
+        h = self.backbone(obs)
+        x_des = self.x_des_head(h)
+        Kp = torch.nn.functional.softplus(self.Kp_head(h))       # 保证正定
+        Kd = 2.0 * torch.sqrt(Kp + 1e-6)                        # 临界阻尼
+        return x_des, Kp, Kd
+```
+
 ## 4. 实验与验证 (Experiments)
 
 ### 关键定量结果
+
+### 4.0 训练细节
+
+- **RL 算法**：PPO（Isaac Gym 并行环境）
+- **并行环境数**：4096
+- **隱藏层**：[512, 256, 128]，ELU 激活
+- **学习率**：$10^{-3}$（线性衰减）
+- **训练轮数**：~3000 epochs（Go2）
+- **奖励组成**：时间平滑跟踪奖励 (0.6) + 关节平滑惩罚 (0.1) + 能量惩罚 (0.05) + 存活奖励 (0.25)
+- **Domain Randomization**：质量 ±30%，摩擦 ±50%，外力脉冲 [0, 200] Ns
+- **Teacher-Student**：Teacher 观测特权信息（$f_{ext}$ 真值），Student 仅用本体感受（IMU + 关节编码器）
+- **$K_p$ 范围**：$[0, 80]$ N/m，$K_d = 2\sqrt{K_p}$（临界阻尼）
+
+### 4.1 关键定量结果
 
 | 测试 | FACET | Robust | Vanilla |
 |------|-------|--------|---------|
@@ -105,6 +182,24 @@ $$m^{eef}\ddot{x}^{eef}_{ref} = f^{eef}_{spring} + f^{eef}_{ext}$$
 - 四足 Go2：运动学示教（人手轻推即跟随）+ 10kg 负载拖拽（约自重 2/3）
 - 人形 G1 和四足+臂 B1+Z1：仿真验证
 
+### 4.3 Ablation 因果链
+
+| 去掉什么 | 导致什么 | 因为什么机制 |
+|---------|---------|------------|
+| 去掉时间平滑 → 仅开环参考 | 抗干扰能力显著下降 | 开环绯过实际约束，参考轨迹与机器人实际可达量脱节 |
+| 去掉时间平滑 → 仅闭环参考 | 精度降低，跟踪噪声大 | $t' = t - \Delta t$ 短视，无法利用长期理想轨迹信息 |
+| 固定 $K_p = 40$（中等刚度） | 运动学示教失败 / 拖拽力不足 | 无法根据任务切换顺应/刚性模式 |
+| 去掉 Teacher 的特权 $f_{ext}$ | Student 性能退化 10-15% | 仅本体感受难以准确估计外力大小 |
+
+### 4.4 工程关键细节 (Engineering Tricks)
+
+- **$K_d$ 自动计算**：始终用临界阻尼 $K_d = 2\sqrt{K_p}$，减少一半调参自由度
+- **参考模型积分**：半隐式 Euler，避免显式积分的发散
+- **外力估计延迟**：Teacher 使用当前帧 $f_{ext}$，但 Student 仅能通过历史观测隐式推断 → 历史窗口 50 帧
+- **外力脉冲 DR**：训练时对身体施加 [0, 200] Ns 随机脉冲，覆盖真实碰撞场景
+- **$K_p$ 输出参数化**：softplus 保证非负，输出范围 $[0, 80]$ N/m
+- **多体耦合参数 $a$**：B1+Z1 场景中 $a \in [0,1]$ 控制末端力向基座传导，训练中随机采样
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -114,10 +209,12 @@ $$m^{eef}\ddot{x}^{eef}_{ref} = f^{eef}_{spring} + f^{eef}_{ext}$$
 - 时间平滑方法巧妙解决了开环/闭环跟踪的权衡
 
 ### 局限性
-- 仅验证了质心（CoM）级别的阻抗，未涉及单个关节/末端的精细阻抗控制
-- 假设外力 $f_{ext}$ 同时作用于参考模型和机器人——但在实际中 $f_{ext}$ 未必精确已知
-- Teacher-Student 蒸馏中，学生策略的极端外力场景性能可能退化
-- 未涉及接触丰富的操作任务（如灵巧手操作）
+
+| 维度 | 局限 | 替代方案 |
+|------|------|--------|
+| **理论** | 仅 CoM 级别阻抗，未建模关节级别力学互作用 | 每关节独立阻抗参考模型（维度爆炸但更精细） |
+| **算法** | 假设 $f_{ext}$ 同时作用于参考模型和机器人，但 $f_{ext}$ 在 Student 中未知 | $f_{ext}$ 观测器 / 力估计模块（如 MCC 的电流估计） |
+| **工程** | Teacher-Student 蒸馏在极端场景可能退化 | 增加极端场景的训练课程，或保留 Teacher 的部分特权观测 |
 
 ### 未来方向
 - 扩展到灵巧手操作：每个关节/指尖定义独立阻抗参考模型
@@ -160,6 +257,24 @@ FACET 为基座和末端分别定义阻抗参考模型，通过参数 $a$ 控制
 - $a$ 参数控制手指力是否传导到臂部
 
 ## 7. 演进脉络定位 (Evolution Context)
+
+### 7.1 与 Foundation 的数学联系
+
+#### 与 [[ControlTheory]] 的联系
+参考模型本质是二阶阻抗因果关系 $F = Z(s) \cdot V(s)$，其中 $Z(s) = ms^2 + K_d s + K_p$。当 $K_p \to 0$ 时 $Z(s) \to ms^2$（纯惯性，几乎无阻力）；当 $K_p \to \infty$ 时退化为位置控制。FACET 的创新在于让 RL 学习 $K_p$ 的时变调度。
+
+#### 与 [[Dynamics]] 的联系
+参考模型与机器人共享相同外力 $f_{ext}$，但动力学方程不同：
+$$\underbrace{m\ddot{x}_{ref} = f_{spring} + f_{ext}}_{\text{参考}} \quad vs \quad \underbrace{m\ddot{x}_{sim} = f_{grf} + f_{ext}}_{\text{机器人}}$$
+跟踪目标 $x_{sim} \approx x_{ref}$ 等价于 $f_{grf} \approx f_{spring}$，即用地面反力模拟弹簧力。
+
+#### 与 [[ReinforcementLearning]] 的联系
+时间平滑奖励本质是多尺度参考轨迹的加权融合，类似 [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|PPO]] 中 GAE 的多步 TD 混合——开环参考对应低 $\lambda$ (低偏差高方差)，闭环参考对应高 $\lambda$ (高偏差低方差)。
+
+#### 与 [[Optimization]] 的联系
+时间平滑奖励可视为多目标优化：$\min_{\pi} \sum_{t'} w_{t'} \|x_{sim} - x_{ref}^{t'}\|^2$，其中权重 $w_{t'} = \exp(-\|x_{sim} - x_{ref}^{t'}\|^2)$ 自适应地偏向更接近的参考轨迹。
+
+### 7.2 演进脉络
 
 ```
 前置工作:

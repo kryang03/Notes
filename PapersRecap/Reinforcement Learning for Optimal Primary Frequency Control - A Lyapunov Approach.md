@@ -34,6 +34,10 @@ related:
 > [!abstract] 核心贡献
 > 将 **Lyapunov 稳定性**直接嵌入神经网络控制器的**结构设计**中。证明若控制器是**单调递增函数**（过原点），则系统具有唯一平衡点且局部指数稳定。用 Stacked-ReLU 网络实现单调性，并设计 RNN 框架高效训练。
 
+### 核心洞察（直观隐喻）
+
+**用“建筑结构”而非“安全绳”保证安全**——传统 RL 用惩罚项（安全绳）约束策略，但绳可断；本文将稳定性嵌入网络拓扑（承重结构），使策略在数学上不可能输出不稳定控制。如同拱桥的稳定性来自其几何形状，而非外部支撑。
+
 ## 1. 问题背景
 
 ### 1.1 电力系统频率控制挑战
@@ -128,6 +132,47 @@ $$\begin{bmatrix} \theta^{t+1} \\ \omega^{t+1} \end{bmatrix} = f_{cell}\left(\be
 
 ![[lyapunov_rnn_framework.png]]
 
+### 3.4 核心代码逻辑 (PyTorch)
+
+```python
+import torch
+import torch.nn as nn
+
+class StackedReLUController(nn.Module):
+    """单调递增 + 过原点的 Lyapunov 稳定控制器"""
+    def __init__(self, K=20):
+        super().__init__()
+        self.raw_alpha = nn.Parameter(torch.randn(K))  # softplus 保证正
+        self.beta = nn.Parameter(torch.linspace(-2, 2, K))  # 可学习偏置
+
+    def forward(self, omega: torch.Tensor) -> torch.Tensor:
+        alpha = torch.nn.functional.softplus(self.raw_alpha)  # α_k > 0
+        basis = torch.relu(omega - self.beta)  # [batch, K]
+        u = (alpha * basis).sum(dim=-1, keepdim=True)
+        # 减去 u(0) 确保过原点
+        u_zero = (alpha * torch.relu(-self.beta)).sum()
+        return u - u_zero
+
+class SwingEquationRNN(nn.Module):
+    """将摇摆方程展开为 RNN cell 进行端到端训练"""
+    def __init__(self, n_buses, dt=0.01):
+        super().__init__()
+        self.controllers = nn.ModuleList(
+            [StackedReLUController() for _ in range(n_buses)]
+        )
+        self.dt = dt
+
+    def rnn_step(self, theta, omega, M, D, B, p_m):
+        u = torch.stack(
+            [c(omega[:, i:i+1]) for i, c in enumerate(self.controllers)], dim=1
+        ).squeeze(-1)
+        coupling = (B * torch.sin(
+            theta.unsqueeze(-1) - theta.unsqueeze(-2)
+        )).sum(dim=-1)
+        omega_dot = (p_m - D * omega - u - coupling) / M
+        return theta + self.dt * omega, omega + self.dt * omega_dot
+```
+
 ---
 
 ## 4. 优化问题
@@ -156,6 +201,34 @@ $$\min_u \sum_{i=1}^n \left( \|\omega_i\|_\infty + \gamma \|u_i\|_2^2 \right)$$
 1. **非线性优于线性**：学习的非线性控制器在性能上显著优于最优线性 droop
 2. **稳定性至关重要**：无稳定性约束的 RL 可能学到不稳定控制器
 3. **分散式有效**：每个控制器只用本地频率信息
+
+### 5.3 训练细节
+
+| 维度 | 设定 |
+|------|------|
+| **训练框架** | RNN 展开 T=100 步 |
+| **优化器** | Adam, lr=1e-3 |
+| **网络规模** | K=20 个 ReLU 基函数/控制器 |
+| **测试系统** | IEEE 39-bus 新英格兰系统 |
+| **扰动场景** | 负荷阶跃变化 10–30% |
+| **训练收敛** | ~500 episodes |
+| **部署推理** | 单控制器 < 0.1ms |
+
+### 5.4 Ablation 分析
+
+| 消融项 | 效果 | 因果机制 |
+|--------|------|----------|
+| 去掉单调性约束 | 部分场景不稳定 | 违反 Lyapunov 条件 → $\dot{V}$ 可能为正 |
+| 线性 Droop 替代 | 性能 ↓25% | 线性无法捕捉最优非线性控制律的曲率 |
+| 减少 K (K<10) | 性能下降 | 分段线性逼近精度不足 → 欠拟合 |
+| 去掉 RNN 展开 | 训练效率 ↓ | 无法利用动力学时间耦合计算梯度 |
+
+### 5.5 工程实践要点 (Engineering Tricks)
+
+1. **Softplus 代替 clip 保正性**: `softplus(raw_alpha)` 而非 `clamp(alpha, min=0)` ——后者梯度在边界处为零导致参数卡死
+2. **偏置初始化**: $\beta_k$ 均匀分布在频率偏差典型范围内，确保 ReLU 基函数覆盖工作区间
+3. **过原点校正**: 训练后显式减去 $u(0)$，保证部署时精确满足 $u(0)=0$
+4. **RNN 展开长度**: T<50 无法捕捉低频振荡模态；T>200 梯度消失。T=100 为经验最优
 
 ---
 
@@ -196,6 +269,28 @@ $$\min_u \sum_{i=1}^n \left( \|\omega_i\|_\infty + \gamma \|u_i\|_2^2 \right)$$
 
 > [!quote] Insight 3: 分散式 + 非线性 + 稳定
 > 三者可以同时实现，只需正确的网络结构
+
+## 8. 局限性深度分析
+
+### 理论层面
+- **局部稳定性**: Lyapunov 分析仅保证局部指数稳定，大扰动可能超出吸引域
+- **单调性的保守性**: 充分条件但未讨论其与必要条件的差距——可能排除了部分安全但更优的非单调控制器
+- **替代方案**: [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Certified RL]] 使用 ROA 估计处理更一般的 Lyapunov 函数
+
+### 算法层面
+- **表达能力**: Stacked-ReLU 是分段线性的，无法精确表示光滑最优控制律（如 $u^* \propto \omega^3$）
+- **纯分散式**: 无法利用邻居信息，分布式 consensus-based 方案可能更优
+- **替代方案**: Input-Convex Neural Networks (ICNN) 可保证单调性同时具有更强非线性表达力
+
+### 工程层面
+- 未报告与无约束 RL 的训练效率对比
+- 逆变器控制频率 kHz 级，ReLU 网络推理可行，但更复杂约束网络可能受限
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **结构约束借鉴**: 将安全/稳定性嵌入网络结构而非奖励函数——转笔中可将关节限位、力矩约束编码为网络输出层结构（如 tanh 饱和 + 缩放）
+2. **单调性 → 无源性**: 类比灵巧手中“施力方向与位移方向一致”的无源性条件 ([[ControlTheory]])，可构造满足接触稳定性的策略结构
+3. **Stacked-ReLU 启发**: 分段线性基函数在低维控制中高效，转笔中的 per-joint 控制器可借鉴此架构
 
 ---
 

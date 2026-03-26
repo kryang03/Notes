@@ -62,7 +62,28 @@ DemoStart 在 MDP 框架中引入任务参数 (Task Parameters, TP) $\psi = (s_0
 - $T_{target}$：目标分布（真实初始状态分布）
 - 演示 $D = \{d_1, ..., d_N\}$，每个演示被时间分段为 K 个 chunk
 
-### 3.2 算法流程
+### 3.2 ZVF 形式化定义
+
+给定策略 $\pi_\theta$、任务参数 $\psi$ 和二值成功指示函数 $\mathbb{1}_{\text{success}}$，对 $\psi$ 执行 $T$ 次独立 rollout 得到成功序列 $\{z_i\}_{i=1}^{T}$，其中 $z_i = \mathbb{1}_{\text{success}}(\tau_i), \; \tau_i \sim \pi_\theta(\cdot | \psi)$。
+
+ZVF 的核心筛选准则：
+
+$$
+\text{ZVF}(\psi) = \mathbb{1}\left[\operatorname{Var}(\{z_i\}_{i=1}^{T}) > 0\right]
+= \mathbb{1}\left[0 < \hat{p}(\psi) < 1\right]
+$$
+
+其中 $\hat{p}(\psi) = \frac{1}{T}\sum_{i=1}^{T} z_i$ 是当前策略在 $\psi$ 上的经验成功率。直觉上，$\hat{p} = 0$（全失败）意味着梯度信号为零（稀疏奖励无法提供学习信号），$\hat{p} = 1$（全成功）意味着无需继续学习，只有 $0 < \hat{p} < 1$ 的区间才产生非零方差的训练信号。
+
+**课程渐进定理（非形式化）**：设演示轨迹 $d$ 分为 $K$ 段 $\{\psi_k\}_{k=1}^{K}$（$\psi_K$ 最易，$\psi_1$ 最难），若策略单调改进，则 ZVF 选择的 $k^*$ 单调递减：
+
+$$
+k^*(t) = \min\{k : \text{ZVF}(\psi_k) = 1\} \quad \Rightarrow \quad k^*(t_1) \geq k^*(t_2) \;\; \text{for} \;\; t_1 < t_2
+$$
+
+即课程自然从演示末端（易）向开头（难）推进，无需人工设计进度函数。
+
+### 3.3 算法流程
 
 **Step 1: 采样 TP 序列**
 1. 从 $T_{target}$ 采样 $\psi_0$
@@ -80,11 +101,49 @@ DemoStart 在 MDP 框架中引入任务参数 (Task Parameters, TP) $\psi = (s_0
 - 在选定的 TP 上执行 M=50 次 rollout
 - 数据送入 replay buffer，由 MPO 更新策略
 
-### 3.3 关键属性
+### 3.4 关键属性
 
 1. **自然课程浮现**：训练过程中，ZVF 自动从演示末尾（容易）向开头（困难）推进
 2. **演示质量容忍**：不使用演示的动作数据，仅使用状态——因此能处理低质量演示和跨动作空间演示
 3. **平滑过渡**：当策略足够好时，ZVF 自然选择 $T_{target}$ 中的状态而非演示状态
+
+### 3.5 核心代码逻辑
+
+```python
+# ZVF (Zero-Variance Filtering) 核心逻辑
+def zvf_select_tp(policy, tp_sequence, T=4):
+    """从难→易的TP序列中选择方差非零的训练点"""
+    for tp in tp_sequence:               # tp_sequence: 从演示开头到末尾
+        results = [rollout(policy, tp) for _ in range(T)]  # T=4次rollout
+        successes = [r.success for r in results]  # bool列表
+        if all(successes):               # 全成功 → 太简单，跳过
+            continue
+        if not any(successes):           # 全失败 → 太难，换下一个
+            continue
+        return tp                        # 有成功有失败 → 方差非零，适合训练!
+    return sample_from_target()           # 所有TP都太简单 → 用目标分布
+
+# 演示分段为不同难度的TP
+def create_tp_sequence(demo, K=10):
+    """将一条演示轨迹分为K段，每段取一个状态作为初始化"""
+    chunk_size = len(demo) // K
+    tps = []
+    for i in range(K):
+        idx = random.randint(i*chunk_size, (i+1)*chunk_size - 1)
+        tp = TaskParam(
+            s0=demo.states[idx],         # 从演示状态初始化
+            env_params=sample_dr(),       # 域随机化物理参数
+            goal=target_goal              # 任务目标不变
+        )
+        tps.append(tp)
+    return tps  # tps[0]=最难(演示开头)，tps[-1]=最易(接近成功)
+
+# Mechanism 3: 偏向早期状态
+def biased_sample(tp_sequence, bias=0.7):
+    """以bias概率选择更早(更难)的TP，避免策略停留在容易区域"""
+    weights = [bias**(len(tp_sequence)-1-i) for i in range(len(tp_sequence))]
+    return random.choices(tp_sequence, weights=weights, k=1)[0]
+```
 
 ## 4. 实验与验证 (Experiments)
 
@@ -113,6 +172,29 @@ DemoStart 在 MDP 框架中引入任务参数 (Task Parameters, TP) $\psi = (s_0
 - Mechanism 1+2 (without bias): 97.2%
 - Full DemoStart (1+2+3): 99.6%
 
+### 训练设定补充
+
+| 项目 | 细节 |
+|------|------|
+| 仿真器 | MuJoCo |
+| RL 算法 | MPO (Maximum a Posteriori Policy Optimization) |
+| 演示数量 | **仅 20 条仿真演示** |
+| 演示分段数 K | 10 |
+| ZVF rollout 数 T | 4 |
+| 训练 rollout 数 M | 50 (per selected TP) |
+| 动作空间 | 18D (6D 笛卡尔臂 + 12D 三指关节) |
+| 蒸馏 | 特权状态→RGB视觉 (PAC架构) + 光照真实感渲染 |
+| 真机硬件 | Kuka LBR iiwa 14 + DEX-EE 三指手 |
+
+### 消融因果链分析
+
+| 移除组件 | 效果 | 因果机制 |
+|---------|------|----------|
+| Mechanism 1 alone (仅演示初始化) | 0% | 没有ZVF，策略总是从最难的初始状态训练，无法获得梯度信号 |
+| 去掉 Mechanism 3 (无偏向) | 97.2%→99.6% | 无偏向时策略可能长期停留在容易TP上，浪费训练预算；偏向早期状态加速向难区推进 |
+| ZVF → 固定阈值 | 性能下降 | 固定阈值无法自适应策略能力变化——早期阈值过高（无数据），后期过低（无挑战） |
+| SAC-X 蒸馏 | 99.2%→20.4% | SAC-X 辅助奖励产生的多模态行为在蒸馏时发生模式坍塌，DemoStart 的单一奖励策略更平滑 |
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -131,6 +213,21 @@ DemoStart 在 MDP 框架中引入任务参数 (Task Parameters, TP) $\psi = (s_0
 - 结合 HDC 等物理参数课程进一步改善探索效率
 - 扩展到更动态的任务（如非紧握操作）
 - 自动演示生成（减少人工依赖）
+
+### 理论局限性三维分析
+
+| 维度 | 局限 | 替代方案 |
+|------|------|----------|
+| **理论** | ZVF 隐含假设：存在从演示末端到开头的连续难度梯度；若演示中存在难度突变(如插入瞬间)则课程可能卡住 | 多源演示混合 + 难度插值 |
+| **算法** | 依赖仿真器的状态保存/还原能力，无法用于不支持此功能的仿真器 | 学习状态重置策略（go-to-state policy） |
+| **工程** | Plug Insertion 的 sim-to-real gap 仍显著(99.6%→64%)，接触丰富任务的仿真精度仍是瓶颈 | 可微仿真 + 系统辨识闭环 |
+
+### 工程关键细节 (Engineering Tricks)
+
+- **ZVF 的 T=4 选择**：T 过小(2)导致方差估计噪声大，T 过大(8+)浪费计算预算。T=4 在统计显著性和效率间取得平衡
+- **演示分段数 K=10**：K 过小则难度跳跃大（课程不平滑），K 过大则每段状态差异小（课程过慢）
+- **蒸馏中的光照真实感渲染**：PAC 架构蒸馏时使用逼真光照而非纯仿真渲染，显著减少视觉 sim-to-real gap
+- **Mechanism 3 偏向强度**：偏向过强→策略被推向过难区域(类似Mechanism 1失败)，需与ZVF联合工作形成安全网
 
 ## 6. 对动态非紧握操作的启发 (Implications for DNPM)
 
@@ -160,7 +257,31 @@ DemoStart 将成功演示的轨迹状态作为初始化分布的核心。这直�
 
 DemoStart 不将演示作为 BC 训练数据，仅用演示状态做初始化。对 DNPM 的启发：即使真机演示质量差或动作空间不匹配（如遥操作力矩 pattern 与 PD 控制器输出不同），仍可利用演示的**状态序列**构建课程。
 
-## 7. 演进脉络定位 (Evolution Context)
+## 7. 与知识体系的联系 (Connections to Foundations)
+
+### 与 [[ReinforcementLearning]] 的数学对应
+
+ZVF 本质上是对**课程 MDP** 中任务分布 $p(\psi)$ 的自适应调节。在标准 RL 框架下，策略梯度为：
+
+$$
+\nabla_\theta J = \mathbb{E}_{\psi \sim p(\psi)}\left[\mathbb{E}_{\tau \sim \pi_\theta(\cdot|\psi)}\left[\nabla_\theta \log \pi_\theta(\tau|\psi) \cdot R(\tau)\right]\right]
+$$
+
+当 $R(\tau) \in \{0, 1\}$（稀疏二值）时，$\hat{p}(\psi) = 0$ 使内层期望为零（无梯度），$\hat{p}(\psi) = 1$ 使 $R$ 无方差（无学习信号）。ZVF 通过过滤掉这两种情况，等价于对 $p(\psi)$ 进行**重要性采样**，将训练集中在梯度信息量最大的区域。这与 [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] 中课程学习的核心动机一致：控制学习信号的有效带宽。
+
+### 与 [[Optimization]] 的数学对应
+
+ZVF 选择 $0 < \hat{p} < 1$ 的样本进行训练，等价于优化理论中的**自适应采样策略**：在目标函数 $\mathcal{L}(\theta)$ 的梯度方差 $\operatorname{Var}[\nabla \mathcal{L}]$ 最大的区域增加采样密度。这与 importance-weighted SGD 中 $p(x) \propto \|\nabla \mathcal{L}(x)\|$ 的最优采样分布异曲同工。ZVF 用二值方差作为梯度范数的代理指标，以 $O(T)$ 的极低计算成本实现了近似最优采样。
+
+### 与 [[ContactMechanics]] 的关联
+
+Plug Insertion 任务中 sim-to-real gap 最大（99.6%→64%），根本原因在于接触力学建模误差。插入阶段涉及高法向力 + 小间隙（0.5mm）的接触约束，仿真器的接触模型（LCP/compliant contact）难以精确捕捉真实摩擦锥和卡顿现象。这是 [[ContactMechanics]] 中经典的**仿真-真实接触差异问题**，提示对 DNPM 转笔项目而言，涉及手指-笔滑动接触的阶段将是 sim-to-real 的主要瓶颈。
+
+### 与 [[RepresentationLearning]] 的关联
+
+策略蒸馏（特权状态→RGB 视觉）是表征学习中**知识蒸馏**范式的具体实例。DemoStart 发现稀疏奖励策略比 SAC-X 多模态策略更易蒸馏，揭示了一个关键原则：蒸馏的成功取决于教师策略的**模态纯净度**——单峰行为分布比多峰分布更容易被学生网络拟合。
+
+## 8. 演进脉络定位 (Evolution Context)
 
 ```
 前置工作:
@@ -176,3 +297,14 @@ DemoStart 不将演示作为 BC 训练数据，仅用演示状态做初始化。
 ├── 扩展到动态任务（非紧握操作）
 └── 自动化演示生成 + ZVF 的闭环系统
 ```
+
+### 8.1 跨方法结构性对比
+
+| 维度 | DemoStart | [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration\|DemoSpeedup]] | [[Curriculum Learning\|传统课程RL]] | 用户 PPO 转笔方案 |
+|------|------|------|------|------|
+| 课程维度 | 初始状态(演示轨迹分段) | 演示速度加速 | 手工设计阶段 | HDC $\alpha$ + 状态初始化 |
+| 难度调节 | ZVF(方差非零筛选) | 熵引导加速比 | 固定阈值 | success rate 阈值 |
+| 演示用途 | 仅用状态做初始化 | 加速后的动作监督 | 不使用 | 可用于初始化(借鉴DemoStart) |
+| 奖励需求 | **稀疏二值** | Dense | 任意 | Dense + 课程权重 |
+| Sim-to-Real | 蒸馏+DR | N/A | DR | DR + 课程 $\alpha$ |
+| 对转笔的适用性 | ZVF 可替代固定阈值判据 | 轨迹加速思路可用 | 已采用 | **当前方案** |

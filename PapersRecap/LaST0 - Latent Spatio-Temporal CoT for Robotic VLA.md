@@ -88,6 +88,37 @@ related:
 2. **下游微调**: 联合优化推理和动作专家，动作专家在异构快慢频率下训练
 3. **部署**: 推理专家周期性更新 latent CoT，动作专家每步生成动作
 
+### 3.4 核心伪代码
+
+```python
+# LaST0 Mixture-of-Transformers Dual-System (核心 tensor ops)
+class LaST0(nn.Module):
+    def forward(self, img_tokens, lang_tokens, proprio, step):
+        # === Reasoning Expert (低频: 每 n 步更新) ===
+        if step % self.reason_freq == 0:
+            vis = self.siglip(img_tokens).mean(dim=1)     # [B, d_v]
+            prop = self.proprio_enc(proprio)                # [B, d_p]
+            if self.training:  # 3D 编码器仅训练时使用
+                geo = self.uni3d(pointcloud).mean(dim=1)   # [B, d_g]
+                h = torch.cat([vis, geo, prop], dim=-1)    # 三路融合
+            else:
+                h = torch.cat([vis, prop], dim=-1)
+            # 自回归展开未来隐推理轨迹
+            latent_cot = []
+            for t in range(self.horizon):
+                h = self.reason_expert(                     # 共享 QKV attention
+                    h, lang_tokens,
+                    cross_attn=self.shared_attn
+                )
+                latent_cot.append(h)
+            self.cached_cot = torch.stack(latent_cot)      # [H, B, d]
+        # === Acting Expert (高频: 每步执行) ===
+        act_in = torch.cat([self.cached_cot[0], proprio], dim=-1)
+        action = self.act_expert(act_in)                   # SE(3) action chunk
+        self.cached_cot = self.cached_cot[1:]              # 消耗一个隐计划步
+        return action
+```
+
 ## 4. 实验与验证 (Experiments)
 
 ### 实验设置
@@ -106,6 +137,24 @@ related:
 
 > [!important] 灵巧手操作表现
 > LaST0 在灵巧手 (LEAP Hand) 操作任务上同样展现了 +14% 的 SR 提升，说明 Latent CoT 对高自由度系统同样有效。这与 DNPM 项目的灵巧操作研究方向直接相关。
+
+### Ablation 因果链
+
+| 去掉组件 | SR 变化 | 因果机制 |
+|---------|---------|--------|
+| 去掉 Latent CoT | −≥13% | 无未来状态预测 → 仅反应式控制 → 长程任务缺乏时序一致性 |
+| 去掉 3D 编码器 (Uni3D) | SR 下降 5-8% | 训练时无 3D 几何监督信号 → 隐空间丢失空间推理能力 → 拾取位姿估计不准 |
+| MoT → 单 Transformer | SR 下降 + 延迟增加 | 推理与动作耦合 → 高频动作生成被低频推理拖慢 → 控制频率与推理质量无法解耦 |
+| 异构频率 → 同质频率 | 推理延迟 +14× | 每步都全量计算 Latent CoT → 推理开销和动作开销耦合 → 丢失双系统核心优势 |
+| Latent CoT → 显式语言 CoT | 速度降 14×，SR也降 | 自回归文本生成缓慢 + 语言无法编码力/几何细节 → 物理约束丢失 |
+
+### 4.5 工程关键细节 (Engineering Tricks)
+
+- **训练时 3D → 推理时 2D 的知识蒸馏**: Uni3D 点云编码器仅在训练时提供 3D 监督，推理时不需要点云输入 —— 实现零额外传感器成本的 3D 空间感知
+- **Average Pooling 压缩 token**: 每模态通过 average pooling 压缩为单个紧凑 token，减少自回归展开的计算开销，保证实时性
+- **共享 QKV 注意力**: MoT 双专家共享注意力矩阵而非参数，反向传播时推理信号可流入动作专家，实现思考-行动耦合
+- **异构频率训练 schedule**: 训练时随机采样 reasoning/acting 频率比，增强对不同运行时频率配置的鲁棒性
+- **DeepSeek-LLM 1.5B backbone**: 较小的 LLM 骨干平衡了推理能力和部署延迟，对实时控制至关重要
 
 ## 5. 批判性分析 (Critical Analysis)
 
@@ -133,6 +182,26 @@ related:
 > 4. **VLA + RL 融合缺口**: LaST0 当前仅用 IL 训练，未来必然需要 RL 微调来突破模仿天花板 — 连接到 [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]] 和 [[WMPO - World Model-based Policy Optimization for VLA|WMPO]]
 
 ## 7. 演进脉络定位 (Evolution Context)
+
+### 6.5 与知识体系的数学联系
+
+**与 [[RepresentationLearning]] 的联系 — 多模态隐空间融合**:
+
+LaST0 的三路隐变量融合可理解为多视图信息的充分统计量 (sufficient statistic):
+$$z_t = [\text{pool}(f_{2D}(I_t)), \text{pool}(f_{3D}(P_t)), f_{prop}(q_t)] \in \mathbb{R}^{d_{2D}+d_{3D}+d_{prop}}$$
+训练时的 3D 监督相当于对 $z_t$ 施加正则化，迫使 2D 视觉编码器学习提取 3D 几何信息，即使推理时无 3D 输入。这是特权信息 (privileged information) 蒸馏的经典范式。
+
+**与 [[ControlTheory]] 的联系 — 双频控制架构**:
+
+双系统架构的控制论基础是分层控制 (hierarchical control)。慢系统的更新频率 $f_s = f_{act}/n$ 对应控制带宽的分层:
+$$\omega_{reason} = \frac{\omega_{act}}{n}, \quad n \in [4, 16]$$
+这与 [[TARC - Time-Adaptive Robotic Control|TARC]] 的自适应控制频率思想一脉相承 —— 不同的是 LaST0 将频率分离硬编码在架构中，而 TARC 动态学习。对灵巧操作而言，接触切换阶段需要高频而自由移动阶段低频即可，动态频率更优。
+
+**与 [[EmbodiedAI]] 的联系 — VLA CoT 范式转移**:
+
+LaST0 的的范式转移可用信息论显式化。显式 CoT 受限于语言通道的信息率:
+$$I_{lang}(\text{plan}; \text{physics}) \ll I_{latent}(\text{plan}; \text{physics})$$
+即语言无法有效编码力、几何、接触等连续物理量，而隐空间可以直接表征这些信息。
 
 ```
 前置工作: RT-2 (VLM→VLA) → π0 (Flow Matching VLA) → CoT-VLA (显式语言推理)

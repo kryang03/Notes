@@ -108,6 +108,53 @@ $$
 > 
 > 参见 [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] 中软接触模型的思想
 
+### 3.5 核心伪代码
+
+```python
+# Privileged Action 训练框架 (PyTorch-style)
+class PrivilegedActionEnv:
+    """IsaacGym 环境包装，支持课程参数 lambda"""
+    def __init__(self, base_env):
+        self.env = base_env
+        self.lam = 0.0  # 课程参数: 0=完全特权, 1=完全真实
+    
+    def step(self, action):
+        # 1. 根据 lambda 设置碰撞检测
+        self.env.set_collision_mask(
+            hand_object=self.lam > 0.3  # lambda<0.3 时禁用手-物体碰撞
+        )
+        # 2. 虚拟力缩放
+        virtual_force = action[:, -3:] * (1.0 - self.lam)  # lambda↑ 虚拟力↓
+        self.env.apply_external_force(virtual_force)
+        
+        # 3. 执行动作
+        obs, reward, done, info = self.env.step(action[:, :-3])
+        return obs, reward, done, info
+    
+    def update_curriculum(self, success_rate):
+        # 成功率超过阈值时提升 lambda
+        if success_rate > 0.7:
+            self.lam = min(1.0, self.lam + 0.05)
+
+# 训练循环
+env = PrivilegedActionEnv(IsaacGymEnv("PushAndGrasp"))
+policy = PPO(obs_dim=env.obs_dim, act_dim=env.act_dim + 3)  # +3 为虚拟力
+
+for epoch in range(N_EPOCHS):
+    rollout = collect_rollout(env, policy)
+    policy.update(rollout)
+    env.update_curriculum(rollout.success_rate)
+```
+
+---
+
+## 工程关键细节 (Engineering Tricks)
+
+- **碰撞掩码渐进恢复**: 不是单纯开/关，而是通过 contact stiffness 渐变（从软接触到硬接触）
+- **虚拟力的方向限制**: 只允许竖直方向的虚拟力（抗重力），避免策略利用水平虚拟力“作弊”
+- **成功率统计窗口**: 使用近 100 episodes 的滑动平均而非单 epoch，避免课程抢进
+- **动作空间分离**: 特权动作（虚拟力）和真实动作（关节执行）分开网络头，便于部署时丢弃特权头
+
 ## 4. 实验与验证 (Experiments)
 
 ### 任务设置
@@ -123,6 +170,15 @@ $$
 | + 特权信息 | ~35% | ~30% |
 | **+ 特权动作** | **~85%** | **~80%** |
 
+### Ablation 因果分析
+
+| 去掉组件 | 效果变化 | 因果机制 |
+|---------|---------|----------|
+| 去掉碰撞禁用 | 成功率 -50% | 手无法穿透物体到达抓取位置 → 探索空间崩溃 |
+| 去掉虚拟力 | 成功率 -30% | 推动阶段物体无法辅助移动 → 前置条件不满足 |
+| 去掉课程 (直接 λ=1) | ~0% | 等价于无特权基线，探索过难 |
+| 去掉课程 (固定 λ=0) | 仅在特权内成功 | 策略依赖虚拟力，无法迁移到真实物理 |
+
 ### Sim-to-Real
 - 真机部署成功率: ~75%
 - 关键发现: 学到的非抓取操作行为**自发涌现**，无需显式奖励
@@ -134,10 +190,13 @@ $$
 - **简洁性**: 无需手工设计子任务或奖励
 - **涌现行为**: 非抓取操作自然出现
 
-### 局限性
-- **课程设计**: 仍需手动设计 $\lambda$ 调度
-- **特权选择**: 哪些动作应"特权化"需要领域知识
-- **训练稳定性**: 课程切换可能导致性能波动
+### 局限性深度分析
+
+| 维度 | 局限 | 替代方案 |
+|------|------|----------|
+| **理论** | 特权 MDP 与真实 MDP 的策略对齐无理论保证，可能存在不可迁移的局部最优 | 双向策略蓏馏 (bi-level distillation) 约束特权/真实匹配 |
+| **算法** | 课程 $\lambda$ 的调度需要手动设计，且切换时可能 catastrophic forgetting | ADR (Automatic Domain Randomization) 自动调节 $\lambda$ |
+| **工程** | 特权动作类型需领域知识手动设计；仅限于仿真中可方便修改物理的场景 | HumanoidBench 等自动特权发现方法 |
 
 ### 与 DNPM 项目的关联
 

@@ -1326,6 +1326,27 @@ $$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{i=1}^{G} \min\left(r_i(\theta) \hat{A}_
 - **与 §6.1 DreamerV3 的对比**: DreamerV3 在隐空间 imagination-based planning；WMPO 在像素空间生成完整视频并用 VLM 评分——后者更适合 VLA 架构
 
 
+### 6.6 RL 算法统一分类框架
+
+> [!abstract] On/Off-Policy 的统一视角
+> [[Unified Policy Evaluation and Improvement - On Off-Policy Classification|Unified Policy]] 提出通过 **evaluation** 和 **improvement** 两个维度对 RL 算法进行统一分类，揭示 PPO、SAC、BRAC 等算法的本质差异仅在于 update schedule 的选择。
+
+**统一策略评估公式**：
+$$Q^{\pi_E}(s,a) = r(s,a) + \gamma \mathbb{E}_{s' \sim P}\left[V^{\pi_E}(s')\right]$$
+
+**统一策略改进公式**：
+$$\pi_I(a|s) = \arg\max_\pi \mathbb{E}_{a \sim \pi}\left[Q^{\pi_E}(s,a)\right] - \alpha D_{KL}(\pi \| \pi_{ref})$$
+
+**Update Schedule 三状态分类**：
+
+| 状态 | $\pi_E$ (评估) | $\pi_I$ (改进) | 代表算法 |
+|:---:|:---:|:---:|:---:|
+| Pure On-Policy | $\pi_I$ (最新) | $\pi_I$ (最新) | PPO |
+| Pure Off-Policy | $\pi_E$ (旧) | $\pi_I$ (最新) | BRAC |
+| Cross-Policy | $\pi_E$ (连续更新) | $\pi_I$ (最新) | SAC |
+
+**与灵巧操作的关联**：该框架为用户的 PPO 转笔策略选择提供理论支撑——PPO 的 Pure On-Policy 特性意味着 rollout 数据即时使用，天然适合 IsaacGym 大规模并行；而转向 SAC 时需要 replay buffer 的 staleness 管理。详见 [[Unified Policy Evaluation and Improvement - On Off-Policy Classification|完整论文笔记]]。
+
 ## 7. Conclusion: 走向物理感知的智能
 
 综上所述，强化学习在灵巧操作领域的成功，并非单纯依赖于算力的堆砌，而是源于对物理问题的深刻抽象与算法适配：

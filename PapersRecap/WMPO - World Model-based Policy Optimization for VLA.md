@@ -106,6 +106,42 @@ $$p_\phi^{aligned} = \text{finetune}(p_\phi^{pretrained}, \mathcal{D}_{policy-ro
 
 这实现了**世界模型-策略的联合演化**: 策略改进 → 采集新数据 → 微调世界模型 → 更准确的想象训练。
 
+### 3.5 核心伪代码
+
+```python
+# WMPO: GRPO on Imagined Trajectories (核心 tensor ops)
+def wmpo_grpo_step(world_model, vla, reward_model, init_frame, G=8, T=16):
+    rewards, log_probs_all = [], []
+    for g in range(G):                              # G 组并行 rollout
+        frames = [init_frame]
+        log_probs = []
+        for t in range(T):
+            logits = vla(frames[-1])                # [K, D, 256] 离散化
+            a_t = Categorical(logits=logits).sample()  # action chunk
+            log_p = Categorical(logits=logits).log_prob(a_t).sum()  # 对 K×D 求和
+            log_probs.append(log_p)
+            next_frame = world_model.generate(
+                cond=frames[-1] + noise_50,         # Noisy-Frame Conditioning
+                action=a_t
+            )
+            frames.append(next_frame)
+        R_g = reward_model(torch.stack(frames))     # 二值: {0, 1}
+        rewards.append(R_g)
+        log_probs_all.append(torch.stack(log_probs))
+    # 动态采样: 全成功/全失败 → 丢弃重采
+    rewards = torch.tensor(rewards)                 # [G]
+    if rewards.std() < 1e-6:
+        return None
+    A_hat = (rewards - rewards.mean()) / rewards.std()  # 归一化组优势
+    # GRPO (DAPO 变体, 无 KL 正则)
+    loss = 0
+    for g in range(G):
+        ratio = (log_probs_all[g] - log_probs_old[g].detach()).exp()
+        clipped = ratio.clamp(1 - eps_low, 1 + eps_high)
+        loss -= torch.min(ratio * A_hat[g], clipped * A_hat[g]).mean() / G
+    return loss
+```
+
 ## 4. 实验与验证 (Experiments)
 
 ### 实验设置
@@ -130,6 +166,24 @@ $$p_\phi^{aligned} = \text{finetune}(p_\phi^{pretrained}, \mathcal{D}_{policy-ro
 
 ### Lifelong Learning
 交替更新策略和世界模型，实现持续的性能提升，证明框架的可扩展性。
+
+### Ablation 因果链
+
+| 去掉组件 | SR 变化 | 因果机制 |
+|---------|---------|--------|
+| 去掉 Policy Behavior Alignment | 显著下降 | 世界模型仅见成功轨迹 → 无法生成真实失败场景 → GRPO 优势全正 → 无有效梯度 |
+| 像素空间 → 隐空间世界模型 | SR 下降 8-12% | 隐空间与 VLA 预训练视觉编码器特征不对齐 → 策略接收失真观测 → 分布偏移 |
+| 去掉 Noisy-Frame Conditioning | 长序列 SR 坍塞 | 自回归误差累积无抑制 → 第 3-4 帧后视觉失真 → 动作序列偏离现实 |
+| 2D VAE → 3D VAE | 细粒度任务 SR 下降 | 3D VAE 时间维压缩丢失帧间运动细节 → 操作时序模糊 → 精密任务失败 |
+| 动态采样 → 固定采样 | 收敛变慢 | 全成功组优势全零 + 全失败组无正例引导 → PPO ratio≈1 → 梯度消失 |
+
+## 4.5 工程关键细节 (Engineering Tricks)
+
+- **Noisy-Frame Conditioning 的噪声水平选择**: 固定 50/1000 步扩散噪声 —— 太少无法抑制自回归漂移，太多破坏条件帧信息。这是一个关键超参数，需根据视频分辨率和帧率调整
+- **2D VAE vs 3D VAE**: 3D VAE（CausalVideoVAE）有时间维压缩，丢失帧间细粒度运动 → 选择 SDXL 2D VAE 逐帧编解码保留动作细节
+- **二值奖励模型轻量化**: 基于 InternVL2-1B 微调，输入为少量关键帧（非全序列），可在单 GPU 上批量评估
+- **Frame-Level Action Control**: 动作信号通过 AdaLN 注入而非拼接 —— 避免破坏预训练视频模型的注意力模式，保持生成质量
+- **训练资源分配**: 世界模型预训练（OXE 数据）32 GPU）› GRPO 优化（8 GPU）› 奖励模型训练（1 GPU）
 
 ## 5. 批判性分析 (Critical Analysis)
 
@@ -160,6 +214,25 @@ $$p_\phi^{aligned} = \text{finetune}(p_\phi^{pretrained}, \mathcal{D}_{policy-ro
 > 6. **Policy Behavior Alignment 的一般性**: 世界模型必须匹配当前策略分布的洞见，对任何 model-based RL 方法都适用
 
 ## 7. 演进脉络定位 (Evolution Context)
+
+### 6.5 与知识体系的数学联系
+
+**与 [[ReinforcementLearning]] 的联系 — Model-Based RL 的样本复杂度**:
+
+WMPO 本质是 Dyna 架构的 VLA 级扩展。在经典 Dyna-Q 中，模型生成的想象样本减少了真实交互的样本复杂度。WMPO 的优化目标可分解为:
+$$\max_\theta \mathbb{E}_{\tau \sim \pi_\theta, p_\phi}[R_\psi(\tau)] = \max_\theta \mathbb{E}_{\tau \sim \pi_\theta, P_{real}}[R(\tau)] - \underbrace{D_{TV}(p_\phi \| P_{real})}_{\text{\u4e16\u754c\u6a21\u578b\u8bef\u5dee}}
+$$
+Policy Behavior Alignment 的作用正是最小化 $D_{TV}(p_\phi \| P_{real})$，尤其是在当前策略分布下的转移误差。
+
+**与 [[StochasticProcess]] 的联系 — 视频扩散与序贯 Score**:
+
+世界模型基于视频扩散，其去噪过程可理解为对条件分布 $p(x_{t+1:t+H} | x_t, a_t)$ 的 score function 的近似：
+$$s_\phi(x, t) = \nabla_x \log p_\phi(x | x_{cond}, a)$$
+Noisy-Frame Conditioning 相当于在条件帧上添加 score perturbation，阮断自回归误差的确定性传播。
+
+**与 [[RepresentationLearning]] 的联系 — 像素 vs 隐空间对齐**:
+
+Dreamer 等隐空间世界模型的表征 $z_t = g_\psi(o_t)$ 与 VLA 的视觉编码器 $f_\phi(o_t)$ 存在特征空间不对齐：$z_t \in \mathcal{Z}_{WM} \neq \mathcal{Z}_{VLA}$。WMPO 选择像素空间跳过了这个对齐问题，但代价是计算成本的大幅增加。
 
 ```
 前置工作: Dreamer (隐空间世界模型) → IRIS (像素空间) → UniSim (视频世界模型)

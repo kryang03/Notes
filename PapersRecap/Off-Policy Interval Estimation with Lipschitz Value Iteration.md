@@ -38,6 +38,9 @@ related:
 
 ### 1.1 为什么需要区间估计？
 
+### 直观隐喻
+像天气预报：点估计是“明天 25°C”，区间估计是“明天 22-28°C”。当数据有限时，点估计可能差得离谱，但区间估计能告诉你「最坏也不会低于 22°C」——对医疗/金融等高风险决策，这比任何精确但可能错误的数字都有用。
+
 **点估计的问题**：
 - 历史样本不足 → 估计误差大
 - 策略偏移 (policy shift)
@@ -58,6 +61,14 @@ related:
 ---
 
 ## 2. 核心思想
+
+### Delta 分析
+| 前人方法 | 缺陷 | Lipschitz VI 改进 |
+|---------|------|------------------|
+| IS-based CI | i.i.d. 假设 + horizon curse | 无 i.i.d. 假设，支持演化行为策略 |
+| Bootstrap CI | 也依赖 i.i.d.，无理论保证 | 可证明正确的上下界 |
+| PAC-RL | 仅 tabular/linear MDP | 连续状态空间 + Lipschitz 函数类 |
+| CQL (Conservative) | 仅下界，无上界 | 同时提供上下界 |
 
 ### 2.1 优化框架
 
@@ -136,6 +147,80 @@ $$\bar{R}_F^\pi - \underline{R}_F^\pi \to 0$$
 
 ---
 
+## 4.3 核心伪代码
+
+```python
+# Lipschitz Value Iteration 核心算法 (PyTorch-style)
+import torch
+
+def lipschitz_value_iteration(
+    data_x,     # [n, state_action_dim] 数据点
+    data_r,     # [n] 奖励
+    data_x_next,# [n, state_action_dim] 下一状态
+    eta,        # Lipschitz 常数
+    gamma,      # 折扣因子
+    n_iters=100,
+    mode='upper'  # 'upper' 或 'lower'
+):
+    n = data_x.shape[0]
+    dist = torch.cdist(data_x, data_x)  # [n, n] 成对距离
+    
+    # 初始化 q 值
+    dist_next = torch.cdist(data_x, data_x_next)  # [n, n]
+    q = data_r / (1 - gamma) + gamma * eta * dist_next.mean(dim=1) / (1 - gamma)
+    
+    for t in range(n_iters):
+        # 1. 构建包络线 Q^t(x)
+        if mode == 'upper':
+            # Q^t(x_j) = min_i (q_i + eta * d(x_j, x_i))
+            Q_at_next = (q.unsqueeze(0) + eta * dist_next).min(dim=1).values
+        else:
+            Q_at_next = (q.unsqueeze(0) - eta * dist_next).max(dim=1).values
+        
+        # 2. Bellman 更新: q^{t+1}_i = B^pi Q^t(x_i)
+        q_new = data_r + gamma * Q_at_next
+        
+        if torch.allclose(q, q_new, atol=1e-6):
+            break
+        q = q_new
+    
+    # 最终估计: 对初始分布的期望
+    if mode == 'upper':
+        Q_final = (q.unsqueeze(0) + eta * dist).min(dim=1).values
+    else:
+        Q_final = (q.unsqueeze(0) - eta * dist).max(dim=1).values
+    
+    return Q_final.mean().item()  # R 估计
+```
+
+---
+
+## 4.4 实验与消融分析
+
+### 实验设定
+- **环境**: ModelWin 及 Mountain Car 连续控制任务
+- **行为策略**: 歴史策略收集的 off-policy 数据
+- **评估指标**: 区间视度、覆盖率（真值是否落在区间内）
+
+### Ablation 因果分析
+| 变量 | 效果 | 因果机制 |
+|------|------|----------|
+| $\eta$ 增大 | 区间变宽 | 函数空间增大 → 更多 Q 函数满足约束 → 极值更极端 |
+| $\eta$ 减小 | 区间变窄但可能不包含真值 | 函数空间过小 → 真实 $Q^\pi$ 可能不在其中 |
+| 数据量 $n$ 增加 | 区间收窄 | 更多约束点 → 满足所有 Bellman 不等式的 Q 函数更少 |
+| $\gamma$ 增大 | 区间变宽 + 收敛变慢 | 长视野 = 更多不确定性 → 边界更保守 |
+
+---
+
+## 工程关键细节 (Engineering Tricks)
+
+- **距离度量 $d$ 的选择**: 状态空间应归一化后再计算欧氏距离，否则不同维度尺度不一致会导致 $\eta$ 设置困难
+- **$\eta$ 的设定启发式**: 可以通过计算 $\max_{i \neq j} |r_i - r_j| / d(x_i, x_j)$ 作为 $\eta$ 的初始估计
+- **数据量 vs 计算量**: 每步 $O(n^2)$ 距离计算，大规模数据需要 mini-batch 近似或 KD-tree 加速
+- **收敛判断**: $\|q^{t+1} - q^t\|_\infty < \epsilon$ 即可停止，无需跑满固定迭代数
+
+---
+
 ## 5. 框架优势
 
 与传统置信区间方法相比：
@@ -185,9 +270,11 @@ $$\bar{R}_F^\pi - \underline{R}_F^\pi \to 0$$
 
 ### 局限性
 
-1. **Lipschitz 常数 $\eta$ 需要先验知识**
-2. **连续状态-动作空间计算开销**
-3. **界可能偏保守**（取决于数据覆盖）
+| 维度 | 局限 | 替代方案 |
+|------|------|----------|
+| **理论** | $\eta$ 需先验知识，值错误则界无意义或不包含真值 | 学习 $\eta$ 的自适应方法 (cf. [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control\|LipsNet]]) |
+| **算法** | 高维连续状态-动作空间中 $O(n^2)$ 计算开销 | 神经网络近似 Lipschitz 函数 (e.g., spectral normalization) |
+| **工程** | 界可能偏保守（取决于数据覆盖），实用中可能过宽 | 结合 bootstrap 做区间缩小 |
 
 ---
 

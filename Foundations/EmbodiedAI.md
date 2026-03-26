@@ -224,8 +224,9 @@ $$\pi^* = \arg\min_\pi \mathbb{E}_{(s,a)\sim\mathcal{D}} \left[ \mathcal{L}(\pi(
 | **World Model RL** | [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | 像素空间世界模型 + GRPO | 零真实交互，可扩展 | 依赖世界模型质量 |
 
 | **Lightweight Online RL** | [[RLT - Precise Manipulation with Efficient Online RL Tokens\|RLT]] | VLA → RL Token (信息瓶颈) → 轻量级 actor-critic | 15分钟真实数据，机器人本地实时训练 | 仅改进精密阶段 |
+| **Experience-Based RL** | [[RECAP - A VLA that Learns from Experience\|RECAP (π₀.6)]] | Demonstrations → Corrections → RL 三阶段 | 经验闭环，advantage-conditioned 策略 | 需要多轮真实部署 |
 
-**关键共识**: 仅靠 IL 不足以达到鲁棒部署——RL post-training 是 VLA 走向实用的关键步骤。三条路径在计算成本和适用范围上互补：Real-World RL 适合大规模端到端改进，World Model RL 避免真实交互成本，Lightweight Online RL (RLT) 适合部署时针对精密操作阶段的快速微调。详见 [[ReinforcementLearning#5.2 真实世界高效 RL: SERL 与 Human-in-the-Loop|RL §5.2]] 和 [[ReinforcementLearning#6.5 World Model-Based Policy Optimization for VLA (WMPO)|RL §6.5]]。
+**关键共识**: 仅靠 IL 不足以达到鲁棒部署——RL post-training 是 VLA 走向实用的关键步骤。四条路径在计算成本和适用范围上互补：Real-World RL 适合大规模端到端改进，World Model RL 避免真实交互成本，Lightweight Online RL (RLT) 适合部署时快速微调，Experience-Based RL (RECAP) 通过经验闭环持续自我改进。详见 [[ReinforcementLearning#5.2 真实世界高效 RL: SERL 与 Human-in-the-Loop|RL §5.2]] 和 [[ReinforcementLearning#6.5 World Model-Based Policy Optimization for VLA (WMPO)|RL §6.5]]。
 
 ---
 
@@ -509,6 +510,7 @@ Genesis 是一个新兴的通用物理仿真平台，支持多种物理后端：
 - [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — 潜在时空链式推理，MoT 双系统 VLA
 - [[WMPO - World Model-based Policy Optimization for VLA|WMPO]] — 像素空间世界模型 + GRPO 对 VLA 进行 RL post-training
 - [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]] — 真实世界 RL，denoising sub-MDP，100% 成功率
+- [[RECAP - A VLA that Learns from Experience|RECAP (π₀.6)]] — Experience-Based RL：Demonstrations → Corrections → RL 三阶段经验闭环，advantage-conditioned 策略
 - [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — Flow Matching 预训练 + actuation-aware 残差 RL
 - [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]] — HiL 干预感知加权 VLA 后训练，灵巧操作
 

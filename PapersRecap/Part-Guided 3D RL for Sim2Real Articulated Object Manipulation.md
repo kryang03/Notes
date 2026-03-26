@@ -9,6 +9,7 @@ aliases:
   - Part-Guided 3D RL
 paper-year: 2024
 read-date: 2026-02-01
+venue: ECCV 2024
 paper-pdf: "[[Papers/Part-Guided 3D RL for Sim2Real Articulated Object Manipulation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -180,6 +181,22 @@ $$
 | FPS 采样 | 中 |
 | **FUS 采样** | **高** |
 
+#### 消融因果分析
+
+1. **无部件分割 → 低**: 全局点云淡化了关键交互区域（把手）的信息 → RL 策略难以发现哪里是 affordance 区域。本质是 [[InformationTheory]] 中的信噪比问题：关键信号被背景噪声淡没。
+2. **均匀 vs FPS vs FUS**: 均匀采样包含噪声点；FPS 优先覆盖几何而非语义；FUS 通过不确定性拑掉噪声 + 时序一致性保留稳定点 → 策略输入更稳定。这与 [[SignalProcessing]] 中时序滤波的思想一致。
+3. **时序一致性是核心**: 分割噪声是帧间不相关的 → 帧间一致的点更可能是真实部件 → 时间一致性 ≈ 概率上的噪声过滤。
+
+### 工程关键细节 (Engineering Tricks)
+
+| 技巧 | 作用 |
+|------|------|
+| Hand-centric camera | 减少自遮挡，保证交互区域可见 |
+| 合成数据预训练分割 | 避免真实标注成本，但引入 Sim-Real gap |
+| TTA + MC Dropout | 低成本估计认识不确定性，无需集成多模型 |
+| 历史队列滑动窗口 | $T_{fc}=5$ 帧平衡响应速度与稳定性 |
+| 多任务统一奖励 | approach + direction + grasp 多项奖励解耦学习信号 |
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -188,15 +205,21 @@ $$
 - **稳定迁移**: FUS 解决分割噪声问题
 - **3D 空间推理**: 比 2D 特征更适合操作
 
-### 局限性
-- 依赖准确的部件分割
-- 仅考虑刚性关节物体
-- 把手形状需相对标准
+### 局限性（理论/算法/工程三维度）
 
-### 未来方向
-- 复杂关节结构（多级门、连杆）
-- 可变形物体
-- 触觉辅助
+| 维度 | 局限 | 根因 | 替代方案 |
+|-----|------|------|--------|
+| **理论** | 假设部件分割网络可迁移 | Syn→Real 分割差距在复杂场景下可能崩溃 | 在线自适应分割或基于 [[RepresentationLearning]] 的 foundation model |
+| **理论** | FUS 假设噪声帧间独立 | 系统性偏差（光照变化）会误导一致性权重 | 引入光流或物体跟踪补偿系统性偏差 |
+| **算法** | 仅处理刚性关节物体 | 关节运动像定义明确，柔性/变形无法建模 | 柔性物体需 [[ComputationalGeometry]] 的 SDF 表示 |
+| **工程** | 部件定义依赖先验 | 不同物体需规定哪些部件有意义 | 自动部件发现 (unsupervised part discovery) |
+
+### 对灵巧手转笔/Sim-to-Real 的启发
+
+> [!important] 转笔迁移价值
+> 1. **部件级思维适用于灵巧手**: 转笔时可将手指分为“推动指”“接住指”“稳定指”等功能部件，点云输入按部件采样可聚焦关键接触区域。
+> 2. **FUS 可迁移到触觉信号**: 触觉传感器读数同样存在噪声 → 用时序一致性 + 不确定性加权采样触觉特征。
+> 3. **Hand-centric camera 启示**: 灵巧手转笔可在手指指尖安装小型相机，获取接触区域的近距离观测，减少遮挡。
 
 ## 6. 对灵巧操作的启发 (Implications)
 
@@ -224,29 +247,89 @@ $$
 └── 灵巧手关节物体操作
 ```
 
-## 8. 核心算法伪代码
+## 8. 核心 PyTorch 逻辑
 
 ```python
-# Algorithm 1: Part-guided articulation manipulation policy
-def policy_forward(I, theta):
-    # Step 1: Part segmentation
-    S = f_theta(I)  # C×H×W part masks
-    
-    # Step 2: Point transform
-    p = PointTransform(I, S)  # Per-part 3D points
-    
-    # Step 3: FUS sampling
-    w_c = compute_fus_weights(p, history_queue)
-    p_hat = WeightSampling(p, w_c)  # Ns points per part
-    
-    # Step 4: Feature extraction
-    F_hat = PointNet(concat(p_hat))
-    
-    # Step 5: Action prediction
-    a = Actor(concat(F_hat, robot_state))
-    
-    return a
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+def frame_consistent_uncertainty_sampling(
+    points_per_part: dict[int, torch.Tensor],  # {part_id: (M_c, 3)}
+    seg_probs: dict[int, torch.Tensor],         # {part_id: (M_c, C)} softmax 概率
+    history_queues: dict[int, torch.Tensor],    # {part_id: (Q, Ns, 3)} 历史采样点
+    Ns: int = 32,                               # 每个部件采样点数
+    K_fc: float = 10.0,                         # 一致性衡减系数
+) -> dict[int, torch.Tensor]:
+    """
+    FUS: Frame-consistent Uncertainty-aware Sampling
+    结合不确定性权重 + 时序一致性权重进行加权采样
+    """
+    sampled = {}
+    for c, pts in points_per_part.items():
+        # 1. 不确定性权重: 熵低 → 权重高
+        entropy = -torch.sum(seg_probs[c] * torch.log(seg_probs[c] + 1e-8), dim=-1)  # (M_c,)
+        w_ua = 1.0 / (1.0 + entropy)  # 低熵值 = 高确信 = 高权重
+
+        # 2. 一致性权重: 离历史点近 → 权重高
+        if c in history_queues and history_queues[c].numel() > 0:
+            history_flat = history_queues[c].reshape(-1, 3)  # (Q*Ns, 3)
+            # 每个点到历史点的最近距离
+            dists = torch.cdist(pts, history_flat)  # (M_c, Q*Ns)
+            d_min = dists.min(dim=-1).values        # (M_c,)
+            w_fc = torch.pow(2.0, -K_fc * d_min)
+        else:
+            w_fc = torch.ones(pts.shape[0], device=pts.device)
+
+        # 3. 组合权重 + 采样
+        weights = w_ua * w_fc  # 元素乘法
+        weights = weights / weights.sum()  # 归一化
+        indices = torch.multinomial(weights, Ns, replacement=True)
+        sampled[c] = pts[indices]  # (Ns, 3)
+    return sampled
+
+class PartGuidedPolicy(nn.Module):
+    def __init__(self, n_parts: int, Ns: int, state_dim: int, action_dim: int):
+        super().__init__()
+        self.pointnet = nn.Sequential(  # 简化 PointNet
+            nn.Linear(3, 64), nn.ReLU(),
+            nn.Linear(64, 128), nn.ReLU(),
+            nn.Linear(128, 256),
+        )
+        feat_dim = 256 + state_dim
+        self.actor = nn.Sequential(
+            nn.Linear(feat_dim, 256), nn.ReLU(),
+            nn.Linear(256, 256), nn.ReLU(),
+            nn.Linear(256, action_dim),
+            nn.Tanh(),
+        )
+
+    def forward(self, sampled_points: torch.Tensor, robot_state: torch.Tensor):
+        """
+        sampled_points: (B, n_parts*Ns, 3) — FUS 采样后拼接的点
+        robot_state: (B, D_state)
+        """
+        point_feat = self.pointnet(sampled_points)    # (B, n_parts*Ns, 256)
+        global_feat = point_feat.max(dim=1).values     # (B, 256) max pooling
+        x = torch.cat([global_feat, robot_state], dim=-1)
+        return self.actor(x)
 ```
+
+### 训练设定详情
+
+| 参数 | 值 |
+|------|------|
+| RL 算法 | PPO (clip=0.2, GAE λ=0.95) |
+| 仿真器 | SAPIEN (ManiSkill) |
+| 并行环境数 | 64 |
+| 训练步数 | ~10M 环境步 |
+| 每部件采样点 Ns | 32 |
+| 历史队列长度 $T_{fc}$ | 5 帧 |
+| TTA augmentation 次数 K | 10 |
+| 点云编码器 | PointNet (3→256) |
+| Domain Randomization | 材质、纹理、背景、深度噪声、照明 |
+| 视角 | Hand-centric camera |
+| 分割网络 | GAPartNet 预训练（Syn 数据） |
 
 ## 9. 与 Affordance 方法的对比
 

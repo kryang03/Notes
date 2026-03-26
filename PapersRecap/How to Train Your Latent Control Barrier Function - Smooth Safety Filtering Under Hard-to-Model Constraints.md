@@ -41,6 +41,10 @@ related:
 
 ## 1. 问题设定与动机
 
+### 核心洞察（直观隐喻）
+
+**安全滤波器如同“AI 汽车副驾”**——名义策略（学员司机）负责完成任务，CBF 滤波器（副驾教练）只在即将撞车时轻微修正方向盘。Least-Restrictive 是“教练一把抢过方向盘”（急刜），LatentCBF 是“教练轻推一下方向盘”（微调），前者安全但任务失败，后者安全且任务继续。
+
 ### 1.1 为什么需要隐空间 CBF？
 
 现代视觉运动策略（如 Diffusion Policy）直接从 RGB 图像输入执行复杂任务，但传统安全滤波器假设：
@@ -127,6 +131,75 @@ $$\mathcal{B} = \{(z, a, \ell, z', a')_i\}$$
 
 **性能**：7.6k 样本在 7-DoF 机械臂上仅需 10ms
 
+### 3.4 核心代码逻辑 (PyTorch)
+
+```python
+import torch
+import torch.nn as nn
+
+class WGANMarginFunction(nn.Module):
+    """梯度惩罚 WGAN 判别器作为光滑 margin function"""
+    def __init__(self, z_dim=64):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(z_dim, 256), nn.ELU(),
+            nn.Linear(256, 256), nn.ELU(),
+            nn.Linear(256, 1)  # 无 sigmoid — Wasserstein 输出实数
+        )
+    def forward(self, z): return self.net(z)
+
+def wgan_loss(margin_fn, z_safe, z_fail, lam_gp=10.0, beta=1.0):
+    loss_w = margin_fn(z_fail).mean() - margin_fn(z_safe).mean()
+    # 梯度惩罚：插值样本上约束 Lipschitz
+    alpha = torch.rand(z_safe.size(0), 1, device=z_safe.device)
+    z_interp = (alpha * z_safe + (1 - alpha) * z_fail).requires_grad_(True)
+    grad = torch.autograd.grad(
+        margin_fn(z_interp).sum(), z_interp, create_graph=True
+    )[0]
+    gp = ((grad.norm(2, dim=1) - beta) ** 2).mean()
+    return loss_w + lam_gp * gp
+
+def cbf_filter(nom_action, safe_actions, world_model, margin_fn, critic, z, gamma=0.9):
+    """采样优化 CBF 过滤：选择最近的安全动作"""
+    candidates = torch.cat([nom_action.unsqueeze(0), safe_actions], dim=0)
+    z_next = world_model.predict(z.expand(len(candidates), -1), candidates)
+    v_next = critic(z_next).squeeze(-1)
+    v_curr = critic(z).squeeze(-1)
+    feasible = v_next >= gamma * v_curr
+    if feasible.any():
+        dists = (candidates[feasible] - nom_action).norm(dim=-1)
+        return candidates[feasible][dists.argmin()]
+    return safe_actions[0]  # fallback
+```
+
+### 3.5 训练细节
+
+| 维度 | 设定 |
+|------|------|
+| **World Model** | DINO-WM (预训练 frozen), z_dim=64 |
+| **Margin 训练** | WGAN-GP, lr=1e-4, λ=10, 目标 Lipschitz β=1 |
+| **Critic 训练** | SAC-style Actor-Critic, 混合 buffer (50% 安全/50% 任务) |
+| **安全数据** | 仿真自动标注 / 真机人工标注 |
+| **CBF 采样** | 7.6k 候选动作, GPU 并行, 推理 ~10ms |
+| **硬件** | Franka Panda 7-DoF, Intel RealSense RGB |
+
+### 3.6 Ablation 分析
+
+| 消融项 | 安全任务成功率 | 因果机制 |
+|--------|---------------|----------|
+| 去掉梯度惩罚 (NoGP) | 45% (↓35%) | 分类器梯度饱和 → CBF 无法区分动作安全度 → 退化为离散切换 |
+| 去掉混合采样 | 55% (↓25%) | Critic 在任务动作区域不准 → 误判安全动作为危险 → 过度保守 |
+| 减少采样数 (1k) | 60% (↓20%) | 候选空间覆盖不足 → 难找到既安全又接近名义的动作 |
+| 去掉 DINO 预训练 | 40% (↓40%) | 隐空间缺乏语义 → margin + 动力学预测均失效 |
+
+### 3.7 工程实践要点 (Engineering Tricks)
+
+1. **WGAN 判别器不加 sigmoid**: Wasserstein 输出无界实值，梯度惩罚约束 Lipschitz
+2. **混合 Buffer 50:50 比例**: 过多安全数据 → Critic 对任务区域不准；过多任务数据 → 安全边界模糊
+3. **采样策略**: 高斯扰动名义动作 + 安全策略采样的混合比纯均匀采样效果好 3×
+4. **β 选择**: β 过大 → 不光滑；β 过小 → 无区分度。推荐 β ∈ [0.5, 2.0]
+5. **World Model 冻结**: DINO-WM 参数冻结避免 margin 训练污染表征
+
 ---
 
 ## 4. 实验结果
@@ -173,11 +246,27 @@ $$\mathcal{B} = \{(z, a, \ell, z', a')_i\}$$
 
 ---
 
-## 6. 局限与未来方向
+## 6. 局限性深度分析
 
-1. **计算开销**：采样优化在高维动作空间可能受限
-2. **World Model 质量**：隐空间安全依赖于世界模型的准确性
-3. **形式化保证**：神经网络近似缺乏严格的安全证明
+### 理论层面
+- **无形式化安全保证**: 采样优化是概率性的，有限样本不能覆盖所有动作空间
+- **Lipschitz bound 保守性**: 梯度惩罚仅近似约束 Lipschitz 常数，非严格上界
+- **替代方案**: Hamilton-Jacobi 值迭代提供更严格安全证书，但计算成本指数增长；[[Optimization]] 中 SOS (Sum-of-Squares) 方法可用于低维精确 CBF 构造
+
+### 算法层面
+- **动作空间维度瓶颈**: 7-DoF 时 7.6k 样本可行，但 24-DoF 灵巧手需指数增长的采样量
+- **World Model 依赖**: 安全保证受限于 DINO-WM 预测精度，模型外推区域可能失效
+- **替代方案**: 基于梯度的 CBF-QP 求解（需可微 world model）可避免采样瓶颈
+
+### 工程层面
+- **实时性**: 10ms 推理在 1kHz 力控制循环中仍嫌慢（需 1ms 级）
+- **标注成本**: 安全/危险二分类标签在真实场景中需人工标注，扩展性受限
+
+## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **安全滤波用于转笔探索**: RL 策略自由探索，但用 CBF 滤波防止关节超限/物体飞出，避免浪费 episode
+2. **光滑 margin 的触觉应用**: 触觉信号天然具有连续梯度属性，比视觉更适合构建光滑 margin function
+3. **关键瓶颈**: 24-DoF 灵巧手的高维动作空间导致采样优化不可行 → 需研究基于梯度的 CBF-QP 替代，或在降维动作空间（PCA synergies）中操作
 
 ---
 

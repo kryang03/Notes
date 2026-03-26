@@ -156,6 +156,56 @@ $$
 \mathcal{L} = \mathbb{E}_{s \sim \mathcal{D}}[\|a_{\text{teacher}}(s) - a_{\text{student}}(\text{PC}(s))\|^2]
 $$
 
+### 3.6 核心 PyTorch 逻辑
+
+```python
+import torch
+import torch.nn as nn
+
+class InverseDistillation(nn.Module):
+    """逆向蒸馏: 从真实点云策略 → 仿真中执行收集带特权信息的演示"""
+    def __init__(self, point_encoder, policy_head):
+        super().__init__()
+        self.point_encoder = point_encoder  # PointNet/PointNext
+        self.policy_head = policy_head
+
+    def forward(self, points: torch.Tensor, proprio: torch.Tensor):
+        """
+        points: (B, N, 3) — 仿真中渲染的点云
+        proprio: (B, D_proprio) — 机器人本体感知
+        """
+        feat = self.point_encoder(points)           # (B, D_feat)
+        x = torch.cat([feat, proprio], dim=-1)      # (B, D_feat + D_proprio)
+        action = self.policy_head(x)                # (B, D_action)
+        return action
+
+def teacher_student_distillation_loss(
+    teacher_action: torch.Tensor,  # (B, D_a) — 状态策略输出
+    student_action: torch.Tensor,  # (B, D_a) — 点云策略输出
+) -> torch.Tensor:
+    """
+    L = E[||a_teacher(s) - a_student(PC(s))||^2]
+    teacher 使用特权状态 (q_robot, T_objects)
+    student 使用点云观测 (可部署到真实)
+    """
+    return torch.mean((teacher_action - student_action) ** 2)
+```
+
+### 3.7 训练设定详情
+
+| 参数 | 值 |
+|------|------|
+| 仿真器 | Isaac Sim (USD) |
+| RL 算法 | SAC (Soft Actor-Critic) |
+| 演示引导探索比例 | 50% 从演示状态初始化 |
+| 点云采样点数 | 1024 点 |
+| 地址点云编码器 | PointNet |
+| Teacher RL 训练步数 | ~500K 环境步 |
+| Student 蒸馏数据 | ~10K 轨迹 |
+| 场景扫描时间 | ~15 分钟/场景 |
+| 真实演示数量 | 5-20 条 |
+| 域随机化 | 物体位置/姿态、灯光、质感 |
+
 ## 4. 实验与验证 (Experiments)
 
 ### 实验任务
@@ -182,6 +232,32 @@ $$
 - **位置调整**: 物体偏移后校正
 - **干扰恢复**: 外部推动后继续任务
 
+### 消融与因果分析
+
+| 配置 | 名义成功率 | 扰动鲁棒性 |
+|------|-----------|----------|
+| BC only (无 RL) | 65% | 差 |
+| RialTo (全流程) | **90%+** | **强** |
+| 无逆向蒸馏 (随机探索) | ~45% | 差 |
+| 无域随机化 | ~75% | 中 |
+| 手工建模 (vs 扫描) | ~85% | 强 |
+
+#### 因果链
+
+1. **逆向蒸馏是核心**: 去掉逆向蒸馏 → 仿真中无演示引导 → 稀疏奖励下探索极困难 → 成功率降 50%。与 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] 中演示引导探索的思想一致。
+2. **扫描 vs 手工建模**: 扫描重建与手工建模性能接近 (~5%差距) → 自动化场景重建的精度已足够，极大降低人工成本。
+3. **涌现行为来源**: RL 在仿真中发现了演示中不存在的恢复策略 → 证明 RL 探索 + 足够随机化可产生超越 BC 覆盖的行为空间。
+
+### 工程关键细节 (Engineering Tricks)
+
+| 技巧 | 作用 |
+|------|------|
+| 手机视频扫描 | 降低 3D 重建门槛，无需专业设备 |
+| USD 格式导出 | 与 Isaac Sim 无缝集成，保留铰接关节标注 |
+| 点云作为桥接 | 视觉→点云→仿真状态，统一 Real/Sim 表示 |
+| 演示状态初始化 | 50% 探索从演示中间状态开始，加速 RL 探索 |
+| 物体位姿随机化 | 在真实扫描场景中随机化物体位置/姿态 |
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -189,10 +265,15 @@ $$
 - **演示复用**: 少量真实演示转化为大量仿真训练
 - **鲁棒性显著**: 67%+ 提升
 
-### 局限性
-- **场景重建质量**: 依赖 3D 重建精度
-- **物理仿真差距**: 复杂接触可能不准确
-- **铰接物体**: 需要手动标注关节
+### 局限性（理论/算法/工程三维度）
+
+| 维度 | 局限 | 根因 | 替代方案 |
+|-----|------|------|--------|
+| **理论** | 数字孜生的物理保真度有限 | 3D 重建仅恢复几何，非物理属性（摩擦/质量/刚度） | System ID + 可微仿真优化物理参数 ([[Dynamics]]) |
+| **理论** | Teacher-Student 蒸馏有信息损失 | Student 的观测空间严格小于 Teacher 的状态空间 | 使用 [[InformationTheory]] 的信息瓶颈框架指导蒸馏 |
+| **算法** | 铰接物体需手动标注关节 | 自动关节检测仍不可靠 | 基于视频的自动关节发现算法 |
+| **工程** | 场景重建质量依赖扫描质量 | 反光、透明、细小物体重建困难 | Gaussian Splatting 或 NeRF 提升重建质量 |
+| **工程** | Isaac Sim USD 生态锁定 | 仅支持 NVIDIA 仿真器 | 开发 URDF/MJCF 转换器支持 MuJoCo |
 
 ### 适用场景
 ✅ 桌面操作、家居任务、结构化环境
@@ -203,13 +284,12 @@ $$
 > [!important] 核心启发
 > **数字孪生是安全探索的沙盒**——在精确重建的仿真环境中可以安全地学习失败恢复，而不损坏真实硬件。
 
-### 对灵巧手研究的应用
+### 对灵巧手转笔/Sim-to-Real 的启发
 
-| 应用 | RialTo 价值 |
-|-----|------------|
-| 手内操作 | 练习掉落恢复 |
-| 精密装配 | 练习对准失败重试 |
-| 工具使用 | 练习抓握调整 |
+> [!important] 转笔迁移价值
+> 1. **数字孜生思想直接可用**: 用 iPhone 扫描灵巧手+笔的真实场景 → 在数字孜生中 RL 练习掉笔恢复、抓握调整 → 部署回真实。这比纯 Sim-to-Real 更可控，因为仿真场景与真实几何匹配。
+> 2. **逆向蒸馏解决真机数据稀缺**: 转笔的真机演示极少 → 用 Inverse Distillation 将少量真机轨迹迁移到仿真 → 再用 RL 扩展探索。
+> 3. **注意接触保真度**: 灵巧手转笔的核心是指尖-笔接触动力学 → 3D 重建无法捕捉 [[ContactMechanics]] 参数 → 需额外 System ID 补偿。
 
 ### 与其他方法互补
 
@@ -219,7 +299,17 @@ MimicGen (数据扩增) + RialTo (RL 鲁棒化)
 大规模 + 鲁棒的策略
 ```
 
-## 7. 演进脉络定位 (Evolution Context)
+## 7.1 跨方法对比
+
+| 方法 | 数据需求 | 仿真依赖 | 鲁棒性 | 人工工程 | 迁移方式 |
+|------|---------|---------|--------|---------|----------|
+| RialTo | 5-20 真实演示 | 数字孜生 | **极强** | **最小** | Real→Sim→Real |
+| [[Grounded Action Transformation\|GAT]] | 真机采集 | 仿真器 | 中 | 中 | 动作转换 |
+| [[A Survey of Sim-to-Real Methods in RL\|Domain Randomization]] | 0 真实 | 参数化仿真 | 中 | 大 | Sim→Real |
+| [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning\|HIL-SERL]] | 人在环微调 | 不需要 | 强 | 中 | 纯 Real |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | 仿真演示 | Isaac Gym | 强 | 中 | Sim→Real |
+
+## 7.2 演进脉络定位 (Evolution Context)
 
 ```
 前置工作:

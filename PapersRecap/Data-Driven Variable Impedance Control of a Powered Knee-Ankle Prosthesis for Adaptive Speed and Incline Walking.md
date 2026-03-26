@@ -10,6 +10,7 @@ aliases:
   - Prosthesis Impedance
 paper-year: 2022
 read-date: 2026-01-31
+venue: IEEE TRO 2022
 paper-pdf: "[[Papers/Data-driven variable impedance control of a powered knee–ankle prosthesis for adaptive speed and inc.pdf]]"
 related:
   - "[[ControlTheory]]"
@@ -176,6 +177,18 @@ $$\min_{c} \sum_{n} \| \tau_n^{data} - \tau_n^{model}(c) \|^2$$
 
 ## 4. 实验与验证 (Experiments)
 
+### 4.0 优化/训练细节
+
+> [!note] 本文为凸优化方法，非 RL 训练。
+
+- **求解器**：CVXPY + MOSEK（二次规划，全局最优保证）
+- **数据来源**：健康人步态实验室采集，包含关节角度 + 力矩 + 速度 + 坡度
+- **数据规模**：10 名受试者 × 5 种速度 × 5 种坡度 = 250 条件，每条件 ~100 步态周期
+- **B-spline 基函数**：相位 $\phi$ 方向 10 个节点，速度/坡度 2 阶多项式
+- **两步法**：① 从运动学数据估计 $\theta_{eq}(\phi, v, \alpha)$；② 固定 $\theta_{eq}$，凸优化 $K, B$ 系数
+- **求解时间**：< 1 分钟（离线辨识）
+- **实时控制频率**：1 kHz（参数查表 + 阻抗控制律）
+
 ### 4.1 实验设置
 
 **参与者**：2 名膝上截肢者
@@ -202,6 +215,23 @@ $$\min_{c} \sum_{n} \| \tau_n^{data} - \tau_n^{model}(c) \|^2$$
 3. **步频自适应**：速度增加时步频增加（自然）
 4. **无需调参**：性能与专家调参的 FSM 相当或更好
 
+### 4.4 Ablation 因果链
+
+| 去掉什么 | 导致什么 | 因为什么机制 |
+|---------|---------|------------|
+| 速度适应 $P_j(v)$ → 固定速度 | 慢速/快速时力矩偏差 >30% | 固定参数无法表达步态动力学随速度的非线性变化 |
+| 坡度适应 $P_k(\alpha)$ → 水平 | 上/下坡功率输出错误 | 上坡需正功、下坡需负功——固定参数无法切换能量流方向 |
+| B-spline 节点数 10 → 3 | 力矩曲线丢失高频细节 | 步态周期内阻抗参数变化复杂，低阶基无法拟合 |
+| 两步法 → 联合优化 $K, B, \theta_{eq}$ | 丧失凸性保证，可能陷入局部最优 | $\theta_{eq}$ 与 $K$ 的乘积关系使问题变为双线性/非凸 |
+
+### 4.5 工程关键细节 (Engineering Tricks)
+
+- **相位变量构造**：用大腿角度及其积分而非时间，避免变速行走时相位不匹配
+- **两步分解**：先估计 $\theta_{eq}$（运动学约束）再优化 $K, B$（力学拟合）——保证凸性的关键技巧
+- **支撑相/摆动相分离**：支撑相用阻抗控制（接触任务），摆动相用位置控制（自由任务）
+- **实时查表**：辨识后的 B-spline 系数存入 lookup table，1 kHz 实时查询，无需在线优化
+- **速度/坡度估计**：IMU 低通滤波（截止 2 Hz）估计行走速度和地面坡度
+
 ---
 
 ## 5. 批判性分析 (Critical Analysis)
@@ -213,10 +243,19 @@ $$\min_{c} \sum_{n} \| \tau_n^{data} - \tau_n^{model}(c) \|^2$$
 - **生物仿真**：复现健康人步态特征
 
 ### 局限性
-- **依赖健康人数据**：不适用于无健康参考的任务
-- **仅限行走**：未验证跑步、上楼等
-- **2 人验证**：样本量小
-- **无实时学习**：不能在线适应个体差异
+
+| 维度 | 局限 | 替代方案 |
+|------|------|--------|
+| **理论** | 依赖健康人数据作为“金标准”，无法处理无参考的新任务 | 在线自适应学习（Bayesian Optimization） |
+| **算法** | 线性阻抗模型 $\tau = -K(\theta-\theta_{eq})-B\dot{\theta}$ 无法表达非线性接触力学 | 神经网络阻抗模型 / GP回归 |
+| **工程** | 仅 2 名截肢者验证，统计力度不足 | 大规模临床试验 |
+| **范围** | 仅限行走，未验证跑步/上楼等 | 扩展任务空间的训练数据采集 |
+
+### 5.2 对转笔 / Sim-to-Real 的启发
+
+- **相位变量类比**：转笔操作也有明确的相位结构（snap → 旋转 → 收手），可以构造操作相位变量 $\phi_{manip}$ 驱动阻抗参数调度
+- **凸优化辨识**：从人类转笔演示中辨识指尖阻抗参数，作为 RL 的初始化/奖励引导
+- **Sim-to-Real**：阻抗参数调度函数可在仿真中辨识，然后直接部署到真机（与 MCC 类似的零样本迁移逻辑）
 
 ### 与机器人操作的联系
 
@@ -314,7 +353,28 @@ def identify_impedance_convex(gait_data):
 
 ---
 
-## 8. 与 Foundation 的链接更新
+## 8. 与 Foundation 的数学联系
+
+### 与 [[ControlTheory]] 的联系
+可变阻抗控制的数学本质：线性参数变化 (LPV) 系统——$\tau(t) = -K(\phi(t)) \cdot e(t) - B(\phi(t)) \cdot \dot{\theta}(t)$，其中参数 $K, B$ 是相位 $\phi$ 的连续函数而非分段常数，保证了控制输出的满足 Lipschitz 连续性。
+
+### 与 [[Dynamics]] 的联系
+步态动力学的简化：将人体下肢建模为弹簧质量系统 $I\ddot{\theta} + B\dot{\theta} + K(\theta - \theta_{eq}) = \tau_{ext}$，其中 $I$ 是足部惯性，$\tau_{ext}$ 包含地面反力矩。凸优化的线性性来自于固定 $\theta_{eq}$ 后 $\tau = -K \cdot \Delta\theta - B \cdot \dot{\theta}$ 关于 $K, B$ 线性。
+
+### 与 [[Optimization]] 的联系
+凸优化保证：$\min_c \|\tau^{data} - \Phi c\|^2$ 是标准二次规划 (QP)，其中 $\Phi$ 是 B-spline 基函数与状态变量的 Kronecker 积構成的回归矩阵。全局最优解 $c^* = (\Phi^T\Phi)^{-1}\Phi^T \tau^{data}$。
+
+## 9. 跨方法对比
+
+| 维度 | Data-Driven VI (本文) | [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks\|VICES]] | [[FACET - Force-Adaptive Control via Impedance Reference Tracking\|FACET]] | [[Minimalist Compliance Control\|MCC]] |
+|------|------------------|-------|-------|-----|
+| 参数获取 | 凸优化辨识 | RL 学习 | RL 跟踪 | 硬件标定 |
+| 数据需求 | 健康人步态数据 | 无需演示 | RL 仿真数据 | 无 |
+| 全局最优保证 | ✅ (凸问题) | ❌ (RL 局部最优) | ❌ | N/A |
+| 在线适应 | ❌ (离线) | ✅ (策略实时输出) | ✅ | ✅ (实时估计) |
+| 任务域 | 假肢行走 | 单臂接触 | 腿式行走 | 多平台力控 |
+
+## 10. 与 Foundation 的链接更新
 
 ### 需要添加到 ControlTheory.md
 在"阻抗控制"部分添加"数据驱动阻抗辨识"作为免调参的新方法。

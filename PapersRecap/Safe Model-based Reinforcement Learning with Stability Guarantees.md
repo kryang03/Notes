@@ -38,6 +38,26 @@ related:
 
 ## 1. 问题设定
 
+### 1.0 核心直觉与隐喻
+
+**一句话核心**：像在雾天开车——只能看见前方一小段（GP 不确定性），但只要每一步都处于「能刹住车」的状态（Lyapunov 吸引域内），就永远安全。随着观测增多（GP 不确定性缩小），“能见度”不断提升，安全区域自动扩大。
+
+**现有方法局限**：
+- **无约束 Model-based RL**：样本高效但在模型不准确的区域可能执行危险动作
+- **仅基于约束的 RL (CMDP)**：期望累积代价约束无法保证“每一步”都安全
+- **保守鲁棒控制**：安全但策略搜索空间极度受限，无法学习更优策略
+
+### 1.0.1 Delta 分析
+
+| 方法 | 安全保证 | 模型需求 | 探索能力 | 可扩展性 |
+|------|---------|---------|---------|----------|
+| 无约束 MBRL | 无 | 参数模型 | 无限 | 好 |
+| CMDP-Lag | 期望安全 | 无需 | 良好 | 好 |
+| 鲁棒控制 | 最差情况 | 精确模型 | 极保守 | 差 |
+| **本文 (Lyapunov+GP)** | **概率安全** | **GP 动力学** | **安全探索** | **中等** |
+
+**核心增量**：首次将 Lyapunov 安全保证与数据驱动的 GP 不确定性量化结合，实现「安全地探索并扩大吸引域」
+
 ### 1.1 安全的定义
 
 **核心观点**：RL 中的安全 = 控制理论中的**稳定性**
@@ -150,6 +170,84 @@ for n = 1, 2, ... do
 
 **置信区间简化**：$\beta_n = 2$（实践中比理论值更激进）
 
+### 4.3 核心 PyTorch 实现
+
+```python
+import torch
+import torch.nn as nn
+import gpytorch
+
+class SafeLyapunovAgent:
+    """基于 Lyapunov + GP 的安全 RL Agent"""
+    def __init__(self, policy_net, lyapunov_fn, gp_model, L_v, beta=2.0):
+        self.policy = policy_net       # 策略网络
+        self.V = lyapunov_fn           # Lyapunov 函数 (e.g., 能量函数)
+        self.gp = gp_model             # GP 动力学模型
+        self.L_v = L_v                 # V 的 Lipschitz 常数
+        self.beta = beta               # 置信区间缩放
+
+    def is_safe(self, s, a, c_n):
+        """检查 (s, a) 是否在安全集内"""
+        with torch.no_grad():
+            mu, sigma = self.gp.predict(s, a)  # GP 预测
+            # Lyapunov 下降条件的上界
+            v_next_upper = self.V(mu) + self.L_v * self.beta * sigma
+            v_current = self.V(s)
+            return v_next_upper < v_current  # 严格下降
+
+    def safe_explore(self, s, c_n):
+        """在安全集内选择不确定性最大的动作"""
+        best_a, best_unc = None, -float('inf')
+        for a in self.action_candidates(s):
+            if self.is_safe(s, a, c_n):
+                mu, sigma = self.gp.predict(s, a)
+                # 上界 - 下界 = 不确定性宽度
+                unc = 2 * self.L_v * self.beta * sigma
+                if unc > best_unc:
+                    best_a, best_unc = a, unc
+        return best_a
+
+    def update_roa(self, policy, gp_model, tau):
+        """计算最大安全等值线 c_n"""
+        # 在离散网格上验证 Lyapunov 下降条件
+        c_max = 0
+        for c in torch.linspace(0.01, 10.0, 100):
+            level_set = self.get_level_set(c, tau)
+            all_safe = all(
+                self.is_safe(s, policy(s), c) for s in level_set
+            )
+            if all_safe:
+                c_max = c
+        return c_max
+```
+
+### 4.4 训练细节补充
+
+| 超参数 | 值 |
+|--------|-----|
+| 策略网络 | 2×32 MLP + ReLU |
+| GP 核函数 | Matérn 5/2 |
+| 置信区间 $\beta_n$ | 2 |
+| 状态空间离散化 $\tau$ | 0.01–0.1（任务相关） |
+| 数据收集 | 每轮 1 个安全探索点 |
+| Lyapunov 函数 | 能量函数（机械系统）/ 价值函数 |
+| 总数据量 | 50 个交互点即可显著扩大 RoA |
+
+### 4.5 Ablation 因果链分析
+
+| 去掉的组件 | 结果变化 | 因果机制 |
+|-----------|---------|----------|
+| 去掉 GP 不确定性 → 仅用均值 | 安全性破坏（状态离开吸引域） | 忽略模型误差导致验证时低估 $v(f(x,\pi(x)))$ |
+| 去掉安全探索 → 随机探索 | 吸引域扩展速度降 3× | 随机点多数落在已知区域，信息增益低 |
+| $\beta_n$ 过小 (0.5) | 不安全的探索点出现 | 置信区间未完全覆盖真实动力学 |
+| $\beta_n$ 过大 (10) | 吸引域几乎不扩展 | 过度保守，所有候选点都被判定为不安全 |
+
+### 4.6 工程关键细节 (Engineering Tricks)
+
+- **GP 计算加速**：GP 推断复杂度 $O(n^3)$，实际使用 sparse GP 或隔式归纳截断到 50–100 个诱导点
+- **Lyapunov 函数选择**：对机械系统优先用能量 $v(x) = \frac{1}{2}x^T P x$；对无物理先验的系统可用学习到的价值函数
+- **$L_v$ 估算**：对二次 Lyapunov $v(x) = x^T P x$，$L_v = 2\|P\| \cdot \|x\|_{\max}$，需确保 $\|x\|_{\max}$ 在感兴趣区域内有缓冲
+
 ---
 
 ## 5. 实验结果
@@ -200,6 +298,28 @@ for n = 1, 2, ... do
 - **约束优化** 形式的策略更新
 - Lipschitz 连续性假设的利用
 - 信息论驱动的探索策略
+
+### 与 Foundation 的数学联系
+
+**与 [[ControlTheory]] 的数学联系 — Lyapunov 下降条件的概率化**：
+
+经典 Lyapunov 稳定性要求 $v(f(x)) < v(x)$（确定性）。本文将其概率化：
+$$\Pr\left[v(f(x, \pi(x))) < v(x)\right] \geq 1 - \delta$$
+通过 GP 的后验均值和方差构造上界 $u_n = v(\mu_n) + L_v \beta_n \sigma_n$，将概率安全转化为确定性上界检查。
+
+**与 [[StochasticProcess]] 的数学联系 — GP 后验不确定性**：
+
+GP 后验方差 $\sigma_n^2(x) = k(x,x) - k_x^T (K + \sigma^2 I)^{-1} k_x$ 随数据增加单调递减→ 吸引域单调扩大。这是本文「安全探索扩展 RoA」的数学根据。
+
+### 跨方法对比
+
+| 维度 | 本文 (Lyapunov+GP) | [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective\|Stability-Cert. RL]] | [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|Lipschitz RL]] | [[Reachability Constrained Reinforcement Learning\|RCRL]] |
+|------|----------------------|------------------------------|--------------------------|--------|
+| 安全定义 | 吸引域前向不变 | $\mathcal{L}_2$ 增益有界 | 输出 Lip 有界 | 可行集内可达 |
+| 安全证明工具 | Lyapunov + GP 置信区间 | SDP + 偏导数界 | 架构确保 | Safety Q-function |
+| 探索能力 | 安全探索扩展 RoA | 无显式探索 | 无显式探索 | 无显式探索 |
+| 模型依赖 | GP 动力学 | LTI 标称模型 | 无 | 无 |
+| 可扩展性 | GP $O(n^3)$ 限制 | SDP 维度限制 | 良好 | 良好 |
 
 ---
 

@@ -105,6 +105,40 @@ $$
 
 其中 $f_{\text{dynamics}}$ 是任务动力学的带宽。TARC 隐式学习这一关系。
 
+### 3.5 核心代码逻辑（PyTorch）
+
+```python
+class TARCPolicy(nn.Module):
+    """策略同时输出动作 a 和持续时间 Δt"""
+    def __init__(self, obs_dim, act_dim, hidden=256, dt_min=0.01, dt_max=0.1):
+        super().__init__()
+        self.backbone = nn.Sequential(
+            nn.Linear(obs_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden), nn.ReLU(),
+        )
+        self.action_head = nn.Linear(hidden, act_dim)
+        self.duration_head = nn.Linear(hidden, 1)
+        self.dt_min, self.dt_max = dt_min, dt_max
+
+    def forward(self, obs):  # obs: (B, obs_dim)
+        h = self.backbone(obs)                          # (B, H)
+        action = torch.tanh(self.action_head(h))        # (B, act_dim) ∈ [-1,1]
+        # sigmoid 映射到 [dt_min, dt_max]
+        dt = self.dt_min + (self.dt_max - self.dt_min) * torch.sigmoid(
+            self.duration_head(h)
+        )                                               # (B, 1)
+        return action, dt.squeeze(-1)                   # (B, act_dim), (B,)
+
+# === 时间感知折扣回报 ===
+def temporal_discount_return(rewards, durations, discount_rate=10.0):
+    """按物理时间折扣: γ(Δt) = exp(-c·Δt)，非按步数"""
+    returns, G = [], 0.0
+    for r, dt in zip(reversed(rewards), reversed(durations)):
+        G = r + torch.exp(-discount_rate * dt) * G
+        returns.insert(0, G)
+    return torch.stack(returns)
+```
+
 ## 4. 实验与验证 (Experiments)
 
 ### 实验平台
@@ -124,6 +158,36 @@ $$
 - 高动态阶段: 30-40 Hz
 - 过渡阶段: 连续变化
 
+### 4.2 训练设定
+
+| 参数 | 值 |
+|------|------|
+| 基础算法 | SAC (off-policy, 自动温度调节) |
+| 动作空间 | 连续关节目标 + $\Delta t \in [0.01, 0.1]$ s |
+| 折扣因子 | 时间感知: $\gamma(\Delta t) = e^{-c \cdot \Delta t}$ |
+| 仿真器 | MuJoCo |
+| 底层仿真步长 | 0.001 s |
+| Episode 截断 | 按实际物理时间 |
+| 目标平台 | RC 赛车 (1/10 scale) + Unitree 四足 |
+| Sim-to-Real | 零样本部署 (无真机微调) |
+
+### 4.3 Ablation 因果链
+
+| 去掉什么 | 导致什么 | 因为什么机制 |
+|---------|---------|------------|
+| 去掉 $\Delta t$ 输出 (固定 40Hz) | 计算量 4× 但稳态段无性能提升 | 稳态动力学带宽低，高频无额外信息增益 ~ Nyquist 冗余 |
+| 去掉 $\Delta t$ 输出 (固定 10Hz) | 漂移转弯等高动态任务失败 | 控制频率低于任务动力学带宽 $f < 2f_{\text{dynamics}}$ |
+| 缩窄 $\Delta t$ 范围至 $[0.04, 0.06]$ s | 性能退化为固定 ~20Hz 水平 | 自适应空间被压缩，策略丧失频率调节能力 |
+| 去掉时间感知折扣 (改按步数) | 策略偏好短 $\Delta t$，丧失效率优势 | 按步数折扣时长短动作等价 → 短动作在有限 horizon 内积累更多步奖励 → 系统偏差 |
+
+### 4.4 工程关键细节 (Engineering Tricks)
+
+1. **$\Delta t$ sigmoid 参数化**: 通过 $\sigma(\cdot)$ 将网络输出映射到 $[\Delta t_{\min}, \Delta t_{\max}]$，避免动作 clip 导致的梯度消失
+2. **时间感知折扣**: $\gamma(\Delta t) = e^{-c \cdot \Delta t}$ 替代固定 $\gamma^k$，消除步长对价值估计的系统偏差
+3. **独立 duration head**: $\Delta t$ 使用独立线性层输出，与 action head 共享 backbone 但避免联合输出空间过大
+4. **仿真内插**: 当 $\Delta t$ 不是底层仿真步长整数倍时，使用最近整数倍 + 零阶保持，避免仿真不稳定
+5. **频率平滑正则**: 添加 $|\Delta t_{k+1} - \Delta t_k|$ 惩罚项，防止频率在相邻步间剧烈抖动
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -135,6 +199,14 @@ $$
 - **连续时间近似**: 实际仍是离散控制，只是步长可变
 - **训练复杂性**: 多了一个输出维度，可能增加训练难度
 - **硬件约束**: 真实系统的最小控制周期受限于通信延迟
+
+### 局限性深度分析（三维度）
+
+| 维度 | 局限 | 替代方案 |
+|------|------|----------|
+| **理论** | 仅隐式学习最优频率，无 Nyquist 条件的显式保证——策略可能在关键时刻选择过低频率 | 添加频率下界约束 $\Delta t \leq \hat{\Delta t}_{\max}(s)$，由在线估计的局部动力学带宽决定 |
+| **算法** | 并行仿真中不同环境的 $\Delta t$ 不同导致批次对齐困难 (Isaac Gym 等 GPU 仿真器要求同步步进) | 量化 $\Delta t$ 为离散级别 (如 10/20/40 Hz)，牺牲连续性换取并行效率；或分桶异步收集 |
+| **工程** | 真实系统最小 $\Delta t$ 受通信延迟约束 (~5ms EtherCAT, ~20ms USB) → 高频端受限 | 将 $\Delta t_{\min}$ 设为实测通信延迟 + 安全裕度；或使用本地 FPGA 实时控制器卸载高频环路 |
 
 ### 与 DNPM 项目的直接关联
 
@@ -178,3 +250,41 @@ $$
 1. **自适应控制频率**: TARC 的时间自适应与转笔的需求完美匹配——snap 发力需要高频，空中飞行可低频
 2. **与 PPO 的结合**: 可作为 PPO 的动作头扩展——除了输出关节目标位置，额外输出「下一步的持续时间」
 3. **局限**: 变时间步在并行仿真（Isaac Gym）中的实现比固定时间步复杂很多，需处理不同环境的同步问题
+
+## 8. 与知识体系的联系 (Foundation Connections)
+
+### 与 [[ControlTheory]] 的联系
+
+TARC 的频率自适应本质上是**采样控制理论**的 RL 实现。经典离散化分析表明，对线性系统 $\dot{x} = Ax + Bu$，零阶保持离散化后闭环稳定性要求：
+
+$$
+\Delta t < \frac{2}{\lambda_{\max}(A)}
+$$
+
+其中 $\lambda_{\max}(A)$ 是系统矩阵最大特征值。对非线性系统，局部线性化给出时变约束 $\Delta t(s) < 2/\lambda_{\max}(A(s))$。TARC 通过端到端学习隐式发现这一关系——在高动态区域（大 $\lambda_{\max}$）自动降低 $\Delta t$。
+
+与 [[ControlTheory]] 中的增益调度 (Gain Scheduling) 类比：增益调度根据工作点切换控制器参数，TARC 根据状态调整采样率——两者都是将控制参数适应于局部动力学。
+
+### 与 [[Dynamics]] 的联系
+
+$\Delta t$ 选择与动力学系统的**时间尺度分离** (time-scale separation) 密切相关。多体 Lagrangian 动力学：
+
+$$
+M(q)\ddot{q} + C(q,\dot{q})\dot{q} + g(q) = \tau
+$$
+
+不同广义坐标 $q_i$ 的特征频率 $\omega_i = \sqrt{K_i / M_{ii}}$ 差异巨大（灵巧手指尖 ~50Hz vs 手臂 ~5Hz）。TARC 的自适应 $\Delta t$ 隐式跟踪当前主导模态的特征频率，与 [[Dynamics]] 中的模态分析直接对应。
+
+## 9. 跨方法对比 (Cross-Method Comparison)
+
+| 维度 | TARC (本文) | [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning\|FiGAR/Action Persistence]] | Fixed High-Freq | EvoControl |
+|------|------------|------------------------------|-----------------|------------|
+| 频率类型 | **连续** $\Delta t \in [\Delta t_{\min}, \Delta t_{\max}]$ | 离散 action repeat $k \in \{1,...,K\}$ | 固定 | 进化优化固定频率 |
+| 策略架构 | 双头: action + duration | 双头: action + repeat count | 单头 | 单头 |
+| 折扣机制 | 时间感知 $e^{-c \Delta t}$ | 按重复步数 $\gamma^k$ | 标准 $\gamma$ | 标准 $\gamma$ |
+| 计算效率 | ~1.5× (vs 高频 4×) | 依赖 $k$ 分布 | 1× 或 4× | 1× |
+| Sim-to-Real | 零样本 | 未验证 | 已有大量验证 | 竞赛验证 |
+| 适用场景 | 动态变化任务 (赛车/四足) | 离散决策间隔可接受的任务 | 动力学稳定的任务 | 固定频率即可的任务 |
+
+> [!note] 启示
+> TARC 的连续 $\Delta t$ 是 Action Persistence 的自然推广：后者在离散重复中选择，前者在连续时间域中优化。对灵巧操作，接触模式切换是**连续频率调节**的强需求场景——TARC 比离散方案更适合。

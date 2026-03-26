@@ -10,6 +10,7 @@ read-date: 2026-03-16
 aliases:
   - Dynamic RL for Actors
   - Chaos Exploration RL
+venue: arXiv Preprint
 paper-pdf: "[[Papers/Dynamic Reinforcement Learning for Actors.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -68,6 +69,52 @@ related:
 
 $$\Delta w \propto \text{sign}(\delta_{TD}) \cdot \frac{\partial \text{Sensitivity}}{\partial w}$$
 
+### 3. Delta 分析：与 SOTA 的增量
+
+| 维度 | 传统 Stochastic Policy (SAC/PPO) | Dynamic RL |
+|------|--------------------------------|------------|
+| 探索来源 | 策略分布 $\pi(a|s)$ 的熵 $\mathcal{H}[\pi]$ | RNN 内部混沌动力学（正 Lyapunov 指数） |
+| 状态依赖性 | 有（通过 $\sigma(s)$）但 isotropic | 有，且探索方向由网络动力学决定（anisotropic） |
+| 探索-利用切换 | 温度参数 $\alpha$ 全局调节 | TD error 符号 → 局部 Lyapunov 指数调节 |
+| 理论保证 | SAC: 策略改进定理 | 无严格收敛保证 |
+
+**核心增量**：将探索从"外部注入"转为"内生涌现"，探索方向与网络 attractor landscape 对齐，理论上可实现更高效的定向探索。
+
+### 4. 核心伪代码（PyTorch 风格）
+
+```python
+import torch
+import torch.nn as nn
+
+class DynamicActor(nn.Module):
+    """混沌动力学 Actor：探索内嵌于 RNN 状态演化"""
+    def __init__(self, obs_dim, act_dim, hidden_dim=64):
+        super().__init__()
+        self.rnn = nn.RNNCell(obs_dim, hidden_dim)   # 递归网络产生混沌
+        self.head = nn.Linear(hidden_dim, act_dim)
+
+    def forward(self, obs, h_prev):
+        h = self.rnn(obs, h_prev)          # h_{t+1} = tanh(W_ih @ obs + W_hh @ h_t + b)
+        action = self.head(h)
+        return action, h
+
+def compute_sensitivity(actor, obs, h, eps=1e-4):
+    """局部 Lyapunov 指数近似：输入微扰 → 输出偏差比"""
+    h_perturbed = h + eps * torch.randn_like(h)
+    a1, _ = actor(obs, h)
+    a2, _ = actor(obs, h_perturbed)
+    return (a2 - a1).norm() / (eps * h.shape[-1] ** 0.5)
+
+def srl_update(actor, optimizer, td_error, obs, h):
+    """Sensitivity-controlled RL: TD error 驱动混沌强度"""
+    sensitivity = compute_sensitivity(actor, obs, h)
+    # TD > 0 → 降低敏感度（收敛/利用）; TD < 0 → 增加敏感度（发散/探索）
+    loss = -torch.sign(td_error) * sensitivity
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+```
+
 ---
 
 ## 与传统方法的对比
@@ -117,6 +164,34 @@ $$\Delta w \propto \text{sign}(\delta_{TD}) \cdot \frac{\partial \text{Sensitivi
 > [!note] 局限性
 > 论文主要是概念性的，实验规模有限。未与 SAC 等主流方法做系统对比。
 
+### 训练设定
+
+| 项目 | 详情 |
+|------|------|
+| **环境** | 简单动态控制任务（论文未指定标准 benchmark） |
+| **网络** | 小规模 RNN（具体维度未报告） |
+| **监督信号** | 环境 reward（标准 RL 回路） |
+| **关键超参** | SAL 学习率、SRL 的 TD error 阈值、敏感度目标范围 |
+| **训练规模** | 概念验证级别（未报告具体 sample 数） |
+
+> [!warning] 论文为概念性研究，训练细节披露有限。
+
+### Ablation 因果分析
+
+论文隐含的消融维度（非标准 ablation table，基于论文论述推断）：
+
+| 消融条件 | 预期效果 | 因果机制 |
+|---------|---------|----------|
+| 去掉 SAL（仅 SRL） | 混沌可能过早消失 → 探索不足 | SAL 维持 edge-of-chaos，无它系统收敛为 fixed point |
+| 去掉 SRL（仅 SAL） | 混沌持续但无方向性 → 随机游走 | SRL 提供 TD-error 梯度信号引导探索方向 |
+| 替换 RNN → MLP | 无内部状态 → 无混沌动力学 | 混沌需要递归连接产生的状态空间 |
+
+### 工程关键细节 (Engineering Tricks)
+
+- **Sensitivity 数值稳定性**：Lyapunov 指数近似需要微扰 $\epsilon$ 的精细选择；过大失去局部性，过小被浮点误差淹没
+- **混沌控制的边界**：SAL 需将敏感度维持在 $[1-\delta, 1+\delta]$ 窄带内（edge of chaos），超出则发散/收敛
+- **RNN 梯度问题**：虽然论文声称不需 BPTT，但 SRL 仍需通过 RNN 前向传播计算 sensitivity 的梯度
+
 ---
 
 ## 与其他工作的联系
@@ -134,6 +209,58 @@ $$\Delta w \propto \text{sign}(\delta_{TD}) \cdot \frac{\partial \text{Sensitivi
 Dynamic RL 需要**正 Lyapunov 指数**（混沌），而 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Certified RL]] 追求**负 Lyapunov 指数**（稳定）。
 
 这揭示了一个有趣的张力：**探索需要不稳定，利用需要稳定**。
+
+---
+
+## 理论局限性深度分析
+
+### 理论维度
+- **无收敛保证**：混沌系统的 Lyapunov 指数 $\lambda > 0$ 意味着轨迹指数发散，论文未证明 SRL 能可靠地将系统收敛到最优策略
+- **混沌 ≠ 高效探索**：混沌轨迹虽覆盖状态空间，但可能在 low-reward 区域浪费大量采样（vs. SAC 的 $\max_\pi \mathbb{E}[r + \alpha \mathcal{H}[\pi]]$ 有理论最优性）
+- **替代方案**：[[ReinforcementLearning|最大熵 RL]] 框架提供了严格的探索-利用权衡理论，如 soft Bellman equation
+
+### 算法维度
+- **可扩展性未知**：高维动作空间（如 24-DoF 灵巧手）中混沌动力学的可控性是开放问题
+- **替代方案**：基于 [[InformationTheory|信息增益]] 的探索（如 RND、ICM）在高维空间中已有成功案例
+
+### 工程维度
+- **Sim-to-Real 脆弱性**：混沌系统对初始条件极度敏感（$\| \delta x(t) \| \sim e^{\lambda t} \| \delta x(0) \|$），模型误差在 sim-to-real 中被指数放大
+- **替代方案**：Domain Randomization + 鲁棒策略优化
+
+## 与 Foundation 的数学联系
+
+### 与 [[StochasticProcess]] 的联系：混沌 vs 随机性
+
+混沌系统产生的"伪随机"行为与真随机过程的关键区分：
+
+$$
+\text{混沌}: x_{t+1} = f(x_t) \quad (\text{确定性，} \lambda_{\max} > 0)
+$$
+$$
+\text{随机}: x_{t+1} = f(x_t) + \xi_t, \quad \xi_t \sim \mathcal{N}(0, \Sigma)
+$$
+
+混沌轨迹的**自相关函数**衰减比白噪声更慢（$C(\tau) \sim e^{-\lambda \tau}$ vs 即时衰减），意味着探索具有时间结构——这可能是 Dynamic RL 的隐含优势。
+
+### 与 [[Dynamics]] 的联系：神经网络作为动力系统
+
+RNN 的隐状态演化可视为离散动力系统：
+
+$$
+h_{t+1} = \tanh(W_{hh} h_t + W_{ih} x_t + b)
+$$
+
+当 $\| W_{hh} \|_{\text{spectral}} > 1$ 时系统处于混沌区域；$< 1$ 时为收缩映射。SAL 本质上是在调控 $W_{hh}$ 的谱范数，使其维持在 **临界值附近**（edge of chaos）。
+
+### 与 [[ReinforcementLearning]] 的联系：探索效率的信息论视角
+
+从 [[InformationTheory|信息论]] 角度，探索的目标是最大化关于环境的信息增益：
+
+$$
+I(s'; a, s) = H(s') - H(s' | a, s)
+$$
+
+Dynamic RL 的混沌探索隐含地生成高熵动作序列，但缺乏对信息增益的**定向优化**——这是其相比好奇心驱动探索方法的理论短板。
 
 ---
 

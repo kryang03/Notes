@@ -85,7 +85,7 @@ $$\min_{\theta} \mathcal{L}_{\text{task}}(\theta) \quad \text{s.t.} \quad \|\the
 
 ### 3.2 核心机制：Top-K 投影与激活稀疏化
 
-由于 $L_0$ 范数不可导，作者没有使用 $L_1$ 惩罚（Lasso），而是采用了**投影梯度下降（Projected Gradient Descent）** 的变体：
+由于 $L_0$ 范数不可导，作者没有使用 $L_1$ 惩罚（Lasso），而是采用了 [[Optimization]] 中**投影梯度下降（Projected Gradient Descent）** 的变体：
 
 1. 
 
@@ -101,7 +101,7 @@ $$\min_{\theta} \mathcal{L}_{\text{task}}(\theta) \quad \text{s.t.} \quad \|\the
 
    $$\text{AbsTopK}(x, k) = x \odot \mathbb{I}(|x| \ge \text{Top}_k(|x|))$$
 
-   - **物理意义**：这迫使神经元只有在信号非常强时才激活，减少了"多义性"（Polysemanticity），即一个神经元在不同上下文中代表不同含义的现象。
+   - **物理意义**：这迫使神经元只有在信号非常强时才激活，减少了"多义性"（Polysemanticity），即 [[RepresentationLearning]] 中一个神经元在不同上下文中代表不同含义的现象。
 
 ### 3.3 回路发现算法 (Circuit Pruning)
 
@@ -191,6 +191,18 @@ for step, batch in enumerate(dataloader):
 
 实验在预训练的 Python 代码模型上进行，设计了 20 个特定的微任务（如预测括号嵌套深度、引号闭合等）。
 
+**训练设定详情**:
+
+| 项目 | 详情 |
+|------|------|
+| **模型规模** | 6M / 66M / 131M 参数（稠密基准），对应非零参数 ~60K / 660K / 1.3M |
+| **预训练数据** | The Stack v2 Python 子集 |
+| **训练 tokens** | ~22B tokens (6M), ~82B tokens (131M) |
+| **稀疏度** | 99% - 99.9% 权重稀疏 |
+| **优化器** | AdamW，带 $L_0$ 退火 schedule |
+| **退火策略** | 前 50% steps 从稠密线性退火至目标稀疏度 |
+| **辅助组件** | 稠密 Bigram Table (词表²) |
+
 1. **回路极其精简**： 展示了对于同样的 Loss，稀疏模型所需的回路大小比稠密模型小 16 倍。
 
 2. **可解释性可视化**：
@@ -220,6 +232,16 @@ for step, batch in enumerate(dataloader):
 - 
 
   **多义性残留**：即使在如此高的稀疏度下，部分神经元仍然表现出多义性（Polysemanticity），说明稀疏可能不是解开叠加态的唯一条件 。
+
+### 5.3 Ablation 因果分析
+
+| 消融条件 | 效果 | 因果机制 |
+|---------|------|--------|
+| 去除 $L_0$ 退火（直接高稀疏） | 训练坍缩，所有神经元死亡 | 稀疏约束过强时梯度流被截断 → 类似 [[Optimization]] 中投影梯度法的可行域过小导致无法收敛 |
+| 去除 Bigram Table | Loss 显著上升 | 稀疏网络被迫用有限容量编码低级统计规律 → 挤占高级逻辑推理的参数预算 |
+| 去除激活稀疏（仅保留权重稀疏） | 多义性增加，回路不够清晰 | 权重稀疏限制连接拓扑，激活稀疏限制信号并行度 → 两者协同才能迫使单神经元单功能 |
+| 替换 AbsTopK 为 ReLU | 回路可解释性下降 | ReLU 仅截断负值，仍允许大量弱正激活 → 不足以消除 polysemanticity |
+| 增大模型规模（66M→131M） | 相同稀疏度下回路更清晰 | 更多参数 → 更多"彩票"(lottery tickets) 可选 → [[InformationTheory]] 中信道容量增加使编码更高效 |
 
 ------
 
@@ -252,6 +274,29 @@ for step, batch in enumerate(dataloader):
 1. **不要尝试手写稀疏 CUDA 核函数**：除非你是高性能计算专家。直接使用 PyTorch 的 Masking 模拟稀疏性即可（虽然慢，但逻辑正确）。
 2. **$L_0$ 退火是关键**：如果你一开始就设定 99% 稀疏度，模型不仅不收敛，所有神经元都会"死亡"。必须使用论文图 11  中的 Schedule。
 3. **RMSNorm 的位置**：注意它是 Pre-Norm 配置，且为了不仅对权重做归一化，要小心处理 Scale 参数。
+
+### 6.4 与 Foundation 的数学联系
+
+**与 [[Optimization]] 的联系**:
+$L_0$ 约束优化 $\min_\theta \mathcal{L}(\theta)$ s.t. $\|\theta\|_0 \le k$ 是 NP-hard 的组合优化问题。Top-K 投影是对 $L_0$ ball 的正交投影，等价于贪心近似：
+$$\text{Proj}_{L_0 \le k}(\theta) = \theta \odot \mathbb{I}(|\theta| \ge \text{Top}_k(|\theta|))$$
+这是 [[Optimization]] 中投影梯度下降（PGD）框架的特例，收敛性依赖于目标函数的受限光滑性。
+
+**与 [[InformationTheory]] 的联系**:
+稀疏表示与最小描述长度（MDL）原则直接相关。一个 99.9% 稀疏的模型用更少的 bits 编码同样的功能 → 信息瓶颈 $I(X; T)$ 被显式压缩，迫使 $T$ 保留与任务最相关的信息。
+
+**与 [[RepresentationLearning]] 的联系**:
+Superposition hypothesis 认为稠密网络将 $N > d$ 个特征叠加到 $d$ 维空间中。稀疏化等价于限制每层的有效维度，迫使表征从 superposition 退化为 monosemantic → 与表征解耦问题同构。
+
+### 6.5 跨方法对比
+
+| 维度 | 权重稀疏 (本文) | SAE (Post-hoc) | Probing | Activation Patching |
+|------|----------------|----------------|---------|-------------------|
+| **时机** | 训练时（Ab initio） | 训练后 | 训练后 | 训练后 |
+| **目标** | 直接可解释模型 | 解释稠密模型 | 定位信息 | 定位因果节点 |
+| **规模** | 小模型 (~100M) | 大模型适用 | 大模型适用 | 大模型适用 |
+| **保真度** | 回路 = 实际计算 | 重建近似 | 线性探针限制 | 因果但粒度粗 |
+| **效率代价** | 训练更慢（非结构化稀疏） | 额外训练 SAE | 训练探针 | 枚举开销 |
 
 ------
 

@@ -68,7 +68,50 @@ $$\mathcal{L}_{total} = \mathcal{L}_{recon} + \lambda_{KL} \mathcal{L}_{KL} + \l
 - $\mathcal{L}_{recon} = \mathbb{E}[\|\delta_i - \hat{\delta}_i\|_2^2]$ — 增量重建
 - $\mathcal{L}_{KL} = D_{KL}(q_\phi(z_i | p_i, \delta_i, I_i) \| \mathcal{N}(0, I))$ — VAE 正则化
 - $\mathcal{L}_{joint} = \mathbb{E}\left[\frac{1}{|J_c|}\sum_{j \in J_c} \|P_{j,i+1} - \hat{P}_{j,i+1}\|_2^2\right]$ — 控制关节精度
+### 2.4 核心伪代码
 
+```python
+# COMET 前向推理核心逻辑 (PyTorch-style)
+class COMETDecoder(nn.Module):
+    def __init__(self, joint_dim, latent_dim, n_joints=6):
+        self.transformer = TransformerDecoder(d_model=joint_dim, nhead=4, nlayers=3)
+        self.intent_encoder = nn.Linear(3, joint_dim)   # 3D 目标位移
+        self.z_proj = nn.Linear(latent_dim, joint_dim)
+        self.delta_head = nn.Linear(joint_dim, joint_dim) # 预测姿态增量
+    
+    def forward(self, p_i, z_i, joint_targets, active_joints):
+        # p_i: [B, n_joints, joint_dim] 当前姿态
+        # z_i: [B, latent_dim] 采样的隐变量
+        # joint_targets: [B, n_joints, 3] 目标位置
+        # active_joints: [B, n_joints] bool mask
+        
+        # 1. 意图特征编码
+        I_joint = self.intent_encoder(joint_targets - p_i[:, :, :3])  # 目标位移
+        I_joint = I_joint * active_joints.unsqueeze(-1)  # mask 非活跃关节
+        
+        # 2. 隐变量融合
+        z_feat = self.z_proj(z_i).unsqueeze(1).expand_as(p_i)  # broadcast
+        
+        # 3. Joint-wise Attention: 跨关节交互
+        x = p_i + I_joint + z_feat
+        h = self.transformer(x)  # [B, n_joints, joint_dim]
+        
+        # 4. 预测姿态增量
+        delta_i = self.delta_head(h)  # [B, n_joints, joint_dim]
+        p_next = p_i + delta_i
+        return p_next, delta_i
+
+def reference_guided_feedback(p_pred, gmm, alpha=0.3):
+    """RGF: 将预测姿态向自然运动流形纠偏"""
+    # 找最近 GMM 组件 (Mahalanobis 距离)
+    dists = [mahalanobis(p_pred, mu_k, cov_k) for mu_k, cov_k in gmm]
+    k_star = torch.argmin(torch.stack(dists), dim=0)
+    mu_nearest = gmm.means[k_star]
+    
+    # 纠偏
+    p_corrected = p_pred + alpha * (mu_nearest - p_pred)
+    return p_corrected
+```
 ### 2.3 Reference-Guided Feedback (RGF) — 长时域稳定核心
 
 用 GMM 建模参考运动流形，推理时将预测姿态向自然运动流形纠偏：
@@ -89,8 +132,16 @@ $$f_{i+1} = \hat{f}_{i+1} + \alpha (\mu_{k^*} - \hat{f}_{i+1})$$
 ### 3.2 核心实验结果
 - **单关节控制**: 相比 WANDR，成功率大幅提升，foot skating 和 distance-to-goal 均显著降低
 - **多关节控制**: DTG 随控制关节数增加而稳步降低，证明 Joint-wise Attention 有效
-- **消融**: 去掉 Joint-wise Attention → 控制信号不稳定；去掉 RGF → 轨迹漂移严重
 - **RGF 通用性**: 将 RGF 插入 WANDR 基线，SR 和 FS 也显著提升
+
+### 3.3 Ablation 因果链
+
+| 去掉组件 | 效果变化 | 因果机制 |
+|---------|---------|----------|
+| 去掉 Joint-wise Attention | 多关节 DTG 上升 ~40% | 关节间无交互 → 各自独立控制 → 身体平衡缺失 |
+| 去掉 RGF | 30秒后轨迹漂移显著 | 自回归误差累积无纠偏机制 → 偏离自然运动流形 → 非物理姿态 |
+| 去掉骨盆意图 $I_{pelvis}$ | DTG 上升 ~25% | 身体中心无法跟随末端执行器 → 大幅度运动时重心偏移 |
+| GMM K 过小 (K=5) | foot skating 上升 | 运动流形建模不充分 → 纠偏向错误模态 → 运动失真 |
 
 ### 3.3 实时性能
 运行速度满足实时要求（自回归逐帧生成，无需迭代去噪）
@@ -129,3 +180,13 @@ $$f_{i+1} = \hat{f}_{i+1} + \alpha (\mu_{k^*} - \hat{f}_{i+1})$$
 - 控制精度受限于关节意图特征编码的表达力
 - GMM 需离线训练，在线自适应风格切换尚未实现
 - 未涉及接触力学约束（与操作任务的差距）
+
+## 8. 跨方法对比
+
+| 维度 | COMET (VAE) | Diffusion Policy | MDM | WANDR |
+|------|-------------|-----------------|-----|-------|
+| 实时性 | ✅ 逐帧自回归 | ❌ 多步去噪 | ❌ 多步去噪 | ✅ 实时 |
+| 多关节控制 | ✅ 任意子集 | ✅ (通过引导) | ✅ | ❌ 单关节 |
+| 长时域稳定性 | ✅ RGF 纠偏 | 中等 | 弱 (漂移) | 弱 |
+| 风格切换 | ✅ 插件式 GMM | 需重训练 | 需重训练 | ❌ |
+| 训练复杂度 | 低 (CVAE) | 高 (扩散过程) | 中等 | 低 |

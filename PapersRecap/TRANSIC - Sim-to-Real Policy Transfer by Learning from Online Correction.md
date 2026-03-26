@@ -9,11 +9,13 @@ aliases:
   - TRANSIC
 paper-year: 2024
 read-date: 2026-02-01
+venue: CoRL 2024
 paper-pdf: "[[Papers/TRANSIC Sim-to-Real Policy Transfer by Learning from Online Correction.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"
   - "[[ComputationalGeometry]]"
+  - "[[RepresentationLearning]]"
 ---
 
 # TRANSIC: Sim-to-Real Policy Transfer by Learning from Online Correction
@@ -147,6 +149,39 @@ else:
 
 门控函数与残差策略共享编码器，通过分类损失联合训练。
 
+### 3.5.1 核心 PyTorch 实现逻辑
+
+```python
+# Gated Residual Policy 核心
+class GatedResidualPolicy(nn.Module):
+    def __init__(self, obs_dim, act_dim):
+        super().__init__()
+        self.encoder = PointNetEncoder(obs_dim)  # 共享编码器
+        self.residual_head = nn.Sequential(
+            nn.Linear(256, 128), nn.ReLU(), nn.Linear(128, act_dim)
+        )
+        self.gate_head = nn.Sequential(
+            nn.Linear(256, 64), nn.ReLU(), nn.Linear(64, 1), nn.Sigmoid()
+        )
+
+    def forward(self, obs):
+        z = self.encoder(obs)                    # 共享特征
+        a_residual = self.residual_head(z)       # 残差动作
+        gate = self.gate_head(z)                 # 门控 ∈ [0,1]
+        return a_residual, gate
+
+# 推理: 部署策略
+a_base = base_policy(obs)                        # 仿真训练的基策略
+a_res, gate = gated_residual_policy(obs)
+a_deployed = a_base + gate * a_res               # 门控残差叠加
+
+# 训练损失 (人类校正数据)
+target_residual = q_post - q_pre                 # 校正后 - 校正前
+loss_res = -log_prob(a_res, target_residual)     # BC 残差
+loss_gate = F.binary_cross_entropy(gate, is_intervention)
+loss = loss_res + lambda_gate * loss_gate
+```
+
 ### 3.6 任务分解
 
 四个基础技能组成家具组装:
@@ -175,6 +210,35 @@ else:
 > [!note] 人类努力的扩展性
 > TRANSIC 性能随人类干预数据量单调提升，表现出良好的数据效率。
 
+### 4.1 训练超参数
+
+| 参数 | 值 |
+|------|-----|
+| RL 算法 (Teacher) | PPO |
+| 蒸馏方式 | Behavioral Cloning (OSC→Joint relabeling) |
+| 观测模态 | 本体感知 + 点云 (1024 pts) |
+| 人类校正设备 | SpaceMouse 遥操作 |
+| 校正数据量 | ~50 episodes / skill |
+| 残差策略训练 | BC, Adam lr=3e-4, batch=256 |
+| 门控阈值 | 0.5 (推理时) |
+
+### 4.2 Ablation 因果链分析
+
+| 去掉/改变 | 结果变化 | 因果机制 |
+|-----------|---------|----------|
+| 去掉 Gated → Always Residual | 成功率下降 ~15% | 无干预状态叠加残差引入噪声，基策略已足够好的区域被破坏 |
+| 去掉 Action Space Distillation (直接用 OSC) | 真机完全失败 | OSC 需精确动力学参数，仿真-真机参数差异导致控制器崩溃 |
+| 减少校正数据 (50→10 episodes) | 成功率下降 ~30% | 残差策略欠拟合，未覆盖足够多的失败模式 |
+| 用 RGB 替代点云 | 成功率显著下降 | RGB 的 sim-to-real 视觉 gap 更大，点云几何结构跨域鲁棒 |
+| 直接微调 (替代残差) | 快速崩溃 | 灾难性遗忘 + 少量校正数据上过拟合 |
+
+### 4.3 工程关键细节 (Engineering Tricks)
+
+1. **OSC→Joint Relabeling**: 蒸馏时不是 action imitation，而是记录 OSC 执行后的关节角变化作为 Joint space target
+2. **点云对齐正则化**: $\|\phi(P^{\text{real}}) - \phi(P^{\text{sim}})\|^2$ 使用仿真渲染点云进行预训练对齐
+3. **校正数据增强**: 对人类校正轨迹施加小扰动生成近邻样本，提升数据效率
+4. **门控训练平衡**: 门控损失权重 $\lambda$ 需仔细调节——过高导致门控过于保守，过低导致过于激进（始终叠加残差）
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -188,6 +252,14 @@ else:
 - 门控函数可能学得不够精确
 - 高精度任务（如 Screw）仍需较多校正
 
+#### 理论/算法/工程 三维度局限性分析
+
+| 维度 | 局限性 | 替代方案 |
+|-----|--------|----------|
+| **理论** | 残差假设 gap 可被小幅补偿表达，大 gap 场景可能需重新训练 | Distributionally Robust RL ([[ReinforcementLearning]]) |
+| **算法** | 门控二分类过于粗糙，连续置信度更优；非马尔可夫校正难以用 MLP 建模 | 基于 Transformer 的序列残差预测 |
+| **工程** | 人类必须在线参与，SpaceMouse 精度限制了校正质量 | HIL-SERL 在线 RL；或 VR 遥操作提升精度 |
+
 ### 未来方向
 - 自动检测需要干预的状态
 - 主动学习选择最有价值的校正
@@ -199,6 +271,18 @@ else:
 2. **残差 > 微调**: 对于分布外数据，残差学习更稳定
 3. **人类知识的隐式传递**: 人类无需明确知道 gap 是什么，只需能纠正
 4. **点云视觉**: 相比 RGB，点云在 sim-to-real 中更鲁棒
+
+### 6.5 与知识体系的数学联系
+
+#### 与 [[ReinforcementLearning]] 的联系
+残差策略可形式化为值函数分解：
+$$Q^{\pi_{deployed}}(s,a) = Q^{\pi_B}(s,a_B) + \mathbb{1}_g \cdot Q^{\pi_R}(s, a_R)$$
+门控函数 $g$ 的最优策略等价于 advantage function 的符号：当 $A^{\pi_R}(s) > 0$ 时开启残差。
+
+#### 与 [[ControlTheory]] 的联系
+Action Space Distillation 实质是控制空间变换：
+$$\underbrace{\tau = \Lambda(q)\ddot{x}_d + \mu(q,\dot{q}) + p(q)}_{\text{OSC (需精确 } \Lambda, \mu, p\text{)}} \xrightarrow{\text{Relabel}} \underbrace{q_{target} = q + \Delta q}_{\text{PD (只需 } K_p, K_d\text{)}}$$
+将模型依赖的 OSC 蒸馏为模型无关的关节位置控制——[[ControlTheory]] 中鲁棒控制与最优控制的经典权衡。
 
 ## 7. 演进脉络定位 (Evolution Context)
 
@@ -228,6 +312,16 @@ else:
 | 核心思想 | 人类引导 RL 探索 | 人类校正学残差 |
 | 数据需求 | 持续在线参与 | 一次性收集后离线 |
 | 适用场景 | 真实世界策略改进 | Sim-to-Real 迁移 |
+
+### 8.1 广义跨方法对比
+
+| 方面 | TRANSIC | HIL-SERL | Domain Randomization | System ID | GARAT (Grounding) |
+|-----|---------|----------|---------------------|-----------|-------------------|
+| 人类参与 | 一次性校正 | 持续在线 RL | 无 | 领域专家设计 | 少量真机数据 |
+| 核心策略 | 残差补偿 | 在线微调 | 鲁棒策略 | 精确仿真 | 动作映射修正 |
+| 数据需求 | 少量校正 | 持续交互 | 0 真实 | 测量数据 | 配对轨迹 |
+| Gap 覆盖 | 全部 (隐式) | 全部 (隐式) | 主要 $\Delta_T$ | $\Delta_T$ | $\Delta_T$ |
+| 可扩展性 | 中 (需人类) | 低 (持续人类) | 高 | 低 (需重新标定) | 中 |
 
 ## 9. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
 

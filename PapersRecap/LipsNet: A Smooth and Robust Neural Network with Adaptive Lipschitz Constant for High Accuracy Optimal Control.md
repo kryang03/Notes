@@ -268,7 +268,14 @@ def forward(self, x):
 
 
 3. **调试**：先在简单的 **Double Integrator** 环境调试。如果那里都不 work，通常是梯度计算图断了。
+---
 
+## 7. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **转笔动作抑抖**: 灵巧手转笔中手指的高频抖动直接导致笔掉落，用 LipsNet 替换 Actor MLP 可从网络结构层面消除抖动，无需额外 reward penalty 牺牲控制精度
+2. **Sim-to-Real 鲁棒性**: 观测噪声是 Sim-to-Real 的核心痛点，LipsNet 的 Lipschitz 约束确保传感器噪声不会被放大为动作抖动——这是对 [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|Sensing Reduction Curriculum]] 的绝佳补充
+3. **自适应 $K(s)$ 与接触状态**: 转笔的不同阶段对平滑度要求不同：稳定持笔时需低 $K$（极度平滑），发动旋转时需高 $K$（快速响应）——LipsNet-L 的自适应机制天然匹配
+4. **计算开销考量**: 0.75ms 推理延迟对 ~30Hz 的灵巧手控制可接受，但对 1kHz 低层力控循环不可行，需结合分层控制架构仅在高层使用
 ---
 
 **What's Next?**

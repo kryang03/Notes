@@ -10,6 +10,7 @@ aliases:
   - Variable Impedance Control in End-Effector Space
 paper-year: 2019
 read-date: 2026-01-31
+venue: ICRA 2019
 paper-pdf: "[[Papers/Variable Impedance Control in End-Effector Space:.pdf]]"
 related:
   - "[[ControlTheory]]"
@@ -194,6 +195,19 @@ $$\tau = J^T \Lambda (K \Delta x + D \dot{e}) + \mu(q, \dot{q}) + p(q)$$
 
 **RL 算法**：SAC (Soft Actor-Critic)
 
+### 4.1.1 训练细节
+
+- **网络结构**：2 层 MLP (256 units)，ReLU 激活
+- **RL 算法**：SAC（自动温度调节 $\alpha$）
+- **学习率**：$3 \times 10^{-4}$（actor & critic 共享）
+- **Replay buffer**：$10^6$ transitions
+- **Batch size**：256
+- **折扣因子**：$\gamma = 0.99$
+- **训练步数**：$10^6$ 环境步
+- **仿真环境**：MuJoCo，7-DoF Sawyer / 6-DoF UR5
+- **控制频率**：20 Hz（策略）；底层阻抗控制 1 kHz
+- **奖励函数**：任务相关（轨迹误差 + 能量惩罚 + 接触力惩罚）
+
 ### 4.2 主要结果
 
 | 任务 | JT | JP | JVI | EEP | **VICES** |
@@ -210,6 +224,24 @@ $$\tau = J^T \Lambda (K \Delta x + D \dot{e}) + \mu(q, \dot{q}) + p(q)$$
 4. **迁移性**：VICES 策略可直接迁移到不同机器人
 
 ### 4.4 Sim-to-Real 迁移
+
+### 4.5 Ablation 因果链
+
+| 去掉什么 | 导致什么 | 因为什么机制 |
+|---------|---------|------------|
+| 可变阻抗 → 固定刚度 | 能耗 ↑ 2-3×，接触力 ↑ | 无法适应接触/自由空间切换，全程高刚度浪费能量 |
+| 末端空间 → 关节空间阻抗 (JVI) | 样本效率 ↓，迁移性丧失 | 策略需额外学习冗余解析，动作语义与任务不对齐 |
+| 动力学补偿 ($\Lambda, \mu, p$) → PD only | Door Opening 失败率 ↑ | 未补偿的动力学耦合使末端阻抗偏离期望值 |
+| 对角 $K$ → 标量 $K$ | Surface Wiping 法/切向无法独立控制 | 单一刚度无法表达方向性顺从 |
+
+### 4.6 工程关键细节 (Engineering Tricks)
+
+- **刚度范围**：$K_{min}=10, K_{max}=1000$ N/m，sigmoid 输出保证正定
+- **阻尼设计**：$D = 2\sqrt{K}$（临界阻尼），K 变化时 D 自动跟随
+- **位姿增量限幅**：$\|\Delta x\| \leq 2$ cm/step，防止策略输出跳变
+- **旋转表示**：使用轴角 $\omega \in \mathbb{R}^3$ 而非欧拉角，避免万向锁
+- **操作空间惯性正则化**：$\Lambda = (JM^{-1}J^T + \epsilon I)^{-1}$，避免奇异位形附近数值爆炸
+- **控制频率分离**：策略 20 Hz → 阻抗控制 1 kHz，避免策略延迟污染力控质量
 
 **结果**：
 - VICES 策略从仿真直接部署到真实 Sawyer 机器人
@@ -231,10 +263,19 @@ $$\tau = J^T \Lambda (K \Delta x + D \dot{e}) + \mu(q, \dot{q}) + p(q)$$
 - **迁移性**：动力学补偿使策略跨机器人通用
 
 ### 局限性
-- **仅对角刚度**：无法表达复杂耦合（如斜向力场）
-- **底层控制器依赖**：需要准确的动力学模型
-- **姿态表示**：使用欧拉角或轴角，可能有奇异性
-- **单臂操作**：未验证双臂或灵巧手
+
+| 维度 | 局限 | 替代方案 |
+|------|------|--------|
+| **理论** | 仅对角刚度，无法表达耦合力场 $K_{ij}, i \neq j$ | SPD 参数化：$K = LL^T$（Cholesky） |
+| **算法** | 底层控制器需精确动力学模型 $M(q), C(q,\dot{q}), g(q)$ | 自适应控制或残差动力学补偿 |
+| **工程** | 姿态用轴角在 $\|\omega\| \to \pi$ 时不连续 | 四元数/旋转矩阵表示 |
+| **范围** | 仅单臂验证，灵巧手高维扩展未探索 | 分层控制：手指级 VICES + 手腕级协调 |
+
+### 5.2 对转笔 / Sim-to-Real 的启发
+
+- **灵巧手 VICES**：每根手指定义独立 $(\Delta x_{tip}, K_{tip})$，转笔 snap 阶段高 $K$ 发力、旋转阶段低 $K$ 柔顺滑动
+- **Sim-to-Real 鲁棒性**：操作空间动力学补偿抵消机器人差异，可变阻抗为模型不确定性提供天然鲁棒性
+- **腱驱动刚度映射**：灵巧手关节刚度由腱张力决定 $K_j = R^T \text{diag}(k_t) R$，VICES 刚度输出需通过腱映射转换
 
 ### 与其他方法的对比
 
@@ -387,10 +428,26 @@ def train_vices_policy(env, policy):
 
 ---
 
-## 9. 与 Foundation 的链接更新
+## 9. 与 Foundation 的数学联系
 
-### 需要添加到 ControlTheory.md
-在"阻抗控制"部分添加"学习可变阻抗"作为自适应阻抗调节的新范式。
+### 与 [[ControlTheory]] 的联系
+阻抗因果关系：$F = Z(s) \cdot V(s)$，广义阻抗 $Z(s) = Ms^2 + Ds + K$。VICES 让 RL 学习 $K$，使 $Z(s)$ 随任务动态变化。临界阻尼条件 $D = 2\sqrt{MK}$ 保证无振荡收敛。
 
-### 需要添加到 ReinforcementLearning.md
-在"动作空间设计"部分添加"任务空间动作"作为接触任务的推荐实践。
+### 与 [[ReinforcementLearning]] 的联系
+动作空间设计直接影响 MDP 的有效维度和探索效率。末端空间阻抗动作将 $|\mathcal{A}| = n_{joints}$ 压缩到 $|\mathcal{A}| = 12$（6 位姿 + 6 刚度），且动力学补偿使转移函数 $T(s'|s,a)$ 对机器人参数更不变。
+
+### 与 [[Dynamics]] 的联系
+操作空间惯性矩阵 $\Lambda = (JM^{-1}J^T)^{-1}$ 实现**动态一致性**：末端力 $F$ 不在零空间方向产生运动，即零空间投影 $N = I - J^\dagger J$ 与 $F$ 解耦。
+
+### 与 [[ContactMechanics]] 的联系
+接触刚度 $K_c$ 与控制刚度 $K$ 的串联等效：$K_{eff} = \frac{K \cdot K_c}{K + K_c}$。当 $K \ll K_c$ 时 $K_{eff} \approx K$（控制器主导）；当 $K \gg K_c$ 时 $K_{eff} \approx K_c$（接触主导）。
+
+## 10. 跨方法对比
+
+| 维度 | VICES | [[FACET - Force-Adaptive Control via Impedance Reference Tracking\|FACET]] | [[Minimalist Compliance Control\|MCC]] | [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking\|Data-Driven VI]] |
+|------|-------|-------|-----|---------------|
+| 阻抗参数来源 | RL 学习 | RL 跟踪参考模型 | 无（固定参数） | 凸优化辨识 |
+| 动作空间 | $\Delta x + K$ | $x_{des} + K_p + K_d$ | 无（非学习） | N/A（非 RL） |
+| 力传感器 | 不需要 | 不需要 | 不需要 | 需要（数据采集） |
+| 验证任务 | 单臂接触 | 腿式行走 | 多平台力控 | 假肢行走 |
+| 核心优势 | 样本效率+迁移 | 力自适应+安全 | 零学习+通用 | 零调参+全局最优 |

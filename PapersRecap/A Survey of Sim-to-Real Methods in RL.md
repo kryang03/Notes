@@ -38,7 +38,27 @@ Gap 来源分解为 MDP 四元素差异：
 - **$\Delta_T$ (Transition)**: 物理动力学差异 $P_s(s_{t+1}|s_t, a_t) \neq P_r(s_{t+1}|s_t, a_t)$
 - **$\Delta_R$ (Reward)**: 奖励函数基于仿真设计，未覆盖真实场景
 
+### 核心直觉隐喻
+
+> 就像在驾校模拟器中学会了开车，但真正上路时发现方向盘手感不同 ($\Delta_A$)、路况与模拟器不同 ($\Delta_T$)、后视镜视角不同 ($\Delta_S$)、交通规则的评判标准也不同 ($\Delta_R$)。Sim-to-Real 研究就是系统性地消除「模拟器驾校」与「真实路况」之间每一维度的差距。
+
+### 1.2 现有综述的局限
+
+此前 Sim-to-Real 综述主要存在三个盲区：
+1. **缺乏统一分类框架**：大多数综述按「技术族」（Domain Randomization / Domain Adaptation / System ID）分类，无法揭示各方法解决的是 MDP 哪一维度的差距，导致跨方法对比缺乏共同基准。
+2. **忽略 Foundation Model 范式**：2023 年前的综述均未覆盖 LLM/VLM 在 Sim-to-Real 中的角色（语义锚点、奖励自动生成、动作空间推理），而这正是当前最活跃的增长点。
+3. **应用领域割裂**：机器人操作、自动驾驶、交通控制、医疗等领域各有独立综述，缺乏统一视角下的跨域特征提炼。
+
+本综述以 MDP 四元素 $(S, A, T, R)$ 为轴，首次在统一框架下覆盖经典方法与 Foundation Model 增强策略，并横跨多个应用领域。
+
 ## 2. 核心方法/理论
+
+### 2.0 Delta 分析：本综述的增量贡献
+
+与此前综述（Tobin et al. 2017 DR 专项综述、Zhao et al. 2020 迁移学习综述）相比，本文的核心增量：
+- **分类维度升级**：从「技术族」→「MDP 元素」，使得同一技术（如对抗训练）在 $\Delta_S$ (视觉对齐) 和 $\Delta_T$ (动力学对齐) 中分别出现，揭示其多面性
+- **Foundation Model 系统整合**：在每个 Gap 维度下都分析了 LLM/VLM 的切入点，形成「经典方法 + FM 增强」的双轨结构
+- **开放资源库**：维护 [AwesomeSim2Real](https://github.com/LongchaoDa/AwesomeSim2Real) 持续更新
 
 ### 2.1 Observation Gap 解决方案
 
@@ -76,17 +96,71 @@ Gap 来源分解为 MDP 四元素差异：
 >
 > 这条线与 [[sim2real]] 中讨论的硬件建模 Gap 互补——Grounding 修正软件模型，硬件分析修正物理参数范围。
 
+#### 核心概念代码: Domain Randomization + Grounding
+
+```python
+# Domain Randomization: 训练时随机化物理参数
+for epoch in range(n_epochs):
+    # 采样随机物理参数 ξ ~ P(ξ)
+    friction = uniform(0.3, 1.5)
+    mass_scale = uniform(0.8, 1.2)
+    latency = uniform(0, 2) * dt              # 动作延迟
+    sim.set_physics_params(friction, mass_scale, latency)
+
+    # ADR: 优先训练当前最困难的参数配置
+    rollout = collect_rollout(policy, sim)
+    if rollout.reward < threshold:
+        hard_params.add((friction, mass_scale, latency))
+    policy.update(rollout)                     # PPO/SAC 更新
+
+# Grounding (GAT): 学习动作变换 f: a_sim → a_real
+grounding_net = ActionTransformer(a_dim)
+for s, a_sim, s_next_real in real_paired_data:
+    a_grounded = grounding_net(s, a_sim)
+    s_next_sim = sim.step(s, a_grounded)
+    loss = F.mse_loss(s_next_sim, s_next_real)  # 对齐转移动力学
+    grounding_net.update(loss)
+```
+
 ### 2.4 Reward Gap 解决方案
 
 - **Reward Shaping**: 人工设计或辅助奖励信号引导仿真外行为
 - **LLM-Based Reward Design**: [[EUREKA: Human-Level Reward Design via Coding Large Language Models|EUREKA]] 式 LLM 自动生成奖励函数
 
-## 3. 实验结果
+## 3. 关键实验发现（跨论文汇总）
 
-本文为综述性论文，不含新实验。提供了：
-- **完整的基准/代码库汇总表**
-- **按领域分析**: 机器人操作 / 自动驾驶 / 交通信号控制 / 推荐系统 / 医疗（各领域 Sim-to-Real 特殊挑战）
-- **评估指标形式化**: 成功率、轨迹偏差、策略性能落差
+本文为综述性论文，不含新实验，但系统汇总了各方法在代表性任务上的核心数字：
+
+### 3.1 Domain Randomization 关键结果
+| 代表工作 | 任务 | 核心数字 |
+|---------|------|----------|
+| OpenAI Rubik's Cube (2019) | ShadowHand 魔方旋转 | DR + ADR 在真机 50 次测试成功率 ~60%；无 DR 的策略 0% 迁移 |
+| Tobin et al. (2017) | 抓取任务视觉迁移 | 仿真训练 + 视觉随机化 → 真机 80%+ 成功率，无需真实图像 |
+| ADR (Mehta et al. 2020) | Hopper/Walker locomotion | ADR 比均匀 DR 收敛速度提升 3-5 倍，且最终策略鲁棒性更高 |
+
+### 3.2 Grounding / System ID 关键结果
+| 代表工作 | 任务 | 核心数字 |
+|---------|------|----------|
+| GAT (Hanna & Stone 2017) | Cart-pole, Mountain Car | 动作变换后仿真策略在真机性能恢复 85-95%（vs 无 grounding 40-60%） |
+| GARAT (Desai et al. 2020) | MuJoCo locomotion | 对抗 grounding 在 HalfCheetah/Ant 上超越 GAT 15-20% 性能 |
+| SysID (Tan et al. 2018) | Minitaur 四足行走 | 系统辨识后 sim 策略直接部署成功率 > 90% |
+
+### 3.3 Domain Adaptation 关键结果
+- GraspGAN (Bousmalis et al. 2018): 仿真→真实图像翻译 + RL → 抓取成功率从 35% 提升至 70%
+- RCAN (James et al. 2019): 随机化→标准化图像适配 → 真机操作任务 zero-shot 成功率 ~65%
+
+### 3.4 跨方法因果对比分析
+
+> [!note] 为什么不同任务偏好不同方法？
+
+| 任务特征 | 最优方法族 | 因果解释 |
+|---------|-----------|----------|
+| 高维视觉输入 + 简单动力学 (抓取) | **DR (视觉随机化)** | $\Delta_S$ 主导，$\Delta_T$ 可忽略 → 扩大视觉鲁棒性即可 |
+| 简单观测 + 复杂接触动力学 (灵巧操作) | **Grounding + SysID** | $\Delta_T$ 主导 → 需要精确修正动力学模型 |
+| 高维观测 + 复杂动力学 (人形全身) | **DR + Adaptation 组合** | $\Delta_S \times \Delta_T$ 联合主导 → 单一方法不足 |
+| 语义级任务 (长视野操作) | **Foundation Model 增强** | 语义理解 ($\Delta_R$) 成为瓶颈 → LLM 奖励设计 |
+
+**因果链**：任务的主导 Gap 维度 → 决定方法族选择 → 方法内的具体变体由计算预算和真实数据可得性决定
 
 ## 4. 核心洞见 (Insights)
 
@@ -113,6 +187,16 @@ Gap 来源分解为 MDP 四元素差异：
 ### 与 [[EmbodiedAI]] 的联系
 - Foundation Model 在 Sim-to-Real 中的应用代表了 VLA/VLM 与具身智能的交叉前沿
 
+### 与 [[Optimization]] 的联系
+Distributionally Robust RL 的核心是 minimax 优化：
+$$\max_\pi \min_{P \in \mathcal{U}(P_s)} \mathbb{E}_{P}\left[\sum_t \gamma^t r_t\right]$$
+其中 $\mathcal{U}(P_s) = \{P : D_f(P \| P_s) \leq \epsilon\}$ 是以仿真动力学为中心的 $f$-散度不确定性集。
+
+### 与 [[StochasticProcess]] 的联系
+Domain Randomization 本质是在物理参数空间 $\Xi$ 上构造分布，训练对参数分布的期望最优策略：
+$$\pi^* = \arg\max_\pi \mathbb{E}_{\xi \sim P(\xi)}[V^\pi(\mathcal{M}_\xi)]$$
+ADR 将 $P(\xi)$ 从均匀分布演化为适应性分布，优先采样当前策略表现最差的参数区域。
+
 ## 5.1 工程关键细节 (Engineering Tricks)
 
 - **ADR (Active Domain Randomization)**: 不均匀随机化，优先训练「当前最困难的」物理参数配置 → 比均匀 DR 训练效率高 3-5 倍
@@ -133,9 +217,28 @@ Gap 来源分解为 MDP 四元素差异：
 
 **核心 takeaway**: 转笔任务中 $\Delta_T$（接触动力学）是最大瓶颈，Grounding Methods（GAT→GARAT 演进线）是比域随机化更精准的一条路线。
 
+### 5.3 跨方法结构化对比
+
+| 维度 | Domain Randomization | System ID | Domain Adaptation | Grounding (GAT系列) | Foundation Model |
+|-----|---------------------|-----------|-------------------|-------------------|-----------------|
+| 覆盖 Gap | $\Delta_S, \Delta_T$ | $\Delta_T$ | $\Delta_S$ | $\Delta_T, \Delta_A$ | $\Delta_S, \Delta_R$ |
+| 真实数据需求 | 0 | 少量测量 | 配对/非配对样本 | 少量配对轨迹 | 预训练模型 (0-shot) |
+| 可扩展性 | 高 (并行仿真) | 低 (需重新标定) | 中 (对抗训练) | 中 | 高 (推理) |
+| 精度上限 | 中 (盲目覆盖) | 高 (若模型准确) | 中 | 高 | 取决于基础模型 |
+| 计算开销 | 高 (大量仿真) | 低 | 中 | 低 | 高 (推理) |
+| 适用场景 | 通用、大规模 | 精确控制 | 视觉迁移 | 动力学修正 | 语义级任务 |
+
 ## 6. 局限与未来方向
 
 1. **硬件-软件联合建模**: 综述缺乏对执行器物理特性 (电气时间常数、齿隙、非线性摩擦) 的讨论——这正是真机部署的核心gap
 2. **多域联合迁移**: 同时处理 Observation + Transition Gap 的联合方法尚不成熟
 3. **在线适应与安全**: 部署时在线修正策略的安全保证仍需加强
 4. **领域特异性**: 不同应用领域的 Sim-to-Real 挑战差异巨大，通用方案可能不存在
+
+### 理论/算法/工程 三维度局限性分析
+
+| 维度 | 局限性 | 替代方向 |
+|-----|--------|----------|
+| **理论** | MDP 四元素分解假设各维度 Gap 可独立处理，但实际中 $\Delta_S$-$\Delta_T$ 存在耦合 | 联合域自适应框架 ([[RepresentationLearning]]) |
+| **算法** | Grounding 方法假设 sim/real 态-动作配对可获取，接触丰富任务中真机数据采集困难 | 基于视频的 observation-only grounding |
+| **工程** | 综述未系统讨论执行器非理想特性（齿隙、摩擦非线性、电气延迟）对 $\Delta_T$ 的贡献 | 硬件-软件联合建模 ([[Dynamics]]) |

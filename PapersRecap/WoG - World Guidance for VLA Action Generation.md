@@ -101,10 +101,58 @@ $$\mathcal{L}_{II} = \mathbb{E}_{\tau, A}\left[\|v_\theta(A_\tau, \tau, z) - v^*
 - **编码器配置**: DINOv2+Wan VAE > DINOv2+SigLIP > DINOv2 alone，生成式特征对动作预测更有价值
 - **Stage II 有效性**: 移除条件预测监督 → 性能下降，验证世界建模的必要性
 
+**Ablation 因果链分析**:
+
+| 消融条件 | 效果 | 因果机制 |
+|---------|------|--------|
+| 去除 Wan VAE（仅 DINOv2） | 性能下降 | DINOv2 为判别特征缺少生成信息 → 条件空间丢失与动作生成相关的空间细节 |
+| 去除 Stage II 条件对齐 | 明显下降 | VLM 无法预测条件 → 推理时缺失未来引导 → 退化为无世界模型的 VLA |
+| 用 MSE 替代余弦相似度 | 轻微下降 | MSE 对表征绝对尺度敏感 → [[RepresentationLearning]] 中表征漂移问题放大对齐误差 |
+| 增大条件维度 | 先升后降 | 维度过大 → 条件空间冗余信息增加 → 预测难度上升 → 与 [[InformationTheory]] 信息瓶颈原理一致 |
+
 ## 4. 工程关键细节
 - **Rectified Flow** 替代传统 DDPM 用于动作头训练，推理更快（直线插值 vs 曲线去噪轨迹）
 - **Q-Former 压缩**: 将高维未来视觉特征压缩为低维条件表征，避免信息冗余
 - **余弦相似度对齐**: Stage II 用余弦相似度而非 MSE 对齐条件空间，对表征尺度不敏感
+
+### 4.1 核心伪代码
+
+```python
+# WoG 两阶段训练核心逻辑
+# ===== Stage I: World Guidance =====
+class WorldGuidance(nn.Module):
+    def __init__(self, vlm_backbone, qformer, dit_head):
+        self.vlm = vlm_backbone          # Prismatic VLM
+        self.vis_enc = DINOv2_WanVAE()   # 冻结视觉编码器
+        self.qformer = qformer            # Q-Former 条件提取
+        self.dit = dit_head               # DiT + Rectified Flow
+
+    def forward(self, obs, instruction, future_obs, actions, tau):
+        z = self.vlm.encode(obs, instruction)          # VLM 编码当前观测
+        future_feat = self.vis_enc(future_obs)          # 冻结编码未来观测
+        O_c = self.qformer(query=z, kv=future_feat)     # 压缩为条件表征
+        
+        # Rectified Flow: 线性插值 A_tau = (1-tau)*noise + tau*A_gt
+        noise = torch.randn_like(actions)
+        A_tau = (1 - tau) * noise + tau * actions
+        v_pred = self.dit(A_tau, tau, z, cross_attn=O_c)  # 条件注入
+        v_target = actions - noise                         # 目标速度场
+        loss = F.mse_loss(v_pred, v_target)
+        return loss
+
+# ===== Stage II: World Inference =====
+# 冻结 Q-Former + vis_enc, VLM 学习预测 O_c
+def stage2_loss(model, obs, instruction, future_obs, actions, tau):
+    z = model.vlm.encode(obs, instruction)
+    O_c_gt = model.qformer(z, model.vis_enc(future_obs)).detach()  # 目标
+    O_c_pred = model.vlm.predict_condition(z)                       # VLM 预测
+    
+    align_loss = 1 - F.cosine_similarity(O_c_pred, O_c_gt, dim=-1).mean()
+    noise = torch.randn_like(actions)
+    A_tau = (1 - tau) * noise + tau * actions
+    flow_loss = F.mse_loss(model.dit(A_tau, tau, z), actions - noise)
+    return flow_loss + align_loss
+```
 
 ## 5. 核心洞见
 
@@ -127,6 +175,25 @@ $$\mathcal{L}_{II} = \mathbb{E}_{\tau, A}\left[\|v_\theta(A_\tau, \tau, z) - v^*
 ### 与 [[RepresentationLearning]] 的联系
 - DiT 动作头 + Rectified Flow 是 [[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|Diffusion Policy]] 的工程优化变体
 - Q-Former 条件压缩与信息瓶颈理论相关（[[InformationTheory]]）
+
+### 与 [[StochasticProcess]] 的数学联系
+Rectified Flow 的核心是从噪声 $\epsilon \sim \mathcal{N}(0, I)$ 到数据 $A$ 的直线 ODE：
+$$\frac{d A_\tau}{d\tau} = v_\theta(A_\tau, \tau), \quad A_0 = \epsilon, \quad A_1 = A$$
+对比 DDPM 的随机 SDE $dA = f(A,t)dt + g(t)dW_t$，Rectified Flow 消除了布朗运动项 → 推理时单步 Euler 即可逼近（[[StochasticProcess]] 中 ODE 概率流的优势）。
+
+### 与 [[Optimization]] 的数学联系
+两阶段优化可视为 bi-level optimization：Stage I 内层优化条件空间 $O^c$，Stage II 外层优化 VLM 去预测 $O^c$：
+$$\min_{f_q} \left[ 1 - S[O^{c*}, f_q(O, l)] + \mathcal{L}_{\text{flow}} \right], \quad O^{c*} = \arg\min_{O^c} \mathcal{L}_I(O^c)$$
+
+### 跨方法对比
+
+| 维度 | WoG (本文) | SuSIE (Subgoal) | UniPi (Video Plan) | π0-FAST (Token) | GR00T-N1 |
+|------|-----------|-----------------|-------------------|----------------|----------|
+| **世界建模形式** | 条件空间 | 子目标图像 | 完整视频 | 无显式 | 隐动作 |
+| **信息冗余** | 低（紧凑） | 中 | 高 | — | 低 |
+| **推理延迟** | 低 | 高（需扩散生成图像） | 极高 | 低 | 低 |
+| **精度** | 高 | 中 | 低（误差传播） | 高 | 中 |
+| **人类视频利用** | ✅ Stage I+II | ❌ | ✅ | ❌ | ❌ |
 
 ## 7. 局限与未来方向
 - 精细几何约束任务（堆叠、抽屉）性能受限于 backbone 分辨率

@@ -18,7 +18,7 @@ related:
   - "[[EmbodiedAI]]"
   - "[[RepresentationLearning]]"
 ---
-
+https://www.pi.website/research/rlt
 # Precise Manipulation with Efficient Online RL (RL Tokens)
 
 > [!abstract] 核心贡献
@@ -29,7 +29,7 @@ related:
 > - [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC]] — Off-policy actor-critic 用于高效学习
 > - [[EmbodiedAI#2.5 VLA Post-Training: 从模仿到强化]] — VLA 的 RL 后训练范式
 > - [[EmbodiedAI#1.3 VLA 的动作输出范式]] — Action chunk 与 VLA 集成
-> - [[RepresentationLearning#1.3 学习目标的物理重构]] — 信息瓶颈表征
+> - [[RepresentationLearning]] — 信息瓶颈表征
 >
 > **核心技术**: VLA RL Token + Lightweight Off-Policy Actor-Critic + Residual Action Editing
 
@@ -118,6 +118,46 @@ RL 策略预测的动作是 **action chunks**（与 VLA 输出结构匹配），
 - **Action**: Action chunk (与 VLA 对齐)
 - **Reward**: 任务特定的阶段性反馈
 
+### 3.5 核心伪代码
+
+```python
+# RL Token + Residual Action Editing (核心 tensor ops)
+class RLTokenSystem(nn.Module):
+    def __init__(self, vla, encoder, decoder, actor, critic):
+        self.vla = vla.requires_grad_(False)        # 冻结 VLA
+        self.encoder = encoder                       # 压缩 Transformer
+        self.decoder = decoder                       # 重建 Transformer
+        self.actor = actor                           # 轻量 actor
+        self.critic = critic                         # 轻量 critic
+
+    def extract_token(self, obs):
+        with torch.no_grad():
+            vla_emb = self.vla.encode(obs)           # VLA 内部表征
+            a_vla = self.vla.predict(obs)            # VLA 动作块
+        z = self.encoder(vla_emb)                    # 信息瓶颈 → 单 token
+        return z, a_vla, vla_emb
+
+    def act(self, obs, p_drop=0.1):
+        z, a_vla, _ = self.extract_token(obs)
+        # Reference-action dropout: 防止恒等映射
+        mask = (torch.rand(1) > p_drop).float()
+        a_ref = a_vla * mask
+        delta = self.actor(z, a_ref)                 # 残差动作
+        return a_vla + delta                         # VLA base + RL 修正
+
+    def train_step(self, batch):
+        z, a_vla, vla_emb = self.extract_token(batch.obs)
+        # 1. 重建损失 (压缩训练)
+        recon = self.decoder(z)
+        L_recon = F.mse_loss(recon, vla_emb.detach())
+        # 2. SAC-style actor-critic
+        a = self.act(batch.obs)
+        q = self.critic(z.detach(), a)
+        L_reg = self.lam * (a - a_vla.detach()).pow(2).mean()
+        L_actor = -q.mean() + L_reg
+        return L_recon, L_actor
+```
+
 ## 4. 实验与验证 (Experiments)
 
 ### 实验设置
@@ -143,6 +183,16 @@ RL 策略预测的动作是 **action chunks**（与 VLA 输出结构匹配），
 - Ethernet 任务：仅 **15 分钟** 真实数据（算上 reset 共 2 小时）即可完成训练
 - 最终 RLT 策略的执行速度 **超过人类遥操作**（中位 episode length: RLT 66 vs Teleop 146）
 - Base VLA 在粗操作阶段表现良好，但在精密阶段（接触丰富 + 亚毫米精度）失败率高
+
+### Ablation 因果链
+
+| 去掉组件 | 效果变化 | 因果机制 |
+|---------|---------|--------|
+| 去掉 Reference-Action Dropout | 改进归零 | Actor 学习恒等映射 $\Delta a \to 0$ → 直接复制 VLA 动作 → RL 无效 |
+| 去掉残差结构 (独立 actor) | 收敛变慢 3× | 丢失 VLA 先验 $a_{VLA}$ 作为初始解 → actor 需从零学习完整动作 → 样本效率降 |
+| 去掉正则化项 $\mathcal{L}_{reg}$ | 偶发危险动作 | RL 策略偏离 VLA 分布过远 → 进入 VLA 未见的动作空间 → 不可预测行为 |
+| 全程 RL → 仅精密阶段 | 数据需求 5×+ | 粗操作阶段 VLA 已足够好 → RL 在此阶段无改进空间 → 浪费采样预算 |
+| RL Token 维度过小 | SR 下降 | 信息瓶颈过窄 → 丢失精密操作所需的细粒度感知信息 (如小零件方向) |
 
 ## 5. 工程关键细节 (Engineering Tricks)
 
@@ -175,6 +225,26 @@ RL 策略预测的动作是 **action chunks**（与 VLA 输出结构匹配），
 3. **阶段聚焦训练对 DNPM 项目的价值**: 动态非抓取操作中，最难的阶段（如高速旋转中的接触切换）可以用 RLT 思想进行阶段性在线 RL，而非端到端重训
 
 ## 7. 演进脉络定位 (Evolution Context)
+
+### 6.5 与知识体系的数学联系
+
+**与 [[ReinforcementLearning]] 的联系 — 信息瓶颈与状态抽象**:
+
+RL Token 的压缩过程是信息瓶颈原理的直接应用。优化目标可被解为:
+$$\min_{\phi} I(z; e_{VLA}) - \beta \cdot I(z; a^*_{task})$$
+即压缩表征 $z$ 应保留与任务最优动作 $a^*$ 的互信息，同时最小化与原始 VLA embedding 的互信息。这与 VIB (Variational Information Bottleneck) 的理论框架一致。
+
+**与 [[RepresentationLearning]] 的联系 — 残差学习与表征分层**:
+
+残差动作编辑的数学本质是表征分层: VLA 提供粗粒度表征 $a_{VLA}$，RL 策略学习残差 $\Delta a$:
+$$a = a_{VLA} + \Delta a, \quad \|\Delta a\| \ll \|a_{VLA}\|$$
+这与 ResNet 的残差连接、Sim-to-Real 中的残差策略（如 [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation|Residual Learning from Demonstration]]）共享相同的数学结构。残差假设的关键约束是基策略必须“大致正确”，否则补傁空间不足。
+
+**与 [[EmbodiedAI]] 的联系 — VLA 后训练粒度谱**:
+
+RLT 在 VLA RL 后训练谱系中定位为“精密阶段轻量级”：
+$$\text{RECAP (full VLA RL)} \supset \text{RL-100 (task RL)} \supset \text{RLT (phase RL)}$$
+从全模型微调到冻结+残差，谱系逝渐减少可训练参数量和数据需求，换取部署时效率。
 
 ```
 前置工作:

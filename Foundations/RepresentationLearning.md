@@ -165,7 +165,7 @@ $$x_{t+\Delta t} = x_t + v_\theta(x_t, t, c) \cdot \Delta t$$
 **灵巧操作应用**: Flow Matching 的低 NFE 特性对灵巧操作至关重要——高维灵巧手 (20+ DoF) 的实时闭环控制要求 >10 Hz 推理频率，而传统扩散策略的高 NFE 成为部署瓶颈。参见 [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] 的 Flow Matching 预训练方案。
 ### 2.3 动作分块与Transformer (ACT)：处理长时间相关性 (Action Chunking with Transformers: Handling Long-Horizon Correlations)
 
-ACT (Action Chunking with Transformers) 是另一种解决误差累积和多模态问题的强力架构 。
+ACT (Action Chunking with Transformers) 是另一种解决误差累积和多模态问题的强力架构。详见 [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT 论文精读笔记]]。
 
 #### 2.3.1 动作分块 (Action Chunking) 机制
 

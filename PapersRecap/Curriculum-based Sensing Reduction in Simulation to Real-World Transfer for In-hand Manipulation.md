@@ -10,6 +10,7 @@ aliases:
   - Curriculum Sensing Reduction
 paper-year: 2024
 read-date: 2026-01-31
+venue: ICRA 2024
 paper-pdf: "[[Papers/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -237,6 +238,15 @@ Stage 3: Actor = [joint, image] (if needed)
 3. **真实迁移好**：触觉移除后仍保持较高性能
 4. **DRG 有效**：比直接置零好 8%
 
+### 4.5 Ablation 因果链分析
+
+| 移除的组件 (A) | 效果 (B) | 机制分析 (C) |
+|---------------|----------|-------------|
+| 移除渐进课程（一步裁剪到目标观测） | 成功率从 85% 降至 72% | 策略无法在单步中适应高维观测空间的突变；value function 估计崩溃 |
+| 移除 DRG（用零值替代被删特征） | 成功率降低 8% | 零值是确定性信号，策略学会"零=某种状态"的虚假关联，迁移时分布外 |
+| 移除特征重要性排序（随机顺序移除） | 收敛速度变慢 ~30% | 先移除重要特征破坏了已学到的策略结构，需要更多重新学习 |
+| 移除多阶段（只保留 Stage 0 和最终 Stage） | 性能介于一步裁剪和完整课程之间 | 中间过渡阶段提供了梯度信号的平滑桥梁，减少了策略梯度方差 |
+
 ---
 
 ## 5. 批判性分析 (Critical Analysis)
@@ -253,6 +263,14 @@ Stage 3: Actor = [joint, image] (if needed)
 - **单一任务**：仅验证 cube rotation
 - **特征粒度**：整体移除，未考虑部分移除
 
+### 局限性（理论/算法/工程三维度）
+
+| 维度 | 局限 | 替代方案 |
+|-----|------|--------|
+| **理论** | 梯度重要性 $I_i = \mathbb{E}[\|\partial\pi/\partial o_i\|]$ 是局部线性近似，对非线性特征交互不敏感 | 用 Shapley Value 或 permutation importance 做全局重要性评估 |
+| **算法** | 阶段切换是硬切换，可能在临界点引起策略振荡 | 连续权重 $\alpha_i(t) \in [0,1]$ 渐进衰减被移除特征的权重 |
+| **工程** | 多阶段训练增加总训练时间（虽然每阶段更快收敛）；仅在 cube rotation 上验证 | 异步课程（不同特征独立调度）、多任务验证 |
+
 ### 与其他方法的对比
 
 | 方法 | CSR | DexNDM | Teacher-Student |
@@ -260,6 +278,18 @@ Stage 3: Actor = [joint, image] (if needed)
 | 处理对象 | 观测空间 | 动力学 | 策略 |
 | 核心思想 | 渐进缩减 | 关节分解 | 知识蒸馏 |
 | 课程结构 | 特征移除 | 无 | 无 |
+
+---
+
+## 5.5 工程关键细节 (Engineering Tricks)
+
+| 技巧 | 说明 |
+|-----|------|
+| **DRG 网络结构** | 使用小型 MLP（2层×64维），权重随机初始化后冻结；输出需匹配被替代特征的数值范围（用 tanh + scaling） |
+| **阶段切换判据** | Episode 成功率在 patience window（~100 episodes）内变化 < 1% 时触发下一阶段 |
+| **特征组粒度** | 按语义分组（关节角/速度/触觉/姿态）而非逐维移除，减少阶段数同时保持语义完整性 |
+| **并行环境阶段同步** | Isaac Gym 中所有并行环境同步切换阶段，避免同批次内课程不一致 |
+| **Critic 观测不变** | 全程保留 Critic 的完整观测（不随课程缩减），提供稳定的 value 估计 |
 
 ---
 
@@ -278,6 +308,13 @@ CSR 的价值：
   找到"最少需要什么信息"的答案
   最小化真实部署成本
 ```
+
+### 对灵巧手转笔 + Sim-to-Real 的具体启发
+
+> [!tip] 关键迁移 Insight
+> 1. **转笔的传感课程**：仿真中可获取笔的精确位姿和接触力，但真实中仅有关节编码器 + 有限触觉。CSR 提供了系统性方法：先用完整传感训练（含笔姿态、指尖法向力、切向力），再按重要性排序逐步移除——可能发现关节速度比触觉力更关键。
+> 2. **DRG 对噪声传感器的启示**：真实触觉传感器噪声大、漂移严重。与其用噪声信号训练，不如用 DRG 生成的随机信号"遮蔽"触觉输入训练一个不依赖触觉的 fallback 策略——在触觉传感器故障时自动退化。
+> 3. **最小可行传感配置**：CSR 实验发现仅用关节角度（16D）就能完成 cube rotation 的 65% 成功率。对转笔而言，关节本体感知可能是最核心的不可移除特征。
 
 ### 与其他论文的联系
 
@@ -397,10 +434,41 @@ def train_with_csr(env, policy, csr, n_stages):
 
 ---
 
-## 9. 与 Foundation 的链接更新
+## 9. 与 Foundation 的数学对应
 
-### 需要添加到 ReinforcementLearning.md
-在"Sim-to-Real"部分添加"观测空间适应"作为除动力学适应外的另一维度。
+### [[ReinforcementLearning]] — Asymmetric Actor-Critic 的观测空间适应
 
-### 需要添加到 RepresentationLearning.md
-添加"特征重要性评估"用于感知配置优化。
+CSR 扩展了 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] 中的 Asymmetric AC 框架。标准 AAC 的观测空间划分是一步完成的：
+
+$$\pi_\theta(a|o^{\text{actor}}), \quad V_\phi(o^{\text{critic}}) \quad \text{where } o^{\text{actor}} \subset o^{\text{critic}}$$
+
+CSR 将此改为渐进过程，引入时间依赖的观测空间：
+
+$$o^{\text{actor}}_t = \text{Mask}_{\lambda(t)}(o^{\text{full}}) + \text{DRG}(\bar{\text{Mask}}_{\lambda(t)}(o^{\text{full}}))$$
+
+其中 $\text{Mask}_{\lambda(t)}$ 按课程阶段选择保留特征，$\bar{\text{Mask}}$ 选择被替代特征。
+
+### [[ContactMechanics]] — 触觉特征在抓取中的信息论角色
+
+CSR 的特征重要性排序隐含了一个接触力学 insight：关节角度 $q$ 通过 [[ContactMechanics#2.3 接触雅可比矩阵 (Contact Jacobian)]] 间接编码了接触状态：
+
+$$f_{\text{contact}} = J_c(q)^{-T} \tau_{\text{joint}}$$
+
+因此即使移除显式触觉特征，关节角度/力矩仍携带接触信息——这解释了 CSR 移除触觉后仍保持65%成功率的原因。
+
+### [[RepresentationLearning]] — 特征选择与表征瓶颈
+
+CSR 本质上是在学习一个 [[RepresentationLearning#2.4 表征学习：从视觉特征到物理属性 (Representation Learning: From Visual Features to Physical Properties)]] 中讨论的信息瓶颈：在保持任务性能的前提下，最小化策略所需的输入信息量。
+
+---
+
+## 10. 跨方法/跨范式对比
+
+| 方法 | Sim-to-Real 策略 | 观测空间处理 | 课程机制 | 真实验证 |
+|-----|-----------------|------------|---------|---------|
+| **CSR (本文)** | 渐进特征移除 | Actor 逐步缩减 + DRG | 特征重要性排序 | Allegro cube rotation |
+| **标准 AAC** | 一步裁剪 | Actor/Critic 不对称 | 无 | 多任务 |
+| **Teacher-Student** | 知识蒸馏 | Teacher 全观测 → Student 受限 | 无 | 多任务 |
+| **[[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]]** | 演示引导初始化 | 统一观测 | 状态初始化课程 | Allegro 多任务 |
+| **[[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation\|Curriculum > Haptic]]** | 任务子目标课程 | 触觉可选 | 任务顺序 | 仿真三指手 |
+| **[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]]** | 域随机化 + 触觉 | 触觉必选 | 无 | LEAP Hand |

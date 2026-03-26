@@ -10,6 +10,7 @@ aliases:
   - Reachability CRL
 paper-year: 2022
 read-date: 2026-01-31
+venue: ICML 2022
 paper-pdf: "[[Papers/Reachability Constrained Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -209,6 +210,23 @@ $$Q_s(s, a) \leftarrow \max\{h(s), \gamma Q_s(s', \pi(s'))\}$$
 - 能量方法：CBF-RL, SI-RL
 - 切换方法：Recovery RL
 
+### 4.1.1 训练细节
+
+| 超参数 | PPO-RCRL | SAC-RCRL |
+|--------|----------|----------|
+| 策略网络 | 2×256 MLP + Tanh | 2×256 MLP + ReLU |
+| Safety Q 网络 | 同 Reward Q 结构 | 同 Reward Q 结构 |
+| 学习率 (critic) $\alpha_c$ | 3e-4 | 3e-4 |
+| 学习率 (actor) $\alpha_\pi$ | 1e-4 | 1e-4 |
+| 学习率 (Lagrange) $\alpha_\lambda$ | 1e-5 | 1e-5 |
+| 折扣因子 $\gamma$ | 0.99 | 0.99 |
+| 训练步数 | 1M | 1M |
+| Critic 更新/Actor 更新 | 5:1 | 1:1 (soft update) |
+
+**监督信号**：Reward $r(s,a)$ + 二值化安全代价 $c(s) = \mathbf{1}_{h(s)>0}$
+
+**数据来源**：on-policy (PPO) / replay buffer 1M (SAC)
+
 ### 4.2 可行集验证
 
 **低维可视化**（倒立摆）：
@@ -234,6 +252,22 @@ $$Q_s(s, a) \leftarrow \max\{h(s), \gamma Q_s(s', \pi(s'))\}$$
 2. **性能更好**：因为更少"保守躲避"
 3. **安全更好**：因为真正知道边界在哪
 4. **收敛稳定**：多时间尺度保证收敛
+
+### 4.5 Ablation 因果链分析
+
+| 去掉的组件 | 结果变化 | 因果机制 |
+|-----------|---------|----------|
+| max → sum ($Q_s$ 用加法) | 安全性大幅下降 | sum 允许“平均安全”掩盖单步危险，max 才能捕捉最坏情况 |
+| 去掉多时间尺度 → 同速更新 | Lagrange 乘子振荡，训练不稳定 | $\lambda$ 更新太快 → critic 未收敛时乘子已变化 → 策略优化方向错误 |
+| $\gamma$ 从 0.99→0.9 | 可行集缩小 ~30% | 过度折扣使远期危险被低估，边界向内收缩 |
+| Safety Q → 累积代价 Q | 约束违反率从 1%→12% | 累积代价允许“偶尔违约但平均合格”，失去持续安全保证 |
+
+### 4.6 工程关键细节 (Engineering Tricks)
+
+- **max 操作的梯度问题**：$Q_s = \max\{h(s), \gamma Q_s(s',a')\}$ 中 max 不可微，实践中用 smooth-max $\text{softmax}(x,y) = \log(e^x + e^y)$ 近似，温度参数 $\tau=0.1$
+- **Lagrange 乘子稳定性**：$\lambda$ 截断到 $[0, \lambda_{\max}]$（一般 $\lambda_{\max}=100$），防止无限增长导致 reward 信号完全被淉没
+- **Safety Q 初始化**：用 $h(s)$ 的值初始化 safety Q 网络（而非随机初始化），加速可行集边界的学习
+- **多约束扩展**：多个 $h_i(s)$ 对应多个 $Q_{s,i}$ 和 $\lambda_i$，取 $\max_i Q_{s,i}$ 作为综合安全指标
 
 ---
 
@@ -287,6 +321,13 @@ RCRL：
 - **VICES**：阻抗控制 + RCRL = 安全的接触学习
 - **DexNDM**：sim-to-real 需要安全保证
 - **Stability-Certified RL**：Lyapunov 与可达性互补
+
+### 6.1 与用户研究的启发（灵巧手转笔 / Sim-to-Real）
+
+1. **可行集 → 转笔安全边界**：转笔中「笔已经飞出可控范围」的状态对应可行集外。Safety value function $V_s^*(s) \leq 0$ 可定义「笔还能被接住」的状态边界
+2. **关节限位保护**：$h(s) = \max_i(|q_i| - q_{i,\max})$ 可直接作为状态约束，RCRL 学习「还能回到安全关节角」的最大集合
+3. **Sim-to-Real 安全层**：在仿真中训练 safety Q，部署时作为安全过滤器叠加在 sim-to-real 策略之上，只拒绝 $V_s > 0$ 的动作
+4. **局限**：转笔的接触动力学高度随机，$h(s)$ 的设计需要结合触觉信号实时估计
 
 ---
 
@@ -427,3 +468,23 @@ def get_feasible_set(safety_critic, actor, state_space):
 
 ### 需要添加到 ReinforcementLearning.md
 在"约束 RL"部分添加"可达性约束"作为比期望代价更严格的安全定义。
+
+### 与 Foundation 的数学联系
+
+**与 [[ControlTheory]] 的数学联系 — Hamilton-Jacobi 可达性**：
+
+本文的 safety value function $V_s^*(s) = \min_\pi \max_{t \geq 0} h(s_t^\pi)$ 是 HJ 可达性分析的离散时间版本。经典 HJ PDE $\min\{\partial_t V + H(x, \nabla V), V(x) - l(x)\} = 0$ 中，$l(x)$ 对应 $h(s)$，$\partial_t V + H$ 对应 Bellman 更新。RCRL 用神经网络替代了 PDE 求解器。
+
+**与 [[Optimization]] 的数学联系 — 拉格朗日对偶**：
+
+RCRL 的约束优化 $\max_\pi J(\pi) \;\text{s.t.}\; \mathbb{E}[V_s^\pi] \leq 0$ 通过强对偶 $\min_\lambda \max_\pi \{J(\pi) - \lambda V_s^\pi\}$ 转化为鞍点问题。KKT 互补松弛性 $\lambda^* \cdot \mathbb{E}[V_s^{\pi^*}] = 0$ 意味着：最优策略要么在可行集边界上（$\lambda^* > 0$），要么安全约束不活跃（$\lambda^* = 0$）。
+
+### 跨方法对比（补充）
+
+| 维度 | RCRL | [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective\|Stability-Cert. RL]] | [[Safe Model-based Reinforcement Learning with Stability Guarantees\|Lyapunov RL]] | [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|Lipschitz RL]] |
+|------|------|------------------------------|--------------------------|----------------------------|
+| 安全定义 | 可行集内可达 | $\mathcal{L}_2$ 增益有界 | 吸引域前向不变 | 输出 Lip 有界 |
+| Model-free? | ✅ | ✖ (LTI) | ✖ (GP) | ✅ |
+| 最优可行集 | ✅ | N/A | 保守 (GP) | N/A |
+| 多约束 | 可扩展 | N/A | 困难 | N/A |
+| 计算额外开销 | Safety Q 网络 | SDP 离线 | GP $O(n^3)$ | Cayley $O(n^3)$/层 |

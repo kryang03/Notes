@@ -40,6 +40,17 @@ related:
 - 成为灵巧操作、接触丰富任务的**标准配置**
 - 启发了后续的 Goal-conditioned RL 研究线
 
+### 1.2 现有方法的局限
+
+| 现有方法 | 核心困境 |
+|---------|--------|
+| **Dense Reward Shaping** | 需要大量人工设计奖励函数，且次优 shaping 可能引导策略进入局部最优 |
+| **Curiosity-driven Exploration** | 内在奖励在高维连续动作空间中信噪比低，难以引导精确操作 |
+| **Curriculum Learning** | 需要显式设计目标难度序列，对任务先验要求高 |
+| **标准 Experience Replay** | 在稀疏奖励下 buffer 中几乎全是负样本，Q 函数无有效梯度信号 |
+
+根本矛盾：**稀疏二值奖励** $r \in \{-1, 0\}$ 下，随机探索命中目标的概率随维度指数衰减 $P(\text{success}) \propto \epsilon^d / V_{\text{state}}$，导致 off-policy buffer 中正样本近乎为零。
+
 ## 2. 核心创新与贡献 (Contributions & Novelty)
 
 ### Delta 分析
@@ -151,6 +162,20 @@ def compute_reward(achieved_goal, desired_goal, threshold=0.05):
 - **奖励**: 纯二值稀疏奖励
 - **算法**: DDPG + HER
 
+### 训练细节
+
+| 配置 | 值 |
+|------|----|
+| 网络架构 | 3-layer MLP, hidden=256, ReLU |
+| 优化器 | Adam, lr=1e-3 |
+| Replay Buffer | 1e6 transitions |
+| Batch Size | 256 |
+| HER 采样策略 | future, k=4 |
+| 目标阈值 $\epsilon$ | 0.05 (5cm) |
+| Polyak 软更新 $\tau$ | 0.95 |
+| Epochs | 50 |
+| Rollout 长度 | 50 steps per episode |
+
 ### 关键结果
 | 任务 | 无 HER | 有 HER |
 |-----|-------|-------|
@@ -159,6 +184,24 @@ def compute_reward(achieved_goal, desired_goal, threshold=0.05):
 | Pick-and-Place | ~0% | ~100% |
 
 **Sim-to-Real**: 策略直接部署到真实 Fetch 机器人，无需微调即可完成任务。
+
+### Ablation Study 因果链
+
+| 消融配置 | 性能变化 | 因果机制 |
+|---------|---------|--------|
+| 去掉 HER (仅 DDPG) | ~0% 成功率 | 稀疏奖励下几乎无正样本 → Q 函数完全无法学习 |
+| final → random 策略 | 收敛变慢 | random 样本与当前能力分布不匹配 → 难度过高 |
+| k=1 (少补充) | 成功率降 ~20% | 正样本比例不足 → Q 值估计偏差 |
+| k=8 (多补充) | 与 k=4 类似 | 边际收益递减，重标注目标开始重复 |
+| 去掉目标条件 | 无法收敛 | 非目标条件 Q 无法区分不同目标 → 策略退化为均匀动作 |
+
+## 4.5 工程关键细节 (Engineering Tricks)
+
+- **目标空间归一化**: 目标 $g$ 和 achieved_goal 必须在同一尺度空间，否则距离阈值 $\epsilon$ 无意义
+- **状态-目标拼接**: 输入网络的是 $[s; g]$ 而非 $s$ 单独，确保 Q 函数对目标敏感
+- **重标注时机**: 在存入 buffer 时即完成重标注（而非采样时），避免重复计算
+- **奖励符号**: 使用 $r = -1$（而非 $r = 0$）作为失败奖励，确保 Q 值有明确梯度方向
+- **Episode 长度 vs 目标难度**: 过短的 episode 使得 HER 目标太简单，过长则浪费样本
 
 ## 5. 批判性分析 (Critical Analysis)
 
@@ -172,6 +215,14 @@ def compute_reward(achieved_goal, desired_goal, threshold=0.05):
 - **奖励结构**: 假设奖励仅依赖于 $\|s - g\|$
 - **长时程困难**: 对于需要复杂中间步骤的任务仍有挑战
 
+### 理论/算法/工程三维分析
+
+| 维度 | 局限 | 替代方案 |
+|------|------|--------|
+| 理论 | 目标重标注引入非平稳分布偏移（off-policy correction 缺失） | Importance sampling 修正，或用 Outcome-Driven RL 的理论框架 |
+| 算法 | 仅适用于可重标注目标的任务（需 achieved_goal 接口） | Relay Policy Learning 层次化分解, Curriculum-guided HER |
+| 工程 | k 倍内存开销（每个 transition 存 1+k 份） | 延迟重标注（采样时动态生成）减少 buffer 占用 |
+
 ### 与 DNPM 项目的关联
 
 > [!warning] 与速度缩放方法的对比
@@ -184,8 +235,24 @@ def compute_reward(achieved_goal, desired_goal, threshold=0.05):
 1. **接触丰富任务**: HER 天然适合操作任务，因为末态往往反映有意义的物体配置
 2. **灵巧手训练**: 手内操作的子目标（如特定抓取姿态）可作为 HER 目标
 3. **与 DNPM 结合**: 速度缩放产生的"慢速成功轨迹"可为 HER 提供更多有效目标
+### 对灵巧手转笔/Sim-to-Real 的启发
 
+1. **转笔子目标设计**: 转笔可分解为多个子目标（抨起→旋转 90°→接住），HER 可为每个子目标提供隐式课程
+2. **旋转角度作为目标**: achieved_goal = 笔的当前旋转角度，失败的轨迹仍可重标注为“到达某个中间角度”的成功经验
+3. **Sim-to-Real 友好**: HER 减少对精确奖励函数的依赖，触觉/视觉反馈的 sim-real gap 影响较小
 ## 7. 演进脉络定位 (Evolution Context)
+
+### 跨方法对比
+
+| 方法 | 探索机制 | 奖励类型 | 样本效率 | 适用场景 |
+|------|---------|---------|---------|--------|
+| Dense Reward Shaping | 奖励梯度引导 | 稠密 | 低 | 需奖励工程 |
+| Curiosity-driven (ICM) | 预测误差 | 内在 | 中 | 无明确目标 |
+| **HER** (本文) | 目标重标注 | 二值稀疏 | 高 | 目标条件任务 |
+| Curriculum Learning | 显式难度调度 | 任意 | 中 | 需设计课程 |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | 示范引导 + 自动课程 | 稀疏 | 高 | 灵巧手 Sim-to-Real |
+
+### 演进线路
 
 ```
 前置工作: Universal Value Function Approximators (Schaul 2015)
@@ -198,6 +265,22 @@ def compute_reward(achieved_goal, desired_goal, threshold=0.05):
 ├── Outcome-Driven RL (2020) - 理论分析
 └── 与 Diffusion Policy 结合 (2023+)
 ```
+
+### 与 [[ReinforcementLearning]] 的联系
+
+HER 的目标条件框架定义了增广 Q 函数 $Q(s, a, g)$，这是 [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC|DDPG]] 的直接扩展。重标注的数学本质是在 off-policy buffer 中构造新的 $(s, a, r', s', g')$ 元组，保持 Bellman 方程一致性：
+
+$$
+Q(s, a, g') = r(s, a, g') + \gamma \max_{a'} Q(s', a', g')
+$$
+
+### 与 [[Optimization]] 的联系
+
+HER 的隐式课程可视为在目标空间上的自适应采样策略。早期，达到的目标集中在初始状态附近（简单目标）；随着能力提升，重标注目标渐进向真实目标分布靠拢。这与 [[Optimization]] 中的课程学习的优化视角等价，但无需显式设计：
+
+$$
+p_{\text{HER}}(g) \approx p_{\text{achieved}}(g) \xrightarrow{\text{training}} p_{\text{desired}}(g)
+$$
 
 ---
 

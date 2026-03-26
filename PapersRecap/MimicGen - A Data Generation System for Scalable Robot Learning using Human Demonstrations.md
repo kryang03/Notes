@@ -9,6 +9,7 @@ aliases:
   - MimicGen
 paper-year: 2023
 read-date: 2026-02-01
+venue: CoRL 2023
 paper-pdf: "[[Papers/MimicGen: A Data Generation System for Scalable Robot Learning using Human Demonstrations.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -169,6 +170,79 @@ MimicGen 不保证 100% 成功——执行变换轨迹可能失败
 - ✅ 新物体实例
 - ✅ 新机械臂（Sawyer → Franka）
 
+### 3.6 核心 PyTorch 逻辑
+
+```python
+import torch
+
+def mimicgen_transform_segment(
+    T_ee_src: torch.Tensor,   # (T, 4, 4) 源演示中 EE 位姿序列
+    T_obj_src: torch.Tensor,  # (4, 4) 源场景物体位姿
+    T_obj_new: torch.Tensor,  # (4, 4) 新场景物体位姿
+) -> torch.Tensor:
+    """
+    MimicGen 核心变换: 保持 EE 相对于 Object 的相对运动不变
+    T_ee_new = T_obj_new @ T_obj_src^{-1} @ T_ee_src
+    """
+    # 计算相对变换: (4,4)
+    relative_transform = T_obj_new @ torch.linalg.inv(T_obj_src)
+    # 批量应用到整个 EE 轨迹: (T, 4, 4)
+    T_ee_new = relative_transform.unsqueeze(0) @ T_ee_src  # broadcast (1,4,4) x (T,4,4)
+    return T_ee_new
+
+def mimicgen_stitch_segments(
+    segments: list[torch.Tensor],  # 每个 (T_i, 4, 4) 变换后的片段
+    current_ee: torch.Tensor,      # (4, 4) 当前 EE 位姿
+    interp_steps: int = 20,
+) -> torch.Tensor:
+    """拼接多个变换片段，用线性插值连接间隙"""
+    full_trajectory = []
+    for seg in segments:
+        # 插值: current_ee → seg[0]
+        target_start = seg[0]  # (4, 4)
+        alphas = torch.linspace(0, 1, interp_steps, device=seg.device)
+        # 简化位置插值 (实际应用中需 SE(3) 插值)
+        interp = current_ee.unsqueeze(0) * (1 - alphas.view(-1,1,1)) + \
+                 target_start.unsqueeze(0) * alphas.view(-1,1,1)
+        full_trajectory.append(interp)
+        full_trajectory.append(seg)
+        current_ee = seg[-1]
+    return torch.cat(full_trajectory, dim=0)
+```
+
+> [!note] SE(3) 变换的数学本质
+> MimicGen 的空间变换本质是利用了刘群 SE(3) 的左作用不变性——拉开抽屉的"技能"在 SE(3) 下的相对运动是不变的，仅需改变参考系。这与 [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] 中末端空间描述的思想一致。
+
+## 4.1 消融与因果分析 (Ablation)
+
+### 核心消融结果
+
+| 配置 | Pick-Place 成功率 | Long-Horizon 成功率 |
+|------|------------------|--------------------|
+| 10 人类演示 (BC) | ~40% | ~15% |
+| 200 人类演示 (BC) | ~73% | ~45% |
+| 10 人类 + 190 MimicGen | **~72%** | **~43%** |
+| 10 人类 + 1000 MimicGen | **~78%** | **~52%** |
+| 无轨迹过滤 (200 MimicGen) | ~55% | ~25% |
+| 无重平衡 (200 MimicGen) | ~63% | ~35% |
+
+### 因果分析
+
+1. **MimicGen ≈ 人类数据**: 10 + 190 生成 ≈ 200 人类 → 证明 SE(3) 变换保留了技能的核心结构，多样性而非"明星演示"是关键。
+2. **规模红利显著**: 1000 条生成 > 200 条人类 → 生成数据的多样性补偿了变换引入的小偏差，与 [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] 中分布覆盖的重要性一致。
+3. **轨迹过滤不可缺**: 去掉过滤 → 成功率降 17% → SE(3) 变换会产生质量低的轨迹（碰撞、不可达），必须在仿真中回放验证。
+4. **重平衡提升消除偏差**: 无重平衡 → 近似变换的场景过多，导致分布偏斜。
+
+## 4.2 工程关键细节 (Engineering Tricks)
+
+| 技巧 | 作用 | 细节 |
+|------|------|------|
+| 启发式分割 | 自动检测子任务边界 | 利用夹爪状态变化 + 接触力阀值 |
+| 轨迹过滤 | 丢弃失败/超时轨迹 | 在仿真器中回放变换后轨迹，保留任务成功的 |
+| 跟物体重平衡 | 消除数据分布偏斜 | 确保每类物体的轨迹数量均衡 |
+| SE(3) 插值拼接 | 连接变换后的片段间隙 | 线性插值位置 + Slerp 插值姿态 |
+| 并行化生成 | 加速数据生成 | 多进程仿真回放，96-CPU 可生成 50K+ 轨迹 |
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -176,11 +250,15 @@ MimicGen 不保证 100% 成功——执行变换轨迹可能失败
 - **自动化**: 无需人工标注
 - **通用性**: 适用于多种任务类型
 
-### 局限性
-- **假设限制**: 需要物体中心分解
-- **仿真依赖**: 生成需要物理仿真执行
-- **非100%成功**: 需要过滤失败轨迹
-- **动态任务**: 难以处理快速动态操作
+### 局限性（理论/算法/工程三维度）
+
+| 维度 | 局限 | 根因 | 替代方案 |
+|-----|------|------|--------|
+| **理论** | 假设任务可分解为物体中心子任务 | 无法处理连续流动任务（倒水、搅拌） | 轨迹流场变换 (flow-based augmentation) |
+| **理论** | Delta EE 动作空间假设 | 无法处理关节空间或全身动作 | 关节空间的类似变换需考虑运动学可行性 |
+| **算法** | 生成成功率 30-70% | SE(3) 变换后可能产生不可行轨迹 | 加入运动学检查/轨迹优化 ([[Optimization]]) |
+| **算法** | 无法等效替代动态操作演示 | 变换保持相对运动而非动力学 | 与动力学感知生成结合 |
+| **工程** | 依赖仿真器回放验证 | 无仿真器无法过滤失败轨迹 | 轻量级可行性检查器替代全仿真 |
 
 ### 适用场景
 ✅ 多步骤操作、精密装配、桌面操作
@@ -191,13 +269,13 @@ MimicGen 不保证 100% 成功——执行变换轨迹可能失败
 > [!important] 核心启发
 > **演示复用 > 演示收集**——与其收集更多演示，不如设计更好的演示利用方法。
 
-### 对灵巧手研究的应用
+### 对灵巧手转笔/Sim-to-Real 的启发
 
-| 应用场景 | MimicGen 价值 |
-|---------|--------------|
-| 手内物体重定向 | 不同初始位姿的数据扩增 |
-| 精密装配 | 物体位置变化适应 |
-| 多物体操作 | 子任务片段复用 |
+> [!important] 转笔迁移价值
+> 转笔的遥操作演示收集极其困难（24-DoF 灵巧手遥操作复杂度远超双指夹爪）。MimicGen 的物体中心变换思想可适配为：
+> - **初始位姿扩增**: 同一转笔技巧在不同初始笔角度/位置的 SE(3) 变换复用
+> - **片段分解**: 转笔可分解为“拇指推 → 笔飞行 → 食指接”等子任务，每段独立变换
+> - **局限**: 转笔涉及弹道动力学，纯 SE(3) 变换无法保留动力学一致性 → 需要与 [[Dynamics]] 感知的轨迹优化结合
 
 ### 与其他方法结合
 
@@ -209,7 +287,17 @@ SERL/HIL-SERL (RL 微调)
 更鲁棒的策略
 ```
 
-## 7. 演进脉络定位 (Evolution Context)
+## 7.1 跨方法对比
+
+| 方法 | 数据来源 | 可扩展性 | 动态任务 | 仿真依赖 |
+|------|---------|----------|----------|----------|
+| MimicGen | 少量人类 + SE(3) 变换 | **极强 (50K+)** | 弱 | 是 |
+| [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation\|GLIDE]] | 规划器自动生成 | 强 (12K) | 中 | 是 |
+| [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation\|RialTo]] | 真实 + 仿真 RL | 中 | 中 | 是 |
+| [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation\|CyberDemo]] | VR 遥操 + 数据增强 | 中 | 强 | 否 |
+| RT-1/RT-2 | 大规模人类收集 | 强 | 强 | 否 |
+
+## 7.2 演进脉络定位 (Evolution Context)
 
 ```
 前置工作:

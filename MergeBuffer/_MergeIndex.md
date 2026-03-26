@@ -21,7 +21,7 @@ status: pending
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
 | Grasp Matrix & Hand Jacobian | [[ControlTheory]] | ✅ 已存在 |
-| 位置控制 → 阻抗控制演进 | [[ControlTheory#2.1 阻抗控制]] | ✅ 已存在 |
+| 位置控制 → 阻抗控制演进 | [[ControlTheory]] | ✅ 已存在 |
 | Operational Space Formulation | [[ControlTheory]] | ✅ 已存在 |
 | Null Space Projection | [[Optimization]] | ✅ 已存在 |
 | Montana's Equations | [[ContactMechanics]] | ✅ 已存在 |
@@ -39,8 +39,8 @@ status: pending
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
 | RNEA/ABA 算法 | [[Dynamics]] | ✅ 已存在 |
-| Spatial Vector Algebra | [[Dynamics#4.1 空间向量代数]] | ✅ 已存在 |
-| LCP 接触模型 | [[ContactMechanics#4.1 线性互补问题]] | ✅ 已存在 |
+| Spatial Vector Algebra | [[Dynamics]] | ✅ 已存在 |
+| LCP 接触模型 | [[ContactMechanics]] | ✅ 已存在 |
 | PGS 求解器 | [[ContactMechanics]] | ✅ 补充了数值技巧 |
 | Baumgarte Stabilization | [[Dynamics]] | ✅ 已存在 |
 | Differentiable Physics | [[Dynamics]], [[Optimization]] | ✅ 已存在 |
@@ -56,12 +56,12 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| Montana 接触运动学方程 | [[ContactMechanics#2.2 Montana接触运动学方程]] | ✅ 已存在 |
-| 曲率张量与接触约束 | [[ContactMechanics#2.1 表面微分几何基础]] | ✅ 已存在 |
-| Stewart-Trinkle 时间步进 | [[ContactMechanics#4.1.1 Stewart-Trinkle 时间步进算法]] | ✅ 已存在 |
-| PGS/Sequential Impulses | [[ContactMechanics#4.2.2 迭代法]] | ✅ 已存在 |
-| 软指接触 (Soft Finger) | [[ContactMechanics#3. 接触模型的演进]] | ✅ 已存在 |
-| 可微物理引擎 | [[ContactMechanics#5. 可微接触物理]] | ✅ 已存在 |
+| Montana 接触运动学方程 | [[ContactMechanics]] | ✅ 已存在 |
+| 曲率张量与接触约束 | [[ContactMechanics]] | ✅ 已存在 |
+| Stewart-Trinkle 时间步进 | [[ContactMechanics]] | ✅ 已存在 |
+| PGS/Sequential Impulses | [[ContactMechanics]] | ✅ 已存在 |
+| 软指接触 (Soft Finger) | [[ContactMechanics]] | ✅ 已存在 |
+| 可微物理引擎 | [[ContactMechanics]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -73,12 +73,12 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| 闵可夫斯基差 (Minkowski Difference) | [[ComputationalGeometry#2.1 闵可夫斯基差的物理本质]] | ✅ 已存在 |
-| GJK 支持映射 (Support Mapping) | [[ComputationalGeometry#3.1 GJK算法]] | ✅ 已存在 |
-| EPA 穿透深度 | [[ComputationalGeometry#3.3 EPA算法]] | ✅ 已存在 |
-| SDF 梯度优化 (TrajOpt/CHOMP) | [[ComputationalGeometry#4. 有向距离场]] | ✅ 已存在 |
-| Neural SDF / NGDF | [[ComputationalGeometry#5. 神经隐式表示]] | ✅ 已存在 |
-| Contact Jacobian 物理对偶性 | [[ContactMechanics#2.3 接触雅可比矩阵]] | ✅ 已存在 |
+| 闵可夫斯基差 (Minkowski Difference) | [[ComputationalGeometry]] | ✅ 已存在 |
+| GJK 支持映射 (Support Mapping) | [[ComputationalGeometry]] | ✅ 已存在 |
+| EPA 穿透深度 | [[ComputationalGeometry]] | ✅ 已存在 |
+| SDF 梯度优化 (TrajOpt/CHOMP) | [[ComputationalGeometry]] | ✅ 已存在 |
+| Neural SDF / NGDF | [[ComputationalGeometry]] | ✅ 已存在 |
+| Contact Jacobian 物理对偶性 | [[ContactMechanics]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -90,11 +90,11 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| Contact-Implicit Trajectory Optimization | [[Optimization#3. 接触隐式轨迹优化]] | ✅ 已存在 |
-| iLQR/DDP 算法 | [[Optimization#2.2 Differential Dynamic Programming]] | ✅ 已存在 |
-| Direct Collocation | [[Optimization#2.1 Direct Collocation]] | ✅ 已存在 |
-| Ferrari-Canny 稳定性指标 | [[Optimization#抓取稳定性]] | ✅ 已存在 |
-| LCP 在轨迹优化中 | [[Optimization#接触互补约束]] | ✅ 已存在 |
+| Contact-Implicit Trajectory Optimization | [[Optimization]] | ✅ 已存在 |
+| iLQR/DDP 算法 | [[Optimization]] | ✅ 已存在 |
+| Direct Collocation | [[Optimization]] | ✅ 已存在 |
+| Ferrari-Canny 稳定性指标 | [[Optimization]] | ✅ 已存在 |
+| LCP 在轨迹优化中 | [[Optimization]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -106,11 +106,11 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| Diffusion Policy 数学基础 | [[RepresentationLearning#2.2 深度解析：扩散策略]] | ✅ 已存在 |
-| ACT (Action Chunking Transformer) | [[RepresentationLearning#2.3 动作分块与Transformer]] | ✅ 已存在 |
-| 协变量偏移 (Covariate Shift) | [[RepresentationLearning#2.1.1 协变量偏移]] | ✅ 已存在 |
-| 视觉触觉多模态融合 | [[RepresentationLearning#2.4 表征学习]] | ✅ 已存在 |
-| Jacobian Regularization | [[RepresentationLearning#1.3 学习目标的物理重构]] | ✅ 已存在 |
+| Diffusion Policy 数学基础 | [[RepresentationLearning]] | ✅ 已存在 |
+| ACT (Action Chunking Transformer) | [[RepresentationLearning]] | ✅ 已存在 |
+| 协变量偏移 (Covariate Shift) | [[RepresentationLearning]] | ✅ 已存在 |
+| 视觉触觉多模态融合 | [[RepresentationLearning]] | ✅ 已存在 |
+| Jacobian Regularization | [[RepresentationLearning]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -122,11 +122,11 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| MPPI 控制更新律 | [[StochasticProcess#6. 核心算法详解：MPPI]] | ✅ 已存在 |
-| Contact Particle Filter | [[StochasticProcess#5. 粒子滤波]] | ✅ 已存在 |
-| 高斯过程回归 (GPR) | [[StochasticProcess#4. 高斯过程]] | ✅ 已存在 |
-| 信念空间规划 (BSP) | [[StochasticProcess#6.4 信念空间规划]] | ✅ 已存在 |
-| 随机摩擦锥建模 | [[StochasticProcess#2.1 随机微分方程]] | ✅ 已存在 |
+| MPPI 控制更新律 | [[StochasticProcess]] | ✅ 已存在 |
+| Contact Particle Filter | [[StochasticProcess]] | ✅ 已存在 |
+| 高斯过程回归 (GPR) | [[StochasticProcess]] | ✅ 已存在 |
+| 信念空间规划 (BSP) | [[StochasticProcess]] | ✅ 已存在 |
+| 随机摩擦锥建模 | [[StochasticProcess]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -138,11 +138,11 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| 期望信息增益 (EIG) | [[InformationTheory#2.2 互信息与感知增益]] | ✅ 已存在 |
-| Empowerment 变分下界 | [[InformationTheory#5.1 赋能 (Empowerment)]] | ✅ 已存在 |
-| GPIS (高斯过程隐式表面) | [[InformationTheory#3.2 GPIS]] | ✅ 已存在 |
-| DIAYN 鉴别器 | [[InformationTheory#5.3 DIAYN]] | ✅ 已存在 |
-| 粒子滤波 EIG 采样 | [[InformationTheory#4. 采样方法]] | ✅ 已存在 |
+| 期望信息增益 (EIG) | [[InformationTheory]] | ✅ 已存在 |
+| Empowerment 变分下界 | [[InformationTheory]] | ✅ 已存在 |
+| GPIS (高斯过程隐式表面) | [[InformationTheory]] | ✅ 已存在 |
+| DIAYN 鉴别器 | [[InformationTheory]] | ✅ 已存在 |
+| 粒子滤波 EIG 采样 | [[InformationTheory]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -154,11 +154,11 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| Prandtl-Ishlinskii 迟滞模型 | [[SignalProcessing#2.2 迟滞现象的建模与补偿]] | ✅ 已存在 |
-| STFT 谱质心滑移检测 | [[SignalProcessing#4.1.1 短时傅里叶变换]] | ✅ 已存在 |
-| 小波变换瞬态检测 | [[SignalProcessing#4.1.2 小波变换]] | ✅ 已存在 |
-| 因子图触觉因子 | [[SignalProcessing#5.2 因子图]] | ✅ 已存在 |
-| GelSight 泊松求解器 | [[SignalProcessing#3.1 光度立体视觉]] | ✅ 已存在 |
+| Prandtl-Ishlinskii 迟滞模型 | [[SignalProcessing]] | ✅ 已存在 |
+| STFT 谱质心滑移检测 | [[SignalProcessing]] | ✅ 已存在 |
+| 小波变换瞬态检测 | [[SignalProcessing]] | ✅ 已存在 |
+| 因子图触觉因子 | [[SignalProcessing]] | ✅ 已存在 |
+| GelSight 泊松求解器 | [[SignalProcessing]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -170,11 +170,11 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| SAC 熵正则化 | [[ReinforcementLearning#2.1 Soft Actor-Critic]] | ✅ 已存在 |
-| PPO vs SAC 对比 | [[ReinforcementLearning#算法对比]] | ✅ 已存在 |
-| Domain Randomization | [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|Sim-to-Real]] | ✅ 已存在 |
-| Constraint Manifold RL | [[ReinforcementLearning#约束流形]] | ✅ 已存在 |
-| Conservative Q-Learning (CQL) | [[ReinforcementLearning#Offline RL]] | ✅ 已存在 |
+| SAC 熵正则化 | [[ReinforcementLearning]] | ✅ 已存在 |
+| PPO vs SAC 对比 | [[ReinforcementLearning]] | ✅ 已存在 |
+| Domain Randomization | [[ReinforcementLearning|Sim-to-Real]] | ✅ 已存在 |
+| Constraint Manifold RL | [[ReinforcementLearning]] | ✅ 已存在 |
+| Conservative Q-Learning (CQL) | [[ReinforcementLearning]] | ✅ 已存在 |
 
 **处理结果**: 原文件已删除 (2026-01-31)
 
@@ -207,10 +207,10 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| 柔轮疲劳/冲击脆弱性/精度保持性 | [[减速器#2.4 谐波减速器]] | ✅ 已整合 |
-| 空心轴集成优势/输入转速范围 | [[减速器#2.4 谐波减速器]] | ✅ 已整合 |
-| RV vs 谐波核心选型逻辑 | [[减速器#2.6 RV 减速器]] | ✅ 已整合 |
-| 6轴机器人经典关节配置 | [[减速器#4.2 典型机器人关节减速器配置]] | ✅ 新增 |
+| 柔轮疲劳/冲击脆弱性/精度保持性 | [[减速器]] | ✅ 已整合 |
+| 空心轴集成优势/输入转速范围 | [[减速器]] | ✅ 已整合 |
+| RV vs 谐波核心选型逻辑 | [[减速器]] | ✅ 已整合 |
+| 6轴机器人经典关节配置 | [[减速器]] | ✅ 新增 |
 
 **处理结果**: 关键内容已融合至减速器.md (2026-03-05)
 
@@ -223,7 +223,7 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|-------|
-| 3D Flow 载体无关动作表征、PointWorld | [[RepresentationLearning#4.6 3D Flow 作为载体无关的动作表征]] | ✅ 新增§4.6 |
+| 3D Flow 载体无关动作表征、PointWorld | [[RepresentationLearning]] | ✅ 新增§4.6 |
 | VLA 数据效率、迁移效率 100× gap | [[EmbodiedAI]] | ✅ 新增"3D 世界模型与空间智能"小节 |
 
 **处理结果**: 核心内容融合到 RepresentationLearning.md §4.6 + EmbodiedAI.md (2026-03-13)
@@ -392,7 +392,7 @@ status: pending
 
 | 核心思想 | 融合目标 | 处理方式 |
 |---------|---------|---------|
-| KL 散度正则化框架 | [[ReinforcementLearning#Phase 3: SAC]] | ✅ 新增 callout |
+| KL 散度正则化框架 | [[ReinforcementLearning]] | ✅ 新增 callout |
 | 熵正则 = KL 到均匀先验 | [[ReinforcementLearning]] | ✅ 新增推导 |
 | Boltzmann 最优策略形式 | [[ReinforcementLearning]] | ✅ 补充公式 |
 | 不同算法的参考分布选择 | [[ReinforcementLearning]] | ✅ 对比分析 |
@@ -425,8 +425,8 @@ status: pending
 
 | 文件 | 整合目标 | 关联发现 |
 |-----|---------|---------|
-| IsoCompute Playbook.pdf | [[ReinforcementLearning#6.3 RL Scaling Laws]] + DNPM ideas.md §2.5.4 | RL 缩放定律、easy/hard 熵控制、课程设计指导 |
-| Learning to Discover at Test Time.pdf | [[ReinforcementLearning#6.4 Test-Time RL]] + DNPM ideas.md §4.1 | 测试时 RL、entropic objective、在线适应新环境 |
+| IsoCompute Playbook.pdf | [[ReinforcementLearning]] + DNPM ideas.md §2.5.4 | RL 缩放定律、easy/hard 熵控制、课程设计指导 |
+| Learning to Discover at Test Time.pdf | [[ReinforcementLearning]] + DNPM ideas.md §4.1 | 测试时 RL、entropic objective、在线适应新环境 |
 
 **处理时间**: 2026-02-02 标注 → 2026-02-27 完成深度整合
 
@@ -441,9 +441,9 @@ status: pending
 
 | 核心内容 | 融合目标 | 处理结果 |
 |---------|---------|---------|
-| NE vs Lagrangian 方法对比 | [[Dynamics#3.4 方法对比总结 (Method Comparison Summary)]] | ✅ 新增对比表 |
-| 离散时间动力学建模 | [[Dynamics#10. Future Outlook: Differentiable Physics (可微物理)]] | ✅ 新增 callout |
-| Lagrangian Neural Networks | [[Dynamics#10. Future Outlook: Differentiable Physics (可微物理)]] | ✅ 新增 callout |
+| NE vs Lagrangian 方法对比 | [[Dynamics]] | ✅ 新增对比表 |
+| 离散时间动力学建模 | [[Dynamics]] | ✅ 新增 callout |
+| Lagrangian Neural Networks | [[Dynamics]] | ✅ 新增 callout |
 
 **处理结果**: 核心内容已融合到 Dynamics.md。原文件为科普级别，Dynamics.md 已有更深入的覆盖。
 
@@ -480,7 +480,7 @@ status: pending
 #### chat.md 处理
 | # | 文件 | 处理方式 | 融合目标 |
 |---|------|---------|---------|
-| 30 | chat.md (LaST0 深度分析) | 🟢 核心内容融合 → Foundations | [[RepresentationLearning#2.2.3 Flow Matching]] + [[EmbodiedAI#§1.3/1.4]] |
+| 30 | chat.md (LaST0 深度分析) | 🟢 核心内容融合 → Foundations | [[RepresentationLearning]] + [[EmbodiedAI]] |
 
 #### 论文 PDF 处理
 | # | 论文名称 | 状态 | 处理方式 |
@@ -545,7 +545,7 @@ status: pending
 
 | 内容模块 | 目标文件 | 融合状态 |
 |---------|---------|---------|
-| PPO 完整损失分解 + 三阶段数据流 | [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] | ✅ 新增三节 |
+| PPO 完整损失分解 + 三阶段数据流 | [[ReinforcementLearning]] | ✅ 新增三节 |
 | 核心 PyTorch 代码 | [[ReinforcementLearning]] | ✅ 核心张量操作 |
 | 单峰高斯局限 + 多峰替代方案 | [[ReinforcementLearning]] | ✅ 新增讨论节 |
 | 灵巧操作工程避坑 | [[ReinforcementLearning]] | ✅ 维度/归一化/熵系数 |
@@ -609,3 +609,60 @@ status: pending
 | RL Token 信息瓶颈表征 | [[RepresentationLearning]] 相关论文 | ✅ 新增链接 |
 
 **处理结果**: PDF 移至 Papers/，PapersRecap 已创建，3 个 Foundation 文件已更新 (2026-03-27)
+
+---
+
+### 20. ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.pdf
+**主题**: ACT — Action Chunking with Transformers，低成本双臂精细操作 (RSS 2023)
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 论文精读笔记 | [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware]] | ✅ 新建 |
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| CVAE + Action Chunking | [[RepresentationLearning]] §2.3 | ✅ 已有，新增论文链接 |
+
+**处理结果**: PDF 移至 Papers/，PapersRecap 已创建 (2026-03-25)
+
+---
+
+### 21. RECAP - A VLA that Learns from Experience.pdf
+**主题**: RECAP (π₀.6) — Experience-Based VLA Post-Training 三阶段
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 论文精读笔记 | [[RECAP - A VLA that Learns from Experience]] | ✅ 新建 |
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| VLA Post-Training 四条路径 | [[EmbodiedAI]] §2.5 | ✅ 表格扩展 |
+
+**处理结果**: PDF 移至 Papers/，PapersRecap 已创建，EmbodiedAI 更新 (2026-03-25)
+
+---
+
+### 22. Unified Policy Evaluation and Improvement - On Off-Policy Classification.pdf
+**主题**: 统一 RL 算法分类框架
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 论文精读笔记 | [[Unified Policy Evaluation and Improvement - On Off-Policy Classification]] | ✅ 新建 |
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| RL 算法统一分类 | [[ReinforcementLearning]] §6.6 | ✅ 新增子节 |
+
+**处理结果**: PDF 移至 Papers/，PapersRecap 已创建，RL Foundation 新增 §6.6 (2026-03-25)
+
+---
+
+### gemini-chat/ 对话文件处理 (Session #24)
+**状态**: 🟢 已完成
+
+| 对话文件 | 融合目标 | 状态 |
+|---------|---------|------|
+| PPO-损失函数组成详解.md | RL Foundation + §2.3.2 粒度标准 | ✅ |
+| chat.md | CGP PapersRecap | ✅ |
+| 机器人模仿学习深度解析.md | 新建 ACT PapersRecap | ✅ |
+| RL-100-论文深度解析.md | RL-100 PapersRecap §5.0 | ✅ |
+| 强化学习核心文献深度剖析.md | 新建 Unified Policy PapersRecap | ✅ |
+
+**处理结果**: 内容融入 Foundations/PapersRecap，原文件已删除 (2026-03-25)

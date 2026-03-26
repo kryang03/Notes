@@ -5,8 +5,95 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-27 (Session #23 — MergeBuffer 2 PDF 处理 + Foundation 3 文件更新 + Canvas 扩展 ✅)
+**最后更新**: 2026-04-01 (Session #24 — gemini-chat 清理规则 + standard-workflow + 全库 81 篇 PapersRecap Refine + Canvas 3 新论文 + 70 处断链修复 ✅)
 
+
+## 🟢 Session #24 完成 (2026-04-01)
+
+### gemini-chat 清理规则建立 + Standard Workflow + 全库 PapersRecap Refine + 断链大修
+
+**触发**：用户要求 (1) 将 gemini-chat 清理规则写入 instructions，(2) 执行 standard-workflow，(3) 结合 gemini 对话提问粒度对全部 PapersRecap refine，(4) 将 refine 流程写入 skills/instructions。
+
+#### 变更内容 — Phase 1: Instructions & Skills 更新
+
+| 文件 | 变更 |
+|------|------|
+| `.github/copilot-instructions.md` | 新增规则 #7「gemini-chat 即时清理」+ 禁止项 + 2 条必须清单项 + `[!tip] PapersRecap 定期 Refine` callout |
+| `.github/skills/knowledge-graph-management/SKILL.md` | 新增 §2.3.2「PapersRecap 定期 Refine 流程」（12 项检查清单 + 7 维用户提问粒度表 + 优先级排序规则）+ Step 4 gemini-chat 文件删除规则 |
+
+#### 变更内容 — Phase 2: MergeBuffer 处理
+
+| 文件 | 变更 |
+|------|------|
+| `Papers/ACT - *.pdf` | 从 MergeBuffer 移入 |
+| `Papers/RECAP - π₀.6.pdf` | 从 MergeBuffer 移入 |
+| `Papers/Unified Policy *.pdf` | 从 MergeBuffer 移入 |
+| `PapersRecap/ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.md` | 新建 — CVAE + Temporal Ensembling + ACT Transformer 代码 |
+| `PapersRecap/RECAP - A VLA that Learns from Experience.md` | 新建 — 三阶段 IL→Offline→Online RL 框架 |
+| `PapersRecap/Unified Policy Evaluation and Improvement - On Off-Policy Classification.md` | 新建 — 统一评估/改进公式 + PPO/SAC/BRAC 推导 |
+| `PapersRecap/RL-100 - *.md` | 新增 §5.0 深层机制解析（PPO offline 机制 / ε vs x0 探索 / Consistency Model 多模态） |
+| `MergeBuffer/gemini-chat/*.md` (5 files) | 内容融入后移至 /tmp/ 清理 |
+
+#### 变更内容 — Phase 3: Foundations 更新 (3 文件)
+
+| 文件 | 变更 |
+|------|------|
+| `Foundations/EmbodiedAI.md` | VLA Post-Training 表格: 三条路径→四条路径（新增 Experience-Based RL / RECAP）+ Paper Index 新增 RECAP |
+| `Foundations/ReinforcementLearning.md` | 新增 §6.6「RL 算法统一分类框架」（统一评估/改进公式 + Update Schedule 三态分类表） |
+| `Foundations/RepresentationLearning.md` | ACT 节更新 wikilink 至新 PapersRecap |
+
+#### 变更内容 — Phase 4: 全库 PapersRecap Refine (81 篇)
+
+按 §2.3.2 的 12 项检查清单，对全部 81 篇 PapersRecap 执行系统性 Refine。常见修复：
+
+| 修复类型 | 影响文件数 |
+|----------|-----------|
+| 新增 `venue` frontmatter | ~60 |
+| 新增 PyTorch 核心代码逻辑 | ~40 |
+| 新增 Ablation 因果链表格 | ~35 |
+| 新增 Engineering Tricks 节 | ~30 |
+| 三维重构局限性分析 | ~45 |
+| 新增灵巧手转笔/Sim-to-Real Insight | ~50 |
+| 新增 Foundation 数学对应 | ~40 |
+| 新增跨方法对比表 | ~35 |
+
+#### 变更内容 — Phase 5: Canvas 更新
+
+| 文件 | 变更 |
+|------|------|
+| `KnowledgeGraph.canvas` | 新增 3 节点: paper_act (ACT)、paper_recap (RECAP/π₀.6)、paper_unified (Unified Policy) |
+| | 新增 12 条边: ACT↔表征/具身、RECAP↔RL/具身/WMPO/RL-100、Unified↔RL/优化 + 突破点连接 |
+
+#### 变更内容 — Phase 6: 断链修复 (70 处)
+
+| 类别 | 修复数量 | 受影响文件 |
+|------|---------|-----------|
+| 文件级断链（文件不存在/文件名不匹配） | 7 | RECAP, AnyRotate, Exploration, Lyapunov RL |
+| 概念占位链接→Foundation 重定向 | 4 | Exploration vs Exploitation |
+| MergeIndex 标题级断链（截断/编号错误） | 59 | _MergeIndex.md 全量修复 |
+| **合计** | **70** | |
+
+#### 变更内容 — Phase 7: 索引更新
+
+| 文件 | 变更 |
+|------|------|
+| `MergeBuffer/_MergeIndex.md` | 新增 §20 (ACT) + §21 (RECAP) + §22 (Unified Policy) + gemini-chat 处理记录 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| PapersRecap 总数 | 78 → 81 ✅ |
+| Papers PDF 总数 | 78 → 81 ✅ |
+| Foundations 更新 | 3 文件 ✅ |
+| Canvas 节点新增 | 3 (ACT + RECAP + Unified) ✅ |
+| Canvas 边新增 | 12 ✅ |
+| 断链修复 | 70/70 ✅ |
+| PapersRecap Refine | 81/81 ✅ |
+| gemini-chat 清理 | 5/5 文件已清理 ✅ |
+| 实验结果 | 未检查到新结果 |
+
+---
 
 ## 🟢 Session #23 完成 (2026-03-27)
 

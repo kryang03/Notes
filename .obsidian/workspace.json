@@ -23,33 +23,31 @@
             }
           },
           {
-            "id": "62943baf6cc6185f",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "MergeBuffer/gemini-chat/PPO-损失函数组成详解.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "PPO-损失函数组成详解"
-            }
-          },
-          {
-            "id": "f90eae7ea8bc26f6",
+            "id": "cc610c9c3c88f05d",
             "type": "leaf",
             "state": {
               "type": "pdf",
               "state": {
-                "file": "Papers/Lessons from Learning to Spin Pens.pdf"
+                "file": "Papers/FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots.pdf"
               },
               "icon": "lucide-file-text",
-              "title": "Lessons from Learning to Spin Pens"
+              "title": "FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots"
+            }
+          },
+          {
+            "id": "782e7ee73537834d",
+            "type": "leaf",
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "Papers/Evolving Control: Evolved High Frequency Control.pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Evolving Control: Evolved High Frequency Control"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -226,23 +224,35 @@
       "open-vscode:VSCode": false
     }
   },
-  "active": "fa2d5fa10800fbf6",
+  "active": "83ac6868d741d647",
   "lastOpenFiles": [
-    "conflict-files-obsidian-git.md",
+    "Papers/FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots.pdf",
+    "PapersRecap/FACET - Force-Adaptive Control via Impedance Reference Tracking.md",
     "PapersRecap/_PapersIndex.base",
-    "PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md",
-    "PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md",
-    "Papers/Precise Manipulation with Efficient Online RL.pdf",
+    "PapersRecap/SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning.md",
     "Papers/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
-    "Papers/Contact-Grounded Policy- Dexterous Visuotactile Policy with Generative Contact Grounding.pdf",
-    "MergeBuffer/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
-    "MergeBuffer/未确认 283799.crdownload",
-    "MergeBuffer/Precise Manipulation with Efficient Online RL.pdf",
-    "Papers/Lessons from Learning to Spin Pens.pdf",
+    "PapersRecap/Unified Policy Evaluation and Improvement - On Off-Policy Classification.md",
+    "PapersRecap/RECAP - A VLA that Learns from Experience.md",
+    "PapersRecap/ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.md",
+    "Papers/Unified Policy Evaluation & Improvement (On_Off-Policy).pdf",
+    "Papers/A VLA that Learns from Experience.pdf",
+    "Papers/ACT: Learning Fine-Grained Bimanual Manipulation with.pdf",
+    "MergeBuffer/gemini-chat/机器人模仿学习深度解析.md",
+    "MergeBuffer/gemini-chat/强化学习核心文献深度剖析.md",
+    "MergeBuffer/gemini-chat/RL-100-论文深度解析.md",
+    "MergeBuffer/Unified Policy Evaluation & Improvement (On_Off-Policy).pdf",
+    "Papers/RL-100: Performant Robotic Manipulation with Real-World.pdf",
+    "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
+    "Papers/Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation.pdf",
+    "MergeBuffer/ACT: Learning Fine-Grained Bimanual Manipulation with.pdf",
+    "PapersRecap/Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation.md",
+    "PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md",
+    "Foundations/ReinforcementLearning.md",
+    "conflict-files-obsidian-git.md",
+    "PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md",
     "MergeBuffer/gemini-chat/PPO-损失函数组成详解.md",
     "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
     "MergeBuffer/gemini-chat/chat.md",
-    "MergeBuffer/gemini-chat",
     "PapersRecap/DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model.md",
     "PapersRecap/EvoControl - Evolved High Frequency Control for Continuous Control Tasks.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
@@ -250,19 +260,7 @@
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
     "README.md",
     "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/RSS26.pdf",
     "2026-03-13.md",
-    "PapersRecap/MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations.md",
-    "PapersRecap/Learning Human-like Finger Gaiting on an Anthropomorphic Hand.md",
-    "PapersRecap/Proximity Perception-Based Grasping Intelligence (P2GI).md",
-    "PapersRecap/DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration.md",
-    "PapersRecap/Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation.md",
-    "PapersRecap/OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control.md",
-    "PapersRecap/Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning.md",
-    "Foundations/ReinforcementLearning.md",
-    "PapersRecap/Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation.md",
-    "PapersRecap/AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch.md",
-    "PapersRecap/未命名.md",
     "KnowledgeGraph.canvas",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",

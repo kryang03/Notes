@@ -39,7 +39,19 @@ related:
 
 ## 1. 问题背景
 
-### 1.1 控制频率的权衡
+### 1.0 核心洞察（一句话 + 直观隐喻）
+
+**一句话**：动作持续重复 $k$ 步等价于降低控制频率，存在最优 $k^*$ 平衡策略空间与学习难度。
+
+**直观隐喻**：想象你在写书法——“拉一竖”这个动作，你可以毫米级微调（$k=1$，每毫米重新决策），但这样笔画会护；也可以一口气写到底（$k=16$，一次决策执行到底），但遇转折时就会出界。最优的 $k^*$ 就是在“笔画流畅”和“转折可控”之间找到平衡点。
+
+### 1.1 现有方法的局限
+
+- **固定频率策略**：无法适应任务动力学复杂度的变化
+- **人工调频**：需要多次实验确定最优频率，样本浪费严重
+- **缺乏理论指导**：无法先验地分析最优频率与环境特性的关系
+
+### 1.2 控制频率的权衡
 
 **高频控制**：
 - ✅ 策略空间更大，理论上能达到更优性能
@@ -153,7 +165,58 @@ return π_k = greedy(Q^*)
 
 ---
 
-## 5. 实验结果
+## 4.4 核心 PyTorch 代码逻辑
+
+```python
+def persistent_bellman_target(q_net, batch, k, gamma):
+    """k-persistent Bellman 目标计算"""
+    states, actions, rewards, next_states = batch
+    B = states.shape[0]
+
+    # 累積折扣奖励: R_k = sum_{i=0}^{k-1} gamma^i * r_{t+i}
+    # 在 batch 数据中，用单步数据构造 k-step return
+    discounted_reward = rewards  # 单步奖励作为近似
+    for i in range(1, k):
+        discounted_reward = discounted_reward + (gamma ** i) * rewards  # 简化: 假设保持同一动作时奖励近似不变
+
+    # 下一状态的最优 Q 值（有效折扣因子为 gamma^k）
+    with torch.no_grad():
+        next_q = q_net(next_states).max(dim=-1).values    # (B,)
+        target = discounted_reward + (gamma ** k) * next_q # (B,)
+    return target
+
+
+def pfqi_train(q_net, dataset, k_candidates, gamma, n_iters=100):
+    """Persistent FQI: 用 persistence-1 数据估计任意 k 的值函数"""
+    best_k, best_value = 1, -float('inf')
+
+    for k in k_candidates:  # e.g. [1, 2, 4, 8, 16]
+        q_net_k = copy.deepcopy(q_net)
+        optimizer = torch.optim.Adam(q_net_k.parameters(), lr=1e-3)
+
+        for _ in range(n_iters):
+            batch = dataset.sample(256)
+            target = persistent_bellman_target(q_net_k, batch, k, gamma)
+            pred = q_net_k(batch.states).gather(1, batch.actions).squeeze()
+            loss = F.mse_loss(pred, target)
+            optimizer.zero_grad(); loss.backward(); optimizer.step()
+
+        # 用估计的 V 选择最优 k
+        avg_value = q_net_k(dataset.all_states).max(dim=-1).values.mean().item()
+        if avg_value > best_value:
+            best_k, best_value = k, avg_value
+
+    return best_k
+```
+
+## 4.5 工程关键细节 (Engineering Tricks)
+
+- **数据复用**：核心优势是用 $k=1$ 采集的数据估计任意 $k$ 的值函数，但需确保转移核估计 $(P^\delta)^{k-1}$ 的精度——当 $k$ 大且动力学非线性时，单步数据的 bootstrap 误差累积
+- **候选 $k$ 的选择**：推荐二进制网格 $\{1, 2, 4, 8, 16\}$，而非线性扫描，防止计算量爆炸
+- **值函数初始化**：可用小 $k$ 的训练结果暖启动大 $k$ 的训练，加速收敛
+- **折扣因子调整**：注意 $\gamma^k$ 在 $k$ 大时会让有效视野大幅缩短，可能需要用更大的原始 $\gamma$ 补偿
+
+---
 
 ### 5.1 Cartpole
 
@@ -173,9 +236,16 @@ return π_k = greedy(Q^*)
 2. **过高的 persistence**（$k>32$）：策略空间过度受限
 3. **最优点存在**：任务相关的"甜蜜点"
 
----
+### 5.3 Ablation 因果链分析
 
-## 6. 与相关概念的联系
+| 去掉/改变 | 结果变化 | 因果机制 |
+|---------|---------|--------|
+| 不用 persistent Bellman 算子（直接 FQI） | 次优 k 选择，性能下降 | 忽略了动作持续期间的动力学演化 |
+| 固定 k=1（标准 FQI） | Cartpole 性能 172 vs 285 | 单步动作效果微弱，样本复杂度高 |
+| k 过大（k>32） | 性能下降 | 策略空间过度受限，无法应对快速变化 |
+| 去掉 Lipschitz 平滑性假设 | 理论界失效 | 非光滑动力学中 k-step 误差累积不可控 |
+
+---
 
 ### 6.1 与 Frame Skipping 的关系
 
@@ -210,9 +280,42 @@ return π_k = greedy(Q^*)
 
 ## 8. 局限与扩展
 
-1. **仅限 Batch RL**：需要扩展到 Online RL
-2. **固定 persistence**：可考虑状态依赖的 $k(s)$
-3. **探索影响**：persistence 改变采样分布的熵
+**理论层面**：
+- Lipschitz 连续性假设排除了接触不连续的操作任务（如灵巧手抓取）
+- 性能损失界为 $O(k \cdot \Delta t_0)$ 线性增长，未考虑非线性动力学的误差累积
+- **替代方案**：基于 [[Dynamics]] 的误差传播分析（敏感度方法）可给出更紧的界
+
+**算法层面**：
+- 仅限 Batch RL，未扩展到 Online RL
+- $k$ 是全局固定的，不能根据状态自适应
+- **替代方案**：状态依赖的 $k(s)$（如 [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]] 的方法）
+
+**工程层面**：
+- persistence 改变采样分布的熵，影响探索质量
+- 大 $k$ 时有效视野 $1/(1-\gamma^k)$ 大幅缩短，可能导致近视策略
+- **替代方案**：在 $k$ 大时同时提升 $\gamma$ 以保持有效视野
+
+## 9. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+
+1. **转笔任务的最优 persistence**：接触发力瞬间需要 $k=1$（高频控制），空中飞行段可用 $k=4{\sim}8$（低频节能）——这描述了一个状态依赖的 $k^*(s)$
+2. **Batch 数据复用价值**：从Isaac Gym 采集的高频数据，可用 PFQI 离线评估多个 $k$ 的性能，避免重复运行昂贵的仿真
+3. **Sim-to-Real 启示**：真实机器人的执行延迟和通信延迟等价于强制的最小 persistence，可将硬件延迟直接建模为 $k_{\min}$ 来缩小 sim-real gap
+
+## 10. 与知识体系的联系（含数学关联）
+
+### 与 [[ReinforcementLearning]] 的联系
+
+Action persistence 将标准 Bellman 算子扩展为 $k$-persistent 形式：
+$$T_k^* f = T^* (T^\delta)^{k-1} f$$
+其中 $T^\delta$ 是动作不变的转移算子。这保持了 $\gamma^k$-收缩性，但有效视野从 $\frac{1}{1-\gamma}$ 缩短为 $\frac{1}{1-\gamma^k}$——这是 persistence 的核心 trade-off。
+
+### 与 [[ControlTheory]] 的联系
+
+$k$-persistent MDP 的转移核 $P_k(B|s,a) = (P^\delta)^{k-1} P(B|s,a)$ 等价于控制理论中的零阶保持器（ZOH）离散化，采样周期 $T_s = k \cdot \Delta t_0$。性能损失 $\|Q_1^* - Q_k^*\|_\infty \leq C \cdot k \cdot \Delta t_0$ 直接对应 Shannon 采样定理的频率约束。
+
+### 与 [[SignalProcessing]] 的联系
+
+动作持续的低通滤波效应：保持动作 $k$ 步等价于对动作信号施加截止频率 $f_c = \frac{f_s}{2k}$ 的低通滤波器，这自然抑制了高频噪声但也限制了快速环境变化的响应能力。
 
 ---
 

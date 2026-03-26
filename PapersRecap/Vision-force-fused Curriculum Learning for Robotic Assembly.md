@@ -109,6 +109,46 @@ $$
 - $r_{\text{force}}$: 接触力惩罚（防止过大碰撞力）
 - $r_{\text{success}}$: 成功插入奖励
 
+### 3.4 核心代码逻辑 (PyTorch)
+
+```python
+import torch
+import torch.nn as nn
+
+class VisionForcePolicy(nn.Module):
+    """视觉-力融合策略网络 with 课程权重"""
+    def __init__(self, vis_dim=64, force_dim=6, act_dim=6):
+        super().__init__()
+        self.vis_encoder = nn.Sequential(
+            nn.Conv2d(3, 32, 3, stride=2), nn.ReLU(),
+            nn.Conv2d(32, 64, 3, stride=2), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1), nn.Flatten(),
+            nn.Linear(64, vis_dim)
+        )
+        self.force_encoder = nn.Sequential(
+            nn.Linear(force_dim, 64), nn.ReLU(),
+            nn.Linear(64, vis_dim)  # 与视觉特征同维
+        )
+        self.policy_head = nn.Sequential(
+            nn.Linear(vis_dim, 128), nn.ReLU(),
+            nn.Linear(128, act_dim), nn.Tanh()
+        )
+
+    def forward(self, img, force, w_v=1.0, w_f=0.0):
+        z_v = self.vis_encoder(img)
+        z_f = self.force_encoder(force)
+        z = w_v * z_v + w_f * z_f  # 课程加权融合
+        return self.policy_head(z)
+
+def curriculum_schedule(epoch, total_epochs):
+    """四阶段课程权重调度"""
+    p = epoch / total_epochs
+    if   p < 0.25: return 1.0, 0.0  # Phase 1: 纯视觉
+    elif p < 0.50: return 0.7, 0.3  # Phase 2: 开始融合
+    elif p < 0.75: return 0.3, 0.7  # Phase 3: 力主导
+    else:          return 0.2, 0.8  # Phase 4: 最终策略
+```
+
 ## 4. 实验与验证 (Experiments)
 
 ### 任务设置
@@ -130,6 +170,38 @@ $$
 - 无需微调，成功率 ~85%
 - 对未见形状（三角形）泛化成功
 
+### 训练细节
+
+| 维度 | 设定 |
+|------|------|
+| **RL 算法** | SAC (Soft Actor-Critic) |
+| **仿真器** | MuJoCo |
+| **训练步数** | ~2M 步 (4 阶段各 ~500k) |
+| **学习率** | 3e-4 (Adam) |
+| **相机分辨率** | 84×84 RGB |
+| **力传感** | 6-axis F/T, 100Hz |
+| **控制频率** | 20 Hz |
+| **DR 设定** | 摩擦 ±30%, 间隙 ±0.02mm, 位姿噪声 ±2mm |
+| **Sim-to-Real** | 零样本迁移, 无微调 |
+
+### Ablation 分析
+
+| 消融项 | 成功率 | 因果机制 |
+|--------|--------|----------|
+| 去掉课程（直接双模态） | 67% (↓25%) | 视觉+力同时输入信号冲突 → 策略难分辨哪个模态更可靠 |
+| 去掉力传感 | 45% (↓47%) | 视觉分辨率不足以检测 0.1mm 级偏差 → 接触后缺乏修正信号 |
+| 去掉视觉 | 32% (↓60%) | 无全局定位 → 初始搜索盲目探索 → 大量时间浪费 |
+| 固定 50:50 融合 | 78% (↓14%) | 无法适配不同阶段的信息需求 → 全程次优 |
+| 反向课程（力→视觉） | 55% (↓37%) | 先学力控缺乏空间参考 → 接触前无导航能力 |
+
+### 工程实践要点 (Engineering Tricks)
+
+1. **力信号预处理**: F/T 原始数据需 10Hz 低通滤波去高频振动噪声
+2. **课程切换平滑化**: 权重突变导致行为突变 → 使用 cosine annealing 在阶段间平滑过渡
+3. **视觉编码器预训练**: 用随机抓取数据预训练 CNN，比从零开始快 2× 收敛
+4. **间隙随机化的关键性**: DR 中间隙 ±0.02mm 对 sim-to-real 成功率影响 > 摩擦随机化
+5. **动作空间设计**: 末端执行器增量位移 (Δx,Δy,Δz,Δrx,Δry,Δrz) 而非关节角度，降维且更符合任务语义
+
 ## 5. 批判性分析 (Critical Analysis)
 
 ### 优势
@@ -137,10 +209,21 @@ $$
 - **可解释性**: 课程阶段对应人类直觉
 - **泛化性**: 对形状和初始位置泛化良好
 
-### 局限性
-- **传感器依赖**: 需要力/力矩传感器
-- **静态孔位**: 假设孔位置固定
-- **刚性物体**: 未考虑柔性件装配
+### 局限性深度分析
+
+**理论层面**:
+- **线性加权融合**: $z = w_v z_v + w_f z_f$ 无法建模模态间非线性交互（如视觉遮挡时力信号重要性非线性增加）
+- **课程调度预定义**: 阶段切换靠预设 epoch 比例，非自适应
+- **替代方案**: Attention-based 融合可学习动态模态权重；AutoCL 方法可自动调整课程节奏
+
+**算法层面**:
+- **静态孔位假设**: 孔位置固定且已知初始范围，动态/移动目标装配未覆盖
+- **二维课程**: 仅在感知模态设计课程，未结合难度课程（如间隙递减）
+- **替代方案**: [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart]] 的自适应课程；[[ReinforcementLearning]] §4 多维度课程框架
+
+**工程层面**:
+- **传感器依赖**: 工业 F/T 传感器成本高且安装受限 → 可探索触觉皮肤 / 电流反推力替代
+- **刚性物体限制**: 柔性件装配中力信号高度非线性，线性融合会失效
 
 ### 与 DNPM 项目的关联
 

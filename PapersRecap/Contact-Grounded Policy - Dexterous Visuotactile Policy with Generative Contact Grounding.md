@@ -79,35 +79,38 @@ KL 项强迫潜变量符合标准正态分布，为 Diffusion 的无条件先验
 $$\mathcal{L}_{diff}(\theta) = \mathbb{E}_{(O_t, Y_t^0), \epsilon, j} \left[ \| \epsilon - \pi_\theta(O_t, Y_t^j, j) \|^2 \right]$$
 **注意**：预测的不是动作 $a_t$，而是系统未来的实际物理演化预期。
 
-### 2.3 核心伪代码/代码逻辑
+### 2.3 核心代码逻辑（PyTorch tensor ops）
 
 ```python
-# CGP 推理时核心逻辑
-def CGP_Rollout(obs_history, T_pred):
-    # 1. 特征提取 + FiLM 条件注入
-    # 视觉 → ResNet；触觉 → Shared ResNet；状态 → MLP；拼装后 FiLM 注入 U-Net
-    cond_features = Extract_FiLM_Condition(obs_history.vision, obs_history.tactile, obs_history.state)
-    
-    # 2. Diffusion 采样（预测未来 Actual State + Tactile Latent）
-    noisy_traj = sample_gaussian_noise(shape=(T_pred, state_dim + latent_dim))
-    for j in reversed(range(DDIM_STEPS)):  # 8次 DDIM 迭代
-        noise_pred = UNet(noisy_traj, cond_features, step=j)
-        noisy_traj = denoise_step(noisy_traj, noise_pred, j)
-    
-    pred_x_seq, pred_h_seq = split_trajectory(noisy_traj)
-    
-    # 3. Contact-Consistency Mapping（核心"接触基准化"步骤）
-    target_action_seq = []
-    for k in range(T_pred):
-        # 残差预测：M_phi 输出偏移量 delta_a，叠加到预测的实际位置上
-        delta_a = M_phi(pred_x_seq[k], pred_h_seq[k])
-        target_a = pred_x_seq[k] + delta_a  # 最终目标位置 = 实际位置 + 残差
-        target_action_seq.append(target_a)
-        
-    return target_action_seq  # 送入底层 PD 控制器
+# === VAE 触觉编码 ===
+# u_t: (B, N_fingers, C_tactile)  密集触觉阵列
+mu, logvar = tactile_encoder(u_t)                  # (B, D_latent) each
+h_t = mu + torch.randn_like(mu) * (0.5 * logvar).exp()  # 重参数化采样
+
+# === Diffusion 耦合预测 (DDIM) ===
+# obs_history: dict{vision:(B,T_obs,3,H,W), tactile:(B,T_obs,D_lat), state:(B,T_obs,D_state)}
+vis_feat = resnet(obs_history["vision"].flatten(0,1)).view(B, T_obs, -1)
+tac_feat = tac_resnet(obs_history["tactile"])       # (B, T_obs, D_feat)
+state_feat = state_mlp(obs_history["state"])         # (B, T_obs, D_feat)
+cond = torch.cat([vis_feat, tac_feat, state_feat], dim=-1)  # (B, T_obs, D_cond)
+
+# FiLM 条件注入 U-Net
+Y = torch.randn(B, T_pred, D_state + D_latent)      # 初始噪声轨迹
+for j in reversed(range(K_ddim)):                    # K_ddim=8
+    eps_pred = unet(Y, cond, timestep=j)             # (B, T_pred, D_state+D_latent)
+    Y = ddim_step(Y, eps_pred, j)                    # 去噪一步
+
+pred_x, pred_h = Y.split([D_state, D_latent], dim=-1)  # (B,T_pred,D_state), (B,T_pred,D_lat)
+
+# === Contact-Consistency Mapping (残差 MLP) ===
+# M_phi: (x_t, h_t) → delta_a
+delta_a = M_phi(torch.cat([pred_x, pred_h], dim=-1))    # (B, T_pred, D_state)
+target_a = pred_x + delta_a                             # 目标位置 = 预测实际位置 + 残差
+# target_a[:, :T_exec] 送入底层 PD 控制器
 ```
 
-**数据流**: 16步预测，8步执行后重规划（Receding Horizon）。
+**数据流**: 16步预测（`T_pred=16`），8步执行后重规划（Receding Horizon, `T_exec=8`）。
+**关键张量**: `Y` 中 state 和 tactile latent 在同一扩散过程中联合去噪，确保物理耦合性。
 
 ## 3. 训练与实验细节
 
@@ -143,10 +146,11 @@ def CGP_Rollout(obs_history, T_pred):
 - **真机**: Allegro V5 四指手 + Digit360 触觉 + UR5 臂
 - **仿真**: Tesollo DG-5F 五指手 + 密集全手触觉阵列
 
-### 3.4 Ablation Study 解读
+### 3.4 Ablation Study 解读（因果链分析）
 
-- **KL 正则化生死攸关**：去掉 KL 约束后，自编码器重建 MAE 甚至下降（过拟合到逐点还原），但潜空间极为崎岖（KL Divergence 暴涨），导致 Diffusion 轨迹生成崩溃，Egg 任务成功率下降 >10%
-- **映射输入缺一不可**：单独输入 $x$ 或 $u$，误差均翻倍飙升。完美证明 $a_t = \mathcal{M}_\phi(x_t, u_t)$ 中两者的不可替代性
+- **去掉 KL 正则化 → Diffusion 生成崩溃 → 因为潜空间失去平滑结构**：移除 $\beta D_{KL}$ 后，VAE 重建 MAE 反而下降（过拟合到逐点还原），但潜空间极为崎岖（KL Divergence 暴涨数十倍），Diffusion 在非平滑流形上采样命中率骤降 → Egg 成功率下降 >10%
+- **$\mathcal{M}_\phi$ 仅输入 $x_t$ 或 $u_t$ → 映射误差翻倍 → 因为接触力与位姿是耦合的不可分信息**：仅有 $x_t$ 无法推断力的大小（不同物体刚度不同），仅有 $u_t$ 无法确定空间位置 → 证明双输入设计的不可替代性
+- **去掉触觉输入 → 接触敏感任务（Dish Wiping）成功率骤降 → 因为纯视觉-状态无法感知接触力分布的微妙变化**，只有触觉提供实时的力分布反馈
 
 ## 4. 工程关键细节 (Engineering Tricks)
 
@@ -167,11 +171,28 @@ def CGP_Rollout(obs_history, T_pred):
 > [!quote] Insight 3: 顺应控制器是桥梁
 > PD 控制的虚拟弹簧-阻尼特性天然适合接触基准化
 
-### 5.1 理论局限性深度分析
+### 5.1 理论局限性深度分析（理论/算法/工程三维度）
 
-1. **强过拟合于硬件参数**：$\mathcal{M}_\phi$ 本质是对当前 $K_p, K_d$ 和传感器材质的逆向工程建模。真机上阻抗刚度调大 20%，策略大概率失效需重训
-2. **串联误差累积**：级联架构（Diffusion → $\mathcal{M}_\phi$），Diffusion 对长时序 $x_t$ 的细微偏移会被 $\mathcal{M}_\phi$ 放大 → 控制振荡
-3. **缺乏跨任务泛化验证**：单任务独训，未展示是否习得通用物理规律
+**理论层面**：
+- **接触映射的唯一性假设过强**：$\mathcal{M}_\phi: (x_t, u_t) \to a_t$ 隐含假设在给定 $(x_t, u_t)$ 下 $a_t$ 唯一确定。但在多接触/摩擦锥边界附近，同一法向力可由不同切向力组合产生 → 映射非单射，MLP 只能学到平均解
+- **忽略惯性项**：推导 $u_t \approx f(a_t - x_t)$ 时省略了 $M(q)\ddot{q}$ 和 $C(q,\dot{q})\dot{q}$ 项，仅在准静态/低加速度场景成立。高动态任务（如转笔甩笔）中惯性显著，映射误差将系统性增大
+
+**算法层面**：
+- **串联误差累积**：级联架构 Diffusion → $\mathcal{M}_\phi$，Diffusion 对长时序 $x_t$ 的细微偏移被 $\mathcal{M}_\phi$ 的残差结构放大 → 控制振荡。无端到端梯度回传来联合校正
+- **缺乏跨任务泛化**：单任务独训，未验证 $\mathcal{M}_\phi$ 是否习得可迁移的通用物理规律
+
+**工程层面**：
+- **强耦合于硬件参数**：$\mathcal{M}_\phi$ 本质是对当前 $K_p, K_d$ 和传感器材质的逆映射。增益调整 20% 即需重训
+- **5Hz 策略频率瓶颈**：DDIM 8步去噪 + $\mathcal{M}_\phi$ 前向推理 → 实时性受限，无法处理需 >20Hz 控制频率的高动态接触
+
+**替代方案对比**：
+
+| 方案 | 核心思路 | 优势 | 劣势 |
+|------|---------|------|------|
+| CGP（本文） | Diffusion 预测 $(x,u)$ + 学习逆映射 | 物理接触一致性 | 硬件绑定，串联误差 |
+| 端到端 Diffusion Policy | 直接预测 $a_t$ | 简单通用 | 无接触语义 |
+| 力/位混合控制 + IL | 分别回归力目标和位置目标 | 控制论保证 | 需精确接触模型 |
+| Model-Based RL + 接触模型 | 学习前向接触动力学做 MPC | 可在线适应 | 接触模型精度瓶颈 |
 
 ### 5.2 与用户研究（灵巧手转笔/Sim-to-Real）的启发
 
@@ -185,20 +206,47 @@ def CGP_Rollout(obs_history, T_pred):
 ## 6. 与知识体系的联系
 
 ### 与 [[ControlTheory]] 的联系
-- CGP 核心创新在控制层面：**学习的接触一致性映射作为力-位耦合的替代方案**
-- 与 [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 互补：CGP 从触觉预测→目标状态，FACET 从参考模型→阻抗参数
-- 顺应控制器 PD 形式 $\tau = K_p(q_{target} - q_{actual}) + K_d(\dot{q}_{target} - \dot{q}_{actual})$ 作为虚拟弹簧-阻尼系统是本文的数学基础
+
+CGP 的核心创新在控制层面：**学习的接触一致性映射作为力-位耦合的替代方案**。底层 PD 控制器的力学本质是二阶线性系统：
+$$M\ddot{e} + K_d \dot{e} + K_p e = f_{ext}, \quad e = a_t - x_t$$
+在准静态假设下 $\ddot{e} \approx 0$，接触力 $f_{ext} \approx K_p e$，故 $\mathcal{M}_\phi$ 实质是学习 $a_t = x_t + K_p^{-1} f_{ext}(u_t)$ 的非线性泛化（考虑传感器非线性和多点接触耦合）。
+
+- 与 [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 互补：CGP 从触觉预测→目标状态（逆映射），FACET 从参考模型→阻抗参数（正向适应）
+- 阻抗控制的经典框架 $Z(s) = Ms^2 + Bs + K$ 中，CGP 固定 $Z$ 而学习 $a_t$；FACET 固定 $a_t$ 模板而适应 $Z$
 
 ### 与 [[ContactMechanics]] 的联系
-- 多点接触的连续演化建模——从离散接触切换到连续分布式接触表征
-- 摩擦转变和滑移作为接触基准化需要处理的核心挑战
+
+接触一致性映射隐式编码了赫兹接触模型的推广。对单点弹性接触，法向力-形变关系为：
+$$f_n = \frac{4}{3} E^* \sqrt{R} \, \delta^{3/2}$$
+$\mathcal{M}_\phi$ 的 MLP 需拟合这类非线性力-形变关系的**多点叠加**，并处理库仑摩擦锥约束 $\|f_t\| \leq \mu f_n$ 下的滑移/粘着状态切换。
+
+- 多点接触的连续演化建模——从离散接触切换到连续分布式接触表征（通过 VAE 潜空间隐式捕获接触模式）
+- CGP 回避了显式接触模式枚举（组合爆炸问题），代价是丧失了接触状态的可解释性
 
 ### 与 [[RepresentationLearning]] 的联系
-- KL 正则化 VAE 的触觉潜空间压缩——信息瓶颈与生成质量的平衡
-- 多模态 (视觉+触觉+本体感觉) 融合的扩散策略
+
+VAE 触觉压缩的信息论解释：编码器 $q(h|u)$ 与解码器 $p(u|h)$ 构成率失真优化：
+$$\mathcal{L} = \underbrace{-\mathbb{E}_q[\log p(u|h)]}_{\text{Rate (重建误差)}} + \beta \underbrace{D_{KL}(q(h|u) \| p(h))}_{\text{Distortion (正则化)}}$$
+$\beta$ 控制压缩-保真权衡（$\beta$-VAE）。Ablation 证实：$\beta$ 过小 → 潜空间崎岖 → Diffusion 采样命中率骤降；$\beta$ 过大 → 触觉高频细节丢失 → $\mathcal{M}_\phi$ 力估计精度下降。
+
+- 多模态融合策略：FiLM conditioning 将视觉/触觉/本体感觉通过仿射变换 $\gamma \odot x + \beta$ 注入 U-Net 各层，实现跨模态特征调制
 
 ### 与 [[SignalProcessing]] 的联系
-- 密集触觉阵列 → 高维信号压缩 → 潜空间预测
+
+密集触觉阵列（如 Digit360 的 $19 \times 19$ taxel grid）本质是二维空间信号场，VAE 编码器起**空间低通滤波 + 降维**作用：
+$$h_t = E(u_t) \in \mathbb{R}^{D_{latent}}, \quad D_{latent} \ll N_{taxels} \times C_{channels}$$
+保留接触力分布的低频主成分（接触区域、法向力大小）而滤除传感器噪声。这与经典 PCA/Karhunen-Loève 展开的思想一致，但 VAE 额外施加了概率先验约束。
+
+## 6.5 跨方法对比
+
+| 维度 | Diffusion Policy | Visuotactile DP | ACT | **CGP** |
+|------|-----------------|-----------------|-----|--------|
+| 触觉角色 | 无 | 辅助观测 | 无 | **耦合预测+接触映射** |
+| 动作空间 | 直接 $a_t$ | 直接 $a_t$ | 直接 $a_t$ | **$(x_t, u_t) \to a_t$** |
+| 物理一致性 | 无 | 弱 | 无 | **阻抗模型约束** |
+| 接触丰富任务 | 差 | 中 | 差 | **强** |
+| 硬件依赖 | 低 | 需触觉 | 低 | 需触觉 + 已知 $K_p, K_d$ |
+| Sim-to-Real | 需微调 | 需重训 | 需微调 | 需重训 $\mathcal{M}_\phi$ |
 
 ## 7. 局限与未来方向
 

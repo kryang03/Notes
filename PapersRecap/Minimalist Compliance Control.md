@@ -35,6 +35,17 @@ related:
 
 ## 2. 核心方法
 
+### 2.0 Delta 分析
+
+| 方法 | 力传感器 | 学习/训练 | 跨平台 | 安全性 | 力估计来源 |
+|------|:---:|:---:|:---:|:---:|:---:|
+| 传统阻抗控制 | ✅ 必需 | 否 | 差 | 好 | 力传感器 |
+| RL 顺应 (UniFP) | ❌ | 大量仿真 | 差 | 差（力尖峰） | 隐式 |
+| RL 顺应 (FACET) | ❌ | 大量仿真 | 中 | 中 | 隐式 |
+| **MCC (本文)** | **❌** | **无** | **好** | **好** | **电流/PWM** |
+
+**核心 Delta**：MCC 将力估计问题从 "需要传感器或需要学习" 简化为 "需要电流读数 + 最小参数标定"——零学习、零力传感器、跨具身形态通用。
+
 ### 2.1 弹簧-质量-阻尼器模型
 
 $$m\ddot{x} = K_p(x_{des} - x) + K_d(\dot{x}_{des} - \dot{x}) + f_{cmd} + f_{ext}$$
@@ -68,7 +79,58 @@ $$\hat{f}_{ext}^p = \frac{(\hat{u}^T J_p) \tau_{ext}}{(\hat{u}^T J_p)(\hat{u}^T 
 
 半隐式 Euler 积分弹簧-质量-阻尼器动力学 → 更新任务空间运动参考 → 逆运动学求解关节目标。
 
+### 2.5 核心代码逻辑
+
+```python
+import torch
+import torch.nn.functional as F
+
+class MCCController:
+    """Minimalist Compliance Control — 无力传感器导纳控制"""
+    def __init__(self, Kp: float, Kt: float, eta: float, ratio: float):
+        self.Kp = Kp
+        self.Kd = 2.0 * Kp ** 0.5          # 临界阻尼
+        self.Kt = Kt                         # 电机力矩常数
+        self.eta = eta                       # 减速器正驱效率
+        self.ratio = ratio                   # 减速比
+
+    def estimate_load_torque(self, I_motor: torch.Tensor, power_dir: torch.Tensor) -> torch.Tensor:
+        """方向相关效率 → 负载侧力矩"""
+        tau_motor = self.Kt * I_motor
+        eff = torch.where(power_dir > 0,
+                          self.eta * self.ratio,       # 正驱
+                          self.ratio / self.eta)        # 反驱
+        return eff * tau_motor
+
+    def estimate_external_torque(self, tau_load: torch.Tensor, tau_grav: torch.Tensor) -> torch.Tensor:
+        return -(tau_load - tau_grav)
+
+    def compute_task_force(self, tau_ext: torch.Tensor, J: torch.Tensor,
+                           u_hat: torch.Tensor, lam: float = 1e-4) -> torch.Tensor:
+        """正则化最小二乘 → 任务空间外力分量"""
+        Ju = u_hat @ J                       # (1, n_joints)
+        f_ext = (Ju @ tau_ext) / (Ju @ Ju.T + lam) * u_hat
+        return f_ext
+
+    def admittance_step(self, x: torch.Tensor, dx: torch.Tensor,
+                        x_des: torch.Tensor, f_ext: torch.Tensor, dt: float):
+        """半隐式 Euler 导纳积分"""
+        ddx = self.Kp * (x_des - x) + self.Kd * (0 - dx) + f_ext
+        dx_new = dx + ddx * dt
+        x_new = x + dx_new * dt
+        return x_new, dx_new
+```
+
 ## 3. 实验结果
+
+### 3.0 训练/标定细节
+
+> [!note] MCC 是无学习的模型方法，无 RL/ML 训练过程。
+
+- **参数标定**：每台电机仅需辨识 $K_t$（力矩常数）和 $\eta$（减速器效率），共 2 个标量参数
+- **QDD 电机**（ARX X5, Unitree G1）：直接从 datasheet 读取 $K_t$，$\eta \approx 1$
+- **伺服电机**（Dynamixel, ToddlerBot）：标定 $\eta$ 需要简单正反驱测量，约 10 分钟
+- **重力补偿**：全部使用 URDF 标称动力学模型，未做额外辨识
 
 ### 验证平台
 - **ARX X5 机械臂** (QDD 电机)
@@ -91,34 +153,77 @@ $$\hat{f}_{ext}^p = \frac{(\hat{u}^T J_p) \tau_{ext}}{(\hat{u}^T J_p)(\hat{u}^T 
 - 零样本跨具身形态泛化（臂→手→人形）
 - 与 VLM、扩散策略、OCHS 模型规划均即插即用
 
-## 4. 核心洞见 (Insights)
+### 3.5 Ablation 因果链
+
+| 去掉什么 | 导致什么 | 因为什么机制 |
+|---------|---------|------------|
+| 去掉 $\hat{f}_{ext}$（无力估计） | 位置误差 22.5→15.9 mm (↑41%) | 无外力前馈，控制器只靠刚性 PD 抵抗接触 |
+| 去掉方向效率 ($\eta=1$)（高减速比伺服） | 力矩估计偏差 >50% | 反驱时 $\eta^{-1}$ 放大效应被忽略，力矩被严重低估 |
+| 去掉重力补偿 | 静态偏移误差增大 | $\tau_{grav}$ 未抵消，外力估计包含重力分量 |
+| 降低 $K_p$（过度顺应） | 位置跟踪退化，自由运动精度下降 | 弹簧力不足以维持期望轨迹 |
+
+## 4. 工程关键细节 (Engineering Tricks)
+
+- **电流滤波**：伺服电机 PWM 信号需低通滤波（截止 ~20 Hz），否则开关噪声污染力矩估计
+- **雅可比正则化**：$\lambda \sim 10^{-4}$ 避免奇异位形附近的数值爆炸
+- **半隐式 Euler**：比显式 Euler 稳定，比隐式 Euler 便宜——导纳积分的工程最佳实践
+- **效率查表**：$\eta$ 实际随负载率变化（非常数），工程中可用 lookup table 或分段线性近似
+- **安全限幅**：$\hat{f}_{ext}$ 输出限幅，防止电流噪声瞬态导致的力估计突变
+
+## 5. 核心洞见 (Insights)
 
 1. **力控不需要力传感器**：电流/PWM 信号在频域精度足够时即可驱动稳定顺应控制
 2. **方向比幅值重要**：力方向正确 + 频域合理 >> 精确力幅值
 3. **高减速比伺服也可以**：方向相关效率模型 ($\eta$ vs $\eta^{-1}$) 解锁了谐波/行星减速器上的力估计
 4. **模型方法 > RL 方法**：显式力矩估计在安全性、可解释性、跨平台泛化上全面优于黑盒 RL
 
-## 5. 与知识体系的联系
+### 5.1 局限性深度分析
+
+| 维度 | 局限 | 替代方案 |
+|------|------|--------|
+| **理论** | 假设电机力矩-电流线性关系，忽略磁饱和与温度漂移 | 在线自适应 $K_t$ 估计（EKF） |
+| **算法** | 准静态假设——高加速度时惯性项 $M(q)\ddot{q}$ 不可忽略 | 加入加速度前馈补偿 |
+| **工程** | 伺服 PWM 分辨率有限（Dynamixel 10-bit），力矩分辨率受限 | QDD 电机 + 高分辨率电流传感器 |
+
+### 5.2 对转笔 / Sim-to-Real 的启发
+
+- **LEAP Hand MCC**：论文已在 LEAP Hand 上验证，可直接作为灵巧手转笔的底层力控方案——无需力传感器即可实现指尖顺应
+- **Sim-to-Real Gap**：方向效率模型 ($\eta$ vs $\eta^{-1}$) 应纳入仿真器建模，否则仿真中力矩输出与真机系统性偏差
+- **与 RL 互补**：MCC 提供可靠的底层力估计 → RL 策略无需学习接触力建模 → 简化训练、提高迁移性
+
+## 6. 与知识体系的联系
 
 ### 与 [[ControlTheory]] 的联系
 - 导纳控制 (外力→运动) 与阻抗控制 (运动→力) 的对偶体系——MCC 选择导纳控制是因为大多数无力传感器平台只有位置控制
-- 弹簧-质量-阻尼器模型的临界阻尼设计 $K_d = 2K_p^{1/2}$
+- 弹簧-质量-阻尼器模型的临界阻尼设计 $K_d = 2K_p^{1/2}$，对应二阶系统阻尼比 $\zeta = 1$，特征方程 $s^2 + 2\sqrt{K_p}s + K_p = 0$ 的重根条件
+- 导纳因果关系：$f_{ext} \xrightarrow{\text{admittance}} \Delta x_{ref} \xrightarrow{\text{IK}} q_{target}$
 
 ### 与 [[Dynamics]] 的联系
-- 雅可比映射 $J_p$ 将关节力矩投影到任务空间——正是 [[Dynamics#8. 腱驱动动力学 (Tendon-Driven Dynamics)|腱驱动动力学]] 中的核心运算
-- 重力补偿 $\tau_{grav}$ 需要动力学模型
+- 雅可比映射 $\hat{f}_{ext} = (J_p^T)^{\dagger} \tau_{ext}$ 将关节力矩投影到任务空间——正是 [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)|操作空间动力学]] 中的核心运算
+- 重力补偿项 $\tau_{grav} = g(q)$ 来自 [[Dynamics#3.1 The Classical Era: Lagrangian Formulation|Lagrangian 动力学]] 的势能梯度 $g(q) = \frac{\partial V}{\partial q}$
 
 ### 与 [[ContactMechanics]] 的联系
-- 接触力估计精度直接影响顺应行为质量——MCC 证明方向正确即可
+- 接触力估计精度直接影响顺应行为质量——MCC 证明方向正确即可：$\hat{f}_{ext} / \|\hat{f}_{ext}\|$ 的精度比 $\|\hat{f}_{ext}\|$ 更重要
 - OCHS (Optimally-Conditioned Hybrid Servoing) 用于力-速度混合控制
 
 ### 与灵巧操作的关联
 - **LEAP Hand 上的手内旋转**：MCC + OCHS 实现无力传感器的灵巧手接触丰富操作
 - **与 DNPM 项目的潜在联系**：LEAP Hand 的 Dynamixel 伺服 ≈ 灵巧手原型→MCC 可作为底层力控方案
 
-## 6. 局限与未来方向
+## 7. 跨方法对比
+
+| 维度 | MCC (本文) | FACET (RL阻抗跟踪) | VICES (RL变阻抗) | 传统力/力矩控制 |
+|------|-----------|-------------------|-----------------|---------------|
+| 力传感器 | ❌ | ❌ | ❌ | ✅ 必需 |
+| 学习/训练 | 无 | PPO 大规模仿真 | SAC 仿真 | 无 |
+| 力估计精度 | 中（方向准、幅值粗） | 隐式（不显式估计） | 隐式 | 高 |
+| 跨平台通用性 | 高（4 种平台验证） | 中（腿式为主） | 中（单臂为主） | 低（需标定） |
+| 安全保障 | 显式可分析 | 通过 DR 隐式 | 通过阻抗限幅 | 显式 |
+| 动态操作 | 仅准静态 | 可动态（冲击存活） | 中速 | 可动态 |
+
+## 8. 局限与未来方向
 
 - 需要电机参数标定（力矩常数 $K_t$）
 - 高频振动和电气噪声需滤波
-- 温度漂移导致参数漂移（与 [[sim2real|硬件Gap分析]] §3 温度漂移分析一致）
+- 温度漂移导致参数漂移（与 [[sim2real|硬件Gap分析]] 温度漂移分析一致）
 - 当前仅支持准静态/低速接触——高动态操作（如 DNPM 的甩转）需探索

@@ -10,6 +10,7 @@ aliases:
   - LLM Reward Design
 paper-year: 2023
 read-date: 2026-01-31
+venue: ICLR 2024
 paper-pdf: "[[Papers/EUREKA: HUMAN-LEVEL REWARD DESIGN VIA CODING LARGE LANGUAGE MODELS.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -153,10 +154,31 @@ but 'orientation_error' plateaued. Consider increasing its weight."
 | 平均归一化提升 | **52%** |
 | 转笔任务成功 | **首次实现** |
 
+### 训练细节
+
+- **RL 算法**: PPO (IsaacGym 内置 rl_games 库)
+- **进化参数**: $K = 16$ 采样/轮, $N = 5$ 进化轮次 → 总计 80 个候选奖励函数
+- **GPU 评估**: 每个候选奖励在 IsaacGym 上并行训练 ~$10^7$ 步 (数分钟/候选, A100)
+- **LLM**: GPT-4 (temperature = 1.0 保证采样多样性)
+- **Prompt 结构**: ~2K tokens (环境代码) + ~500 tokens (任务描述 + Reflection)
+- **总计算量**: 29 个任务 × 80 候选 × ~5 min/候选 ≈ ~$10^3$ GPU-hours
+
 ### 转笔任务详情
 - **Curriculum**：逐步增加旋转速度和圈数
 - **结果**：Shadow Hand 实现连续高速转笔
 - **对比**：纯人类奖励设计从未成功
+
+### Ablation 因果链
+
+| 去掉组件 | 效果 | 因果机制 |
+|---------|------|--------|
+| 进化搜索 (K=1) | 性能下降 ~40% | 单次 LLM 采样随机性高，缺乏多样性筛选 |
+| Reward Reflection | 收敛轮次增加 2× | 无训练曲线反馈，LLM 无法识别奖励分量瓶颈 |
+| Environment Context | 代码执行错误率 >80% | LLM 无法访问变量名/API，只能猜测 |
+| 多组件分解 | 转笔任务失败 | 单一标量奖励无法区分旋转进度与稳定性 |
+
+> [!note] 关键因果洞察
+> 进化搜索 + Reflection 形成闭环：搜索提供多样性 (exploration)，Reflection 提供梯度方向 (exploitation)。缺少任一，搜索退化为随机采样或局部搜索。
 
 ---
 
@@ -173,6 +195,20 @@ but 'orientation_error' plateaued. Consider increasing its weight."
 - **计算开销**：进化搜索需要大量 GPU 评估
 - **仿真依赖**：需要 IsaacGym 等高效仿真器
 - **Sim-to-Real 未验证**：论文仅在仿真中验证
+
+### 工程关键细节 (Engineering Tricks)
+
+1. **Temperature = 1.0**：低温生成的奖励函数高度相似，进化失去多样性；高温保证搜索空间覆盖
+2. **奖励组件分解**：要求 LLM 输出 `reward_dict` 而非单一标量，便于 Reflection 定位瓶颈组件
+3. **代码沙箱执行**：自动检测语法/运行时错误，过滤无效候选，减少 GPU 浪费
+4. **Fitness z-score 归一化**：跨候选的适应度分数使用 z-score，避免绝对值尺度差异误导进化方向
+
+> [!warning] 三维度局限性分析
+> - **理论层面**：进化搜索缺乏收敛性保证——搜索空间是代码空间（无穷维），$K \times N$ 的有限采样无法保证全局最优；LLM 的 in-context learning 是否等价于奖励空间梯度下降缺乏理论分析
+> - **算法层面**：外层评估依赖完整 RL 训练 ($10^7$ 步/候选)，样本效率极低；无法处理需要长期规划的稀疏奖励任务
+> - **工程层面**：GPT-4 API 成本高、延迟大；环境代码长度受 context window 限制；无人工介入机制
+>
+> **替代方案**：Inverse RL 从演示推断奖励（无需 LLM）；可微分奖励模型替代代码生成；Text2Reward 用语言模型直接生成奖励参数（而非代码）
 
 ### 未来方向
 - 结合可微物理实现奖励梯度
@@ -193,6 +229,20 @@ but 'orientation_error' plateaued. Consider increasing its weight."
 - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - EUREKA 生成的奖励用于 PPO 训练
 - [[ReinforcementLearning#4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)]] - Mediator-based surrogate reward 提供因果推断视角补充 LLM 奖励搜索
 - [[Optimization#5. 实时控制：模型预测控制 (Real-Time Control: MPC)]] - 进化搜索思想与 MPPI 类似
+
+### 对转笔 / Sim-to-Real 的具体启发
+
+1. **转笔奖励的自动发现**：手工奖励需平衡旋转速度、笔稳定性、指尖接触力——权重组合空间巨大，EUREKA 的进化搜索天然能覆盖
+2. **Curriculum 自动生成**：转笔任务中 $\omega_{target}: 0.5 \to 2.0$ rad/s 的自动 Curriculum，可直接迁移至灵巧手任务的难度递增
+3. **Sim-to-Real 的奖励鲁棒性**：生成的奖励是代码可直接执行——但 sim 中 `fingertip_pos` 与真机有 gap，需配合域随机化
+
+### 与 Foundation 的数学联系
+
+**与 [[ReinforcementLearning]] 的联系**：EUREKA 外层进化等价于奖励函数空间 $\mathcal{R}$ 上的零阶优化：$R^{(k+1)} = R^{(k)} + \text{LLM\_mutation}(\text{Reflect}(F(A_M(R^{(k)}))))$，与 [[ReinforcementLearning#2. Evolution & Insights: 技术演进脉络 (Problem-Solution Chain)]] 中 CMA-ES 等进化策略在结构上同构
+
+**与 [[Optimization]] 的联系**：适应度 $F(\pi) = \mathbb{E}[\sum_t r_{task}]$ 的外层优化是双层优化：$\max_R F(A_M(R))$，内层是标准 RL，外层是 LLM 进化。这与 [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]] 中 bi-level optimization 形式一致
+
+**与 [[StochasticProcess]] 的联系**：$K=16$ 的批量采样本质是蒙特卡洛采样，进化选择是 importance sampling 的变体——高适应度候选被赋予更高权重，这与 [[StochasticProcess#6. 核心算法详解：Model Predictive Path Integral Control (MPPI)]] 中 MPPI 的轨迹加权思想完全一致
 
 ---
 
@@ -216,6 +266,17 @@ L2R (Yu et al., 2023): LLM + 奖励模板
         ↓
 未来: 自主 Agent 自我奖励设计
 ```
+
+### 跨方法对比
+
+| 维度 | EUREKA | L2R (Yu 2023) | Inverse RL | 手工奖励设计 |
+|-----|--------|---------------|------------|-------------|
+| 任务特定 Prompt | ❌ 不需要 | ✅ 需要 | N/A | N/A |
+| 奖励模板 | 自由代码 | 预定义 | 隐式(判别器) | 手工公式 |
+| 可解释性 | ✅ 代码可审查 | ✅ 模板化 | ❌ 黑盒 | ✅ 完全透明 |
+| 扩展性 | ✅ 29+ 环境 | ⚠️ 模板限制 | ⚠️ 演示限制 | ❌ O(N) 人工 |
+| Sim-to-Real | 未验证 | 未验证 | 已验证 | 已验证 |
+| 计算成本 | 高 (GPU+API) | 低 | 中 | 零 |
 
 ---
 

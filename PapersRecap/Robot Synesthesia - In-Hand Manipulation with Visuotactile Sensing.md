@@ -9,6 +9,7 @@ aliases:
   - Robot Synesthesia
 paper-year: 2024
 read-date: 2026-02-01
+venue: arXiv
 paper-pdf: "[[Papers/Robot Synesthesia In-Hand Manipulation with Visuotactile Sensing.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
@@ -164,7 +165,28 @@ $$
 2. 触觉点云显著提升性能，尤其在遮挡场景
 3. 双球任务只有视触觉融合才能成功
 
+### Ablation 因果链
+
+| 消融条件 | 效果变化 | 因果机制 |
+|---------|---------|---------|
+| 去掉触觉点云 $P_t^{touch}$ | Double-Ball 失败 | 仅视觉无法区分两球相对位姿 → 手指力分配错误 → 掉球 |
+| 去掉增强点云 $P_t^{augmented}$ | 性能下降 | 网络失去机器人自身几何信息 → 无法推理手指-物体空间关系 |
+| 视觉 RL 从头训练 | 几乎不收敛 | 高维点云观测 + 高维动作空间 → 探索空间指数爆炸 |
+| 去掉 one-hot 类型标记 | 性能下降 | 网络无法区分三类点云来源 → 特征混淆 |
+| Teacher 用 shape feature $f$ 替代点云 | Teacher 更强 | 低维紧凑表示 → 但不可部署（需 GT 几何） |
+
+**关键因果链**: 触觉传感器触发 → 在传感器网格上采样 3D 点 → 与视觉点云在同一坐标系融合 → PointNet 的 critical points 自动聚焦交互区域 → 策略获得接触-几何联合感知
+
 ## 5. 批判性分析 (Critical Analysis)
+
+### 工程关键细节 (Engineering Tricks)
+
+- **触觉点云采样数**: 每个触发传感器采样 8 个点，总计 $N_t \leq 128$（16 传感器 × 8）——保持低 token 数下的信息密度
+- **One-hot 类型向量**: 3D 坐标后附加 one-hot $[1,0,0]$/$[0,1,0]$/$[0,0,1]$ 区分视觉/增强/触觉来源，零成本但显著提升性能
+- **Teacher 使用预训练 PointNet shape feature**: $f \in \mathbb{R}^{32}$ 作为紧凑几何先验，绕过训练中的高维点云瓶颈
+- **DAgger 蒸馏**: Student 不只做 BC，加入在线 DAgger 校正分布漂移——Teacher 充当在线 oracle
+- **控制频率 10Hz**: Isaac Gym 仿真中操作精度与推理速度的折中；真实部署中 Azure Kinect 点云预处理是瓶颈
+- **二值 FSR 传感器**: 仅检测接触/非接触，但点云表示将其提升为空间信息，成本极低（~$5/传感器）
 
 ### 优势
 - **优雅的统一表示**: 点云自然融合异质模态
@@ -175,6 +197,14 @@ $$
 - FSR 分辨率较低（仅二值接触）
 - 依赖机器人运动学将触觉映射到 3D
 - 控制频率仅 10Hz
+
+### 三维度局限性分析
+
+| 维度 | 局限 | 替代方案 |
+|-----|------|---------|
+| **理论** | 触觉点云仅编码接触位置（二值），丢失法向力/切向力/滑动信息 | 密集触觉传感器 (如 DIGIT/GelSight) 提供连续力场 → 点云可附加力特征维度 |
+| **算法** | Teacher-Student 蒸馏存在信息瓶颈：Teacher 用 GT shape feature，Student 只看点云 | 端到端 RL + 点云（需更多样本但避免蒸馏损失） |
+| **工程** | 10Hz 控制频率限制快速动态操作（如转笔的高速旋转相） | 轻量化 PointNet 或 point transformer 推理加速 |
 
 ### 未来方向
 - 更高分辨率的触觉传感器
@@ -188,7 +218,34 @@ $$
 3. **触觉可视化**: 让网络"看见"触觉能提升空间推理
 4. **Teacher-Student 必要性**: 高维视觉 RL 效率太低
 
+### 6.1 对转笔 / Sim-to-Real 的启发
+
+- **转笔中的触觉关键性**: 转笔的 finger gaiting 阶段（笔在指间过渡）中视觉被手指遮挡，触觉点云是唯一能提供笔-指接触位置的信号源
+- **点云天然缩小 Sim-to-Real gap**: 相比 RGB，点云几何表示在仿真→真实迁移时纹理/光照差异消失，直接适用于转笔的 sim-to-real
+- **二值 FSR → 低成本触觉方案**: 在转笔硬件中，每指尖贴 1-2 个 FSR（<$10）即可获得触觉点云表示，无需昂贵的高分辨率触觉阵列
+- **双球旋转 → 多物体操作**: 双球同时旋转的成功表明该表示可扩展至转笔中笔+橡皮等多物体场景
+
 ## 7. 演进脉络定位 (Evolution Context)
+
+### 与 Foundation 的数学联系
+
+#### 与 [[ComputationalGeometry]] 的联系
+
+PointNet 的核心理论保证——对称函数逼近定理：
+$$f(\{x_1, \ldots, x_n\}) \approx g(MAX_{i=1}^n h(x_i)))$$
+其中 $h: \mathbb{R}^3 \to \mathbb{R}^K$ 是逐点特征提取，$MAX$ 是 max-pooling 对称聚合。触觉/视觉/增强三类点云合并后由同一 PointNet 处理，利用此不变性自动学习跨模态几何特征。
+
+#### 与 [[ContactMechanics]] 的联系
+
+触觉点云是 [[ContactMechanics#2. 接触几何运动学：流形上的演化|Montana 接触运动学方程]] 中接触点的离散化观测。传感器 $i$ 被触发时，采样点 $p_i \in \mathbb{R}^3$ 隐式编码：
+$$p_i \approx FK(q) + R_{link} \cdot u_{sensor,i}$$
+其中 $FK(q)$ 是前向运动学，$u_{sensor,i}$ 是传感器在连杆坐标系中的位置。将接触点提升到笛卡尔空间使网络能直接推理力-几何关系。
+
+#### 与 [[ReinforcementLearning]] 的联系
+
+Teacher-Student 框架中 DAgger 校正的数学本质：Student 策略 $\pi_S$ 在自身分布 $d^{\pi_S}$ 下收集数据，但标签来自 Teacher $\pi_T$：
+$$\mathcal{L}_{DAgger} = \mathbb{E}_{s \sim d^{\pi_S}} \| \pi_S(s) - \pi_T(s) \|^2$$
+这消除了纯 BC 的分布漂移 $d^{\pi_S} \neq d^{\pi_T}$，是 [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] 的直接应用。
 
 ```
 前置工作:
