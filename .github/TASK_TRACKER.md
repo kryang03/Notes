@@ -5,7 +5,46 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-04-01 (Session #24 — gemini-chat 清理规则 + standard-workflow + 全库 81 篇 PapersRecap Refine + Canvas 3 新论文 + 70 处断链修复 ✅)
+**最后更新**: 2026-03-29 (Session #25 — Meetings 算法突破点梳理 + DNPM 详细研究 Pipeline 落地 + Canvas 更新 ✅)
+
+## 🟢 Session #25 完成 (2026-03-29)
+
+### Meetings(0325/0326/0328/0329_1) 综合提炼 + 可执行算法 Pipeline 落地
+
+**触发**：用户要求系统梳理 Meetings 中每个突破点，并结合当前知识库输出具体到算法输入/输出/损失函数的后续研究 pipeline。
+
+#### 变更内容 — Phase 0: 状态检查
+
+| 检查项 | 结果 |
+|------|------|
+| `Meetings/` | 4 份会议纪要完成逐条提炼（0325, 0326, 0328, 0329_1） |
+| `Projects/*/_ExperimentResultsAll.md` | 未发现新增远端实验条目（最新仍为 2026-02 系列） |
+| `Foundations/taxonomy.md` | 结构正常，可直接承接新 pipeline 链接 |
+
+#### 变更内容 — Phase 1: 项目文档增强
+
+| 文件 | 变更 |
+|------|------|
+| `Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md` | 修复 §6.3 TODO 列表断行问题（3 条任务被错误粘连） |
+| `Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md` | 新增 §6.5「Meeting-Synthesized Research Pipeline（2026-03 会议综合）」：7 个突破点、S0-S4 分阶段算法、状态/动作定义、6 个核心损失、5 组消融实验、统一指标、与 Idea-001/002/004/005/007 映射 |
+
+#### 变更内容 — Phase 2: Canvas 维护
+
+| 文件 | 变更 |
+|------|------|
+| `KnowledgeGraph.canvas` | 新增节点 `proj_meeting_pipeline`（直链 DNPM §6.5） |
+| `KnowledgeGraph.canvas` | 新增 2 条边：`proj_dnpm_insight → proj_meeting_pipeline`、`proj_meeting_pipeline → bt_impedance` |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| 会议突破点梳理 | 4/4 ✅ |
+| Pipeline 颗粒度 | 已覆盖算法 I/O + 损失函数 + 分阶段训练 + 评估指标 ✅ |
+| 与现有 Ideas 对齐 | 5 条映射已写入 §6.5.6 ✅ |
+| Canvas 同步 | 节点/边已更新 ✅ |
+
+---
 
 
 ## 🟢 Session #24 完成 (2026-04-01)

@@ -379,7 +379,9 @@ $$\mathbf{M}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{C}(\mathbf{q}, \dot{\mathbf{
 ### 6.3 算法效果提升 TODO
 
 - [ ] **频率对齐消融**：对比 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning]]、[[Elastic Time Step Reinforcement Learning, VTS-RL]]、[[EvoControl - Evolved High Frequency Control for Continuous Control Tasks]] 的频率/动作重复设置，回填到低频策略稳定性分析。
-- [ ] **变阻抗动作空间**：引入 [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] 的阻抗参数化，缓解低频 PD “僵硬”问题。- [ ] **阻抗参考模型跟踪** ⭐：基于 [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 的阻抗参考模型框架，为灵巧手各关节定义独立阻抗参考模型，RL 输出 $(x_{des}, K_p, K_d)$。核心实验：在 Thumbaround 中对比 (a) 固定 PD, (b) VICES 变阻抗, (c) FACET 参考模型跟踪。验证时变 $K_p$ 是否让策略自然学习 snap→spin→catch 的相位切换。进阶实验：融合 TARC 的时间自适应，输出 $(x_{des}, K_p, K_d, \Delta t)$。- [ ] **物理参数课程**：以 [[Curriculum Learning]] 为模板建立 $\alpha$-schedule，记录对 [[Dynamics]] 中惯性主导区间的影响。
+- [ ] **变阻抗动作空间**：引入 [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] 的阻抗参数化，缓解低频 PD “僵硬”问题。
+- [ ] **阻抗参考模型跟踪** ⭐：基于 [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 的阻抗参考模型框架，为灵巧手各关节定义独立阻抗参考模型，RL 输出 $(x_{des}, K_p, K_d)$。核心实验：在 Thumbaround 中对比 (a) 固定 PD, (b) VICES 变阻抗, (c) FACET 参考模型跟踪。验证时变 $K_p$ 是否让策略自然学习 snap→spin→catch 的相位切换。进阶实验：融合 TARC 的时间自适应，输出 $(x_{des}, K_p, K_d, \Delta t)$。
+- [ ] **物理参数课程**：以 [[Curriculum Learning]] 为模板建立 $\alpha$-schedule，记录对 [[Dynamics]] 中惯性主导区间的影响。
 - [ ] **Sim-to-Real 校正**：结合 [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation]] 与 [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction]] 设计在线修正实验。
 - [ ] **触觉稳定性指标**：基于 [[SignalProcessing]] 的滑移检测思路定义稳定性 metric，并在 [[ContactMechanics]] 中标注摩擦锥余量的可观测性。
 
@@ -391,3 +393,106 @@ $$\mathbf{M}(\mathbf{q})\ddot{\mathbf{q}} + \mathbf{C}(\mathbf{q}, \dot{\mathbf{
 - [ ] **知识迁移消融**：参考 [[Dexterous Robotic Manipulation using Deep RL and Knowledge Transfer]]，从慢速任务迁移到正常速度任务。
 - [ ] **视觉-力课程融合**：参考 [[Vision-force-fused Curriculum Learning for Robotic Assembly]]，设计从"纯视觉→视觉+触觉"的感知课程。
 - [ ] **简化触觉验证**：参考 [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]]，验证二值触觉信号是否足以指导非抓取操作的接触切换。
+
+### 6.5 Meeting-Synthesized Research Pipeline（2026-03 会议综合）
+
+> [!important] 设计目标
+> 将 Meetings/0325、0326、0328、0329_1 的突破点收敛为一条可执行 pipeline：先解决探索与初始化，再解决控制表达上限，最后解决 world-model 驱动的真机闭环与 Sim-to-Real。
+
+#### 6.5.1 会议提炼的关键突破点（落地版）
+
+1. **长因果链 + 崎岖 Value Landscape**：直接在真实动力学训练容易陷入 risk aversion / reward hacking（0325）。
+2. **时间尺度缩放有效**：$\alpha$-scaling（重力/加速度缩放）可拉伸探索窗口，且优于单纯调 reward（0325）。
+3. **固定 PD 是表达瓶颈**：PPO+固定 PD 便于早期探索，但限制力矩模式与接触相位切换（0325/0326）。
+4. **初始化是杠杆变量**：随机初始化 gap 大，需“可行域+延拓”而非静态种子点（0325）。
+5. **Diffusion + World Model 需分阶段引入**：先在慢速/简任务收敛，再迁移到高动态任务（0326/0328）。
+6. **触觉优先于视觉**：首版系统以本体 + 触觉为主，视觉仅做后续增强（0328）。
+7. **真机强化学习不可省略**：电流环/力矩环 gap 难靠仿真完全覆盖，需要在线闭环修正（0328）。
+
+#### 6.5.2 分阶段算法 Pipeline（含输入/输出/损失）
+
+| Stage | 目标 | 算法与模块 | 主要输入 | 主要输出 | 核心损失 |
+|---|---|---|---|---|---|
+| S0 | 建立可训练可复现基线 | PPO + Fixed PD + 轻量奖励（Light/Medium） | $s_t=[q,\dot q,o,\dot o,c,f_{tip}]$ | $\Delta q_t$ | $L_{\text{PPO}}$ |
+| S1 | 解决初始化与早期探索失败 | Convex Safe Set + 初始化域延拓 + Dual Curriculum | $s_t,\alpha_t,\delta_t$ | 初始化采样分布 $\rho_0$、课程调度 | $L_{\text{PPO}}+\lambda_{safe}L_{safe}$ |
+| S2 | 提升控制表达上限 | FACET 风格阻抗参考模型 + 可变阻抗 + 时间自适应 | $s_t,\phi_t,f_{ext}$ | $(x_{des},K_p,K_d,\Delta t)$ | $L_{\text{PPO}}+\lambda_{ref}L_{ref}+\lambda_{imp}L_{imp}$ |
+| S3 | 缩小 Sim-to-Real 转移误差 | World Model + Diffusion Residual Policy | 历史序列 $h_t=(s_{t-k:t},a_{t-k:t-1})$ | $\hat s_{t+1},a^{res}_t$ | $L_{wm}+\lambda_{diff}L_{diff}$ |
+| S4 | 真机闭环优化 | Real-world RL + Online Contact Adaptation | $s_t^{real},\tau_{fb},f_{tip}^{real}$ | $\tau_{target}$ 或 residual action | $L_{\text{PPO-real}}+\lambda_{adapt}L_{adapt}$ |
+
+**状态定义（首版）**：
+- 本体：关节角/角速度 $q,\dot q$
+- 物体：位姿/角速度 $o,\dot o$
+- 接触：接触标志 $c$、指尖法向力/切向力 $f_{tip}$
+- 相位：动作相位编码 $\phi\in\{\text{snap, spin, catch}\}$
+
+**动作定义（从 S2 起）**：
+- 低层控制输出：$(x_{des},K_p,K_d,\Delta t)$
+- 若硬件受限则退化为：$(\Delta q, K_p, K_d)$
+
+#### 6.5.3 关键损失函数（实现颗粒度）
+
+1. **策略优化（PPO 主体）**
+$$
+L_{\text{PPO}} = \mathbb{E}\left[\min(r_t(\theta)\hat A_t,\ \text{clip}(r_t(\theta),1-\epsilon,1+\epsilon)\hat A_t)\right]
+$$
+
+2. **阻抗参考跟踪损失（S2）**
+$$
+L_{ref}=\|x_t-x_t^{ref}\|_2^2+\beta_v\|\dot x_t-\dot x_t^{ref}\|_2^2
+$$
+其中参考轨迹来自虚拟阻抗系统：
+$$
+M_r\ddot x^{ref}+D_r(\dot x^{ref}-\dot x_{des})+K_r(x^{ref}-x_{des})=f_{ext}
+$$
+
+3. **相位阻抗正则（S2）**
+$$
+L_{imp}=\sum_{p\in\{\text{snap,spin,catch}\}} w_p\|K_p-\bar K_p\|_2^2
+$$
+用于约束“snap 高刚度、spin 低刚度、catch 中刚度”的相位先验。
+
+4. **世界模型损失（S3）**
+$$
+L_{wm}=\|\hat s_{t+1}-s_{t+1}\|_1+\lambda_c\,\text{BCE}(\hat c_{t+1},c_{t+1})+\lambda_\tau\|\hat\tau_{t+1}-\tau_{t+1}\|_1
+$$
+
+5. **扩散残差损失（S3）**
+$$
+L_{diff}=\mathbb{E}\|\epsilon-\epsilon_\theta(z_t,t,\text{cond}(h_t,\hat s_{t+1}))\|_2^2
+$$
+
+6. **真机自适应损失（S4）**
+$$
+L_{adapt}=\|\tau_{fb}-\tau_{target}\|_1+\lambda_{slip}\,\mathbb{I}[\text{slip}]
+$$
+
+最终目标：
+$$
+L_{total}=L_{\text{PPO}}+\lambda_{safe}L_{safe}+\lambda_{ref}L_{ref}+\lambda_{imp}L_{imp}+\lambda_{wm}L_{wm}+\lambda_{diff}L_{diff}+\lambda_{adapt}L_{adapt}
+$$
+
+#### 6.5.4 实验设计（与会议突破点一一对应）
+
+- **E1 初始化域延拓**：随机初始化 vs 凸包初始化 vs 凸包延拓（对应 0325 初始化问题）
+- **E2 控制器比较**：Fixed PD vs VICES vs FACET（对应 0325/0326 PD-阻抗争议）
+- **E3 时间调度比较**：固定频率 vs decimation vs $\Delta t$ 自适应（对应 0325 频率争议）
+- **E4 表征比较**：本体+触觉 vs 本体+视觉 vs 全模态（对应 0328 触觉优先）
+- **E5 Sim-to-Real**：仿真策略直迁移 vs world-model residual vs 真机在线 RL（对应 0328 真机闭环）
+
+#### 6.5.5 评估指标（统一）
+
+- **任务成功率**：TA/TP/Sunbrown 各自 SR
+- **稳定性**：接触保持时长、滑移率、摩擦锥余量
+- **效率**：收敛样本数、单位成功样本成本
+- **迁移性能**：Sim SR → Real SR 降幅
+- **控制质量**：$\|\tau_{fb}-\tau_{target}\|$、相位切换误差
+
+#### 6.5.6 与现有 Ideas 的映射
+
+- S1 对应 [[Idea-004-Convex Safe Set Bootstrapping]] + [[Idea-007-Dual Orthogonal Curriculum]]
+- S2 对应 [[Idea-001-Phase-Adaptive Impedance]]
+- S3 对应 [[Idea-002-Autoregressive Exploration]]（时间相关探索）并扩展至 world-model 条件化策略
+- S4 对应 [[Idea-005-Test-Time Contact Adaptation]]
+
+> [!tip] 执行顺序建议
+> 先完成 S0→S2（确保控制与探索稳定），再引入 S3（世界模型与扩散），最后进入 S4 真机闭环；避免一次性耦合全部模块导致归因困难。

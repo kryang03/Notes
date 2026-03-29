@@ -94,7 +94,8 @@
 		{"id":"paper_rlt","type":"text","x":1590,"y":1100,"width":350,"height":210,"color":"5","text":"## RLT (2026)\n**RL Token在线精细化**\n\n💡 VLA→RL Token信息瓶颈\n轻量actor-critic本地训练\n残差动作编辑 15min适应\n\n⭐ VLA最后一毫米精度"},
 		{"id":"paper_act","type":"text","x":1590,"y":90,"width":350,"height":200,"color":"4","text":"## ACT (2023)\n**动作分块Transformer**\n\n💡 CVAE + Temporal Ensembling\n低成本双臂精细操作\n端到端模仿学习\n\n⭐ 双臂操作基石"},
 		{"id":"paper_recap","type":"text","x":1590,"y":340,"width":350,"height":200,"color":"4","text":"## RECAP / π₀.6 (2025)\n**经验驱动VLA后训练**\n\n💡 三阶段: IL→Offline→Online RL\n优势条件化策略\nAWR/GRPO统一视角\n\n⭐ VLA RL Post-Training"},
-		{"id":"paper_unified","type":"text","x":1590,"y":590,"width":350,"height":200,"color":"4","text":"## Unified Policy (2024)\n**On/Off-Policy统一框架**\n\n💡 Eval/Improve二维分解\nUpdate Schedule三态分类\nPPO/SAC/BRAC统一推导\n\n⭐ RL算法分类基石"}
+		{"id":"paper_unified","type":"text","x":1590,"y":590,"width":350,"height":200,"color":"4","text":"## Unified Policy (2024)\n**On/Off-Policy统一框架**\n\n💡 Eval/Improve二维分解\nUpdate Schedule三态分类\nPPO/SAC/BRAC统一推导\n\n⭐ RL算法分类基石"},
+		{"id":"proj_meeting_pipeline","type":"file","file":"Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md","subpath":"#6.5 Meeting-Synthesized Research Pipeline（2026-03 会议综合）","x":640,"y":-1300,"width":520,"height":220}
 	],
 	"edges":[
 		{"id":"e_exp2_i001","fromNode":"exp2_findings","fromSide":"right","toNode":"idea_001","toSide":"left","color":"5","label":"Kp+基线"},
@@ -246,6 +247,8 @@
 		{"id":"e_recap_rl100","fromNode":"paper_recap","fromSide":"left","toNode":"paper_rl100","toSide":"right","color":"3","label":"互补: VLA vs 扩散RL"},
 		{"id":"e_bt2_unified","fromNode":"bt_sparse","fromSide":"bottom","toNode":"paper_unified","toSide":"top","color":"4","label":"RL统一理论"},
 		{"id":"e_unified_rl","fromNode":"paper_unified","fromSide":"top","toNode":"found_rl","toSide":"bottom","color":"6","label":"分类框架"},
-		{"id":"e_unified_optim","fromNode":"paper_unified","fromSide":"top","toNode":"found_optim","toSide":"bottom","color":"6","label":"优化理论"}
+		{"id":"e_unified_optim","fromNode":"paper_unified","fromSide":"top","toNode":"found_optim","toSide":"bottom","color":"6","label":"优化理论"},
+		{"id":"e_proj_meeting_pipeline","fromNode":"proj_dnpm_insight","fromSide":"right","toNode":"proj_meeting_pipeline","toSide":"left","color":"1","label":"会议综合"},
+		{"id":"e_pipeline_bt3","fromNode":"proj_meeting_pipeline","fromSide":"top","toNode":"bt_impedance","toSide":"bottom","color":"2","label":"分阶段落地"}
 	]
 }
