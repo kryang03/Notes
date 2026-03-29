@@ -35,7 +35,7 @@ views:
       - property: read-date
         direction: DESC
     columnSize:
-      file.name: 942
+      file.name: 450
   - type: table
     name: 🗓️ 按阅读日期
     groupBy:

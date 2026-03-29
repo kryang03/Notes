@@ -4,50 +4,35 @@
     "type": "split",
     "children": [
       {
-        "id": "c97bbdfb1f95c6a8",
+        "id": "9048b49e4c4d9744",
         "type": "tabs",
         "children": [
           {
-            "id": "06313d05f471e70a",
+            "id": "72f382deec352716",
             "type": "leaf",
-            "pinned": true,
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "MergeBuffer/Learning Quadrupedal Locomotion over Challenging Terrain.pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Learning Quadrupedal Locomotion over Challenging Terrain"
+            }
+          },
+          {
+            "id": "1893db48fad9c884",
+            "type": "leaf",
             "state": {
               "type": "bases",
               "state": {
                 "file": "PapersRecap/_PapersIndex.base",
                 "viewName": "📚 全部论文（按年份）"
               },
-              "pinned": true,
               "icon": "lucide-table",
               "title": "_PapersIndex"
             }
-          },
-          {
-            "id": "cc610c9c3c88f05d",
-            "type": "leaf",
-            "state": {
-              "type": "pdf",
-              "state": {
-                "file": "Papers/FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots.pdf"
-              },
-              "icon": "lucide-file-text",
-              "title": "FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots"
-            }
-          },
-          {
-            "id": "782e7ee73537834d",
-            "type": "leaf",
-            "state": {
-              "type": "pdf",
-              "state": {
-                "file": "Papers/Evolving Control: Evolved High Frequency Control.pdf"
-              },
-              "icon": "lucide-file-text",
-              "title": "Evolving Control: Evolved High Frequency Control"
-            }
           }
-        ],
-        "currentTab": 2
+        ]
       }
     ],
     "direction": "vertical"
@@ -104,7 +89,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 613.5
+    "width": 200
   },
   "right": {
     "id": "ddd67c62d17972e8",
@@ -203,11 +188,10 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
-      "media-extended:Open external media": false,
       "omnisearch:Omnisearch": false,
       "obsidian-git:Open Git source control": false,
       "bases:新建数据库": false,
@@ -221,57 +205,59 @@
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
       "command-palette:打开命令面板": false,
-      "open-vscode:VSCode": false
+      "open-vscode:VSCode": false,
+      "media-extended:Open external media": false
     }
   },
   "active": "83ac6868d741d647",
   "lastOpenFiles": [
-    "Papers/FACET- Force-Adaptive Control via Impedance Reference Tracking for Legged Robots.pdf",
-    "PapersRecap/FACET - Force-Adaptive Control via Impedance Reference Tracking.md",
-    "PapersRecap/_PapersIndex.base",
-    "PapersRecap/SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning.md",
-    "Papers/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
+    "Meetings",
+    "PapersRecap/WoG - World Guidance for VLA Action Generation.md",
     "PapersRecap/Unified Policy Evaluation and Improvement - On Off-Policy Classification.md",
-    "PapersRecap/RECAP - A VLA that Learns from Experience.md",
-    "PapersRecap/ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.md",
-    "Papers/Unified Policy Evaluation & Improvement (On_Off-Policy).pdf",
-    "Papers/A VLA that Learns from Experience.pdf",
-    "Papers/ACT: Learning Fine-Grained Bimanual Manipulation with.pdf",
-    "MergeBuffer/gemini-chat/机器人模仿学习深度解析.md",
-    "MergeBuffer/gemini-chat/强化学习核心文献深度剖析.md",
-    "MergeBuffer/gemini-chat/RL-100-论文深度解析.md",
-    "MergeBuffer/Unified Policy Evaluation & Improvement (On_Off-Policy).pdf",
-    "Papers/RL-100: Performant Robotic Manipulation with Real-World.pdf",
-    "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
-    "Papers/Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation.pdf",
-    "MergeBuffer/ACT: Learning Fine-Grained Bimanual Manipulation with.pdf",
-    "PapersRecap/Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation.md",
     "PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md",
-    "Foundations/ReinforcementLearning.md",
-    "conflict-files-obsidian-git.md",
+    "PapersRecap/RECAP - A VLA that Learns from Experience.md",
     "PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md",
-    "MergeBuffer/gemini-chat/PPO-损失函数组成详解.md",
-    "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
-    "MergeBuffer/gemini-chat/chat.md",
+    "PapersRecap/COMET - Controllable Long-term Motion Generation with Extended Joint Targets.md",
+    "PapersRecap/ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.md",
+    "Papers/World Guidance: World Modeling in Condition.pdf",
+    "Papers/Unified Policy Evaluation & Improvement (On_Off-Policy).pdf",
+    "Papers/Precise Manipulation with Efficient Online RL.pdf",
+    "Papers/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
+    "Papers/Lee_Controllable_Long-term_Motion_Generation_with_Extended_Joint_Targets.pdf",
+    "Papers/ACT: Learning Fine-Grained Bimanual Manipulation with.pdf",
+    "Papers/A VLA that Learns from Experience.pdf",
+    "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
     "PapersRecap/DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model.md",
-    "PapersRecap/EvoControl - Evolved High Frequency Control for Continuous Control Tasks.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
-    "README.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
+    "Papers/Contact-Grounded Policy- Dexterous Visuotactile Policy with Generative Contact Grounding.pdf",
+    "PapersRecap/_PapersIndex.base",
+    "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
+    "PapersRecap/Autoregressive Policies for Continuous Control Deep Reinforcement Learning.md",
+    "PapersRecap/AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch.md",
+    "PapersRecap/A Survey of Sim-to-Real Methods in RL.md",
+    "PapersRecap/Visual-tactile Pretraining for Humanlike Manipulation Dexterity.md",
     "2026-03-13.md",
-    "KnowledgeGraph.canvas",
+    "MergeBuffer/Learning Quadrupedal Locomotion over Challenging Terrain.pdf",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
+    "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.md",
+    "PapersRecap/RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation.md",
+    "PapersRecap/DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星减速器.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/电机.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/未命名.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/伺服电机.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯转子无铁芯.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠丝杠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠.png",
+    "Pasted image 20260312161540.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Inside a Coreless DC Motor. Coreless DC Motors Unveiled!.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/电动机是如何工作的？（直流电机）.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/有刷直流电机.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/三相BLDC.webp",
+    "Pasted image 20260312154625.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚柱丝杠.png",
+    "KnowledgeGraph.canvas",
     "Backups/KnowledgeGraph.canvas"
   ]
 }
