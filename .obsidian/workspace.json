@@ -4,32 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "9048b49e4c4d9744",
+        "id": "52e58d22c22a1093",
         "type": "tabs",
         "children": [
           {
-            "id": "72f382deec352716",
+            "id": "e93ab615b93b64cb",
             "type": "leaf",
             "state": {
-              "type": "pdf",
-              "state": {
-                "file": "MergeBuffer/Learning Quadrupedal Locomotion over Challenging Terrain.pdf"
-              },
-              "icon": "lucide-file-text",
-              "title": "Learning Quadrupedal Locomotion over Challenging Terrain"
-            }
-          },
-          {
-            "id": "1893db48fad9c884",
-            "type": "leaf",
-            "state": {
-              "type": "bases",
-              "state": {
-                "file": "PapersRecap/_PapersIndex.base",
-                "viewName": "📚 全部论文（按年份）"
-              },
-              "icon": "lucide-table",
-              "title": "_PapersIndex"
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "新标签页"
             }
           }
         ]
@@ -209,9 +194,20 @@
       "media-extended:Open external media": false
     }
   },
-  "active": "83ac6868d741d647",
+  "active": "e93ab615b93b64cb",
   "lastOpenFiles": [
-    "Meetings",
+    "Projects/World Model as Task Scheduler/World Models for Learning Dexterous Hand-Object Interactions from Human Videos.pdf",
+    "Projects/World Model as Task Scheduler/DexWM.pdf",
+    "Projects/World Model as Task Scheduler/DEXTERITYGEN Foundation Controller for Unprecedented Dexterity.pdf",
+    "Projects/World Model as Task Scheduler/Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning.pdf",
+    "Projects/World Model as Task Scheduler/2111.03062v1(1).pdf",
+    "Projects/World Model as Task Scheduler/ANYmal parkour Learning agile navigation for quadrupedal robots.pdf",
+    "Projects/World Model as Task Scheduler/SOLVING RUBIK’S CUBE WITH A ROBOT HAND.pdf",
+    "Projects/World Model as Task Scheduler/1910.07113v1.pdf",
+    "Projects/World Model as Task Scheduler/DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality.pdf",
+    "Projects/World Model as Task Scheduler/A Step Toward World Models- A Survey on Robotic Manipulation.pdf",
+    "Projects/World Model as Task Scheduler/Model-Based Lookahead Reinforcement Learning for in-hand manipulation.pdf",
+    "PapersRecap/DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References.md",
     "PapersRecap/WoG - World Guidance for VLA Action Generation.md",
     "PapersRecap/Unified Policy Evaluation and Improvement - On Off-Policy Classification.md",
     "PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md",
@@ -219,24 +215,14 @@
     "PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md",
     "PapersRecap/COMET - Controllable Long-term Motion Generation with Extended Joint Targets.md",
     "PapersRecap/ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.md",
-    "Papers/World Guidance: World Modeling in Condition.pdf",
-    "Papers/Unified Policy Evaluation & Improvement (On_Off-Policy).pdf",
-    "Papers/Precise Manipulation with Efficient Online RL.pdf",
-    "Papers/PhyGile: Physics-Prefix Guided Motion Generation.pdf",
-    "Papers/Lee_Controllable_Long-term_Motion_Generation_with_Extended_Joint_Targets.pdf",
-    "Papers/ACT: Learning Fine-Grained Bimanual Manipulation with.pdf",
-    "Papers/A VLA that Learns from Experience.pdf",
     "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
     "PapersRecap/DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model.md",
-    "Papers/Contact-Grounded Policy- Dexterous Visuotactile Policy with Generative Contact Grounding.pdf",
-    "PapersRecap/_PapersIndex.base",
     "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
     "PapersRecap/Autoregressive Policies for Continuous Control Deep Reinforcement Learning.md",
     "PapersRecap/AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch.md",
     "PapersRecap/A Survey of Sim-to-Real Methods in RL.md",
     "PapersRecap/Visual-tactile Pretraining for Humanlike Manipulation Dexterity.md",
     "2026-03-13.md",
-    "MergeBuffer/Learning Quadrupedal Locomotion over Challenging Terrain.pdf",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
     "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.md",
     "PapersRecap/RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation.md",
@@ -252,7 +238,6 @@
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
     "Pasted image 20260312161540.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/Inside a Coreless DC Motor. Coreless DC Motors Unveiled!.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/电动机是如何工作的？（直流电机）.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/有刷直流电机.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/三相BLDC.webp",
     "Pasted image 20260312154625.png",
