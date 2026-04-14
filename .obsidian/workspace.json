@@ -4,38 +4,20 @@
     "type": "split",
     "children": [
       {
-        "id": "c97bbdfb1f95c6a8",
+        "id": "52e58d22c22a1093",
         "type": "tabs",
         "children": [
           {
-            "id": "06313d05f471e70a",
-            "type": "leaf",
-            "pinned": true,
-            "state": {
-              "type": "bases",
-              "state": {
-                "file": "PapersRecap/_PapersIndex.base",
-                "viewName": "📚 全部论文（按年份）"
-              },
-              "pinned": true,
-              "icon": "lucide-table",
-              "title": "_PapersIndex"
-            }
-          },
-          {
-            "id": "cc610c9c3c88f05d",
+            "id": "e93ab615b93b64cb",
             "type": "leaf",
             "state": {
-              "type": "pdf",
-              "state": {
-                "file": "MergeBuffer/GenDexGrasp: Generalizable Dexterous Grasping.pdf"
-              },
-              "icon": "lucide-file-text",
-              "title": "GenDexGrasp: Generalizable Dexterous Grasping"
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "新标签页"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -92,7 +74,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 385.5
+    "width": 200
   },
   "right": {
     "id": "ddd67c62d17972e8",
@@ -191,12 +173,10 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
-      "open-vscode:VS Code": false,
-      "media-extended:Open external media": false,
       "omnisearch:Omnisearch": false,
       "obsidian-git:Open Git source control": false,
       "bases:新建数据库": false,
@@ -209,58 +189,60 @@
       "canvas:新建白板": false,
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
-      "command-palette:打开命令面板": false
+      "command-palette:打开命令面板": false,
+      "open-vscode:VSCode": false,
+      "media-extended:Open external media": false
     }
   },
   "active": "83ac6868d741d647",
   "lastOpenFiles": [
-    "Projects/World Model as Task Scheduler/On the Continuity of Rotation Representations in Neural Networks.pdf",
-    "Projects/World Model as Task Scheduler/未确认 246569.crdownload",
-    "Projects/World Model as Task Scheduler/Learning to Model the World: A Survey of World.pdf",
-    "Projects/World Model as Task Scheduler/未确认 470071.crdownload",
-    "Projects/World Model as Task Scheduler/World Models Computing the Uncomputable.pdf",
-    "Projects/World Model as Task Scheduler/The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook.pdf",
-    "Projects/World Model as Task Scheduler/未确认 46140.crdownload",
-    "Projects/World Model as Task Scheduler/The CMA Evolution Strategy: A Tutorial.pdf",
-    "Projects/World Model as Task Scheduler/Improving Policy Optimization with Generalist-Specialist Learning.pdf",
-    "Projects/World Model as Task Scheduler/未确认 574638.crdownload",
-    "Projects/World Model as Task Scheduler/Diffusion Policy: Visuomotor Policy.pdf",
-    "PapersRecap/FACET - Force-Adaptive Control via Impedance Reference Tracking.md",
+    "Projects/World Model as Task Scheduler/RelatedPapers/World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/World Models for Learning Dexterous Hand-Object Interactions from Human Videos.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/World Models Computing the Uncomputable.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/UniDexGrasp++- Improving Dexterous Grasping Policy Learning via Geometry-aware Curriculum and Iterative Generalist-Specialist Learning.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/The CMA Evolution Strategy: A Tutorial.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/Sim-to-Real: Learning Agile Locomotion For Quadruped Robots.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/SOLVING RUBIK’S CUBE WITH A ROBOT HAND.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/Robotic World Model: A Neural Network Simulator.pdf",
+    "Projects/World Model as Task Scheduler/Final_WMTS.md",
     "PapersRecap/DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References.md",
-    "PapersRecap/SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning.md",
+    "PapersRecap/WoG - World Guidance for VLA Action Generation.md",
     "PapersRecap/Unified Policy Evaluation and Improvement - On Off-Policy Classification.md",
-    "PapersRecap/RECAP - A VLA that Learns from Experience.md",
-    "PapersRecap/ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.md",
-    "MergeBuffer/gemini-chat/机器人模仿学习深度解析.md",
-    "MergeBuffer/gemini-chat/强化学习核心文献深度剖析.md",
-    "MergeBuffer/gemini-chat/RL-100-论文深度解析.md",
-    "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
-    "PapersRecap/Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation.md",
     "PapersRecap/RLT - Precise Manipulation with Efficient Online RL Tokens.md",
-    "Foundations/ReinforcementLearning.md",
-    "conflict-files-obsidian-git.md",
+    "PapersRecap/RECAP - A VLA that Learns from Experience.md",
     "PapersRecap/PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking.md",
-    "MergeBuffer/gemini-chat/PPO-损失函数组成详解.md",
-    "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
-    "MergeBuffer/gemini-chat/chat.md",
+    "PapersRecap/COMET - Controllable Long-term Motion Generation with Extended Joint Targets.md",
+    "PapersRecap/ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware.md",
+    "PapersRecap/RL-100 - Performant Robotic Manipulation with Real-World RL.md",
     "PapersRecap/DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model.md",
-    "PapersRecap/EvoControl - Evolved High Frequency Control for Continuous Control Tasks.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
+    "PapersRecap/Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding.md",
+    "PapersRecap/Autoregressive Policies for Continuous Control Deep Reinforcement Learning.md",
+    "PapersRecap/AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch.md",
+    "PapersRecap/A Survey of Sim-to-Real Methods in RL.md",
+    "PapersRecap/Visual-tactile Pretraining for Humanlike Manipulation Dexterity.md",
+    "2026-03-13.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/减速器.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
-    "README.md",
-    "Projects/Dynamic Non-Prehensile Manipulation/ideas.md",
-    "KnowledgeGraph.canvas",
+    "PapersRecap/Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map.md",
+    "PapersRecap/RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation.md",
+    "PapersRecap/DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/sim2real.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星减速器.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/传动.md",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/电机.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/text_to_merge/未命名.md",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/伺服电机.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯转子无铁芯.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠丝杠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠.png",
+    "Pasted image 20260312161540.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/有刷直流电机.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/三相BLDC.webp",
+    "Pasted image 20260312154625.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚柱丝杠.png",
+    "KnowledgeGraph.canvas",
     "Backups/KnowledgeGraph.canvas"
   ]
 }

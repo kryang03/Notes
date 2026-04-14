@@ -1,0 +1,123 @@
+filters:
+  and:
+    - file.ext == "md"
+    - file.folder == this.file.folder
+    - not:
+        - file.name.contains(".crswap")
+
+formulas:
+  word_count: file.size / 5
+  days_since_created: (now() - file.ctime) / (1000 * 60 * 60 * 24)
+  days_since_modified: (now() - file.mtime) / (1000 * 60 * 60 * 24)
+  has_frontmatter: file.name != "Untitled" && title
+  video_note: file.hasTag("web-notes") || file.hasTag("hover-notes") || description
+  first_image: if(file.embeds[0], file.embeds[0], "https://hover-notes-images-prod.s3.ap-northeast-2.amazonaws.com/public/hover-notes-icon.svg")
+  status_badge: if(formula.days_since_modified < 3, "NEW", if(formula.word_count > 200, "LONG", ""))
+  reading_time: Math.ceil(formula.word_count / 200) + " min read"
+
+properties:
+  file.name:
+    displayName: Note Title
+  file.mtime:
+    displayName: Last Modified
+  file.ctime:
+    displayName: Created
+  title:
+    displayName: Title
+  author:
+    displayName: Author
+  source:
+    displayName: Source
+  formula.word_count:
+    displayName: Est. Words
+  formula.days_since_modified:
+    displayName: Days Since Modified
+  formula.video_note:
+    displayName: Video Note
+  formula.first_image:
+    displayName: First Image
+  formula.status_badge:
+    displayName: Status
+  formula.reading_time:
+    displayName: Reading Time
+
+views:
+  - type: cards
+    name: Video Notes
+    filters:
+      or:
+        - file.hasTag("web-notes")
+        - file.hasTag("hover-notes")
+        - title != null
+    order:
+      - file.name
+      - file.ctime desc
+      - source
+      - file.mtime
+      - tags
+    sort:
+      - property: file.ctime
+        direction: DESC
+    image: formula.first_image
+    title: title
+    subtitle: author
+    badge: formula.status_badge
+    content:
+      - source
+      - author
+      - file.mtime
+      - description
+      - formula.reading_time
+      - file.tags
+    footer: file.mtime
+    link: source
+  - type: table
+    name: All Notes
+    order:
+      - file.mtime desc
+      - file.name
+    limit: 50
+    columns:
+      - file.name
+      - title
+      - author
+      - formula.days_since_modified
+      - formula.word_count
+  - type: table
+    name: Recent Notes
+    filters:
+      and:
+        - formula.days_since_modified < 7
+    order:
+      - file.mtime desc
+    limit: 20
+    columns:
+      - file.name
+      - title
+      - formula.days_since_modified
+      - formula.word_count
+  - type: table
+    name: Untitled Notes
+    filters:
+      or:
+        - file.name.contains("Untitled")
+        - file.name.contains("new note")
+        - file.name.contains("test")
+    order:
+      - file.mtime desc
+    columns:
+      - file.name
+      - formula.days_since_created
+      - formula.word_count
+  - type: table
+    name: Long Notes
+    filters:
+      and:
+        - formula.word_count > 100
+    order:
+      - formula.word_count desc
+    columns:
+      - file.name
+      - title
+      - formula.word_count
+      - formula.days_since_modified

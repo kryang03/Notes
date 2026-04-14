@@ -1,0 +1,60 @@
+filters:
+  and:
+    - file.ext == "png"
+    - file.name.contains("screenshot")
+    - file.path.contains(this.file.folder)
+formulas:
+  file_size_kb: Math.round(file.size / 1024)
+  days_old: Math.floor((now() - file.ctime) / (1000 * 60 * 60 * 24))
+  timestamp_id: file.name.split('-').slice(-1)[0].split('.')[0]
+  size_category: if(file.size < 100000, "Small", if(file.size < 300000, "Medium", "Large"))
+  is_recent: formula.days_old < 7
+  video_note: file.backlinks[0]
+properties:
+  file.name:
+    displayName: Screenshot
+  file.size:
+    displayName: File Size
+  file.ctime:
+    displayName: Created
+  formula.file_size_kb:
+    displayName: Size (KB)
+  formula.days_old:
+    displayName: Days Old
+  formula.timestamp_id:
+    displayName: ID
+  formula.size_category:
+    displayName: Size
+  formula.video_note:
+    displayName: Video Note
+views:
+  - type: cards
+    name: Screenshots
+    filters:
+      and:
+        - formula.video_note.isEmpty()
+    order:
+      - file.ctime
+      - formula.video_note
+      - file.ctime desc
+    sort:
+      - property: file.ctime
+        direction: DESC
+    image: file.path
+    title: formula.timestamp_id
+    subtitle: formula.size_category
+    badge: formula.days_old
+    content:
+      - formula.file_size_kb
+      - file.ctime
+      - formula.video_note
+  - type: table
+    name: All Screenshots
+    order:
+      - file.ctime desc
+    columns:
+      - formula.timestamp_id
+      - formula.video_note
+      - formula.file_size_kb
+      - formula.size_category
+      - formula.days_old
