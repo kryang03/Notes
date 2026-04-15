@@ -11,10 +11,14 @@
             "id": "e93ab615b93b64cb",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Projects/World Model as Task Scheduler/Final_WMTS.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "新标签页"
+              "title": "Final_WMTS"
             }
           }
         ]
@@ -194,8 +198,10 @@
       "media-extended:Open external media": false
     }
   },
-  "active": "83ac6868d741d647",
+  "active": "e93ab615b93b64cb",
   "lastOpenFiles": [
+    "Projects/World Model as Task Scheduler/DexterousHandActuatorModel/FOC_Control.md",
+    "Projects/World Model as Task Scheduler/DexterousHandActuatorModel",
     "Projects/World Model as Task Scheduler/RelatedPapers/World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation.pdf",
     "Projects/World Model as Task Scheduler/RelatedPapers/World Models for Learning Dexterous Hand-Object Interactions from Human Videos.pdf",
     "Projects/World Model as Task Scheduler/RelatedPapers/World Models Computing the Uncomputable.pdf",
@@ -205,8 +211,6 @@
     "Projects/World Model as Task Scheduler/RelatedPapers/Sim-to-Real: Learning Agile Locomotion For Quadruped Robots.pdf",
     "Projects/World Model as Task Scheduler/RelatedPapers/STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning.pdf",
     "Projects/World Model as Task Scheduler/RelatedPapers/SOLVING RUBIK’S CUBE WITH A ROBOT HAND.pdf",
-    "Projects/World Model as Task Scheduler/RelatedPapers/SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL.pdf",
-    "Projects/World Model as Task Scheduler/RelatedPapers/Robotic World Model: A Neural Network Simulator.pdf",
     "Projects/World Model as Task Scheduler/Final_WMTS.md",
     "PapersRecap/DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References.md",
     "PapersRecap/WoG - World Guidance for VLA Action Generation.md",
