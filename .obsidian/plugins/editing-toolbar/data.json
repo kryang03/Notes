@@ -1,5 +1,5 @@
 {
-  "lastVersion": "4.0.2",
+  "lastVersion": "4.0.5",
   "aestheticStyle": "default",
   "positionStyle": "top",
   "menuCommands": [
@@ -508,6 +508,7 @@
     },
     "enableCustomModel": false,
     "customModel": {
+      "apiFormat": "openai-compatible",
       "baseUrl": "",
       "apiKey": "",
       "model": "",

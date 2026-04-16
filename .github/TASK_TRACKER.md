@@ -5,7 +5,99 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-03-29 (Session #25 — Meetings 算法突破点梳理 + DNPM 详细研究 Pipeline 落地 + Canvas 更新 ✅)
+**最后更新**: 2026-04-15 (Session #27 — WMTS RelatedPapersRecap 全量生成 + 三文档重构 + Canvas 更新 ✅)
+
+## 🟢 Session #27 完成 (2026-04-15)
+
+### World Model as Task Scheduler 项目：RelatedPapersRecap 生成 + 文档体系重构
+
+**触发**：用户要求 (1) 为 RelatedPapers/ 的 40 篇论文生成 RelatedPapersRecap，(2) 清理完善文件夹中的所有文档，(3) 综合梳理 Final_WMTS.md 思路。
+
+#### 变更内容 — Task 1: RelatedPapersRecap 全量生成
+
+| 文件 | 数量 | 内容 |
+|------|------|------|
+| `_RelatedPapersIndex.md` | 1 | 40 篇论文按 7 类索引（WM 核心/灵巧操作/Sim-to-Real/扩散/探索课程/理论工具/综述） |
+| 个别 Recap 文件 | 40 | 每篇含 frontmatter + 核心贡献 + 与 WMTS 关联分析 |
+
+**7 类分布**：WM 核心 (9 篇) · 灵巧操作 (8 篇) · Sim-to-Real (4 篇) · 扩散策略 (3 篇) · 探索/课程 (3 篇) · 理论/工具 (5 篇) · 综述 (4 篇)
+
+#### 变更内容 — Task 2: 三文档重构
+
+| 文件 | 变更 |
+|------|------|
+| `Actuator2RigidDynamicsModel_gap.md` | **完全重写**：从对话 Q&A 格式转为 7 节知识文档——新增 frontmatter + 消除对话语气 + 结构化为串级控制/映射/CAN 协议/带宽/传动/信息流/RL State Space 七节 + 交叉引用 FOC_Control |
+| `Final_WMTS.md` | **完全重写**：新增 frontmatter + 【】内联思维转为 `[!question]` callout + §四 冗余硬件说明精简为 wikilink 引用 + 叙事流梳理为 5 模块流水线结构 |
+| `FOC_Control.md` | 无需修改——Session #26 已完善，结构清晰 |
+
+#### 变更内容 — Canvas 维护
+
+| 文件 | 变更 |
+|------|------|
+| `KnowledgeGraph.canvas` | `proj_wmts_insight` 更新为五模块流水线架构摘要 |
+| | 新增 `proj_wmts_papers` 节点（链接 _RelatedPapersIndex.md） |
+| | `proj_wmts_group` 扩展以容纳新节点 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| RelatedPapersRecap 数量 | 40/40 ✅ |
+| 索引文件 | _RelatedPapersIndex.md 创建 ✅ |
+| Actuator2Rigid 重构 | 对话→知识文档 ✅ |
+| Final_WMTS 重构 | 【】→callout + 精简 ✅ |
+| Frontmatter 完整性 | 3/3 文件 ✅ |
+| Canvas 同步 | 1 节点新增 + 2 节点更新 ✅ |
+| 断链检查 | wikilink 引用目标全部存在 ✅ |
+
+---
+
+## 🟢 Session #26 完成 (2026-04-02)
+
+### World Model as Task Scheduler 项目深度完善
+
+**触发**：用户要求着重完善 WMTS 项目，具体：(1) FOC_Control.md 补充温度效应和高速动力学，(2) Final_WMTS.md 基于 FOC 物理完善 Actuator Model 设计及信息流，(3) 选择可靠真机 RL 观测指标。
+
+#### 变更内容 — FOC_Control.md 增强 (~300+ 行新增)
+
+| 新增章节 | 内容 |
+|---------|------|
+| §4 温度对电机模型参数的影响 | R_s(T) α_Cu≈0.00393/°C, ψ_m(T) β_NdFeB≈-0.0012/°C, K_t/K_e 漂移, 综合定量表 |
+| §5 高速动力学特性 | 反 EMF 电压天花板与弱磁, 电流环带宽, 科里奥利力耦合, Stribeck 摩擦, 热极限 |
+| §6 对 Actuator Model 的建模启示 | 不可观测变量表, 最小充分输入集, 输出可靠性分析, 可靠信号选择表(⭐评级) |
+
+#### 变更内容 — Final_WMTS.md Section 四 重构
+
+| 子节 | 内容 |
+|------|------|
+| 4.A Actuator Model | POMDP 本质论证, 历史窗口 FIR 滤波器类比, 形式化输入/输出定义, 转矩-转速包络约束, 温度级联漂移 |
+| 4.B Rigid Dynamic Model | Physics-Informed Neural Dynamics 残差形式, DR encoder 在线系统辨识 |
+| 4.C 信息流架构 | ASCII 串行因果链图, 梯度双通道设计 (L_state + λ_act·L_act) |
+| 4.D 可靠观测信号 | 五类信号可靠性表, WM 联合预测目标 = [φ̂, φ̇̂, ẑ_tactile], 力矩三重不可靠性警告 |
+
+#### 变更内容 — Section 五 一致性更新
+
+| 变更 | 详情 |
+|------|------|
+| 步骤 2 数据收集 | Torque_desired/target/feedback → {a, φ, φ̇, τ_fb, T_motor, tactile} + 力矩用法 callout |
+
+#### 变更内容 — Canvas 维护
+
+| 变更 | 详情 |
+|------|------|
+| `KnowledgeGraph.canvas` | 新增 `proj_wmts_group` 项目组 + `proj_wmts_core` 文件节点 + `proj_wmts_insight` 架构摘要 |
+| `KnowledgeGraph.canvas` | 新增边: WMTS→bt_sim2real (Actuator建模), DNPM→WMTS (WM调度) |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| Wikilinks 完整性 | 5/5 wikilinks 全部有效 ✅ |
+| FOC↔Final_WMTS 交叉引用 | 3 条精确章节链接 ✅ |
+| Canvas 同步 | 3 节点 + 2 边新增 ✅ |
+| 孤立行清理 | 遗留 Loss 行已移除 ✅ |
+
+---
 
 ## 🟢 Session #25 完成 (2026-03-29)
 
