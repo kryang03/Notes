@@ -31,13 +31,17 @@ related:
 ### 状态空间 $\mathcal{S}$
 
 **特权状态**（仅仿真可知）：
-$$O_{oracle,t} = [P_{obj,t}, \dot{P}_{obj,t}, Q_{obj,t}, \dot{Q}_{obj,t}, F_{contact}]$$
+$$O_{oracle,t} = [P_{obj,t}, \dot{P}_{obj,t}, Q_{obj,t}, \dot{Q}_{obj,t}, F_{contact},\mu_{fric}]$$
 
 **真机观测** $O_{real} \in \mathbb{R}^{N_{obs}}$，包含：
+- PointNet 编码 Shape →100D
+- Tactile Net 编码 $F_{tactile} \to 64D$
+- Temporal Net (RNN/1D-CNN) 编码 $[\theta, \dot{\theta}, a, T] \to 128D$
+- 将上述 Latent Vector 与 $\mathbf{o}^{\text{task}}_t$, $\mathbf{o}^{\text{hand}}_t$, $\mathbf{o}^{\text{inertia}}_t$​ 进行 Concat，再输入最终的 Policy MLP。
 
 **① 物体形状描述（Fixed per episode）**：
 $$\mathbf{o}^{\text{shape}} = \text{PointNet}(\mathcal{P}) \in \mathbb{R}^{100}$$
-$\mathcal{P} = \{\mathbf{p}_i\}_{i=1}^{N_p} \subset \mathbb{R}^3$，经 PointNet（逐点 MLP + max-pooling）编码。
+$\mathcal{P} = \{\mathbf{p}_i\}_{i=1}^{N_p} \subset \mathbb{R}^3$，经 PointNet（逐点 MLP + max-pooling）编码。确保 $\mathbf{o}^{\text{shape}}$ 的点云 $\mathcal{P}$ 也是变换到 $\{W\}$ 坐标系下再通过 PointNet 的。否则空间几何特征无法与目标对齐
 
 **② 物体惯性参数（Oracle — Static per episode）**：
 $$\mathbf{o}^{\text{inertia}} = [m, \mathbf{r}_{\text{com}}^\top, \text{vech}(\mathbf{I}_{\text{com}})^\top]^\top \in \mathbb{R}^{10}$$
@@ -48,6 +52,28 @@ $$\mathbf{o}^{\text{task}}_t = [\mathbf{g}_{t+1}^\top, \ldots, \mathbf{g}_{t+T_{
 其中 $\mathbf{g}_{t+k} = [{}^W\mathbf{p}^{*\top}, {}^W\mathbf{q}^{*\top}, {}^W\dot{\mathbf{p}}^{*\top}, {}^W\boldsymbol{\omega}^{*\top}]^\top \in \mathbb{R}^{13}$，定义在**手腕坐标系** $\{W\}$ 下。超出 episode 部分采用 Zero-Velocity Hold 填充。
 
 **④ 手腕姿态**：$\mathbf{o}^{\text{hand}}_t = {}^G\mathbf{q}^B_t \in \mathbb{R}^4$（反映重力方向相对于手掌朝向）。
+**⑤ 运动学时序观测 (Proprioceptive History)** 
+由于 $\dot{\theta}_{meas}$ 存在差分噪声，单纯依赖单帧速度会导致网络对高频噪声敏感。必须引入观测历史。
+- **关节位置序列:** $\mathbf{o}^{\text{pos}}_{t-H:t} = [\theta_{t-H}, \dots, \theta_t] \in \mathbb{R}^{16 \times (H+1)}$
+- **关节速度序列:** $\mathbf{o}^{\text{vel}}_{t-H:t} = [\dot{\theta}_{t-H}, \dots, \dot{\theta}_t] \in \mathbb{R}^{16 \times (H+1)}$（经过低通滤波或卡尔曼滤波处理后的值）
+    
+- _工程建议:_ 此序列需通过 1D-CNN 或 Transformer 编码为隐向量 $z_{prop} \in \mathbb{R}^{d_{prop}}$，而非直接展平输入 MLP，以提取时序动态特征。
+ **⑥ 高维触觉感知 (Tactile Sensing) 
+ 
+直接使用传感矩阵，避免在底层进行不可靠的物理量反解。
+- **触觉张量:** $\mathbf{o}^{\text{tactile}}_t = F_{tactile, t} \in \mathbb{R}^{5 \times 12 \times 6}$
+
+- _工程建议:_ 这个维度 ($360$D) 如果直接输入 MLP 会导致局部空间信息丢失。建议使用针对手指拓扑设计的轻量级 CNN 或 Graph Neural Network (GNN) 处理成特征向量 $z_{tac} \in \mathbb{R}^{d_{tac}}$。它负责隐式回答 $O_{oracle}$ 中的 $F_{contact}$。
+**⑦ 隐式动力学与环境适配 (Thermal & Actuator State) 
+- **电机温度:** $\mathbf{o}^{\text{temp}}_t = T_{motor, t} \in \mathbb{R}^{16}$
+- **历史动作序列:** $\mathbf{o}^{\text{action}}_{t-H:t-1} = [a_{t-H}, \dots, a_{t-1}] \in \mathbb{R}^{16 \times H}$
+    
+- _逻辑推导:_ 温度 $T$ 反映了电机当前的力矩饱和上限和热耗散状态；而动作序列 $a$ 配合 $\theta$ 序列，是网络推断“丝杠静摩擦”和“连杆弹性形变”的唯一途径。这两者组合是克服非线性 Jacobian 污染的关键。
+    
+**⑧ 驱动器专属输入 (Actuator Model Features)
+- **反馈力矩:** $\tau_{fb, t} \in \mathbb{R}^{16}$
+[确认：是否使用力矩传感器读到的关节力矩，还是直接用电机电流算的]
+- _严格限制:_ 因为该"力矩"在传递到指尖之前已被热漂移 、丝杠静摩擦、非线性 Jacobian 和连杆弹性形变严重"污染"，$\tau_{fb}$ **不可**作为 Policy 的直接输入观测，**不可**参与计算 Reward（会引发极大的 Reward Hacking，导致策略学会“轻柔但无效”的动作以降低虚假力矩）。它仅被允许输入给专门训练的底层 Actuator Network（用于取代传统的 PD 控制器）。
 
 ### 动作空间 $\mathcal{A}$
 
@@ -61,7 +87,7 @@ $$\mathbf{o}^{\text{task}}_t = [\mathbf{g}_{t+1}^\top, \ldots, \mathbf{g}_{t+T_{
 
 ---
 
-## 一、 隐空间任务生成器 (Latent Task Generator)
+## 一、 仿真隐空间任务生成器 (Latent Task Generator)
 
 在动力学可行域内主动采样新任务，提供课程难度梯度。
 
@@ -77,7 +103,7 @@ $$\mathbf{o}^{\text{task}}_t = [\mathbf{g}_{t+1}^\top, \ldots, \mathbf{g}_{t+T_{
 
 $$R_I(s_t, a_t) = \text{tr}\left(\text{Cov}(\{\hat{s}_{t+1}^m\}_{m=1}^M)\right)$$
 
-本质上是 Bayesian Active Learning 中信息增益的近似——最大化 Ensemble 分歧 = 引导系统走向能最大幅度减少**认知不确定性（Epistemic Uncertainty）**的区域。Ensemble 方差恰好只衡量认知不确定性，不受偶然不确定性（Aleatoric）影响。
+本质上是 Bayesian Active Learning 中信息增益的近似——最大化 Ensemble 分歧 = 引导系统走向能最大幅度减少**认知不确定性（Epistemic Uncertainty）的区域。Ensemble 方差恰好只衡量认知不确定性，不受偶然不确定性（Aleatoric）影响。
 
 **课程导向的 Fitness**：
 

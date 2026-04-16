@@ -4,40 +4,22 @@
     "type": "split",
     "children": [
       {
-        "id": "c97bbdfb1f95c6a8",
+        "id": "52e58d22c22a1093",
         "type": "tabs",
         "children": [
           {
-            "id": "06313d05f471e70a",
-            "type": "leaf",
-            "pinned": true,
-            "state": {
-              "type": "bases",
-              "state": {
-                "file": "PapersRecap/_PapersIndex.base",
-                "viewName": "📚 全部论文（按年份）"
-              },
-              "pinned": true,
-              "icon": "lucide-table",
-              "title": "_PapersIndex"
-            }
-          },
-          {
-            "id": "5ff456b3d0eeb225",
+            "id": "e93ab615b93b64cb",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "pdf",
               "state": {
-                "file": "Projects/World Model as Task Scheduler/DexterousHandActuatorModel/FOC_Control.md",
-                "mode": "preview",
-                "source": false
+                "file": "Projects/World Model as Task Scheduler/RelatedPapers/Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning.pdf"
               },
-              "icon": "lucide-file",
-              "title": "FOC_Control"
+              "icon": "lucide-file-text",
+              "title": "Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -94,7 +76,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 385.5
+    "width": 1054.5031242370605
   },
   "right": {
     "id": "ddd67c62d17972e8",
@@ -193,12 +175,11 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
       "open-vscode:VS Code": false,
-      "media-extended:Open external media": false,
       "omnisearch:Omnisearch": false,
       "obsidian-git:Open Git source control": false,
       "bases:新建数据库": false,
@@ -211,58 +192,59 @@
       "canvas:新建白板": false,
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
-      "command-palette:打开命令面板": false
+      "command-palette:打开命令面板": false,
+      "media-extended:Open external media": false
     }
   },
-  "active": "5ff456b3d0eeb225",
+  "active": "e93ab615b93b64cb",
   "lastOpenFiles": [
-    "Projects/World Model as Task Scheduler/DexterousHandActuatorModel/assets",
-    "Projects/World Model as Task Scheduler/DexterousHandActuatorModel/assets/Park Transform.png",
+    "Projects/World Model as Task Scheduler/SameTask.md",
+    "Projects/World Model as Task Scheduler/SameTask~.io",
+    "Projects/World Model as Task Scheduler/SameTask.io",
+    "Projects/World Model as Task Scheduler/SameTask.io.io",
+    "Projects/World Model as Task Scheduler/RelatedPapers/DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/未确认 517513.crdownload",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Generalization in Dexterous Manipulation Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/_RelatedPapersIndex.md",
+    "Projects/World Model as Task Scheduler/RelatedPapers/World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/Model-Based Lookahead Reinforcement Learning for in-hand manipulation.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation.pdf",
+    "Projects/World Model as Task Scheduler/RelatedPapers/Learning Agile and Dynamic Motor Skills for Legged Robots.pdf",
     "Projects/World Model as Task Scheduler/DexterousHandActuatorModel/Actuator2RigidDynamicsModel_gap.md",
-    "PapersRecap/_PapersIndex.base",
     "Projects/World Model as Task Scheduler/Final_WMTS.md",
+    "Foundations/Dynamics.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/World Models for Dexterous Hand-Object Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/World4RL Recap.md",
     "Projects/World Model as Task Scheduler/RelatedPapersRecap/WM Computing the Uncomputable Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Solving Rubiks Cube Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/UniDexGrasp++ Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/SafeDreamer Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/STORM Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Sim-to-Real Agile Locomotion Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Rotation Representations Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Robotic World Model Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Prioritized Level Replay Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Model-Based Lookahead RL Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/MoDem-V2 Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Learning to Walk in Minutes Recap.md",
     "Projects/World Model as Task Scheduler/RelatedPapersRecap/Learning to Model World with Language Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/A Step Toward World Models Survey Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Learning Agile Locomotion Recap.md",
     "Projects/World Model as Task Scheduler/RelatedPapersRecap/Latent Space Survey Recap.md",
     "Projects/World Model as Task Scheduler/RelatedPapersRecap/Is Attention Required for ICL Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/FLD Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Beyond Human Demonstrations Recap.md",
+    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Improving Policy Optimization GSL Recap.md",
     "Projects/World Model as Task Scheduler/RelatedPapersRecap/HG-DAgger Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Sim-to-Real Agile Locomotion Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Learning to Walk in Minutes Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/DexterityGen Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/World Models for Dexterous Hand-Object Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/DexSim2Real2 Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Model-Based Lookahead RL Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Finetuning Offline WM Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/World4RL Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Robotic World Model Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/SafeDreamer Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Prioritized Level Replay Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Curious Exploration via Structured WM Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Curiosity-Driven Exploration Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Generalization in Dexterous Manipulation Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap/Solving Rubiks Cube Recap.md",
-    "Projects/World Model as Task Scheduler/RelatedPapersRecap",
-    "MergeBuffer/GenDexGrasp: Generalizable Dexterous Grasping.pdf",
-    "Projects/World Model as Task Scheduler/RelatedPapers/IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY.pdf",
-    "Projects/World Model as Task Scheduler/DexterousHandActuatorModel",
-    "MergeBuffer/HoverNotes/-video-screenshots.base",
-    "MergeBuffer/HoverNotes/-video-screenshots-without-notes.base",
-    "MergeBuffer/HoverNotes/-hovernotes.base",
-    "MergeBuffer/HoverNotes",
-    "Projects/World Model as Task Scheduler/On the Continuity of Rotation Representations in Neural Networks.pdf",
-    "KnowledgeGraph.canvas",
+    "Projects/World Model as Task Scheduler/DexterousHandActuatorModel/assets/Park Transform.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/连杆传动.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/谐波减速器.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星滚柱丝杠.webp",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/行星减速器.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/腱绳传动.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/伺服电机.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯转子无铁芯.png",
     "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/空心杯电机.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠丝杠.png",
-    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/滚珠.png",
+    "Pasted image 20260312161540.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/有刷直流电机.png",
+    "Projects/Dynamic Non-Prehensile Manipulation/DexterousHandMechanicalStructure/assets/三相BLDC.webp",
+    "Pasted image 20260312154625.png",
+    "KnowledgeGraph.canvas",
     "Backups/KnowledgeGraph.canvas"
   ]
 }
