@@ -5,7 +5,79 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-04-15 (Session #27 — WMTS RelatedPapersRecap 全量生成 + 三文档重构 + Canvas 更新 ✅)
+**最后更新**: 2026-04-26 (Session #28 — WMTS 颗粒度审计 + P0 Recap 补强 + 可靠性扩展 + MergeBuffer 清理 ✅)
+
+## 🟢 Session #28 完成 (2026-04-26)
+
+### World Model as Task Scheduler：RelatedPapersRecap 审计、可靠性方案与主知识库整理
+
+**触发**：用户要求执行 `/standard-workflow`，在完成主知识库整理后，重点检查 `Projects/World Model as Task Scheduler`：确认 RelatedPapersRecap 是否达到 skills 要求颗粒度、是否覆盖 RelatedPapers 全部内容，并在不改变现有 WMTS 架构的前提下，参考 `Final_WMTS.md` 提出更可靠、可达到顶会/顶刊水平的新方案。
+
+#### Phase 0: 状态恢复与健康检查
+
+| 检查项 | 结果 |
+|------|------|
+| `.github/TASK_TRACKER.md` | 已读取，承接 Session #27 的 WMTS 40 篇 RelatedPapersRecap 状态 |
+| `MergeBuffer/` | 发现 4 篇新 PDF：PDDM、GenDexGrasp、ANYmal Actuator Network、ANYmal Challenging Terrain |
+| `Projects/*/_ExperimentResultsAll.md` | 未发现标准路径文件；补查到 `all_Insights_local/_ExperimentResultsAll.md`，更新时间仍为 2026-02-28，无本轮需同步的新远端实验结果 |
+| WMTS RelatedPapersRecap | 40 篇 recap + 1 个 index，数量与 RelatedPapers 覆盖一致 |
+
+#### Phase 1: RelatedPapersRecap 审计与 P0 补强
+
+| 项目 | 结论/变更 |
+|------|-----------|
+| 覆盖率 | RelatedPapers 共 40 篇，RelatedPapersRecap 已整理 40 篇，数量完整 ✅ |
+| 质量审计 | 原始状态：数量完整，但 skills §2.3.1 要求的数学推导、代码级逻辑、物理量来源、工程陷阱、ablation 因果链普遍不足 |
+| 索引断链 | 修复 `_RelatedPapersIndex.md` 中 6 处文件名不匹配断链 |
+| P0 补强文件 | `DiWA`、`Diffusion Policy`、`ANYmal Parkour`、`CMA-ES`、`Dreamer`、`Deep Dynamics Models` 六篇补充“颗粒度补强”节 |
+| P1 队列 | 在 `_RelatedPapersIndex.md` 新增后续 refine 队列，标注 GSL、UniDexGrasp++、DyWA、SafeDreamer、Rotation Representations、DexSim2Real2、DayDreamer、Learning to Walk in Minutes 等可继续深化对象 |
+
+#### Phase 2: MergeBuffer 零废弃处理
+
+| PDF | 处理结果 |
+|-----|----------|
+| `Deep Dynamics Models for Learning Dexterous Manipulation.pdf` | 移入 `Papers/`；新增主库精读 `PapersRecap/Deep Dynamics Models for Learning Dexterous Manipulation.md` |
+| `GenDexGrasp: Generalizable Dexterous Grasping.pdf` | 移入 `Papers/`；新增主库精读 `PapersRecap/GenDexGrasp - Generalizable Dexterous Grasping.md` |
+| `Learning Agile and Dynamic Motor Skills for Legged Robots.pdf` | 移入 `Papers/`；新增主库精读 `PapersRecap/Learning Agile and Dynamic Motor Skills for Legged Robots.md` |
+| `Learning Quadrupedal Locomotion over Challenging Terrain.pdf` | 移入 `Papers/`；新增主库精读 `PapersRecap/Learning Quadrupedal Locomotion over Challenging Terrain.md` |
+| `MergeBuffer/_MergeIndex.md` | 新增 4 篇 PDF 处理记录；修复旧式断链 `[[taxonomy.md]]` → `[[taxonomy]]` |
+
+#### Phase 3: WMTS 可靠性扩展方案
+
+| 文件 | 变更 |
+|------|------|
+| `Projects/World Model as Task Scheduler/WMTS_Reliability_Extensions.md` | 新建研究方案：Pessimistic Contact-Actuation Scheduler，在不改变五模块主架构的基础上增加 reliability head |
+| `Final_WMTS.md` | 新增 §六“候选可靠性扩展”，链接新方案，明确其不替换 Latent Task Generator、Oracle、Generalist、Ensemble WM 或 Safety Filter |
+| `SameTask.md` | 从裸 URL 列表重构为同类任务/项目对照表，按灵巧操作 Sim-to-Real、接触/触觉/力控、可靠性扩展点组织 |
+
+**新方案核心**：用 dynamics epistemic uncertainty、actuator feasibility、contact topology feasibility 三重风险，对 CMA-ES 任务候选和 Diffusion action chunk 做保守排序/放行；建立 Solve/Probe/Reject 三队列与 LCB safety certificate。
+
+#### Phase 4: Foundations 与 Canvas 维护
+
+| 文件 | 变更 |
+|------|------|
+| `Foundations/Dynamics.md` | 新增 PDDM、ANYmal Actuator Network、DexNDM 相关论文链接 |
+| `Foundations/ReinforcementLearning.md` | 新增 PDDM 与 challenging terrain teacher-student/curriculum 链接 |
+| `Foundations/ContactMechanics.md` | 新增 GenDexGrasp contact map / force closure 与 PDDM contact-rich MPC 链接 |
+| `Foundations/RepresentationLearning.md` | 新增 GenDexGrasp contact map 与 proprioceptive TCN 表征链接 |
+| `Foundations/ControlTheory.md` | 新增 ANYmal actuator network 与 proprioceptive student policy 链接 |
+| `KnowledgeGraph.canvas` | 新增 WMTS Reliability Extensions 节点与 3 条边，连接 WMTS 核心、相关论文索引和 Sim-to-Real 突破点 |
+
+#### 验证结果
+
+| 指标 | 结果 |
+|------|------|
+| Canvas JSON | 101 nodes / 157 edges，解析成功 ✅ |
+| Canvas ID | 无重复 node/edge ID ✅ |
+| Canvas 边引用 | 无 dangling edge ✅ |
+| WMTS 关键文件 wikilink | `_RelatedPapersIndex.md`、`Final_WMTS.md`、`WMTS_Reliability_Extensions.md`、`SameTask.md` 全部 OK ✅ |
+| 本轮编辑文件 wikilink | broad check 未发现剩余断链 ✅ |
+| MergeBuffer 根目录 PDF | 已清空 ✅ |
+| 工具副作用 | 删除 Python 环境工具生成的 `.venv/`，移除 `.vscode/settings.json` 无关环境设置 ✅ |
+
+#### 状态结论
+
+本轮已完成主知识库新增 PDF 归档与精读、WMTS RelatedPapersRecap 覆盖审计、P0 技术颗粒度补强、可靠性扩展方案提出、同类项目结构化、Foundation 反向链接与 Canvas 同步。P1/P2 recap 已建立后续深化队列，但不阻塞当前 WMTS 方案推进。
 
 ## 🟢 Session #27 完成 (2026-04-15)
 
@@ -345,15 +417,15 @@
 
 ### PDF 链接方案切换：不使用公式，直接属性链接
 
-**触发**：用户要求“不要使用公式”，改为在 PapersRecap 的 `paper-pdf` property 直接写链接（如 `"[[Papers/OmniXtreme: ...pdf]]"`），并同步更新指示文件。
+**触发**：用户要求“不要使用公式”，改为在 PapersRecap 的 `paper-pdf` property 直接写 Obsidian PDF 直链，并同步更新指示文件。
 
 #### 变更内容
 
 | 文件 | 变更 |
 |------|------|
-| `PapersRecap/*.md`（74 篇） | `paper-pdf` 统一为 `"[[Papers/<精确PDF文件名>.pdf]]"` 直链格式 |
+| `PapersRecap/*.md`（74 篇） | `paper-pdf` 统一为精确 PDF 文件名直链格式 |
 | `PapersRecap/_PapersIndex.base` | 移除 `formula.paper_pdf` 依赖，所有视图直接使用 `paper-pdf` 属性列 |
-| `.github/copilot-instructions.md` | 模板更新为 `paper-pdf: "[[Papers/<论文PDF精确文件名>.pdf]]"` |
+| `.github/copilot-instructions.md` | 模板更新为 `paper-pdf` 精确 PDF 直链写法 |
 | `.github/skills/knowledge-graph-management/SKILL.md` | §3.5 与 §3.6 同步为“属性直链规范”，不再推荐公式生成链接 |
 
 #### 验证结果
@@ -361,7 +433,7 @@
 | 指标 | 结果 |
 |------|------|
 | PapersRecap 文件数 | 74 |
-| `paper-pdf` 符合 `"[[Papers/...pdf]]"` 格式 | 74/74 ✅ |
+| `paper-pdf` 符合精确 PDF 直链格式 | 74/74 ✅ |
 | `_PapersIndex.base` 中 `formula.paper_pdf` 引用 | 0 ✅ |
 
 
@@ -409,7 +481,7 @@
 
 | 问题 | 说明 |
 |------|------|
-| Session #18 公式 `"[[" + paper-pdf + "|..."]]"` | 字符串拼接产生的是文本，不是 Obsidian `Link` 类型，无法点击 |
+| Session #18 的手写 wikilink 字符串拼接公式 | 字符串拼接产生的是文本，不是 Obsidian `Link` 类型，无法点击 |
 | 用户手动编辑为 `file(![[paper_pdf]])` | `![[...]]` 是笔记正文嵌入语法，在 Bases formula 上下文中无效 |
 
 #### 修复依据
@@ -501,7 +573,7 @@
 
 | 文件 | 改动 |
 |------|------|
-| `PapersRecap/_PapersIndex.base` | 新增 `read-date` 属性展示；新增视图 `🗓️ 按阅读日期`；新增公式列 `paper_pdf`（`[[Papers/<论文名>.pdf]]` 直链）；各视图补充 `read-date` 与 PDF 列排序 |
+| `PapersRecap/_PapersIndex.base` | 新增 `read-date` 属性展示；新增视图 `🗓️ 按阅读日期`；新增公式列 `paper_pdf`（Papers PDF 直链）；各视图补充 `read-date` 与 PDF 列排序 |
 | `PapersRecap/*.md`（11 文件） | 为缺失项补全 `read-date: 2026-03-16` |
 
 #### 质量检查

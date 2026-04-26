@@ -26,6 +26,11 @@ related:
 > - [[ContactMechanics]] - 接触动力学是灵巧操作的核心难点
 > - [[Optimization]] - iLQR/DDP 依赖高效的动力学求解
 > - [[StochasticProcess]] - GP dynamics learning 补偿模型误差
+>
+> **相关论文**:
+> - [[Deep Dynamics Models for Learning Dexterous Manipulation]] - Ensemble dynamics + MPC 在灵巧手上的样本高效模型学习
+> - [[Learning Agile and Dynamic Motor Skills for Legged Robots]] - 解析刚体动力学 + 学习型 Actuator Network 的结构化 Sim-to-Real
+> - [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]] - 灵巧手 joint-wise neural dynamics model
 
 ## 1. 序言：动力学——灵巧操作的“暗物质” (Introduction: Dynamics as the "Dark Matter")
 

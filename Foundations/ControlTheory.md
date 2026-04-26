@@ -27,6 +27,10 @@ related:
 > - [[Optimization]] - MPC 与轨迹优化是现代控制的核心工具
 > - [[ReinforcementLearning]] - 数据驱动控制的替代范式
 > - [[EmbodiedAI]] - 分层 VLA 系统中低层控制器的设计
+>
+> **相关论文**:
+> - [[Learning Agile and Dynamic Motor Skills for Legged Robots]] - action-to-torque Actuator Network 近似低层闭环控制链路
+> - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - proprioceptive student policy 调制底层运动 primitive
 
 ## 1. 引言：灵巧操作的物理本质与控制挑战
 

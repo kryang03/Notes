@@ -31,6 +31,10 @@ related:
 > - [[EmbodiedAI]] - Vision Foundation Models (CLIP, DINO, SAM) 为机器人感知提供预训练表征
 >
 > **技术演进**: BC → MDN → IBC → Diffusion Policy / ACT
+>
+> **相关论文**:
+> - [[GenDexGrasp - Generalizable Dexterous Grasping]] - object-centric contact map 作为 hand-agnostic intermediate representation
+> - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - proprioceptive TCN 将历史传感序列压缩为隐式接触/地形状态
 
 ## 1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)
 

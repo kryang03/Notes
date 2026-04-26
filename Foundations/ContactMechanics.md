@@ -25,6 +25,10 @@ related:
 > - [[ControlTheory]] - 力/位混合控制依赖接触模型
 > - [[Optimization]] - LCP/QP 求解器是接触仿真的核心
 > - [[ComputationalGeometry]] - SDF 用于碰撞检测
+>
+> **相关论文**:
+> - [[GenDexGrasp - Generalizable Dexterous Grasping]] - 以 contact map 作为跨手型抓取表征，并用 force closure 合成 MultiDex
+> - [[Deep Dynamics Models for Learning Dexterous Manipulation]] - contact-rich MPC 在多指手任务中的经验验证
 
 ## 1. 执行摘要与引言
 

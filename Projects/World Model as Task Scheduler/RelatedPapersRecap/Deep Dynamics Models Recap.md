@@ -34,3 +34,57 @@ $$\mu_t = \frac{\sum_{k=0}^{N} (e^{\gamma \cdot R_k})(a_t^{(k)})}{\sum_{j=0}^{N}
 - **PDDM 的 Ensemble Disagreement** 就是 WMTS §一中 $R_I$ (Curiosity) 的实现
 - **局限**：PDDM 无隐空间（原始状态空间 MPC），WMTS 需要隐空间做长 horizon dream
 - **PDDM 只做 MPC 不学策略**：WMTS 结合了策略学习（Diffusion）和 WM 规划
+
+## 颗粒度补强：PDDM 作为 WMTS 的不确定性原型
+
+### 数学框架
+
+PDDM 学习 ensemble transition：
+
+$$
+\hat{p}_{\theta_i}(s_{t+1}\mid s_t,a_t)=\mathcal{N}(f_{\theta_i}(s_t,a_t),\Sigma_i),\quad i=1,\ldots,E.
+$$
+
+MPC 采样 action sequence 并用 reward-weighted update 更新均值：
+
+$$
+\mu_t=\frac{\sum_k\exp(\gamma R_k)a_t^{(k)}}{\sum_j\exp(\gamma R_j)}.
+$$
+
+动作噪声采用 beta filtering：
+
+$$
+n_t=\beta u_t+(1-\beta)n_{t-1},\quad u_t\sim\mathcal{N}(0,\Sigma).
+$$
+
+### 精简代码逻辑
+
+```python
+noise = filtered_gaussian_noise(num_samples, horizon, act_dim, beta)
+actions = mean[None] + noise
+states = repeat(current_state, num_samples)
+for t in range(horizon):
+	model = random_choice(ensemble)
+	states = model(states, actions[:, t])
+	returns += reward_fn(states)
+weights = torch.softmax(gamma * returns, dim=0)
+mean = (weights[:, None, None] * actions).sum(dim=0)
+execute(mean[0])
+```
+
+### Ablation 因果链
+
+| 组件 | 去掉后的问题 | 原因 |
+|---|---|---|
+| Ensemble | 早期训练不稳定 | 单模型在小数据下过拟合且过度自信 |
+| Reward-weighted update | 搜索效率下降 | hard elite 丢弃大量排序信息 |
+| Beta filtering | 动作高频抖动 | 高维手部动作序列独立采样导致接触力突变 |
+
+### WMTS 迁移
+
+PDDM 不应替代 WMTS Generalist，但应成为两个模块的数学模板：
+
+1. **Latent Task Generator**：用 ensemble disagreement 找能力边界；
+2. **Look-ahead Safety Filter**：用 pessimistic rollout 拦截 diffusion action chunk。
+
+主库精读版见 [[Deep Dynamics Models for Learning Dexterous Manipulation]]。

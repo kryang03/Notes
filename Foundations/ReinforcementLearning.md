@@ -35,6 +35,8 @@ related:
 > - [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]] - 稳定性证书方法
 > - [[Elastic Time Step Reinforcement Learning, VTS-RL]] - 弹性时间步
 > - [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] - Lipschitz 约束网络
+> - [[Deep Dynamics Models for Learning Dexterous Manipulation]] - model-based RL 在 Shadow Hand 上的高效真机学习
+> - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - privileged teacher-student + adaptive curriculum 的 sim-to-real RL
 
 ## 摘要 (Abstract)
 

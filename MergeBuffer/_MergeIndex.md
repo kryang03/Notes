@@ -506,7 +506,7 @@ status: pending
 - [[Dynamics]]: +3 论文链接 (谐波减速器, MCC, DAPL)
 - [[ComputationalGeometry]]: +2 论文链接 (PointWorld, Tacmap)
 - [[RepresentationLearning]]: +1 新增 §2.2.3 Flow Matching 完整节
-- [[taxonomy.md]]: +13 论文索引条目
+- [[taxonomy]]: +13 论文索引条目
 
 ---
 
@@ -666,3 +666,53 @@ status: pending
 | 强化学习核心文献深度剖析.md | 新建 Unified Policy PapersRecap | ✅ |
 
 **处理结果**: 内容融入 Foundations/PapersRecap，原文件已删除 (2026-03-25)
+
+---
+
+## 2026-04-26 新增 PDF 处理 (Session #28)
+
+### 23. Deep Dynamics Models for Learning Dexterous Manipulation.pdf
+**主题**: PDDM — Ensemble deep dynamics + MPC for dexterous manipulation
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| 主库论文精读 | [[Deep Dynamics Models for Learning Dexterous Manipulation]] | ✅ 新建 |
+| WMTS 项目补强 | [[Deep Dynamics Models Recap]] | ✅ 增加算法颗粒度补强 |
+| Foundation 反链 | [[Dynamics]], [[ReinforcementLearning]], [[ContactMechanics]] | ✅ 新增相关论文入口 |
+
+### 24. GenDexGrasp: Generalizable Dexterous Grasping.pdf
+**主题**: Hand-agnostic contact map + MultiDex + aligned distance
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| 主库论文精读 | [[GenDexGrasp - Generalizable Dexterous Grasping]] | ✅ 新建 |
+| Foundation 反链 | [[ContactMechanics]], [[RepresentationLearning]] | ✅ 新增相关论文入口 |
+| WMTS 新方案 | [[WMTS_Reliability_Extensions]] | ✅ contact topology feasibility 引用 |
+
+### 25. Learning Agile and Dynamic Motor Skills for Legged Robots.pdf
+**主题**: ETH Actuator Network — analytical rigid dynamics + learned action-to-torque model
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| 主库论文精读 | [[Learning Agile and Dynamic Motor Skills for Legged Robots]] | ✅ 新建 |
+| WMTS 项目补强 | [[ANYmal Parkour Recap]] | ✅ Actuator Network 颗粒度补强 |
+| Foundation 反链 | [[Dynamics]], [[ControlTheory]] | ✅ 新增相关论文入口 |
+
+### 26. Learning Quadrupedal Locomotion over Challenging Terrain.pdf
+**主题**: Privileged teacher-student + proprioceptive TCN + particle-filter terrain curriculum
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| PDF 归档 | Papers/ | ✅ 已移动 |
+| 主库论文精读 | [[Learning Quadrupedal Locomotion over Challenging Terrain]] | ✅ 新建 |
+| Foundation 反链 | [[ReinforcementLearning]], [[ControlTheory]], [[RepresentationLearning]] | ✅ 新增相关论文入口 |
+| WMTS 新方案 | [[WMTS_Reliability_Extensions]] | ✅ privileged-observable consistency 引用 |
+
+**处理结果**: MergeBuffer 四篇 PDF 均已移入 Papers/，主库 PapersRecap 新增 4 篇，WMTS P0 RelatedPapersRecap 补强 6 篇，新增可靠性扩展方案 (2026-04-26)。

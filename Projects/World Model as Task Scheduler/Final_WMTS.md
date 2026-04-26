@@ -58,19 +58,19 @@ $$\mathbf{o}^{\text{task}}_t = [\mathbf{g}_{t+1}^\top, \ldots, \mathbf{g}_{t+T_{
 - **关节速度序列:** $\mathbf{o}^{\text{vel}}_{t-H:t} = [\dot{\theta}_{t-H}, \dots, \dot{\theta}_t] \in \mathbb{R}^{16 \times (H+1)}$（经过低通滤波或卡尔曼滤波处理后的值）
     
 - _工程建议:_ 此序列需通过 1D-CNN 或 Transformer 编码为隐向量 $z_{prop} \in \mathbb{R}^{d_{prop}}$，而非直接展平输入 MLP，以提取时序动态特征。
- **⑥ 高维触觉感知 (Tactile Sensing) 
+**⑥ 高维触觉感知 (Tactile Sensing)** 
  
 直接使用传感矩阵，避免在底层进行不可靠的物理量反解。
 - **触觉张量:** $\mathbf{o}^{\text{tactile}}_t = F_{tactile, t} \in \mathbb{R}^{5 \times 12 \times 6}$
 
 - _工程建议:_ 这个维度 ($360$D) 如果直接输入 MLP 会导致局部空间信息丢失。建议使用针对手指拓扑设计的轻量级 CNN 或 Graph Neural Network (GNN) 处理成特征向量 $z_{tac} \in \mathbb{R}^{d_{tac}}$。它负责隐式回答 $O_{oracle}$ 中的 $F_{contact}$。
-**⑦ 隐式动力学与环境适配 (Thermal & Actuator State) 
+**⑦ 隐式动力学与环境适配 (Thermal & Actuator State)** 
 - **电机温度:** $\mathbf{o}^{\text{temp}}_t = T_{motor, t} \in \mathbb{R}^{16}$
 - **历史动作序列:** $\mathbf{o}^{\text{action}}_{t-H:t-1} = [a_{t-H}, \dots, a_{t-1}] \in \mathbb{R}^{16 \times H}$
     
 - _逻辑推导:_ 温度 $T$ 反映了电机当前的力矩饱和上限和热耗散状态；而动作序列 $a$ 配合 $\theta$ 序列，是网络推断“丝杠静摩擦”和“连杆弹性形变”的唯一途径。这两者组合是克服非线性 Jacobian 污染的关键。
     
-**⑧ 驱动器专属输入 (Actuator Model Features)
+**⑧ 驱动器专属输入 (Actuator Model Features)**
 - **反馈力矩:** $\tau_{fb, t} \in \mathbb{R}^{16}$
 [确认：是否使用力矩传感器读到的关节力矩，还是直接用电机电流算的]
 - _严格限制:_ 因为该"力矩"在传递到指尖之前已被热漂移 、丝杠静摩擦、非线性 Jacobian 和连杆弹性形变严重"污染"，$\tau_{fb}$ **不可**作为 Policy 的直接输入观测，**不可**参与计算 Reward（会引发极大的 Reward Hacking，导致策略学会“轻柔但无效”的动作以降低虚假力矩）。它仅被允许输入给专门训练的底层 Actuator Network（用于取代传统的 PD 控制器）。
@@ -312,3 +312,10 @@ $$\mathcal{L}_{Finetune} = \mathbb{E}_{\tau_{real}}\left[\exp\left(\frac{R(\tau)
 
 > [!warning] Dream RL 的对抗性风险
 > PPO 极其贪婪，可能数百步内找到 WM 物理漏洞，生成对抗性动作（"WM 里完美，真机上拧断手指"）。BC 正则项和短 horizon rollout 是必要的安全阀。
+
+---
+
+## 六、候选可靠性扩展（不改变五模块主架构）
+
+> [!tip] 新方案入口
+> 详见 [[WMTS_Reliability_Extensions]]。该方案在现有五模块外增加可靠性增强层：用 dynamics epistemic uncertainty、actuator feasibility、contact topology feasibility 三重风险对任务候选和 action chunk 做保守排序/放行。它不替换当前 Latent Task Generator、Oracle、Generalist、Ensemble WM 或 Safety Filter，只为每个模块增加可插拔的 reliability head。

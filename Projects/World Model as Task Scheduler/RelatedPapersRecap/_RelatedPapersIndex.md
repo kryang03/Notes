@@ -32,7 +32,7 @@ tags:
 |-----|---------|------------------|
 | [[DeXtreme Recap\|DeXtreme]] | 大规模 DR + 视觉 Sim-to-Real 灵巧手 reorientation | DR 策略 + Sim-to-Real 管线参考 |
 | [[DexReMoE Recap\|DexReMoE]] | MoE 框架跨形状泛化 in-hand reorientation | MoE 泛化架构参考 |
-| [[DEXTERITYGEN Recap\|DexterityGen]] | Foundation Controller 统一灵巧操作 | 通才-专才范式参考 |
+| [[DexterityGen Recap\|DexterityGen]] | Foundation Controller 统一灵巧操作 | 通才-专才范式参考 |
 | [[From Simple to Complex Skills Recap\|DexHier]] | 层次策略复用预训练旋转技能 | 层次策略 + 技能复用参考 |
 | [[Solving Rubiks Cube Recap\|OpenAI Rubik's Cube]] | ADR 自动域随机化 + 灵巧手解魔方 | ADR 自动课程 + 极限 DR 参考 |
 | [[Generalization in Dexterous Manipulation Recap\|Geometry-Dex]] | 点云多任务学习 100+ 物体泛化 | PointNet 物体表征 + 多任务泛化 |
@@ -45,7 +45,7 @@ tags:
 |-----|---------|------------------|
 | [[ANYmal Parkour Recap\|ANYmal Parkour]] | 四足跑酷 + Actuator Network 建模 | **直接启发 WMTS Actuator Model** |
 | [[Learning Agile Locomotion Recap\|ETH Locomotion]] | Actuator Network + 全流程 Sim-to-Real | Actuator Network 经典范式 |
-| [[Learning to Walk 3min Recap\|Semi-structured Dynamics]] | 3 分钟真机数据 + 半结构化动力学模型 | 启发 WMTS 物理先验 + 残差学习 |
+| [[Learning to Walk in Minutes Recap\|Semi-structured Dynamics]] | 3 分钟真机数据 + 半结构化动力学模型 | 启发 WMTS 物理先验 + 残差学习 |
 | [[Sim-to-Real Agile Locomotion Recap\|Sim2Real Locomotion]] | 大规模仿真 + 域随机化四足 Sim-to-Real | DR 方法论参考 |
 
 ## 四、扩散策略与模仿学习
@@ -72,13 +72,21 @@ tags:
 | [[CMA-ES Tutorial Recap\|CMA-ES Tutorial]] | 协方差矩阵自适应进化策略 | **WMTS 隐空间任务生成器核心算法** |
 | [[Rotation Representations Recap\|6D Rotation]] | 连续旋转表示 (5D/6D) | **WMTS 任务空间旋转表示** |
 | [[FLD Recap\|FLD]] | 傅里叶隐空间动力学表征 | 运动表征编码参考 |
-| [[IS ATTENTION REQUIRED FOR ICL Recap\|Attention & ICL]] | 注意力与 In-Context Learning 关系 | WM 架构选择理论支撑 |
-| [[The Latent Space Recap\|Latent Space Survey]] | 隐空间基础、演进与能力综述 | WMTS 隐空间设计理论参考 |
+| [[Is Attention Required for ICL Recap\|Attention & ICL]] | 注意力与 In-Context Learning 关系 | WM 架构选择理论支撑 |
+| [[Latent Space Survey Recap\|Latent Space Survey]] | 隐空间基础、演进与能力综述 | WMTS 隐空间设计理论参考 |
 
 ## 七、综述
 
 | 论文 | 核心贡献 | 与 WMTS 的关键关联 |
 |-----|---------|------------------|
 | [[A Step Toward World Models Survey Recap\|WM Survey (Manipulation)]] | 机器人操作视角的 WM 综述 | WMTS 方法论定位参考 |
-| [[Learning to Model the World Survey Recap\|WM Survey (General)]] | AI WM 全景综述（四大范式） | WM 分类学参考 |
-| [[World Models Computing the Uncomputable Recap\|WM Essay]] | WM 哲学：固定代价前向传播模拟世界 | WMTS 动机的概念性支撑 |
+| [[Learning to Model World with Language Recap\|WM Survey (General)]] | AI WM 全景综述（四大范式） | WM 分类学参考 |
+| [[WM Computing the Uncomputable Recap\|WM Essay]] | WM 哲学：固定代价前向传播模拟世界 | WMTS 动机的概念性支撑 |
+
+## 八、2026-04-26 颗粒度审计状态
+
+> [!success] 覆盖状态
+> RelatedPapers/ 共 40 篇，RelatedPapersRecap/ 已整理 40 篇，数量一致。本轮修复索引断链 6 处，并优先补强与 [[Final_WMTS]] 五模块直接相关的 P0 论文：[[DiWA- Diffusion Policy Adaptation with World Models Recap|DiWA]]、[[Diffusion Policy Recap]]、[[ANYmal Parkour Recap]]、[[CMA-ES Tutorial Recap]]、[[Dreamer Recap]]、[[Deep Dynamics Models Recap]]。
+
+> [!todo] 后续 refine 队列
+> P1 论文（[[Improving Policy Optimization GSL Recap|GSL]]、[[UniDexGrasp++ Recap]]、[[DyWA Recap]]、[[SafeDreamer Recap]]、[[Rotation Representations Recap]]、[[DexSim2Real2 Recap]]、[[DayDreamer Recap]]、[[Learning to Walk in Minutes Recap]]）已完成基础整理，但仍可继续补充代码级细节与 ablation 因果链。
