@@ -42,6 +42,13 @@ related:
 
 这不仅是一份技术报告，更是一条从“几何约束”到“力学顺应”，再到“优化决策”的思想演进链条（Problem-Solution Chain）。
 
+> [!note] 入门直觉：控制理论为什么是工程共同语言
+> 本段整合自 `MergeBuffer/HoverNotes/Untitl.md` 的控制理论入门笔记。控制系统的最小定义是：**选择输入，使系统未来状态趋向期望状态**。这同一件事同时出现在开关电源的电压调节、自动增益控制、机械隔振、建筑阻尼、机器人装配线 PID、飞机颤振抑制中。
+>
+> - **开环控制**：输入不依赖输出，例如固定油门位置或固定清洗时间；环境变化（上坡、负载变化、餐具脏污程度）会直接造成输出漂移。
+> - **闭环控制**：传感器测量输出，与参考信号比较得到误差，再由控制器调整输入；这就是负反馈，也是 [[SignalProcessing|状态估计]]、[[Dynamics|动力学建模]] 与 [[Optimization|控制优化]] 汇合的接口。
+> - **阻尼直觉**：手指触摸振动酒杯会让声响更快消失，因为你改变了系统的能量耗散路径。灵巧手接触物体时的阻抗控制，本质上也是在设计“该吸收多少能量、该反弹多少能量”。
+
 ------
 
 ## 2. 核心概念：灵巧操作的运动学与静力学基础
@@ -1152,11 +1159,110 @@ $$\begin{bmatrix} P & X_+ G \\ G^T X_+^T & P \end{bmatrix} \succ 0$$
 
 #### 9.3.2 带噪声数据的鲁棒镇定
 
-当数据受扰动 $w(t)$ 影响且满足逐点能量界 $\|w(t)\|_2^2 \leq \epsilon$ 时，数据一致集变为：
+> [!note] 教科书参考
+> 本节基于 [[Books/Data-based linear systems and control theory.pdf]] Chapter 3.6-3.7（noisy input-state data 的 quadratic stability / quadratic stabilizability）、Chapter 6.3（quadratic stabilization using noisy data）、Appendix A.2-A.3（quadratic matrix inequalities 与 Matrix S-lemma / Finsler lemma）。
+
+当数据受扰动 $w(t)$ 影响时，系统不再满足精确方程，而是：
+
+$$
+x(t+1)=A_{true}x(t)+B_{true}u(t)+w(t),\quad X_+=A_{true}X_-+B_{true}U_-+W_-.
+$$
+
+噪声先验用一个**二次矩阵不等式（Quadratic Matrix Inequality, QMI）**表达：
+
+$$
+\begin{bmatrix} I \\ W_-^\top \end{bmatrix}^\top
+\Phi
+\begin{bmatrix} I \\ W_-^\top \end{bmatrix} \succeq 0,
+\quad
+\Phi = \begin{bmatrix}\Phi_{11} & \Phi_{12} \\ \Phi_{21} & \Phi_{22}\end{bmatrix},
+\quad \Phi_{22} \prec 0.
+$$
+
+逐点能量界 $\|w(t)\|_2^2 \leq \epsilon$ 可以聚合为 $W_- W_-^\top \preceq T\epsilon I$，这是上述 QMI 的一个特例。
+
+因此数据一致集变为：
 
 $$\Sigma_D = \{(A, B) \mid X_+ = A X_- + B U_- + W_-, \; \|w(t)\|^2 \leq \epsilon\}$$
 
 **二次镇定**：寻找使所有一致系统具有共同 Lyapunov 函数 $V(x) = x^T Q x$ 的控制器。
+
+#### 9.3.3 Matrix S-lemma：从无限多个模型到一个 LMI
+
+噪声数据的难点在于 $\Sigma_D$ 通常包含无穷多个系统。鲁棒镇定要求一个控制器或证书同时覆盖所有 $(A,B)\in\Sigma_D$，形式上是：
+
+$$
+P - A P A^\top + B B^\top \succ 0,\quad \forall (A,B)\in\Sigma_D.
+$$
+
+这看起来是无穷多个不等式。Data-based control 的关键 insight 是：**一致系统集合本身由 QMI 描述，而 Lyapunov 条件也可写成 QMI；QMI 蕴含关系可由 Matrix S-lemma / Finsler lemma 转成有限维 LMI。**
+
+设
+
+$$
+N =
+\begin{bmatrix}
+I & X_+ \\
+0 & -X_- \\
+0 & -U_-
+\end{bmatrix}
+\Phi
+\begin{bmatrix}
+I & X_+ \\
+0 & -X_- \\
+0 & -U_-
+\end{bmatrix}^{\top}.
+$$
+
+> [!theorem] Theorem 3.19（噪声数据的二次可稳定性）
+> 若 $\Phi_{22}\prec 0$ 且数据满足相应满秩条件，则 $(U_-,X)$ 对**二次可稳定性**信息充分，当且仅当存在 $P\succ0$ 与 $\alpha\ge0$ 使得：
+> $$
+> \begin{bmatrix}
+> P & 0 & 0 \\
+> 0 & -P & 0 \\
+> 0 & 0 & I
+> \end{bmatrix} - \alpha N \succ 0.
+> $$
+>
+> **证明思路**：将“一致系统满足 Lyapunov QMI”写为集合包含关系 $Z_{n+m}(N)\subseteq Z_{n+m}^{+}(M)$，再用 Matrix S-lemma 把 QMI 蕴含等价为 $M-\alpha N\succ0$。
+
+进一步，Corollary 3.20 将该条件化简为一个 $2n\times2n$ 的 LMI：
+
+$$
+\begin{bmatrix}
+P & 0 \\
+0 & -P
+\end{bmatrix}
+-
+\begin{bmatrix}
+I & X_+ \\
+0 & -X_-
+\end{bmatrix}
+\Phi
+\begin{bmatrix}
+I & X_+ \\
+0 & -X_-
+\end{bmatrix}^{\top}
+\succ 0.
+$$
+
+#### 9.3.4 灵巧操作应用：把短真机轨迹变成稳定性证书
+
+对 [[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|WMTS Actuator Model]] 和 [[Actuator2RigidDynamicsModel_gap|L25 执行器 gap]]，可以把局部状态定义为
+
+$$
+x_t=[\phi_t,\dot\phi_t,T_t,z_{\delta,t}],\quad u_t=a_t,
+$$
+
+其中 $z_{\delta,t}$ 编码 CAN latency / 总线相位差。短时 scripted 真机轨迹给出 $(U_-,X_-,X_+)$，噪声项 $W_-$ 吸收 CAN 抖动、温度漂移、触觉估计误差与未建模摩擦。
+
+**工程用法**：
+1. 用 5-10 分钟真机激励轨迹检查 $\begin{bmatrix}X_-\\U_-\end{bmatrix}$ 是否足够满秩（PE 条件）。
+2. 设定噪声 QMI（例如 $W_-W_-^\top\preceq T\epsilon I$，或按温度/latency 分块设定各向异性 $\Phi$）。
+3. 求解上面的 LMI。若可行，$P$ 是覆盖所有一致 actuator 模型的共同 Lyapunov 证书。
+4. 若不可行，说明数据或噪声界不足：要么收集更丰富的激励，要么缩小策略输出灵敏度（见 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Certified RL]] 的偏导数界 SDP）。
+
+这给 [[Idea-002-Latency-Aware-Actuator|Latency-Aware Actuator]] 的 “5 分钟适配” 增加了一个古典控制理论判据：不是只看 validation MSE，而是检查**所有与真机短数据一致的局部执行器模型是否共享同一个稳定性证书**。
 
 ### 9.4 Data-Enabled Predictive Control (DeePC)
 
@@ -1186,6 +1292,226 @@ $$\begin{pmatrix} U_p \\ Y_p \\ U_f \\ Y_f \end{pmatrix} g = \begin{pmatrix} u_{
 1. **接触力学的线性化区域**：小变形下的阻抗模型近似 LTI
 2. **遥操作数据的利用**：人类示教数据构建行为 Hankel 矩阵
 3. **安全约束嵌入**：在 DeePC 约束中加入摩擦锥约束
+
+------
+
+## 10. 稳定性理论的统一基石 (Unified Foundations of Stability Theory)
+
+> [!important] 章节定位
+> §3-§9 已分别介绍阻抗、OSF、混合控制、SMC、CIO-MPC、数据驱动控制等控制器设计范式。本节回到**所有这些方法共享的底层数学骨架**——Lyapunov 稳定性理论。它统一了：
+> - §3.2 阻抗控制的被动性证明
+> - §4 OSF 的零空间收敛性
+> - 与 [[Safe Model-based Reinforcement Learning with Stability Guarantees|RL 中价值即 Lyapunov]] 的桥梁（§3.2 已引用）
+> - §3.3 [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints|CBF]] 的对偶推导
+> - §11 LQR 的代价收敛
+> - §12 自适应控制的参数收敛
+>
+> 灵巧操作研究者必须掌握这套语言——它是评判任何控制器（古典 / RL / Diffusion）是否"真正可靠"的唯一通用尺度。
+
+### 10.1 自治系统的 Lyapunov 直接法 (Lyapunov's Direct Method)
+
+> [!note] 教科书参考
+> 本节基于 Khalil "Nonlinear Systems" Chapter 4 与 Murray Ch.4 的标准结果。
+
+#### 物理直觉
+
+**能量守恒 → 能量耗散 → 收敛**。若能找到一个标量"能量函数" $V(x)$，它在平衡点取最小值，且系统轨迹沿 $V$ 单调下降，那么轨迹必然被吸引到平衡点。无需求解 ODE，仅靠能量代数即可断言稳定性——这是 Lyapunov 1892 年留下的最优雅遗产。
+
+#### 形式化定义
+
+考虑自治系统 $\dot x = f(x)$，$f(0) = 0$，$x \in \mathcal{D} \subset \mathbb{R}^n$。
+
+**定义（Lyapunov 函数候选）**：连续可微函数 $V: \mathcal{D} \to \mathbb{R}$ 称为 Lyapunov 函数候选当：
+- $V(0) = 0$，且 $V(x) > 0,\ \forall x \in \mathcal{D} \setminus \{0\}$（**正定**）
+- $V$ 在 $\mathcal{D}$ 上径向无界（在全局结果中需要）
+
+沿系统轨迹的导数：
+
+$$\dot V(x) = \nabla V(x)^\top f(x).$$
+
+> [!theorem] Theorem 10.1（Lyapunov 直接法）
+> 设 $V$ 为 Lyapunov 函数候选。
+> 1. 若 $\dot V(x) \leq 0,\ \forall x \in \mathcal{D}$，则 $x = 0$ 是**Lyapunov 稳定**的（轨迹有界）。
+> 2. 若 $\dot V(x) < 0,\ \forall x \in \mathcal{D} \setminus \{0\}$，则 $x = 0$ 是**渐近稳定**的（$x(t) \to 0$）。
+> 3. 若进一步存在 $\alpha > 0$ 使 $\dot V(x) \leq -\alpha V(x)$，则**指数稳定**（$\|x(t)\| \leq C e^{-\alpha t/2} \|x(0)\|$，对应 $V \sim \|x\|^2$）。
+>
+> **证明思路**：对 $V(x(t))$ 应用比较引理（Comparison Lemma），利用 $V$ 的正定性夹逼 $\|x(t)\|$。
+
+#### 灵巧操作应用
+
+| 控制范式 | Lyapunov 函数选择 | 收敛指标 |
+|---------|-------------------|---------|
+| **PD + 重力补偿** | $V = \tfrac{1}{2} \dot q^\top M(q) \dot q + \tfrac{1}{2} (q-q_d)^\top K_p (q-q_d)$ | 关节空间渐近稳定 |
+| **阻抗控制**（§3.2） | 见 §3.2 callout 的 $V = \tfrac{1}{2} \dot{\tilde x}^\top M_d \dot{\tilde x} + \tfrac{1}{2} \tilde x^\top K_d \tilde x$ | 任务空间被动 |
+| **OSF + Null Space**（§4） | $V = \tfrac{1}{2} \dot{\tilde x}^\top \Lambda \dot{\tilde x} + \cdots$ + null-space 子项 | 任务优先收敛 |
+| **CBF**（§3.3） | $h(x)$ 作为安全 barrier，对偶 Lyapunov | 安全集前向不变 |
+
+### 10.2 LaSalle 不变集原理 (LaSalle's Invariance Principle)
+
+> [!theorem] Theorem 10.2（LaSalle 不变集原理）
+> 设 $\Omega \subset \mathcal{D}$ 是紧致正不变集，$V: \Omega \to \mathbb{R}$ 连续可微，$\dot V(x) \leq 0$ 在 $\Omega$ 上成立。设 $E = \{x \in \Omega : \dot V(x) = 0\}$，$M$ 为 $E$ 内**最大不变集**。则任意 $x(0) \in \Omega$ 的轨迹满足 $x(t) \to M$。
+
+#### 为何重要
+
+许多机械系统的 $\dot V$ **半负定**（如 $\dot V = -\dot q^\top D \dot q$ 仅在 $\dot q = 0$ 处为零），定理 10.1 仅给出 Lyapunov 稳定，无法断言渐近稳定。LaSalle 弥补了这一缺口：通过分析"$\dot V = 0$ 的最大不变集"是否仅含平衡点，即可推出渐近稳定。
+
+#### 灵巧操作典型用法
+
+PD + 重力补偿控制器 $\tau = -K_p \tilde q - K_d \dot q + g(q)$ 下，$\dot V = -\dot q^\top K_d \dot q \leq 0$。$\dot V = 0 \Leftrightarrow \dot q = 0$，代入闭环动力学得 $\ddot q = -M^{-1} K_p \tilde q$，故 $\dot q \equiv 0 \Rightarrow \tilde q = 0$。LaSalle 给出全局渐近稳定。
+
+### 10.3 输入-状态稳定性 (Input-to-State Stability, ISS)
+
+> [!note] 教科书参考
+> Sontag (1989) 提出的 ISS 概念，是连接古典 Lyapunov 与现代鲁棒控制的桥梁。
+
+#### 形式化定义
+
+非线性系统 $\dot x = f(x, u)$ 是 **ISS** 当存在 $\mathcal{KL}$ 函数 $\beta$ 与 $\mathcal{K}$ 函数 $\gamma$ 使：
+
+$$\|x(t)\| \leq \beta(\|x(0)\|, t) + \gamma\left(\sup_{0 \leq \tau \leq t} \|u(\tau)\|\right).$$
+
+> [!theorem] Theorem 10.3（ISS-Lyapunov 函数）
+> 系统 ISS 当且仅当存在光滑径向无界正定 $V$ 与 $\mathcal{K}_\infty$ 函数 $\alpha_3, \chi$ 使：
+> $$\|x\| \geq \chi(\|u\|) \;\Longrightarrow\; \dot V(x, u) \leq -\alpha_3(\|x\|).$$
+>
+> **物理含义**：当状态范数大于扰动幅值的某个非线性增益时，能量严格下降——系统对**所有有界扰动**给出有界响应。
+
+#### 灵巧操作应用
+
+- **未建模动力学**（摩擦、迟滞、电缆张力）作为输入扰动 $u = \Delta(x, t)$，ISS 保证策略不会因小扰动发散。
+- **Sim-to-real gap** 视为有界外部输入，ISS-Lyapunov 函数给出**仿真控制器在真机上仍稳定的充分条件**——这是 [[Idea-002-Latency-Aware-Actuator]] frozen-rigid 适配能成立的理论根据。
+- **RL 策略的鲁棒性证书**：将策略嵌入闭环动力学后，若能学得 ISS-Lyapunov 函数（参考 [[Safe Model-based Reinforcement Learning with Stability Guarantees]]），即可在部署前给出安全保证。
+
+### 10.4 被动性、Passivity-Based Control 与 RL 价值函数
+
+§3.2 已展示阻抗控制的被动性证明。一般地：
+
+> [!important] 被动性的统一表述
+> 系统 $\Sigma: u \to y$ 是**被动的**当存在储能函数 $H(x) \geq 0$ 使 $\dot H \leq u^\top y$。
+>
+> **关键性质**：
+> - 两个被动系统的反馈互联仍被动（**被动性定理**）
+> - 严格输出被动 + 零状态可观 ⇒ 渐近稳定
+>
+> **与 RL 的统一**：负优势函数 $-A^\pi(s, a)$ 在最优策略下满足类似 $\dot V \leq 0$ 的关系——这就是 §3.2 引用的"价值即 Lyapunov"洞见的根源。Bellman 算子的压缩性等价于一种离散时间被动性。
+
+------
+
+## 11. 线性二次最优控制 (Linear Quadratic Regulator, LQR)
+
+> [!note] 教科书参考
+> 本节基于 Anderson & Moore "Optimal Control: Linear Quadratic Methods" 与 Bertsekas "Dynamic Programming and Optimal Control" Vol. I 的标准推导。它是 §8 CIO-MPC 中 iLQR/DDP 的**线性原型**，也是 §9.3 数据驱动 LQR 的**模型已知 baseline**。
+
+### 11.1 连续时间无限时域 LQR
+
+考虑 LTI 系统 $\dot x = A x + B u$，二次代价
+
+$$J = \int_0^\infty (x^\top Q x + u^\top R u)\, dt,\quad Q \succeq 0,\ R \succ 0.$$
+
+> [!theorem] Theorem 11.1（连续 ARE 与最优反馈）
+> 若 $(A, B)$ 可镇定且 $(A, Q^{1/2})$ 可观测，则**代数 Riccati 方程**
+> $$A^\top P + P A - P B R^{-1} B^\top P + Q = 0$$
+> 存在唯一正定解 $P^* \succ 0$。最优反馈律
+> $$u^*(t) = -K x(t),\qquad K = R^{-1} B^\top P^*$$
+> 使闭环 $A - BK$ Hurwitz，最优代价 $J^* = x_0^\top P^* x_0$。
+>
+> **证明骨架**：对 $V(x) = x^\top P x$ 应用 HJB 方程 $\min_u \{x^\top Q x + u^\top R u + \nabla V \cdot (Ax + Bu)\} = 0$，对 $u$ 求导得到 $u^* = -R^{-1} B^\top P x$，回代即得 ARE。
+
+### 11.2 离散时间有限时域 LQR：Riccati 递推
+
+离散系统 $x_{k+1} = A x_k + B u_k$，代价 $J = x_N^\top Q_N x_N + \sum_{k=0}^{N-1} (x_k^\top Q x_k + u_k^\top R u_k)$。
+
+> [!theorem] Theorem 11.2（DRE 后向递推）
+> 令 $P_N = Q_N$。则
+> $$P_k = Q + A^\top P_{k+1} A - A^\top P_{k+1} B (R + B^\top P_{k+1} B)^{-1} B^\top P_{k+1} A.$$
+> 最优反馈律 $u_k^* = -K_k x_k$，$K_k = (R + B^\top P_{k+1} B)^{-1} B^\top P_{k+1} A$。
+>
+> **复杂度**：$O(N (n_x^3 + n_u^3))$——这正是 [[Optimization#4.1 核心算法：iLQR / DDP|iLQR]] 的 Backward Pass 的线性化原型。
+
+### 11.3 LQR 与 iLQR / 数据驱动 LQR / RL 的统一
+
+| 方法 | 模型来源 | 解法 | 适用范围 |
+|------|---------|------|---------|
+| **LQR**（§11.1） | 已知 LTI $(A, B)$ | ARE 一次性求解 | 线性系统精确解 |
+| **iLQR / DDP**（[[Optimization#4.1 核心算法：iLQR / DDP|Optim §4.1]]） | 非线性 + 线性化 | 后向 Riccati + 前向滚动 | 接触前的非线性 MPC |
+| **数据驱动 LQR**（§9.3） | Hankel 矩阵 (PE 数据) | LMI / SDP | 模型未知的 LTI |
+| **DDPG / SAC** | 神经网络拟合 $Q_\phi$ | 随机梯度 | 高维非线性 + 探索 |
+
+> [!tip] 灵巧操作中的 LQR 价值
+> 真机调试时常用 LQR 作为**接触前阶段的 baseline 控制器**：在 pre-grasp 段 $A, B$ 由刚体动力学线性化得到，LQR 给出最优反馈增益，避免手工调 PD。一旦进入接触段切换到 §3.2 阻抗或 §5 hybrid。这种"分段线性 + 模式切换"是工业级灵巧操作的实用骨架。
+
+------
+
+## 12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)
+
+> [!note] 教科书参考
+> 本节基于 Ioannou & Sun "Robust Adaptive Control" 与 Åström & Wittenmark "Adaptive Control" 的经典框架。
+
+### 12.1 问题设定
+
+被控对象 $\dot x = f(x, u, \theta)$，$\theta \in \mathbb{R}^p$ 是**未知但常值**参数（如负载惯量、摩擦系数、电缆刚度）。目标：同时**辨识 $\theta$** 与**控制 $x$**。
+
+### 12.2 模型参考自适应控制 (MRAC) 框架
+
+参考模型 $\dot x_m = A_m x_m + B_m r$ 给出期望响应。控制律 $u = \theta_x^\top x + \theta_r^\top r$ 由可调参数 $\hat\theta(t)$ 实现。误差 $e = x - x_m$。
+
+**MIT 规则 / 梯度自适应律**：
+
+$$\dot{\hat\theta} = -\Gamma e^\top P B \cdot \phi(x, r),\quad \Gamma \succ 0.$$
+
+> [!theorem] Theorem 12.1（MRAC 稳定性）
+> 在匹配条件（Matching Condition）成立下，选取 $V = e^\top P e + \tilde\theta^\top \Gamma^{-1} \tilde\theta$，则 $\dot V = -e^\top Q e \leq 0$（半负定）。LaSalle 给出 $e \to 0$。
+>
+> **关键**：$V$ 包含 $\tilde\theta = \hat\theta - \theta^*$ 项，意味着**参数误差进入能量函数**——这是自适应控制与固定增益控制最本质的区别。
+
+### 12.3 确定性等价原理 (Certainty Equivalence)
+
+> [!important] 确定性等价原理
+> 设若 $\theta$ 已知，最优控制律为 $u^* = \pi^*(x; \theta)$。**确定性等价**控制器是：
+> $$u_{CE}(t) = \pi^*\big(x(t); \hat\theta(t)\big).$$
+>
+> 即"用当前估计 $\hat\theta$ 替代真实 $\theta$"。
+>
+> **何时可证收敛**：当辨识误差 $\tilde\theta \to 0$ 足够快（**持续激励条件**，§9.1.3），且 $\pi^*$ 关于 $\theta$ 连续，则 $u_{CE}$ 渐近达到最优。
+
+### 12.4 PE 与参数收敛的桥梁
+
+> [!theorem] Theorem 12.2（PE → 参数收敛）
+> 若回归向量 $\phi(t)$ 满足 $\exists\, \alpha, T > 0$:
+> $$\alpha I \preceq \int_t^{t+T} \phi(\tau) \phi(\tau)^\top d\tau,\quad \forall t \geq 0,$$
+> 则 MRAC 的参数估计 $\hat\theta(t) \to \theta^*$ **指数收敛**。
+>
+> **物理含义**：仅当输入"足够丰富"（在 $T$ 内激发所有模式），辨识才能区分真实参数与等价参数。
+
+PE 条件正是 §9.1.3 Hankel 矩阵满秩条件的连续时间对偶。
+
+### 12.5 灵巧操作中的自适应控制
+
+| 不确定参数 | 自适应方法 | WMTS 关联 |
+|----------|-----------|----------|
+| **电机摩擦/惯量漂移** | MRAC + Lyapunov 适应律 | [[Idea-002-Latency-Aware-Actuator]]（FiLM 隐变量替代经典 $\hat\theta$） |
+| **接触刚度未知** | 阻抗参考自适应（[[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]]） | §3.2 callout 已引用 |
+| **物体质量未知** | 在线 mass identification + 重力补偿更新 | [[Idea-007-Implicit-Explicit-Contact-WM]] 隐式残差等效"在线 $\hat\theta$" |
+| **环境摩擦系数** | RMA 隐变量推断 | [[ReinforcementLearning#5.0 系统辨识与在线参数学习 (System Identification & Online Adaptation)|RL §5.0]] |
+
+> [!tip] 现代视角：自适应控制 ≈ Meta-RL
+> RMA、Latent Adapter、FiLM Conditioning 本质上都是**学习版的确定性等价控制器**：神经网络替代解析的 $\pi^*(x; \theta)$，隐变量 $z$ 替代经典的 $\hat\theta$。Lyapunov 自适应律的数学保证（PE → 收敛）为这些深度自适应方法提供了**为何能在小数据下工作**的理论解释。
+
+### 12.6 鲁棒 vs 自适应：何时选择
+
+| 维度 | 鲁棒控制 (§7 SMC, $H_\infty$) | 自适应控制 (§12) |
+|------|-------------------------------|-----------------|
+| **不确定性** | 范数有界，最坏情况 | 参数化，慢时变 |
+| **代价** | 保守（牺牲性能换稳定） | 暂态可能差 |
+| **数据需求** | 无需在线辨识 | 需要 PE |
+| **灵巧操作场景** | 接触瞬时冲击、未建模高频动力学 | 任务相关参数（物体质量、表面摩擦） |
+| **现代趋势** | 与 CBF 结合 → 安全 RL | 与 Meta-RL 结合 → Latent Adapter |
+
+> [!important] 理论大厦的整合视角
+> **Lyapunov（§10）+ LQR（§11）+ Adaptive（§12）+ Data-Driven（§9）+ CBF（§3.3）= 现代灵巧操作控制理论的完整底座**。
+> - 任何古典控制器：用 Lyapunov 证稳定 + LQR 设最优 + Adaptive 处理未知参数 + CBF 加安全约束
+> - 任何 RL 控制器：将策略视为参数化控制律 → 价值函数即 Lyapunov 函数 → PE 类比为 exploration 充分性 → safe RL = Lyapunov + CBF
+> - 数据驱动控制（§9）则是"跳过参数辨识，直接从轨迹构造等价控制律"的现代变体——其本质仍是 PE 条件保证的可识别性
 
 ------
 
@@ -1227,9 +1553,13 @@ $$\begin{pmatrix} U_p \\ Y_p \\ U_f \\ Y_f \end{pmatrix} g = \begin{pmatrix} u_{
 - [[sim2real|硬件 Sim-to-Real Gap 分析]] — 电机/减速器/传动方案对控制策略迁移的系统影响分析
 - [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]] — 接触基准策略：力-触觉反馈闭环的 sim-to-real 对齐
 
+### 项目级真机控制 Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-002-Latency-Aware-Actuator|LAAA]]：CAN 延迟与温度漂移 conditioned actuator FiLM
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-013-Stick-Slip-Mode-Switching|SSMS]]：stick-slip 模态识别的双子策略 (slow/burst) 切换控制
+
 ------
 
-## 10. 结论 (Conclusion)
+## 13. 结论 (Conclusion)
 
 从早期的高增益位置控制，到引入顺应性的阻抗控制，再到处理冗余度的操作空间公式化，控制理论的演进主线是对**物理交互本质的尊重**。我们不再试图强行命令机器人去违反物理约束，而是通过数学工具（如抓取矩阵、动态一致性逆、Montana方程）去建模和利用这些约束。
 

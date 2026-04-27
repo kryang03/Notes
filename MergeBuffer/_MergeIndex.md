@@ -3,10 +3,24 @@ tags:
   - merge-buffer
   - processing-index
 created: 2026-01-31
-status: pending
+status: active
 ---
 
 # MergeBuffer 处理索引
+
+## 最新处理记录 (2026-04-27)
+
+### HoverNotes/Untitl.md
+**主题**: Why Learn Control Theory - YouTube 控制理论入门笔记
+**状态**: 🟢 已完成
+
+| 内容模块 | 目标文件 | 融合状态 |
+|---------|---------|---------|
+| 控制理论作为跨工程共同语言 | [[ControlTheory]] | ✅ 已整合到引言 callout |
+| 开环/闭环控制直觉 | [[ControlTheory]] | ✅ 已整合到引言 callout |
+| 阻尼与振动的能量耗散直觉 | [[ControlTheory]] | ✅ 已连接到阻抗控制物理解释 |
+
+**处理结果**: 核心理论内容已融合至 [[ControlTheory]]，原 HoverNote 已删除 (2026-04-27)。
 
 > [!note] 处理状态
 > 本文档记录 MergeBuffer 中文件的内容分析和合并计划。

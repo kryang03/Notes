@@ -480,6 +480,15 @@ $$\nabla f(w) = 0 \text{ 且 } \nabla^2 f(w) \succeq 0$$
 | **连通性** | 不同全局极小通过低损失路径连接 | 模式平均 (Mode Averaging) 有效 |
 | **平坦极小泛化好** | $\nabla^2 f$ 特征值小的极小泛化性能更好 | SAM (Sharpness-Aware Minimization) |
 
+#### 2.6.6 与表征理论的桥梁：NTK 区间下的凸化
+
+> [!tip] 跨领域链接
+> 当神经网络足够宽时，训练动力学退化为关于预测向量 $u$ 的**线性 ODE**，损失对 $u$ 是凸二次型，全局收敛有保证。这是非凸景观分析的一个**特殊但重要的 tractable subclass**。
+>
+> 严格的 NTK 推导（Lemma 9.2.2 / 9.2.3、特征分解收敛速率、Rademacher 泛化界 Eq. 9.11）见 [[RepresentationLearning#6.3.7 神经正切核 (Neural Tangent Kernel, NTK)|RepresentationLearning §6.3.7]]。
+>
+> **WMTS 关联**：NTK lazy regime 给出了"为何过参数化 WM 可以从 < 1h 真机数据稳定微调"（[[Idea-002-Latency-Aware-Actuator]]、[[Idea-012-WPTE-Tactile-Encoder]]）的理论保证。
+
 ------
 
 ## 3. 技术演进脉络与深度洞察 (Evolution & Insights)
@@ -628,6 +637,9 @@ $$\lambda \approx k_p \cdot \text{sigmoid}(-\frac{\phi(q)}{\epsilon})$$
 ### 4.1 核心算法：iLQR / DDP
 
 iLQR 是 Differential Dynamic Programming (DDP) 的一种变体（通常忽略二阶动力学项以加速计算）。它利用 Bellman 最优性原理，通过前向（Forward Pass）和后向（Backward Pass）迭代，具有二阶收敛速度 。
+
+> [!note] 线性原型
+> iLQR 在每次迭代中将非线性动力学线性化为 $\delta x_{k+1} = A_k \delta x_k + B_k \delta u_k$，并用二次代价近似——此时**Backward Pass 退化为标准的离散时间 Riccati 递推**。其线性闭式解、稳定性证明与最优反馈律见 [[ControlTheory#11.2 离散时间有限时域 LQR：Riccati 递推|ControlTheory §11.2 (Theorem 11.2)]]。理解 LQR 是理解 iLQR/DDP 收敛性的前提。
 
 #### 4.1.1 物理直觉与复杂度
 

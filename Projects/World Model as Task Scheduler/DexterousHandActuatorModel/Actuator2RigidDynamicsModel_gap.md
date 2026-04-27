@@ -162,3 +162,36 @@ $$\tau_{joint} = J^T(x) \cdot F_{linear}$$
 | 角速度 $\dot{\phi}_t$ | ⭐⭐⭐ | RL 观测（需滤波） |
 | 反馈力矩 $\tau_{fb}$ | ⭐⭐ | Actuator Model 输入特征（**非** reward/预测目标） |
 | 温度 $T_{motor}$ | ⭐⭐⭐⭐ | Actuator Model 显式输入 |
+
+---
+
+## 八、 数据驱动鲁棒控制视角：从短真机轨迹到安全证书
+
+> [!note] 教科书参考
+> 本节连接 [[ControlTheory#9.3.2 带噪声数据的鲁棒镇定|带噪声数据的鲁棒镇定]]，基于 [[Books/Data-based linear systems and control theory.pdf]] Chapter 3.6-3.7 的数据一致集与 LMI 证书思想。
+
+执行器模型的难点不是“能不能拟合一条轨迹”，而是：**在 CAN 抖动、温度漂移、丝杠摩擦和触觉噪声都存在时，短真机数据能否证明一个局部控制器对所有可能真实模型都安全**。
+
+对 L25 手，可以在每个局部工况下定义近似线性状态：
+
+$$
+x_t=[\phi_t,\dot\phi_t,T_t,z_{\delta,t}],\quad u_t=a_t,
+$$
+
+其中 $z_{\delta,t}$ 是最近若干帧 CAN latency / 指间相位差的低维编码。短真机轨迹形成输入-状态数据矩阵：
+
+$$
+X_+ = A X_- + B U_- + W_-.
+$$
+
+这里 $W_-$ 不是“坏掉的数据”，而是把未建模物理显式纳入证书的噪声集合：
+
+- **通信噪声**：CAN 仲裁与分帧触觉造成的相位不一致
+- **电气漂移**：$K_t(T)$ 与 $R_s(T)$ 的温度依赖
+- **传动非线性**：Stribeck 静摩擦、丝杠效率波动、连杆柔性
+- **估计误差**：差分速度与触觉接触定位的噪声
+
+若噪声集合满足 $W_-W_-^\top\preceq T\epsilon I$ 或更精细的各向异性 QMI，则可用 [[ControlTheory#9.3.3 Matrix S-lemma：从无限多个模型到一个 LMI|Matrix S-lemma LMI]] 检查是否存在共同 Lyapunov 矩阵 $P\succ0$。这使 [[Idea-002-Latency-Aware-Actuator|Latency-Aware Actuator]] 的 “5 min real adaptation” 多了一层硬判据：
+
+> [!important] 实验判据
+> 适配后的 Actuator Model 不只报告预测 MSE，还应报告数据驱动 LMI 是否可行。若不可行，说明 scripted motion 没有充分激发执行器模式，或噪声界设得过窄；此时应优先补采高/低速、升温、过零 stick-slip 三类轨迹，而不是盲目加大网络容量。

@@ -219,6 +219,9 @@ $$\mathbf{x}_{act,t} = \Big[\underbrace{a_{t-H:t}}_{\text{指令}},\; \underbrac
 
 **输出**：$\hat{\tau}_{link,t} = f_{act}(\mathbf{x}_{act,t};\theta_{act}) \in \mathbb{R}^{N_{joints}}$
 
+> [!tip] 数据驱动鲁棒证书
+> Actuator Model 的真机适配不应只看 one-step MSE。可将短真机轨迹写成 $X_+=AX_-+BU_-+W_-$，用 [[ControlTheory#9.3.2 带噪声数据的鲁棒镇定|噪声数据鲁棒镇定]] 的 LMI 检查是否存在共同 Lyapunov 证书。若证书不可行，说明当前 5 分钟数据没有充分覆盖 latency / 温度 / stick-slip 模式，需要补采激励轨迹而不是直接扩大网络。
+
 ### 4.B Rigid Dynamic Model：力矩 → 状态演进
 
 **Physics-Informed Neural Dynamics**：以 IsaacGym $(s_t, \tau_{link}^{sim}) \to s_{t+1}^{sim}$ 预训练。残差形式 $s_{t+1} = s_t + \Delta t \cdot f_{NN}(s_t, \tau_{link})$，可注入解析 [[Dynamics|刚体动力学]] skip connection。
@@ -319,3 +322,16 @@ $$\mathcal{L}_{Finetune} = \mathbb{E}_{\tau_{real}}\left[\exp\left(\frac{R(\tau)
 
 > [!tip] 新方案入口
 > 详见 [[WMTS_Reliability_Extensions]]。该方案在现有五模块外增加可靠性增强层：用 dynamics epistemic uncertainty、actuator feasibility、contact topology feasibility 三重风险对任务候选和 action chunk 做保守排序/放行。它不替换当前 Latent Task Generator、Oracle、Generalist、Ensemble WM 或 Safety Filter，只为每个模块增加可插拔的 reliability head。
+
+---
+
+## 七、真机 RL 研究 Idea 队列
+
+> [!note] 入口
+> 本项目所有可执行的研究 Idea 文档位于 [[all_Insights_local/_InsightsIndex|all_Insights_local/_InsightsIndex]]。当前共 **15 个真机 RL 角度的 Idea**，按主线分为：
+>
+> - **真机 reward / data efficiency**：[[all_Insights_local/Idea-001-Tactile-Anchored-Reward|Idea-001 TAR]]、[[all_Insights_local/Idea-008-Physics-Aware-PER|Idea-008 PA-PER]]、[[all_Insights_local/Idea-011-WM-Importance-Weighted-Diffusion|Idea-011 WMID]]
+> - **Sim-to-Real gap 物理诊断与修复**：[[all_Insights_local/Idea-002-Latency-Aware-Actuator|Idea-002 LAAA]]、[[all_Insights_local/Idea-003-Failure-Mode-Curriculum|Idea-003 FMC]]、[[all_Insights_local/Idea-007-Implicit-Explicit-Contact-WM|Idea-007 IECW]]、[[all_Insights_local/Idea-010-EBM-Mode-Mismatch|Idea-010 EBM]]、[[all_Insights_local/Idea-012-WPTE-Tactile-Encoder|Idea-012 WPTE]]、[[all_Insights_local/Idea-013-Stick-Slip-Mode-Switching|Idea-013 SSMS]]、[[all_Insights_local/Idea-014-WM-Gradient-Adaptive-DR|Idea-014 WG-ADR]]
+> - **真机自主与 test-time 适应**：[[all_Insights_local/Idea-004-WM-Guided-Diffusion|Idea-004 WGDR]]、[[all_Insights_local/Idea-005-Saturation-Boundary-Active-Learning|Idea-005 SBAL]]、[[all_Insights_local/Idea-006-In-Context-Hypernet-Adapter|Idea-006 ICHA]]、[[all_Insights_local/Idea-009-Discrete-Task-Tokens|Idea-009 DTT]]、[[all_Insights_local/Idea-015-Reset-Free-Autonomy|Idea-015 Reset-Free]]
+>
+> 实验结果汇总：[[all_Insights_local/_ExperimentResultsAll|_ExperimentResultsAll]]（远端 Agent 写入）。

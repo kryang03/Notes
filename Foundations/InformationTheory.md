@@ -767,4 +767,8 @@ def compute_diayn_rewards(discriminator, states, skills):
 ### 主动感知与信念更新
 - [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|Curriculum Sensing Reduction]]: 传感信息的课程式简化
 - [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]: 触觉信息的 Sim-to-Real 对齐
+
+### 项目级真机信息利用 Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-005-Saturation-Boundary-Active-Learning|SBAL]]：基于执行器饱和与触觉边界的信息增益主动数据采集
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-010-EBM-Mode-Mismatch|EBM Mode-Mismatch]]：能量模型刻画 sim 分布支撑，OOD 检测真机分布漂移
 未来的研究方向将聚焦于**高频触觉信息流的实时互信息估计**，以及如何将**因果推断（Causal Inference）**引入主动探索，使机器人不仅知道“是什么”（关联性），还能理解“为什么”（因果性）——从而实现真正意义上的认知灵巧操作（Cognitive Dexterous Manipulation）。

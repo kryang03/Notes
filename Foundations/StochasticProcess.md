@@ -825,4 +825,8 @@ $$\lambda \approx \frac{1}{\epsilon} \ln(1 + \exp(-\epsilon \phi(q)))$$
 - [[Safe Model-based Reinforcement Learning with Stability Guarantees|Safe MBRL]]: 基于模型的RL与不确定性传播
 - [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)|HATO]]: 双手协调中的随机性建模
 
+### 项目级真机不确定性 Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-010-EBM-Mode-Mismatch|EBM Mode-Mismatch]]：能量模型 / Langevin 采样刻画 sim 分布，检测真机模态漂移
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-004-WM-Guided-Diffusion|WGDR]]：扩散逆过程 test-time score modification，按 WM uncertainty 自适应保守度
+
 你的 Obsidian 知识库应当反映这种范式转移：不仅记录公式，更要记录这些公式背后的物理直觉——即如何在混乱、嘈杂的物理世界中，通过概率与统计的透镜，寻找确定的最优解。

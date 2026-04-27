@@ -1039,6 +1039,10 @@ $$R = w_1 \cdot \text{dist}(p_{obj}, p_{goal}) + w_2 \cdot \text{quat\_diff}(q_{
 > - **最佳实践**：先做 System ID 缩小中心偏差，再用 DR 覆盖残余不确定性
 > - **灵巧手场景**：关节执行器参数（$K_t$, $\eta$, 背隙角度）适合 System ID；接触摩擦适合 DR
 
+> [!important] 经典自适应控制视角
+> RMA / DexNDM / GAT 本质上都是**学习版的确定性等价控制器**——隐变量 $z$ 替代经典自适应控制中的参数估计 $\hat\theta$。其稳定性、收敛性与持续激励 (PE) 条件的严格分析见 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|ControlTheory §12]]。
+> 这一桥梁解释了为何"小数据真机适配"可行（NTK lazy regime + PE → 参数收敛）。
+
 ### 5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)
 
 **Standard DR**: 在训练时，随机扰动物理参数 $\xi$（质量、摩擦系数、电机阻尼）。
@@ -1448,6 +1452,10 @@ $$\pi_I(a|s) = \arg\max_\pi \mathbb{E}_{a \sim \pi}\left[Q^{\pi_E}(s,a)\right] -
 ### Sim-to-Real 综述与经典方法
 - [[A Survey of Sim-to-Real Methods in RL]]: **MDP 四要素分类框架** (State/Action/Transition/Reward)，首个覆盖 Foundation Model 时代的 sim-to-real 综述
 - [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer|Tiwari et al. Survey]]: 执行器级建模视角的 sim-to-real 综述
+
+### 项目级真机 RL Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/_InsightsIndex|WMTS Insights Index]]：15 个真机 RL 角度的 idea，覆盖 reward / sim-to-real / autonomy 三大主线
+- 重点 idea：[[Projects/World Model as Task Scheduler/all_Insights_local/Idea-001-Tactile-Anchored-Reward|TAR (无 GT pose reward)]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-008-Physics-Aware-PER|PA-PER]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-011-WM-Importance-Weighted-Diffusion|WMID off-policy diffusion RL]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-015-Reset-Free-Autonomy|Reset-Free Autonomy]]
 - [[Grounded Action Transformation|GAT]]: **仿真器 grounding 经典方法**，学习动作映射函数修正 sim-real 差异 (AAAI 2017)
 
 ### 非紧握操作与外在灵巧性

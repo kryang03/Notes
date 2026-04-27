@@ -457,6 +457,11 @@ $$\frac{\partial z^*}{\partial \theta} = - \left( \frac{\partial R}{\partial z} 
 ### 柔顺控制与力学建模
 - [[Minimalist Compliance Control|MCC]]: **无传感器柔顺控制**，利用电机电流估计接触力，方向相关效率模型
 
+### 项目级真机接触 Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-007-Implicit-Explicit-Contact-WM|IECW]]：解析刚体动力学（隐式接触）+ 触觉门控 patch 残差网络（显式接触）的双通路世界模型
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-013-Stick-Slip-Mode-Switching|SSMS]]：基于 stick-slip 模态识别的双子策略（slow/burst）+ WM dispatcher
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-001-Tactile-Anchored-Reward|TAR]]：以触觉拓扑替代 GT pose 的真机奖励信号
+
 ------
 
 ## 7. 结论与建议

@@ -25,6 +25,7 @@ related:
 > [!note] 教科书背景
 > 本文使用的 TRPO/PPO 算法的理论基础详见 [[ReinforcementLearning#3. Implementation: 核心算法细节分析]]。
 > 信任域约束的合法性来自**分布间隙边界定理**：只要新旧策略在 KL 散度意义下足够接近，就可以安全地用旧策略的状态分布近似新策略。
+> 本文的 LMI/SDP 稳定性证书还可从 [[ControlTheory#9.3.3 Matrix S-lemma：从无限多个模型到一个 LMI|Matrix S-lemma]] 理解：偏导数界给出一个二次约束，KYP/IQC 给出另一个二次约束，二者的蕴含关系最终化为有限维 SDP。
 
 > [!tip] 与理论基础的关联
 > - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性]] - Lyapunov 稳定性与输入-输出稳定性

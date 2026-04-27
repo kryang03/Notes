@@ -1080,6 +1080,11 @@ $$\mathcal{F} = \{F \mid \|\tau\| \leq 1\} = \{F \mid F^T (J_h J_h^T) F \leq 1\}
 ### 动力学感知策略学习
 - [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]]: 世界模型预测接触诱导动力学，条件化 RL 策略
 
+### 项目级真机动力学 Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-002-Latency-Aware-Actuator|LAAA]]：CAN 延迟+温度漂移 conditioned actuator FiLM，5min 真机自适应
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-007-Implicit-Explicit-Contact-WM|IECW]]：解析刚体动力学 + 触觉门控的接触 patch 残差网络
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-014-WM-Gradient-Adaptive-DR|WG-ADR]]：用 WM 输入梯度量化各动力学参数敏感度，自适应分配 DR 方差预算
+
 ### Sim-to-Real 动力学迁移
 - [[A Survey of Sim-to-Real Methods in RL]]: **MDP 四要素分类框架**——Transition 迁移即动力学域差异的核心
 - [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]: 铰接物体动力学的 Sim2Real

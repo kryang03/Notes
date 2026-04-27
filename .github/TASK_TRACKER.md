@@ -5,7 +5,205 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-04-26 (Session #28 — WMTS 颗粒度审计 + P0 Recap 补强 + 可靠性扩展 + MergeBuffer 清理 ✅)
+**最后更新**: 2026-04-27 (Session #31 — 教科书整合：鲁棒数据驱动控制 / LMI 证书 ✅)
+
+## 🟢 Session #31 完成 (2026-04-27)
+
+### 教科书整合：Data-based Linear Systems 鲁棒数据驱动控制 + WMTS 执行器安全证书
+
+**触发**：用户要求遵循 `textbook-integration.prompt.md`，继续执行教科书知识整合流程。
+
+#### Phase 0：状态恢复与优先级判断
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER #30 | 已读取，承接“Data-based Linear Systems 第二部分（鲁棒数据驱动控制 / SDP）”建议 |
+| MergeBuffer | 根目录无 PDF；发现 `MergeBuffer/HoverNotes/Untitl.md` 为控制理论入门 HoverNote |
+| 实验结果同步 | `Projects/*/all_Insights/_ExperimentResultsAll.md` 不存在；DNPM local 为旧结果，WMTS local 仍为空，无新远端结果需同步 |
+| 当前项目上下文 | 读取 `Actuator2RigidDynamicsModel_gap.md` 与 WMTS Idea-002，确认 actuator sim-to-real gap 与鲁棒数据证书强相关 |
+
+#### Phase 1：教科书提取（Data-based linear systems and control theory）
+**重点章节**：
+- Ch.1 §1.2.1 / Ch.11：Willems Fundamental Lemma 与 PE 条件
+- Ch.3.4-3.7：noisy input-state data、数据一致集、quadratic stability / stabilizability
+- Ch.6.3：quadratic stabilization using noisy data
+- Appendix A.2-A.3：quadratic matrix inequalities、Matrix S-lemma / Finsler lemma
+
+**抽取的理论链条**：
+$$X_+=AX_-+BU_-+W_-$$
+噪声 QMI → 数据一致系统集合 $\Sigma_D$ → Lyapunov/QMI 蕴含 → Matrix S-lemma → 有限维 LMI / SDP 证书。
+
+#### Phase 2：ControlTheory.md 融合
+**新增/扩展内容**：
+- 引言新增 HoverNote 整合 callout：控制理论作为跨工程共同语言、开环/闭环、阻尼能量耗散直觉
+- `§9.3.2 带噪声数据的鲁棒镇定`：补充噪声 QMI、$\Phi$ 分块、能量界特例、数据一致集
+- `§9.3.3 Matrix S-lemma：从无限多个模型到一个 LMI`：补充 Theorem 3.19 / Corollary 3.20、QMI 蕴含转 LMI 的证明骨架
+- `§9.3.4 灵巧操作应用`：将短真机 actuator 轨迹 $x_t=[\phi,\dot\phi,T,z_\delta]$ 映射为数据驱动稳定性证书问题
+
+#### Phase 3：WMTS / Actuator 项目反向链接
+| 文件 | 变更 |
+|------|------|
+| `Actuator2RigidDynamicsModel_gap.md` | 新增 §八“数据驱动鲁棒控制视角”，把 CAN 抖动、热漂移、Stribeck、估计误差统一为 $W_-$ 噪声集合，并提出 LMI 可行性作为 5min 适配判据 |
+| `Final_WMTS.md` | Actuator Model §4.A 增加 “数据驱动鲁棒证书” callout |
+| `Idea-002-Latency-Aware-Actuator.md` | 修复 NTK/ControlTheory 链接粘连；新增 `ControlTheory §9.3.2` 作为 Stage B 安全判据 |
+| `PapersRecap/Stability-Certified RL` | 增加 Matrix S-lemma 教科书背景：偏导数界 + IQC/KYP → SDP 证书 |
+
+#### Phase 4：MergeBuffer 零废弃 + taxonomy / Canvas
+- `MergeBuffer/HoverNotes/Untitl.md` 核心内容已并入 ControlTheory 引言并删除原文件（保留文件夹）
+- `MergeBuffer/_MergeIndex.md` 新增 HoverNote 处理记录
+- `taxonomy.md` 更新 ControlTheory 领域说明：加入数据驱动 LMI 证书与 SignalProcessing 交叉
+- `KnowledgeGraph.canvas` 更新 `bt_sim2real` 与 `found_control_note` 文案，显式加入数据驱动 LMI 稳定证书；验证仍为 103 nodes / 161 edges
+
+#### 验证
+- Canvas JSON 解析通过：103 nodes / 161 edges
+- Canvas node/edge ID 无重复，所有 edge endpoint 存在
+- 关键 heading 存在：`ControlTheory#9.3.2 带噪声数据的鲁棒镇定`、`ControlTheory#9.3.3 Matrix S-lemma：从无限多个模型到一个 LMI`
+- 关键文件存在：Actuator2Rigid、Idea-002、Stability-Certified RL
+- 问题模式检查通过：无列表粘连，且无 LaTeX 双反斜杠误写
+- `MergeBuffer/HoverNotes/Untitl.md` 已删除
+
+#### 下次会话建议
+- Murray Ch.4 Lagrangian 推导在 `Dynamics.md` 仍可进一步深化为完整 Euler-Lagrange → manipulator equation 推导链
+- Deep RL 教科书 Offline RL（CQL / IQL / Decision Transformer）尚未完整做教科书参考标注
+- Data-based control 后续可继续补 `DeePC` 的噪声正则化、input-output 数据版本与 $H_\infty$ noisy data 章节
+
+---
+
+## 🟢 Session #30 完成 (2026-04-27)
+
+### 教科书整合：Theory of Deep Learning + 控制理论统一基石
+
+**触发**：用户调用 `/textbook-integration`，参数 "继续完成，注意我很关心控制理论相关的理论大厦构建"。
+
+#### Phase 0：状态恢复
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER #29 | 已读取，承接 WMTS 15 Idea brainstorm 与 NTK gap 识别 |
+| Foundation TOC scan | ContactMechanics / Dynamics / Optimization / RL / ControlTheory 全部已审计 |
+| 教科书提取 | "Theory of Deep Learning" Ch.6/7/9/11 (NTK + landscape)；ControlTheory 大厦基于 Khalil + Anderson-Moore + Ioannou-Sun 标准 |
+
+#### Phase 1：RepresentationLearning.md 增补（NTK + 优化景观）
+**§6.3.7 神经正切核 (NTK)** —— 全新章节，基于 Theory of Deep Learning Ch.9 (Lemma 9.1.1 / 9.2.2 / 9.2.3, Eq. 9.6-9.11)：
+- 演化方程、NTK 核定义、ReLU 解析形式
+- Lazy training 定理（lemma 9.2.3）+ 特征分解收敛速率
+- Rademacher 泛化界（Eq. 9.11）
+- 灵巧操作应用：解释为何小数据真机 RL 可行
+
+**§6.3.8 优化景观与逃离鞍点** —— 全新章节，基于 Theory of Deep Learning Ch.6/7/11.3 (Def 6.3.2/6.3.3/7.1.3/7.1.5, Theorem 7.2.1, Theorem 11.3.5)：
+- $(\varepsilon, \gamma)$-SOSP 定义、ridable / strict saddle 性质
+- PGD 逃离鞍点定理（维度只 polylog）
+- dropout 矩阵分解无伪局部极小定理
+- 灵巧操作应用：CMA-ES、iLQR、Diffusion 训练
+
+#### Phase 2：ControlTheory.md 大厦构建（用户重点）
+**全新 §10-§12，构建统一稳定性 + 最优控制 + 自适应理论基石**：
+
+| 章节 | 内容 |
+|------|------|
+| **§10 稳定性理论统一基石** | Lyapunov 直接法 (Theorem 10.1) / LaSalle 不变集 (Theorem 10.2) / ISS (Theorem 10.3) / 被动性—RL 价值函数桥梁 |
+| **§11 LQR 与 Riccati** | 连续 ARE (Theorem 11.1) / 离散 DRE 递推 (Theorem 11.2) / LQR↔iLQR↔数据驱动 LQR↔RL 统一表 |
+| **§12 自适应控制 & 确定性等价** | MRAC + Lyapunov 适应律 (Theorem 12.1) / 确定性等价原理 / PE→参数收敛 (Theorem 12.2) / RMA 等深度自适应作为现代变体 |
+
+**理论大厦总结 callout**：明确 "Lyapunov + LQR + Adaptive + Data-Driven + CBF = 现代灵巧操作控制理论的完整底座"，给出古典与 RL 控制器的统一视角。
+
+原 §10 结论 → 重编号为 §13。
+
+#### Phase 3：Optimization.md 跨链
+- §4.1 iLQR 章节加 callout 指向 [[ControlTheory#11.2 ... LQR：Riccati 递推]]，明确 iLQR 的线性原型即 LQR
+- §2.6.6 加 callout 指向 [[RepresentationLearning#6.3.7 NTK]]，串联非凸景观与过参数化
+
+#### Phase 4：双向反向链接
+- `RepresentationLearning §6.3.7/§6.3.8` 引用 WMTS Idea-002 / 011 / 012 / 014（修正 wikilink 与实际文件名匹配）
+- `ReinforcementLearning §5.0` 加 callout 指向 [[ControlTheory#§12]]，将 RMA / DexNDM / GAT 标注为"经典自适应控制的深度学习版"
+- `Idea-002-Latency-Aware-Actuator` §5 知识库关联 增加 NTK + ControlTheory §12 双重引用，从理论保证 + 自适应控制双视角支撑 5min 适配可行性
+
+#### 验证
+- 所有新 callout 链接的章节标题与目标文件实际章节匹配
+- ControlTheory 章节编号一致（§1-§9 + 新 §10-§12 + 重编号 §13）
+- 无 dangling wikilink；Canvas 现有 `found_control` 节点自动覆盖新增内容
+- 4 处 wikilink 名称修正：`Idea-002-Latency-Augmented Actuator Adapter` → `Idea-002-Latency-Aware-Actuator`，`Idea-011-WM Importance Weighted Diffusion RL` → `Idea-011-WM-Importance-Weighted-Diffusion`，`Idea-012-WM-Pretext Tactile Encoder` → `Idea-012-WPTE-Tactile-Encoder`，`Idea-014-WM-Gradient ADR Scheduler` → `Idea-014-WM-Gradient-Adaptive-DR`
+
+#### 输出
+- 5 个 Foundation 章节（RepresentationLearning ×2，ControlTheory ×3）
+- 2 处 Foundation 跨链 callout（Optimization → ControlTheory + RepresentationLearning）
+- 3 处反向链接（RL→ControlTheory，Idea-002 双向）
+- 1 处旧编号修复（ControlTheory §13 结论）
+
+#### 下次会话建议
+- 检查 Murray Ch.4 Lagrangian 推导在 Dynamics.md 的颗粒度（演进脉络已完备，但形式化推导可能可深化）
+- Deep RL 教科书 Offline RL 章节（CQL/IQL/Decision Transformer）尚未做完整教科书参考标注
+- Data-based Linear Systems 第二部分（鲁棒数据驱动控制 / SDP）可能为 ControlTheory §9 提供更深的 LMI 推导
+
+---
+
+## 🟢 Session #29 完成 (2026-04-27)
+
+### World Model as Task Scheduler：15 个真机 RL Idea brainstorm + all_Insights_local 基础设施
+
+**触发**：用户调用 `/research-insights`，参数 "尤其是从真机强化学习的角度，为 world model as task scheduler 这个项目，大量 brainstorm 新的 idea"。
+
+#### Phase 0：状态恢复
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER #28 | 已读取，承接可靠性扩展工作 |
+| `Final_WMTS.md` / `WMTS_Reliability_Extensions.md` | 已读取，明确不改变五模块主架构 |
+| `MergeBuffer/all_Insights_server/` | 不存在，无远端实验结果待同步 |
+| 硬件约束 | LinkerHand L25, 16+5 DOF, CAN 1Mbps, tactile 5×12×6, NTC 温度, K_t·I_q 估力, 8×A100 |
+
+#### Phase 1：基础设施 + 15 Idea 生成
+**`Projects/World Model as Task Scheduler/all_Insights_local/` 新建**：
+- `CodeStructure.md`：硬件约束 + 推断软件栈（envs/algos/encoders/configs/scripts）+ 关键技术约束（τ_fb 不可作 reward / WM target；真机数据 ≤1h；GPU ≤1 周×8 A100）
+- `_ExperimentResultsAll.md`：空模板 + 远端 Agent 写入格式规范
+- `_InsightsIndex.md`：15 ideas 分 3 主线 × 优先级表（P0/P1/P2）+ Paper-A/B/C 论文打包建议 + 跨矩阵 + 架构关系图
+
+**15 个 Idea-XXX-*.md（完整模板：frontmatter + abstract + intro + method + experiments + risks + knowledge links + iteration log）**：
+
+| ID | 名称 | 主线 | 优先级 | 一句话 |
+|----|------|------|--------|--------|
+| 001 | TAR | reward | **P0** | Tactile-Anchored Reward：α·topo + β·WM-NLL − γ·disagreement，无需 GT pose |
+| 002 | LAAA | sim2real | **P0** | CAN 延迟+温度漂移 conditioned actuator FiLM，frozen-rigid 5min 真机适配 |
+| 003 | FMC | sim2real | P1 | GMM 聚类 WM 残差谱（act/rigid/tac）→ 失败模式课程路由 |
+| 004 | WGDR | autonomy | P1 | Diffusion 反向过程 WM-guided score modification（test-time，免重训） |
+| 005 | SBAL | autonomy | P1 | 饱和-边界采样主动数据采集，最大化信息增益 |
+| 006 | ICHA | autonomy | P1 | In-Context Hypernet Adapter：Transformer prompt → FiLM offsets，零梯度 |
+| 007 | IECW | sim2real | P1 | Implicit-Explicit Contact WM：解析刚体 + 触觉门控 patch 残差 |
+| 008 | PA-PER | reward | **P0** | 物理感知优先级 p=(r_act)^α + (r_rigid)^β + (r_tac)^γ |
+| 009 | DTT | autonomy | P2 | VQ-VAE 离散任务 token + transition graph 用于安全 replan |
+| 010 | EBM | sim2real | P1 | 能量模型刻画 sim 分布支撑，OOD 检测真机模态 mismatch |
+| 011 | WMID | reward | P1 | WM 重要性加权 off-policy diffusion RL（统一 AWAC + DiWA） |
+| 012 | WPTE | sim2real | **P0** | WM forward prediction 作为触觉编码器 pretext，zero-shot transfer |
+| 013 | SSMS | sim2real | P1 | Stick-slip 双子策略（slow/burst）+ WM dispatcher |
+| 014 | WG-ADR | sim2real | P1 | WM 输入梯度驱动的 per-dim DR 方差预算调度 |
+| 015 | Reset-Free | autonomy | **P0** | 反向任务恢复策略 + 简单安全网，实现 24h 无人值守自主 |
+
+**3 大候选论文打包**：
+- **Paper A**（完整真机系统）：TAR + Reset-Free + WPTE
+- **Paper B**（物理 sim2real）：LAAA + PA-PER + WG-ADR
+- **Paper C**（算法侧重）：WM-Guided Diffusion + WMID
+
+#### Phase 2：知识图谱整合
+- ✅ `Final_WMTS.md` 新增 §七 真机 RL 研究 Idea 队列，按 3 主线列出全部 15 ideas
+- ✅ `KnowledgeGraph.canvas`：WMTS group 高度 740→1080，新增 `proj_wmts_insights_index`（链接 _InsightsIndex）+ `proj_wmts_insights_summary`（P0/P1/P2 摘要 + 3 论文打包），新增 4 条边连接到 core/reliability/sim2real。验证：103 节点 / 161 边，无 dangling / 无 ID 冲突
+- ✅ Foundations 反向链接（每文件追加 "项目级真机 X Idea（WMTS）" 小节）：
+  - `ReinforcementLearning.md` ← TAR / PA-PER / WMID / Reset-Free
+  - `Dynamics.md` ← LAAA / IECW / WG-ADR
+  - `ContactMechanics.md` ← IECW / SSMS / TAR
+  - `InformationTheory.md` ← SBAL / EBM
+  - `RepresentationLearning.md` ← ICHA / WPTE / VQ-DTT
+  - `ControlTheory.md` ← LAAA / SSMS
+  - `StochasticProcess.md` ← EBM / WGDR
+
+#### 输出
+- 15 篇 Idea 文档 + 3 个基础设施文件
+- Final_WMTS §七 入口章节
+- Canvas WMTS group 扩展
+- 7 个 Foundation 反向链接
+
+#### 下次会话建议
+- **远端 Agent 优先执行 P0**：Idea-001 (TAR) / 002 (LAAA) / 008 (PA-PER) / 012 (WPTE) / 015 (Reset-Free)
+- 等远端 `_ExperimentResultsAll.md` 写入后，更新对应 Idea 的「动态迭代日志」节
+- Paper A 优先（完整真机系统最具说服力）
+
+---
 
 ## 🟢 Session #28 完成 (2026-04-26)
 

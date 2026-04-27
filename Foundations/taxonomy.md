@@ -20,7 +20,7 @@ created: 2026-01-31
 | 领域 (Domain) | 核心关注 (Primary Focus) | 关键实现/库 (Key Implementation) | 现代 Value-Add (Modern Insight) |
 |--------------|-------------------------|--------------------------------|-------------------------------|
 | [[Optimization]] | 决策生成 | iLQR / OSQP / cvxpy | 可微优化层 (Diff. Layers), MPC |
-| [[ControlTheory\|Control]] | 稳定性与交互 | Operational Space / franka_ros | 变阻抗控制 (Variable Impedance) |
+| [[ControlTheory\|Control]] | 稳定性与交互 | Operational Space / franka_ros / SDP | 变阻抗控制 + 数据驱动 LMI 证书 |
 | [[Dynamics]] | 物理建模 | ABA / RNEA / pinocchio | 可微物理引擎 (Brax, Dojo) |
 | [[ContactMechanics\|Contact Mech.]] | 交互物理 | GJK / EPA / Friction Cones | 软指模型, 黏滞-滑移检测 |
 | [[ReinforcementLearning\|RL]] | 行为学习 | PPO / SAC / Stable-Baselines3 | Sim-to-Real, 域随机化 |
@@ -93,6 +93,7 @@ created: 2026-01-31
 | [[ContactMechanics]] | [[Dynamics]] | 接触动力学、LCP |
 | [[ReinforcementLearning]] | [[ControlTheory]] | 稳定性约束RL、Safe RL |
 | [[Optimization]] | [[ControlTheory]] | MPC、轨迹优化 |
+| [[ControlTheory]] | [[SignalProcessing]] | 噪声数据鲁棒镇定、状态估计、数据驱动 LMI 证书 |
 | [[ReinforcementLearning]] | [[StochasticProcess]] | 扩散策略、GP-based RL |
 
 | [[InformationTheory]] | [[ReinforcementLearning]] | Mediator奖励、RL Scaling Laws 熵控制、内在动机 |
@@ -125,7 +126,7 @@ created: 2026-01-31
 碰撞检测是运动规划的前置，SDF 是现代操作优化的核心。
 
 ### [[ControlTheory|控制理论]]
-从位置控制转向力/位混合控制，以及处理非线性的能力。
+从位置控制转向力/位混合控制、鲁棒/自适应控制，以及用短真机数据给出稳定性证书的数据驱动控制。
 
 ### [[Optimization|优化理论]]
 轨迹优化是现代操作的核心，MPC 是实时性的关键。

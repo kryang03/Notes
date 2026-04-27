@@ -963,6 +963,133 @@ $$w_{t+1} = w_t - \eta \cdot \arg\max_{\|v\|_p^* \leq 1} \langle v, \nabla L(w_t
 - **LoRA 微调**：通过低秩约束，显式实现 GD 对低秩解的隐式偏好
 - **Diffusion Policy 的 score matching**：隐式正则化解释了为何去噪目标不需要额外正则项
 
+#### 6.3.7 神经正切核 (Neural Tangent Kernel, NTK)
+
+> [!note] 教科书参考
+> 本节基于 **Theory of Deep Learning** (Arora et al.) Chapter 9: Ultra-wide Neural Networks and Neural Tangent Kernel，定理编号 9.1.1 / 9.2.2 / 9.2.3，公式 9.6–9.11。
+
+##### 物理直觉
+
+NTK 给出了一个看似矛盾现象的精确数学解释：**为什么参数远多于样本的过参数化神经网络，其训练动力学竟然等价于一个固定的核回归？** 当宽度 $m \to \infty$，每个权重在训练中只移动 $O(1/\sqrt{m})$，网络函数被困在初始化的一阶 Taylor 展开邻域内——这就是 **lazy training / kernel regime**。
+
+##### 形式化定义
+
+对平方损失 $\ell(w) = \tfrac{1}{2} \sum_i (f(w, x_i) - y_i)^2$，梯度流 $\dot w = -\nabla \ell(w)$ 诱导预测向量 $u(t) = (f(w(t), x_i))_i$ 演化：
+
+> [!theorem] Lemma 9.1.1（演化方程）
+> $$\frac{du(t)}{dt} = -H(t) \cdot (u(t) - y), \qquad [H(t)]_{ij} = \left\langle \frac{\partial f(w(t), x_i)}{\partial w}, \frac{\partial f(w(t), x_j)}{\partial w} \right\rangle.$$
+
+对二层 ReLU 网络 $f(a, W, x) = (1/\sqrt{m}) \sum_r a_r \sigma(w_r^\top x)$，无穷宽极限下的 **NTK 核**为：
+
+$$H^*_{ij} \;=\; x_i^\top x_j \cdot \mathbb{E}_{w \sim \mathcal{N}(0, I)}[\sigma'(w^\top x_i)\, \sigma'(w^\top x_j)].$$
+
+ReLU 解析形式：
+
+$$H^*_{ij} = \frac{x_i^\top x_j}{2\pi} \left( \pi - \arccos\!\frac{x_i^\top x_j}{\|x_i\| \|x_j\|} \right).$$
+
+##### 核心定理：lazy training
+
+> [!theorem] Lemma 9.2.2（初始化时的 NTK 收敛）
+> 若 $m = \Omega(\varepsilon^{-2} n^2 \log(n/\delta))$，则以概率 $\geq 1 - \delta$，$\|H(0) - H^*\|_2 \leq \varepsilon$。
+
+> [!theorem] Lemma 9.2.3（核区间的稳定性）
+> 若 $m = \Omega(n^6 t^2 / \varepsilon^2)$，则训练时间 $t$ 内 $\|H(t) - H(0)\|_2 \leq \varepsilon$。
+>
+> **证明关键**：每个权重在 $[0, t]$ 内只移动 $\|w_r(t) - w_r(0)\|_2 = O(tn / \sqrt{m})$，故 $H(t)$ 近似常量，训练动力学退化为线性 ODE
+> $$\dot u(t) \approx -H^* (u(t) - y).$$
+
+特征分解 $H^* = \sum_i \lambda_i v_i v_i^\top$ 给出沿每个特征方向的指数衰减：
+
+$$v_i^\top (u(t) - y) = e^{-\lambda_i t} \cdot v_i^\top (u(0) - y).$$
+
+即**收敛速率 = NTK 谱**；训练目标若与 $H^*$ 的高频特征向量对齐，则收敛极慢。
+
+最终预测器等价于核最小二乘回归：
+
+$$f^*(x) = (k(x, x_1), \ldots, k(x, x_n)) \cdot (H^*)^{-1} y.$$
+
+##### 泛化界（Eq. 9.11）
+
+NTK 区间下，Rademacher 复杂度给出：
+
+$$\text{generalization error} \;\leq\; \frac{\sqrt{2\, y^\top (H^*)^{-1} y \cdot \mathrm{tr}(H^*)}}{n}.$$
+
+**洞见**：泛化好坏取决于标签 $y$ 在 $H^*$ 谱上的分布——若 $y$ 主要由低频（大特征值）成分组成，则 $y^\top (H^*)^{-1} y$ 小，泛化好。
+
+##### 为什么有效
+
+- **过参数化解释**：宽度 $m$ 越大，权重位移越小，linearization 误差越小——over-parameterization 不是 bug，是 lazy regime 成立的**充分条件**。
+- **凸优化等价性**：在核区间，损失函数对预测向量 $u$ 是凸的（二次型），全局收敛有保证。
+- **解耦优化与表征**：NTK 把"网络学到了什么"（kernel $H^*$）与"如何学"（梯度下降）分离开来。
+
+##### 局限性
+
+- **lazy regime 不覆盖特征学习**：NTK 区间的网络不会真正"学到新特征"——其表征恰好是初始化的随机特征。这与现代深度学习中特征学习的关键作用矛盾。
+- **依赖 $1/\sqrt{m}$ 缩放**：实际网络通常使用 $1/m$（mean-field）或其他缩放，导致非 NTK 行为。
+- **谱条件数 $\lambda_1 / \lambda_n$ 巨大**：高维数据下 NTK 矩阵病态，理论的指数收敛在实践中被极慢的最小特征方向主导。
+
+##### 灵巧操作应用
+
+- **小数据真机 RL（[[Idea-002-Latency-Aware-Actuator]] / [[Idea-012-WPTE-Tactile-Encoder]]）**：lazy training 解释了为何 frozen-rigid + 5 min 真机适配可行——大模型在小数据上的更新被困在 NTK 邻域，等价于在固定 kernel 上做核回归，避免了灾难性遗忘。
+- **WM 重要性加权（[[Idea-011-WM-Importance-Weighted-Diffusion]]）**：NTK 谱分析为"加权核回归"提供严格基础——重要性权重 $\rho_i$ 修改的是有效核 $H^*_{ij} \to \rho_i \rho_j H^*_{ij}$，可解析其条件数变化。
+- **Diffusion Policy 训练动力学**：score matching 在 NTK 区间下是线性 ODE，可从谱角度分析 denoising step 数与样本复杂度的折中。
+
+#### 6.3.8 优化景观与逃离鞍点 (Optimization Landscape & Escaping Saddles)
+
+> [!note] 教科书参考
+> 本节基于 **Theory of Deep Learning** Chapter 6 (Tractable Landscapes) 与 Chapter 7 (Escaping Saddle Points)，定义 6.3.2 / 6.3.3 / 7.1.3 / 7.1.5，定理 7.2.1 与 11.3.5。
+
+##### 物理直觉
+
+非凸损失景观的"可优化性"不取决于全局凸性，而取决于一个温和得多的几何条件：**局部 minima 全是 global，且每个 saddle 都有严格负曲率方向**——这正是矩阵分解、相位恢复、张量分解等许多机器学习问题在实践中能用 GD 解决的根本原因。
+
+##### 形式化定义
+
+> [!important] Def 6.3.2（$(\varepsilon, \gamma)$-SOSP）
+> $w$ 是**二阶稳定点**当且仅当 $\|\nabla f(w)\|_2 \leq \varepsilon$ 且 $\lambda_{\min}(\nabla^2 f(w)) \geq -\gamma$。
+
+> [!important] Def 6.3.3（局部可优化 / Strict Saddle 性质）
+> $f$ 是**ridable**（可优化）当且仅当 $\forall \tau > 0$，$\exists\, \varepsilon, \gamma = \mathrm{poly}(\tau)$，使得每个 $(\varepsilon, \gamma)$-SOSP $w$ 都满足 $f(w) \leq f(w^*) + \tau$。
+>
+> 等价表述：**所有局部极小点都是全局极小**，**所有鞍点都是 strict saddle**（即 $\lambda_{\min}(\nabla^2 f) < 0$）。
+
+##### 核心定理：扰动梯度下降逃离鞍点
+
+**Perturbed Gradient Descent (PGD)**：$x_{t+1} \leftarrow x_t - \eta(\nabla f(x_t) + \xi_t),\ \xi_t \sim \mathcal{N}(0, (r^2/d) I)$。
+
+> [!theorem] Theorem 7.2.1（PGD 高效逃离鞍点）
+> 若 $f$ 是 $\ell$-梯度 Lipschitz、$\rho$-Hessian Lipschitz，取 $\eta = 1/\ell$、$r = \tilde\Theta(\varepsilon)$，则 PGD 在 $\tilde O\big(\ell(f(x_0) - f^*) / \varepsilon^2\big)$ 步内以高概率找到 $\varepsilon$-SOSP。
+>
+> **关键**：维度依赖仅为 $\mathrm{polylog}(d)$——与 GD 找一阶稳定点的复杂度（除对数因子外）相同。
+
+##### 景观结构定理
+
+> [!theorem] Theorem 11.3.5（dropout 矩阵分解无伪局部极小）
+> 设 $r = \mathrm{rank}(M)$，$d_1 \leq d_0$，$\lambda < r \lambda_r(M) / \big(\sum_{i=1}^r \lambda_i(M) - r \lambda_r(M)\big)$。dropout 正则化的矩阵分解平方损失满足：
+> 1. 所有局部极小点都是全局极小；
+> 2. 所有鞍点都是 strict saddle。
+
+特例 $\lambda = 0$ 即标准矩阵分解（[BH89, JGN+17]）。同类景观结果还覆盖：matrix sensing [BNS16]、matrix completion [GLM16]、dictionary learning [SQW16]、phase retrieval [SQW18]、tensor decomposition [GHJY15]、deep linear nets [Kaw16]。
+
+##### 为什么有效
+
+- **几何 + 算法的协同**：strict saddle 性质保证存在逃离方向，PGD 的高斯扰动以高概率落入逃离方向，由 Hessian Lipschitz 给出确定的下降量。
+- **维度无关性**：扰动梯度的"球面随机化"使得逃离时间只与最坏特征值相关，而非 $d$。
+- **替代凸性**：strict saddle + no spurious minima 给出了**与凸性等价的全局收敛保证**，但无需凸性假设。
+
+##### 局限性
+
+- **真实深度网络非 ridable**：标准多层 ReLU 网络存在 spurious local minima 与 degenerate saddle（$\lambda_{\min} = 0$）。Theorem 7.2.1 只保证收敛到 SOSP，不保证全局最优。
+- **Hessian Lipschitz 假设**：ReLU 不满足，需用 smoothed surrogate 分析。
+- **扰动尺度敏感**：$r$ 过大破坏收敛，过小逃离过慢；实践中 SGD 的内禀噪声替代显式扰动。
+
+##### 灵巧操作应用
+
+- **CMA-ES Latent Task Generator（[[Final_WMTS]] §三）**：CMA-ES 协方差自适应可视为 PGD 的二阶推广——其逃离 saddle 的能力解释了为何 latent 任务搜索能跳出 trivial 模式。
+- **iLQR/DDP 收敛性（[[Optimization#4.1 核心算法：iLQR / DDP|iLQR 章节]]）**：接触约束的 trajectory optimization 存在大量 saddle，PGD 理论指导了 trust region 半径与 noise injection 设计。
+- **Diffusion 训练（[[StochasticProcess]]）**：DDPM 的 noise injection 在景观视角下是天然的 PGD，解释了为何 score matching 训练对初始化鲁棒。
+- **WMTS [[Idea-014-WM-Gradient-Adaptive-DR]]**：DR 方差预算调度本质上在调控 loss landscape 的 conditioning，strict saddle 视角给出了"何时增大方差以助逃离"的理论判据。
+
 ---
 
 ### 6.4 结论：从拟合到物理理解 (Conclusion: From Fitting to Physical Understanding)
@@ -1039,5 +1166,10 @@ $$w_{t+1} = w_t - \eta \cdot \arg\max_{\|v\|_p^* \leq 1} \langle v, \nabla L(w_t
 ### 信息瓶颈与运动生成表征
 - [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]] — **RL Token 信息瓶颈**：编码器-解码器压缩 VLA embedding 为紧凑状态表征，残差动作编辑实现高效在线 RL
 - [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]] — **TP-MoE token 级参数混合**：每个文本 token 混合不同专家参数实现细粒度时间-语义对齐，262D 机器人原生空间扩散生成
+
+### 项目级真机表征 Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-006-In-Context-Hypernet-Adapter|ICHA]]：In-context Transformer prompt → FiLM offsets，零梯度真机适应
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-012-WPTE-Tactile-Encoder|WPTE]]：以 WM forward prediction 作为触觉编码器的 pretext，实现 zero-shot sim-to-real
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-009-Discrete-Task-Tokens|VQ Discrete Task Tokens]]：VQ-VAE 离散任务 token + transition graph 用于安全 replan
 
 *Format: Markdown for Obsidian Knowledge Base Integration.*
