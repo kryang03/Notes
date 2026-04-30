@@ -5,7 +5,54 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-04-27 (Session #31 — 教科书整合：鲁棒数据驱动控制 / LMI 证书 ✅)
+**最后更新**: 2026-04-29 (Session #32 — 教科书整合：Murray Ch.4 Lagrangian 深化 + Hamiltonian / 参数线性性 ✅)
+
+## 🟢 Session #32 完成 (2026-04-29)
+
+### 教科书整合：Dynamics §3.1 Lagrangian 推导深化（Hamilton 原理 / 参数线性性 / 约束 Lagrangian / Hamiltonian 形式）
+
+**触发**：用户调用 `/textbook-integration`，承接 Session #31 "下次会话建议" 中 Murray Ch.4 Lagrangian 推导深化。
+
+#### Phase 0：状态恢复
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER #31 | 已读取，承接 Murray Ch.4 / Offline RL / DeePC 三选项 |
+| MergeBuffer | 根目录无 PDF；HoverNotes 已清空仅余 .base 文件 |
+| 实验结果同步 | DNPM/WMTS local 时间戳无变化（最后写入 04-27 02:09），无新远端结果 |
+| 选题判断 | Deep RL 教科书无 Offline RL 章节 → 不可写"教科书参考"；选 Murray Ch.4 深化最具理论价值 |
+
+#### Phase 1：Murray Ch.4 提取
+**精读章节**：
+- Theorem 4.1（Lagrange 方程，Eq. 4.4-4.5）
+- Lemma 4.2（操作器方程结构性质：M 正定 + Ṁ-2C 反对称）+ 完整证明
+- Slotine-Li 自适应控制参考（Ref [107]）
+- Murray §8 Hamiltonian 与最优控制章节
+
+#### Phase 2：Dynamics.md 新增四节
+| 章节 | 内容 |
+|------|------|
+| `§3.1.2 变分起源：Hamilton 原理 → Lagrange 方程` | 4-step 推导（广义坐标/广义力/作用量极值/展开为操作器方程）+ 为什么变分形式重要（统一框架/保结构积分/最优控制桥梁） |
+| `§3.1.3 惯量参数线性性` | $\mathbf{Y}(\theta,\dot\theta,\ddot\theta)\pi = \tau$ regressor 形式 + Slotine-Li 自适应律完整公式 + System ID/DR 替代/WMTS LAAA 关联 |
+| `§3.1.4 约束 Lagrangian` | Lagrange 乘子 DAE 形式 + KKT 矩阵 + λ 物理意义 → ContactMechanics §4.1 LCP / Delassus 算子桥梁 |
+| `§3.1.5 Hamiltonian 形式` | Legendre 变换 + Hamilton 正则方程 + 三种形式（L/H/Spatial）对比表 + 辛积分器/Pontryagin/Energy-shaping |
+
+#### Phase 3：双向链接
+| 文件 | 变更 |
+|------|------|
+| `ControlTheory.md §12` 引言 | 新增 callout 桥接：Slotine-Li 收敛性依赖 [[Dynamics §3.1.3 参数线性性]] + [[Dynamics §3.1.1 Lemma 4.2 反对称性]] |
+| Dynamics §3.1.2-3.1.5 | 4 处跨链：Optimization §4.1 iLQR / ControlTheory §12 MRAC / ControlTheory §11.1 ARE / ContactMechanics §4.1 LCP / WMTS LAAA |
+
+#### Phase 4：Canvas + 验证
+- `found_dynamics_note` 文案更新："多体动力学 · 惯性项建模 · 时标分离" → "Lagrangian/Hamiltonian · 参数线性性 (Y·π=τ) · RNEA/ABA · 接触动力学"
+- Canvas JSON 验证：103 nodes / 161 edges，无 dup / dangling
+- 所有新增 wikilink 章节已确认存在（ControlTheory §12.2 MRAC / §11.1 连续 ARE / Optimization §4.1 iLQR / ContactMechanics §4.1 LCP）
+
+#### 下次会话建议
+- **Data-based control DeePC 章节**：噪声正则化 + input-output 数据版本 + $H_\infty$ noisy data → ControlTheory §9 进一步深化
+- **Murray Ch.5-6 接触建模**：Grasp matrix / form closure / Ferrari-Canny → ContactMechanics 形式化定义可继续补强
+- **Theory of Deep Learning Ch.10 Implicit Bias**：可与 RepresentationLearning §6.3.7 NTK 形成完整 lazy training + implicit bias 双视角
+
+---
 
 ## 🟢 Session #31 完成 (2026-04-27)
 

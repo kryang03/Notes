@@ -1447,6 +1447,9 @@ $$J = \int_0^\infty (x^\top Q x + u^\top R u)\, dt,\quad Q \succeq 0,\ R \succ 0
 > [!note] 教科书参考
 > 本节基于 Ioannou & Sun "Robust Adaptive Control" 与 Åström & Wittenmark "Adaptive Control" 的经典框架。
 
+> [!tip] 与 Dynamics 的桥梁：参数线性性使 MRAC 可证收敛
+> Slotine-Li 自适应控制（机械臂版 MRAC）的成立依赖于一个深刻的力学性质：**操作器方程对惯量参数线性** $M\ddot\theta + C\dot\theta + N = \mathbf{Y}(\theta, \dot\theta, \ddot\theta)\, \pi$。详细推导见 [[Dynamics#3.1.3 惯量参数线性性 (Linearity-in-Parameters) — 自适应控制的桥梁|Dynamics §3.1.3]]。该性质 + $\dot M - 2C$ 反对称性（[[Dynamics#3.1.1 开链机器人的 Lagrangian 推导 (详见 Murray Ch.4)|Dynamics §3.1.1]] Lemma 4.2）共同构成 §12.2 Lyapunov 函数 $V = \tfrac12 s^T M s + \tfrac12 \tilde\pi^T \Gamma^{-1}\tilde\pi$ 可证全局收敛的两块基石。
+
 ### 12.1 问题设定
 
 被控对象 $\dot x = f(x, u, \theta)$，$\theta \in \mathbb{R}^p$ 是**未知但常值**参数（如负载惯量、摩擦系数、电缆刚度）。目标：同时**辨识 $\theta$** 与**控制 $x$**。

@@ -242,6 +242,98 @@ $$M(\theta) \ddot{\theta} + C(\theta, \dot{\theta}) \dot{\theta} + N(\theta) = \
 > 这是 **Passivity-based Control** 的数学基础：对于 Lyapunov 函数 $V = \frac{1}{2} \dot{\theta}^T M \dot{\theta}$，有：
 > $$\dot{V} = \dot{\theta}^T (\tau - N) \quad \text{（能量守恒结构）}$$
 
+#### 3.1.2 变分起源：从 Hamilton 原理到 Lagrange 方程 (Murray Theorem 4.1)
+
+> [!note] 教科书参考
+> Murray Ch.4, Theorem 4.1, Eq. (4.4)–(4.5)
+
+操作器方程并非凭空写出，而是 **Hamilton 最小作用量原理** 的直接推论。这一变分起源是理解"为什么 $L = T - V$ 这样选取"的关键，也是后续 Hamiltonian 形式与最优控制 Pontryagin 极小值原理的共同根基。
+
+**Step 1 — 广义坐标降维**：对于 $n$ 个粒子受 $k$ 个约束的系统，引入 $m = 3n - k$ 个广义坐标 $q \in \mathbb{R}^m$ 与光滑映射 $r_i = f_i(q)$，使得约束 $g_j(r_1, \dots, r_n) = 0$ 自动成立（不再需要 Lagrange 乘子）。对机械臂，$q$ 通常取**关节角**。
+
+**Step 2 — 广义力**：物理世界中的力 $F_i \in \mathbb{R}^3$ 通过 Jacobian 映射为广义力分量：
+$$\Upsilon_i = \sum_j F_j \cdot \frac{\partial r_j}{\partial q_i}$$
+对机械臂，关节力矩 $\tau_i$ 即第 $i$ 个广义坐标上的广义力。
+
+**Step 3 — 作用量极值**：定义作用量 $S = \int_{t_0}^{t_1} L(q, \dot q, t)\, dt$（$L = T - V$）。**Hamilton 原理**断言：在 $q(t_0), q(t_1)$ 固定的端点条件下，真实轨迹使 $S$ 取**驻值**（$\delta S = 0$）。对 $\delta q$ 做变分并分部积分，得：
+$$\delta S = \int_{t_0}^{t_1} \left( \frac{\partial L}{\partial q} - \frac{d}{dt}\frac{\partial L}{\partial \dot q} \right) \delta q \, dt + \underbrace{\left[ \frac{\partial L}{\partial \dot q} \delta q \right]_{t_0}^{t_1}}_{=0} = 0$$
+
+由 $\delta q$ 任意性即得 **Lagrange 方程**：
+$$\frac{d}{dt}\frac{\partial L}{\partial \dot q_i} - \frac{\partial L}{\partial q_i} = \Upsilon_i, \quad i = 1, \dots, m$$
+
+**Step 4 — 展开为操作器方程**：将 $L = \tfrac{1}{2}\dot\theta^T M(\theta) \dot\theta - V(\theta)$ 代入：
+- $\partial L / \partial \dot\theta_i = \sum_j M_{ij}(\theta)\dot\theta_j$
+- $\frac{d}{dt}(\partial L / \partial \dot\theta_i) = \sum_j M_{ij}\ddot\theta_j + \sum_{j,k} \frac{\partial M_{ij}}{\partial \theta_k}\dot\theta_j \dot\theta_k$
+- $\partial L / \partial \theta_i = \tfrac{1}{2}\sum_{j,k} \frac{\partial M_{jk}}{\partial \theta_i}\dot\theta_j \dot\theta_k - \frac{\partial V}{\partial \theta_i}$
+
+合并即得 $M(\theta)\ddot\theta + C(\theta, \dot\theta)\dot\theta + N(\theta) = \tau$，其中 $C$ 的 Christoffel 系数形式正是 Step 3 中两组导数之差。
+
+> [!tip] 为什么变分形式重要
+> 1. **统一框架**：同样的 Hamilton 原理推出场论（Klein-Gordon, Maxwell）、广义相对论与 RL 中的 path integral 公式
+> 2. **数值离散保结构**：Variational integrator（DMOC, RATTLE）在数值积分中保持辛结构与能量近似守恒，远优于 Forward Euler——MuJoCo 的 implicit integrator 即基于此族
+> 3. **最优控制桥梁**：Pontryagin 极小值原理本质上是 Hamilton 原理在控制变分 $\delta u$ 上的推广，与 [[Optimization#4.1 核心算法：iLQR / DDP|Optimization §4.1 iLQR/DDP]] 共享变分根基
+
+#### 3.1.3 惯量参数线性性 (Linearity-in-Parameters) — 自适应控制的桥梁
+
+> [!important] 关键性质（Murray Lemma 4.2 之后的工程推论；Slotine-Li 1987）
+> 操作器方程对**惯量参数** $\pi \in \mathbb{R}^p$（每个连杆的质量、质心、惯性张量 6 个独立分量等）是**线性的**：
+> $$M(\theta)\ddot\theta + C(\theta,\dot\theta)\dot\theta + N(\theta) = \mathbf{Y}(\theta, \dot\theta, \ddot\theta)\, \pi = \tau$$
+> 其中 $\mathbf{Y} \in \mathbb{R}^{n \times p}$ 称为 **regressor 矩阵**，**只依赖于运动学量**（$\theta, \dot\theta, \ddot\theta$）而**与参数 $\pi$ 无关**。
+
+**为什么线性**：动能 $T = \tfrac12 \dot\theta^T M \dot\theta$ 与势能 $V$ 都对每个连杆的 10 个标准惯量参数 $(m_i, m_i c_i, \bar I_i)$ 是仿射函数；Lagrange 方程对 $L$ 是线性算子，故对 $\pi$ 也线性。
+
+**直接后果 — Slotine-Li 自适应控制律**（与 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|ControlTheory §12 自适应控制]] 直连）：
+设跟踪误差 $e = \theta - \theta_d$，参考速度 $\dot\theta_r = \dot\theta_d - \Lambda e$，滑动变量 $s = \dot\theta - \dot\theta_r$。利用线性性：
+$$\hat M \ddot\theta_r + \hat C \dot\theta_r + \hat N = \mathbf{Y}(\theta, \dot\theta, \dot\theta_r, \ddot\theta_r)\, \hat\pi$$
+
+控制律与适应律：
+$$\tau = \mathbf{Y}\hat\pi - K_D s, \qquad \dot{\hat\pi} = -\Gamma\, \mathbf{Y}^T s$$
+
+利用 $\dot M - 2C$ 反对称性 + Lyapunov 函数 $V = \tfrac12 s^T M s + \tfrac12 \tilde\pi^T \Gamma^{-1} \tilde\pi$ 可证全局收敛 $s \to 0$（详见 [[ControlTheory#12.2 模型参考自适应控制 (MRAC) 框架|ControlTheory §12.2 MRAC]]）。
+
+> [!tip] 灵巧操作 / Sim-to-Real 应用
+> - **System Identification**：将 1 秒的真机轨迹送入最小二乘 $\hat\pi = (\mathbf{Y}^T\mathbf{Y})^{-1}\mathbf{Y}^T \tau_{\text{measured}}$，即可在线辨识灵巧手 24 个关节的全部惯量参数（前提：轨迹满足 PE 条件）
+> - **Domain Randomization 的理论替代**：参数线性性意味着我们不必盲目随机化所有惯量；只需保证 $\mathbf{Y}$ 在训练分布上行满秩，即可让策略隐式拟合参数子空间
+> - **WMTS 关联**：[[Projects/World Model as Task Scheduler/all_Insights_local/Idea-002-Latency-Aware-Actuator|LAAA]] 中 frozen-rigid + actuator 适配本质上利用了"刚体动力学对惯量参数线性"这一性质——只有 actuator 非线性失配需要神经网络补偿
+
+#### 3.1.4 约束 Lagrangian：闭链与接触的统一处理
+
+当存在 $k$ 个**holonomic 约束** $\phi(q) = 0$（如平行连杆、双指捏合形成的闭链、或抓取中的固定接触点），有两条等价处理路径：
+
+**路径 A — 坐标降维 (Embedding)**：求 $m - k$ 个独立坐标 $q'$ 使 $\phi$ 自动成立。代价：实时重定义坐标对接触位置变化的灵巧操作不友好。
+
+**路径 B — Lagrange 乘子 (DAE 形式)**：保留全部 $m$ 个坐标，引入乘子 $\lambda \in \mathbb{R}^k$：
+$$M(q)\ddot q + C(q,\dot q)\dot q + N(q) = \tau + \mathbf{A}^T(q)\, \lambda, \qquad \mathbf{A}(q)\ddot q + \dot{\mathbf{A}}(q)\dot q = 0$$
+其中 $\mathbf{A}(q) = \partial \phi / \partial q$ 为约束 Jacobian。这是一个 **DAE (Differential-Algebraic Equation) of index 3**，对其二次微分约束方程后可与动力学合并：
+$$\begin{bmatrix} M & -\mathbf{A}^T \\ \mathbf{A} & 0 \end{bmatrix} \begin{bmatrix} \ddot q \\ \lambda \end{bmatrix} = \begin{bmatrix} \tau - C\dot q - N \\ -\dot{\mathbf{A}}\dot q \end{bmatrix}$$
+
+**乘子 $\lambda$ 的物理意义**：约束反力 $f_c = \mathbf{A}^T \lambda$。对接触约束，$\lambda$ 即接触法向力大小；与 [[ContactMechanics#4.1 线性互补问题 (LCP) 的构建|ContactMechanics §4.1 LCP]] 的互补条件 $\lambda \ge 0, \phi(q) \ge 0, \lambda \cdot \phi = 0$ 联立即得完整接触动力学。
+
+> [!tip] 与 §5 接触求解器的关系
+> 路径 B 的 KKT 矩阵正是 §5.1 LCP 求解器要分解的 **Delassus 算子** $\mathbf{A} M^{-1} \mathbf{A}^T$ 的来源。Convex-MuJoCo 用 soft constraint 代替硬 KKT，本质上是把 $\lambda$ 替换为 $\lambda = -k\phi - d\dot\phi$ 的弹簧-阻尼实现。
+
+#### 3.1.5 Hamiltonian 形式：相空间视角与最优控制
+
+Lagrangian $L(q, \dot q)$ 的 **Legendre 变换** 给出 Hamiltonian：
+$$p = \frac{\partial L}{\partial \dot q} = M(q)\dot q \quad (\text{广义动量}), \qquad H(q, p) = p^T \dot q - L = \tfrac12 p^T M^{-1}(q) p + V(q) = T + V$$
+
+**Hamilton 正则方程**：
+$$\dot q = \frac{\partial H}{\partial p} = M^{-1} p, \qquad \dot p = -\frac{\partial H}{\partial q} + \tau$$
+
+**为什么换到 Hamiltonian 视角**：
+1. **相空间几何**：$(q, p)$ 空间的流形是辛流形，Hamilton 流保持辛形式 $\omega = dq \wedge dp$——这是 symplectic integrator（Verlet, leap-frog）能长期保能量的根本原因
+2. **Pontryagin 极小值原理**：最优控制的 Hamiltonian $H^*(q, p, u) = L_{\text{cost}}(q, u) + p^T f(q, u)$ 与力学 Hamiltonian 共享数学结构。LQR 的 Riccati 方程即由 $\partial H^*/\partial u = 0$ 推出（详见 [[ControlTheory#11.1 连续时间无限时域 LQR|ControlTheory §11.1 连续 ARE]]）
+3. **Energy-shaping 控制**：通过塑形 desired Hamiltonian $H_d = \tfrac12 p^T M_d^{-1} p + V_d$，可设计被动一致的控制器（IDA-PBC），在灵巧手力反馈遥操作中天然保证操作者-机器人-环境闭环的无源性
+
+> [!important] 三种形式的统一视角
+> | 形式 | 状态 | 适用场景 |
+> |------|------|---------|
+> | **Lagrangian** $(q, \dot q)$ | 配置 + 速度 | 推导 + Sim-to-Real（变量易测） |
+> | **Hamiltonian** $(q, p)$ | 配置 + 动量 | 长期仿真（辛积分）+ 最优控制 |
+> | **Newton-Euler** spatial $(v, f)$ | 6D 旋量 | 实时计算（RNEA $O(N)$） |
+>
+> 现代物理引擎（MuJoCo, Drake）的 implicit integrator 实际上在 Hamiltonian 上做隐式中点法以保结构稳定。
+
 ### 3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)
 
 **核心逻辑**: 既然我们知道基座（Base）是静止的，且末端（End-Effector）的受力是已知的（或为零），为什么不利用运动链的 **连通性（Connectivity）**？

@@ -59,7 +59,7 @@
 		{"id":"found_control","type":"file","file":"Foundations/ControlTheory.md","x":-810,"y":1460,"width":350,"height":120},
 		{"id":"found_control_note","type":"text","x":-810,"y":1600,"width":350,"height":100,"color":"6","text":"**核心**: PID→CTC→阻抗控制 · 力-位混合 · 数据驱动LMI证书"},
 		{"id":"found_dynamics","type":"file","file":"Foundations/Dynamics.md","x":-410,"y":1460,"width":350,"height":120},
-		{"id":"found_dynamics_note","type":"text","x":-410,"y":1600,"width":350,"height":100,"color":"6","text":"**核心**: 多体动力学 · 惯性项建模 · 时标分离"},
+		{"id":"found_dynamics_note","type":"text","x":-410,"y":1600,"width":350,"height":100,"color":"6","text":"**核心**: Lagrangian/Hamiltonian · 参数线性性 (Y·π=τ) · RNEA/ABA · 接触动力学"},
 		{"id":"found_contact","type":"file","file":"Foundations/ContactMechanics.md","x":-10,"y":1460,"width":350,"height":120},
 		{"id":"found_contact_note","type":"text","x":-10,"y":1600,"width":350,"height":100,"color":"6","text":"**核心**: 摩擦锥约束 · 接触切换 · 力学交互"},
 		{"id":"found_optim","type":"file","file":"Foundations/Optimization.md","x":390,"y":1460,"width":350,"height":120},
