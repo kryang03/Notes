@@ -36,6 +36,21 @@ related:
 > - [[GenDexGrasp - Generalizable Dexterous Grasping]] - object-centric contact map 作为 hand-agnostic intermediate representation
 > - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - proprioceptive TCN 将历史传感序列压缩为隐式接触/地形状态
 
+## 0. 理论大厦构建路线：从像素/触觉到可控状态
+
+表征学习的核心不是“换一个 encoder”，而是逐层回答：原始观测中哪些变量对控制有因果作用，哪些只是域噪声或纹理 shortcut。
+
+| 阶段 | 表征问题 | 典型方法 | 失败模式 | 灵巧操作中的修正 |
+|:--|:--|:--|:--|:--|
+| 重构式表征 | 如何压缩高维观测？ | PCA、AE、VAE | 可能重构噪声而非控制变量 | 用 [[InformationTheory#5. 信息瓶颈原理：最优表征的信息论基础 (Information Bottleneck Principle: Information-Theoretic Foundation for Optimal Representation)|信息瓶颈]] 约束任务相关性 |
+| 对比式表征 | 哪些状态应在 latent 中接近？ | InfoNCE、CLIP、时序对比 | 语义相近但物理接触不同 | 加入触觉/几何正样本，而不是只靠视觉帧 |
+| 几何表征 | 物体形状如何进入策略？ | PointNet++、Point Transformer、SDF | 点云稀疏或遮挡导致接触边界错误 | 与 [[ComputationalGeometry]] 的法向/SDF 校准 |
+| 动作表征 | 多模态动作如何避免均值坍缩？ | MDN、IBC、Diffusion、Flow Matching | 平均动作落在不可行动作中间 | 预测 action chunk，并用低层控制过滤 |
+| 因果表征 | latent 是否保留可控变量？ | world model、object-centric latent、3D flow | 学到 simulator artifact 或纹理 shortcut | 用动力学预测、触觉变化、执行器残差做检验 |
+
+> [!important] Foundation 级判断标准
+> 好表征必须能通过三个问题：能否预测下一步物理状态，能否指导稳定控制，能否在真机域差异下保留任务变量。只提高重构质量或分类准确率，不等于对灵巧操作有用。
+
 ## 1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)
 
 作为致力于机器人灵巧操作（Dexterous Manipulation）的研究者，我们必须清醒地认识到，虽然深度学习（Deep Learning）在计算机视觉和自然语言处理领域取得了令人瞩目的成就，但将其直接迁移至机器人操作领域——特别是涉及复杂接触的灵巧操作——并非易事。这并非仅仅是数据量的问题，而是因为物理世界的**接触动力学（Contact Dynamics）**与神经网络所擅长的平滑函数逼近（Smooth Function Approximation）之间存在根本性的张力。
@@ -643,7 +658,7 @@ $$\text{Input: } (P_{\text{scene}}, P_{\text{robot\_flow}}) \xrightarrow{\text{P
 
 ## 5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)
 
-在灵巧操作中，视觉（Vision）和触觉（Tactile）并非简单的冗余，而是具有**互补的物理尺度（Complementary Physical Scales）**。视觉擅长全局规划（Global Planning）和物体识别，但在接触发生时，由于**遮挡（Occlusion）\**和\**尺度限制**，视觉几乎完全失效。此时，触觉成为感知接触力学（摩擦、滑动、纹理）的唯一窗口。
+在灵巧操作中，视觉（Vision）和触觉（Tactile）并非简单的冗余，而是具有**互补的物理尺度（Complementary Physical Scales）**。视觉擅长全局规划（Global Planning）和物体识别，但在接触发生时，由于**遮挡（Occlusion）**和**尺度限制**，视觉几乎完全失效。此时，触觉成为感知接触力学（摩擦、滑动、纹理）的唯一窗口。
 
 ### 5.1 视触觉联觉表征：跨模态对齐与联合嵌入 (Visuotactile Synesthesia: Cross-Modal Alignment)
 
@@ -725,11 +740,11 @@ $$\text{Attn}(Q_T, K_V, V_V) = \text{softmax}\left(\frac{Q_T K_V^T}{\sqrt{d}}\ri
 
 GelSight 等光学触觉传感器通过内部摄像头拍摄弹性体（Elastomer）的形变来感知接触。为了在仿真中训练触觉策略，我们必须解决**触觉仿真（Tactile Simulation）**的难题。
 
-#### 4.1.1 传统方法的局限
+#### 5.2.1 传统方法的局限
 
 使用有限元分析（FEM）模拟弹性体形变虽然精确，但计算成本极高，无法满足强化学习（RL）所需的每秒数千次交互的采样效率。
 
-#### 4.1.2 Taxim：基于实例的快速仿真 (Taxim: Example-based Fast Simulation)
+#### 5.2.2 Taxim：基于实例的快速仿真 (Taxim: Example-based Fast Simulation)
 
 Taxim  提出了一种革命性的方法，将光学模拟与力学模拟解耦。
 
@@ -748,7 +763,7 @@ Taxim  提出了一种革命性的方法，将光学模拟与力学模拟解耦�
 | **视觉 (Vision)**  | 全局视角，低频，易遮挡   | ResNet / ViT              | 提供物体位姿先验，指导接近阶段     |
 | **触觉 (Tactile)** | 局部视角，高频，接触敏感 | ConvNet / Tactile Encoder | 提供接触几何、力反馈，指导操作阶段 |
 
-#### 4.2.1 交叉注意力机制 (Cross-Attention Mechanism)
+#### 5.3.1 交叉注意力机制 (Cross-Attention Mechanism)
 
 核心在于让触觉特征主动“查询”视觉特征。
 
@@ -762,8 +777,8 @@ $$Attention(Q_{tactile}, K_{vision}, V_{vision}) = softmax(\frac{Q K^T}{\sqrt{d_
 
 - **多阶段策略 (Multi-stage Policy)**：
   1. **Approach Phase**: 视觉主导，快速接近目标区域。
-  2. **Search/Alignment Phase**: 触觉主导。利用**螺旋搜索（Spiral Search）\**或\**力控（Force Control）\**策略。此时，策略网络利用触觉反馈的梯度来微调动作，实际上是在执行一种隐式的\**阻抗控制（Impedance Control）**。
-- **GelFusion 的鲁棒性**：实验表明，即使在人为遮挡摄像头的情况下，经过多模态训练的策略依然能利用触觉流（Tactile Flow）和本体感知（Proprioception）推断出物体状态，完成任务 。这证明了多模态融合不仅增加了信息量，更增加了系统的**冗余度（Redundancy）\**和\**鲁棒性（Robustness）**。
+    2. **Search/Alignment Phase**: 触觉主导。利用**螺旋搜索（Spiral Search）**或**力控（Force Control）**策略。此时，策略网络利用触觉反馈的梯度来微调动作，实际上是在执行一种隐式的**阻抗控制（Impedance Control）**。
+- **GelFusion 的鲁棒性**：实验表明，即使在人为遮挡摄像头的情况下，经过多模态训练的策略依然能利用触觉流（Tactile Flow）和本体感知（Proprioception）推断出物体状态，完成任务 。这证明了多模态融合不仅增加了信息量，更增加了系统的**冗余度（Redundancy）**和**鲁棒性（Robustness）**。
 
 ------
 

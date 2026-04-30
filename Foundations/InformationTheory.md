@@ -29,6 +29,19 @@ related:
 >
 > **核心框架**: 熵 → 互信息 → KL散度 → 信息增益最大化
 
+## 0. 理论大厦构建路线：从不确定性度量到主动触摸策略
+
+信息论在灵巧操作中不是抽象的“熵很重要”，而是一条从 belief 到 action 的构建链：
+
+1. **信念建模**：把未知物体位姿、接触状态、摩擦系数、刚度等写成随机变量，而不是单点估计。
+2. **不确定性度量**：用熵刻画当前 belief 体积，用 KL 散度刻画一次观测带来的 belief 跳变，用互信息刻画候选观测的期望价值。
+3. **主动感知目标**：把动作 $a$ 的价值定义为未来观测能减少多少不确定性，而不是动作本身看起来多接近目标。
+4. **物理约束耦合**：触摸动作既消耗能量又可能扰动物体，因此信息增益必须与碰撞风险、接触力和任务代价共同优化。
+5. **表征与控制闭环**：信息瓶颈压缩观测，empowerment 衡量可控性，二者共同决定“保留什么信息、去哪里探索、何时变硬/变软”。
+
+> [!important] 与 [[SignalProcessing]] 的边界
+> SignalProcessing 解决“如何从 noisy sensor stream 估计状态”；InformationTheory 解决“哪个状态值得估、下一次观测该去哪里、表征应保留多少信息”。二者通过 belief update 与信息增益闭环相连。
+
 ## 1. 绪论：从被动观测到具身主动性 (From Passive Observation to Embodied Agency)
 
 在机器人灵巧操作（Robotics Dexterous Manipulation）的经典控制范式中，感知（Perception）长期以来被视为控制回路中一个独立且被动的前置环节。传统的“感知-规划-执行”（Sense-Plan-Act）架构隐含了一个危险的假设：系统假定传感器（如RGB-D相机、激光雷达或触觉阵列）能够提供关于环境状态的充分统计量（Sufficient Statistics），从而使规划器（Planner）能够基于一个确定性的世界模型（World Model）生成动作序列。然而，当我们将视角转向高自由度（High-DoF）的灵巧手操作，尤其是在非结构化、部分可观测（Partially Observable）的环境中时，这种线性解耦模型正面临根本性的失效。
@@ -87,13 +100,13 @@ $$I(X; Z) = H(X) - H(X | Z)$$
 
 或者等价地表示为先验分布与后验分布之间的期望 KL 散度（Expected KL Divergence）：
 
-$$I(X; Z) = \mathbb{E}_{z}$$
+$$I(X; Z) = \mathbb{E}_{z \sim p(z)}\left[D_{KL}(p(X \mid z) \| p(X))\right]$$
 
 - **先验熵 $H(X)$**：在进行观测前的状态不确定性。
 - **条件熵 $H(X|Z)$**：获得观测 $Z$ 后的剩余不确定性。
 - **信息增益 (Information Gain)**：$I(X; Z)$ 即为通过观测 $Z$ 获得的关于 $X$ 的信息量。
 
-在机器人主动探索算法中，$I(X; Z)$ 通常作为**目标函数（Objective Function）\**的一部分。机器人选择动作 $a$（例如移动手指到某个特定的笛卡尔坐标），以最大化\**预期信息增益（Expected Information Gain, EIG）**：
+在机器人主动探索算法中，$I(X; Z)$ 通常作为**目标函数（Objective Function）**的一部分。机器人选择动作 $a$（例如移动手指到某个特定的笛卡尔坐标），以最大化**预期信息增益（Expected Information Gain, EIG）**：
 
 $$a^* = \arg\max_{a} \mathbb{E}_{z \sim p(z|a)} [ I(X; Z) ]$$
 
@@ -112,7 +125,7 @@ KL散度 $D_{KL}(P \| Q)$ 衡量了两个概率分布 $P$ 和 $Q$ 之间的非�
 | --------------------------------- | ------------- | ------------------------------------------------ | ------------------------------------------------------------ |
 | **微分熵 (Differential Entropy)** | $H(X)$        | 状态空间中可行域的体积；不确定性的总量。         | 衡量当前的定位精度或形状重建完整度。                         |
 | **互信息 (Mutual Information)**   | $I(X; Z)$     | 传感器读数对状态空间的“切割”能力；感知的有效性。 | 评估传感器的摆放位置或触觉传感器的接触点质量。               |
-| **KL 散度 (KL Divergence)**       | $D_{KL}(P\|Q$ | 信念更新的幅度；“惊奇”程度；模型修正的距离。     | 内在动机（Intrinsic Motivation）的奖励信号；Sim-to-Real 的分布对齐度量。 |
+| **KL 散度 (KL Divergence)**       | $D_{KL}(P \| Q)$ | 信念更新的幅度；“惊奇”程度；模型修正的距离。     | 内在动机（Intrinsic Motivation）的奖励信号；Sim-to-Real 的分布对齐度量。 |
 
 ------
 
@@ -133,7 +146,7 @@ GP 定义了函数上的分布：$f(x) \sim \mathcal{GP}(m(x), k(x, x'))$。给�
 
 ### 3.2 采集函数与下一最佳触点 (Acquisition Functions and Next Best Touch)
 
-如何选择下一个探测点 $x_{next}$？这转化为一个贝叶斯优化（Bayesian Optimization, BO）问题。我们需要定义一个**采集函数（Acquisition Function）** $\alpha(x)$，该函数平衡了**利用（Exploitation）\**和\**探索（Exploration）**。
+如何选择下一个探测点 $x_{next}$？这转化为一个贝叶斯优化（Bayesian Optimization, BO）问题。我们需要定义一个**采集函数（Acquisition Function）** $\alpha(x)$，该函数平衡了**利用（Exploitation）**和**探索（Exploration）**。
 
 在灵巧操作的 GPIS 框架下，常用的采集函数分析如下：
 
@@ -319,9 +332,11 @@ $$J = \sum_{t=0}^{T} \left( \underbrace{C(b_t, u_t)}_{\text{Task Cost}} - \lambd
 2. 从传感器模型 $p(z|x)$ 中采样模拟观测 $z$。
 3. 利用模拟观测 $z$ 更新信念，计算后验分布与先验分布的距离。
 
-$$MI(b, u) \approx \sum_{z} p(z|b, u) \left$$
+$$
+MI(b, u) \approx \sum_{z_j \in Z_{MC}} p(z_j \mid b, u) D_{KL}\left(b'(x \mid z_j, u) \| b^{-}(x \mid u)\right)
+$$
 
-其中 $b'(\cdot|z)$ 是假设获得观测 $z$ 后的更新信念。
+其中 $b^{-}(x \mid u)$ 是执行候选动作后的预测信念，$b'(x \mid z_j, u)$ 是假设获得模拟观测 $z_j$ 后的更新信念。也就是说，互信息在粒子框架中被近似为“未来每种可能观测引起的后验-先验 KL 跳变”的加权平均。
 
 #### 核心算法逻辑：基于粒子的信息增益估计 (Python伪代码)
 
@@ -371,9 +386,7 @@ def expected_information_gain(particles, weights, candidate_action,
             new_weights = weights # 观测极不可能，保持原状
         
         # 4. 计算 KL 散度 (KL Divergence between Posterior and Prior)
-        # KL(Posterior |
-
-| Prior) 近似表示信息增益
+        # KL(Posterior || Prior) 近似表示信息增益
         # 这里使用离散分布的 KL 公式
         # 注意：需要处理 log(0) 的情况
         kl = np.sum(new_weights * np.log(new_weights / (weights + 1e-9) + 1e-9))
@@ -714,7 +727,7 @@ def compute_diayn_rewards(discriminator, states, skills):
 
 传统的**域随机化（Domain Randomization, DR）**试图通过增加 $P_{sim}$ 的熵（即增加噪声方差），使其覆盖 $P_{real}$。这实际上是在“稀释”信息，导致学习到的策略非常保守。
 
-**信息论自适应（Information-Theoretic Adaptation）\**则采取攻势：它在部署阶段利用实时数据来\**在线**最小化不确定性。
+**信息论自适应（Information-Theoretic Adaptation）**则采取攻势：它在部署阶段利用实时数据来**在线**最小化不确定性。
 
 - **策略**：将在仿真中训练好的探索策略（Exploratory Policy）迁移到真机。该策略不是为了完成任务，而是为了在真机上高效地收集数据，以最快速度缩减 $P_{real}$ 的模型参数不确定性（System Identification）。例如，上真机后先执行“摩擦测试”动作，根据反馈迅速将摩擦系数的不确定性范围从 $[0.1, 1.0]$ 缩小到 $[0.4, 0.5]$，然后再执行任务策略 。
 

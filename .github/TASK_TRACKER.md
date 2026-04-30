@@ -5,7 +5,236 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-04-29 (Session #32 — 教科书整合：Murray Ch.4 Lagrangian 深化 + Hamiltonian / 参数线性性 ✅)
+**最后更新**: 2026-05-01 (Session #36 — Foundation 理论大厦全域细颗粒度补齐 ✅)
+
+## 🟢 Session #36 完成 (2026-05-01)
+
+### Foundation 全域补齐：从定义堆叠升级为理论大厦构建路线
+
+**触发**：用户要求“检查所有 foundation 中的知识，避免再出现这样只有定义进入了，没有详细阐释理论大厦的构建过程，对于 foundation 进行一轮非常细颗粒度的补齐”。
+
+#### Phase 0：状态恢复与审计
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER | 已读取 Session #35，确认上一轮 Control / Signal 基础补齐完成 |
+| 技能文档 | 已按 `knowledge-graph-management/SKILL.md` 与 Canvas 维护要求执行 |
+| MergeBuffer | 根目录仅 `_MergeIndex.md` 与 `HoverNotes/`，本轮无新根目录 Markdown 待整合 |
+| Foundation 审计 | 逐文件抽取标题和行数，识别 EmbodiedAI / ComputationalGeometry / ContactMechanics / InformationTheory / RepresentationLearning 等薄弱或破损段落 |
+| 实验结果同步 | 本轮未发现新的 `Projects/**/all_Insights/_ExperimentResultsAll.md` 需要同步 |
+
+#### Phase 1：11 个 Foundation 新增“§0 理论大厦构建路线”
+| 文件 | 新增主线 |
+|------|----------|
+| `Dynamics.md` | 几何表示 → 能量原理 → 约束动力学 → RNEA/ABA → 接触仿真 → 真机残差 |
+| `ContactMechanics.md` | 接触几何 → 接触运动学 → 接触静力学 → 接触动力学 → 可微/学习层 |
+| `ComputationalGeometry.md` | 集合运算 → 凸支持函数 → GJK/EPA → SDF → 神经隐式几何 |
+| `ControlTheory.md` | 系统描述 → 稳定性 → 频域/延迟 → 柔顺控制 → MPC/OSF → 数据证书 |
+| `Optimization.md` | 可行域 → 目标函数 → 求解器 → 非凸景观 → CITO → 学习加速 |
+| `ReinforcementLearning.md` | MDP/POMDP → Bellman/TD → 策略梯度 → 稳定更新 → 样本效率 → Sim-to-Real |
+| `StochasticProcess.md` | SDE → 马尔可夫性 → Bayes filter → GP/ensemble → MPPI → 随机互补 |
+| `SignalProcessing.md` | 转导 → 采样 → 频域 → 时频 → 状态估计 → 控制接口 |
+| `InformationTheory.md` | belief → 熵/KL/MI → 主动感知 → 物理代价耦合 → 信息瓶颈/empowerment |
+| `RepresentationLearning.md` | 重构 → 对比 → 几何 → 动作 → 因果表征 |
+| `EmbodiedAI.md` | 任务语义 → 空间 grounding → 动作生成 → 低层控制 → 数据飞轮 |
+
+#### Phase 2：细颗粒度修复与理论链补强
+| 文件 | 修复/补强 |
+|------|----------|
+| `InformationTheory.md` | 修复互信息 Expected KL 公式、粒子互信息截断公式、KL 表格符号、代码注释破行与 Markdown 粗体转义残留 |
+| `ContactMechanics.md` | 修正接触雅可比与抓取矩阵混用：`V_contact = J_h qdot`，`W_object = G f_c`，并补充虚功对偶解释 |
+| `ControlTheory.md` | 补全力/位混合控制律截断公式，明确选择矩阵下的 `τ = J^T(S u_force + (I-S)u_pos)` |
+| `StochasticProcess.md` | 补全 MPPI 自由能 / 路径积分公式，避免自由能段落停留在残缺定义 |
+| `RepresentationLearning.md` | 修复 GelSight/Taxim 与 VTT 小节编号错位；新增表征质量判断标准 |
+| `ComputationalGeometry.md`、`SignalProcessing.md`、`Optimization.md`、`InformationTheory.md`、`RepresentationLearning.md` | 清理 `\**...\**` Markdown 粗体转义残留 |
+
+#### Phase 3：索引与 Canvas
+| 文件 | 结果 |
+|------|------|
+| `Foundations/taxonomy.md` | 新增 `Foundation 理论大厦骨架索引`，用一张表统一 11 个 Foundation 的构建主线和灵巧操作落点 |
+| `Foundations/taxonomy.md` | 清理领域关联图重复残片与强关联表空行 |
+| `KnowledgeGraph.canvas` | Foundations 区域新增 `found_theory_spine` 节点，显式连接“物理/数学起源 → 算法实现 → 灵巧操作失败模式 → 项目映射”的总骨架；Canvas 节点数更新为 104 |
+
+#### Phase 4：验证
+| 校验项 | 结果 |
+|--------|------|
+| Canvas JSON | 104 nodes / 161 edges；无 duplicate ID；无 dangling edge |
+| Foundation 内部 wikilink / heading | 12 个 Foundation 相关文件 + Canvas 新增 taxonomy 章节链接目标化校验通过 |
+| Markdown 转义残留 | `Foundations/*.md` 中 `\**` 粗体转义残留已清空；截断公式 `left$$` 已修复 |
+| VS Code Problems | `KnowledgeGraph.canvas` 无错误 |
+| `git diff --check` | 通过，无尾随空白/格式警告 |
+
+#### 当前状态
+- 所有 Foundation 均已在前部显式给出理论构建路线，不再只靠后文定义堆叠来隐式表达领域结构。
+- 高优先级破损公式已修复，尤其是 InformationTheory、StochasticProcess、ControlTheory 中的截断公式。
+- taxonomy 与 Canvas 已同步本轮“理论大厦骨架”层级，方便后续从可视化与索引直接进入各 Foundation 的构建主线。
+
+#### 下次会话建议
+- 可对 `PapersRecap/` 执行一次反向回链：将论文中的方法段落连接到对应 Foundation 的 `§0 理论大厦构建路线`，让论文 recap 也按“理论起源 → 算法实现 → 工程风险”重排。
+- 可为 `Quiz/` 新增一轮“Foundation §0 路线专项口试题”，专门检查用户是否能从总骨架讲到具体公式和项目设计。
+
+## 🟢 Session #35 完成 (2026-05-01)
+
+### Foundation 补齐：SignalProcessing 与 ControlTheory 基础概念系统化
+
+**触发**：用户询问傅里叶变换、控制系统（几阶系统、传递函数等）、小波变换、卡尔曼滤波、EKF 等概念是否已进入对应 Foundation；若不完整则详细梳理并整合。
+
+#### Phase 0：状态恢复
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER | 已读取 Session #34，确认上一轮 MergeBuffer 批次已清空 |
+| 技能文档 | 已读取 `knowledge-graph-management/SKILL.md`，按 Foundation/Canvas/Tracker 流程执行 |
+| MergeBuffer | 根目录仅 `_MergeIndex.md` 与 `HoverNotes/`，本轮无新的根目录 Markdown 待整合 |
+| Papers / PapersRecap | 已抽样确认相关论文笔记存在，用于链接与术语校准 |
+| 实验结果同步 | `Projects/**/all_Insights/_ExperimentResultsAll.md` 未发现；本轮无远端实验结果需同步 |
+
+#### Phase 1：SignalProcessing.md 补强
+| 新增/修复内容 | 结果 |
+|---------------|------|
+| `§1.1 基础知识地图：从波形到状态估计` | 新增连续/离散信号、采样、Nyquist、anti-aliasing、ZOH、多速率处理 |
+| Fourier / DFT / FFT | 补入 CTFT/逆变换、幅值/相位/能量谱、卷积定理、DFT 与 FFT 的角色 |
+| STFT / Wavelet | 补入 STFT 时频窗、CWT/DWT、多分辨率、滑移/碰撞/微振动检测映射 |
+| 数字滤波器 | 补入 low/high/band-pass、notch、moving average/EMA、因果延迟与 zero-phase 离线滤波权衡 |
+| 状态估计 | 补入 Bayesian prediction-update 骨架，并扩展 KF / EKF / UKF / PF / Factor Graph 的关系 |
+| 公式修复 | 修复 PSD、VTS emphasis、Punyo FEM、factor graph MAP 等既有格式/LaTeX 损坏 |
+
+#### Phase 2：ControlTheory.md 补强
+| 新增/修复内容 | 结果 |
+|---------------|------|
+| `§1.1 古典控制系统最小语法：从阶次到传递函数` | 新增微分方程、传递函数、状态空间三种等价视角 |
+| 系统阶次 | 补入一阶系统时间常数、二阶系统自然频率/阻尼比、mass-spring-damper 与 impedance 映射 |
+| 极点/零点/稳定性 | 补入连续/离散稳定条件、闭环极点与 DNPM 固定 PD 局限 |
+| 频率响应 | 补入 Bode/Nyquist、gain margin、phase margin、bandwidth，与采样/滤波延迟建立链接 |
+| PID / Root locus | 补入 filtered derivative、闭环传递函数、sensitivity function、根轨迹直觉 |
+| State-space / Discretization | 补入可控性、可观性、separation principle、ZOH 离散化与采样延迟相位惩罚 |
+
+#### Phase 3：索引、Canvas 与链接
+| 文件 | 结果 |
+|------|------|
+| `Foundations/taxonomy.md` | 更新 Control 与 Signal 行：加入 Transfer Function / State-space / Fourier / STFT / Wavelet / KF-EKF-PF，并强化 ControlTheory-SignalProcessing 耦合 |
+| `KnowledgeGraph.canvas` | 更新 frequency、Control、Signal 节点文案，显式加入 Nyquist、Bode 带宽/相位裕度、滤波延迟、KF→EKF→UKF→PF |
+| 双向 wikilink | `SignalProcessing.md` 与 `ControlTheory.md` 互链到新增章节；新增项目/论文链接均确认有真实目标 |
+
+#### Phase 4：验证
+| 校验项 | 结果 |
+|--------|------|
+| VS Code Problems | `SignalProcessing.md`、`ControlTheory.md`、`taxonomy.md`、`KnowledgeGraph.canvas` 均无错误 |
+| Canvas JSON | 103 nodes / 161 edges；无重复 ID；无 dangling edge |
+| 关键 heading / wikilink | 新增 SignalProcessing §1.1、§5.2 与 ControlTheory §1.1 标题均存在；跨 Foundation 链接目标有效 |
+| LaTeX / JSON 转义 | 复扫无可疑 `\\text` / `\\tau` / tab 转义残留 |
+| `git diff --check` | 通过，无尾随空白/格式警告 |
+
+#### 当前状态
+- 用户点名的 Fourier、STFT、Wavelet、KF、EKF、UKF、PF、传递函数、系统阶次、频率响应、PID、状态空间、离散化/延迟等概念已系统进入对应 Foundation。
+- 这些概念不再只是零散出现在论文或后段应用章节中，而是在 Foundation 前部形成可复用的基础语法层。
+- 本轮无 MergeBuffer 清理任务，也无新远端实验结果需要同步。
+
+#### 下次会话建议
+- 可继续把 `PapersRecap/` 中涉及 tactile slip detection、time-frequency analysis、state estimation 的论文笔记统一回链到 `SignalProcessing §1.1` 与 `§5.2`。
+- 可在 `Quiz/04_Foundations_Perception_Representation_EmbodiedAI.md` 和 `Quiz/02_Foundations_Control_and_Optimization.md` 中追加 Fourier/Wavelet/KF/Transfer Function 专项口试题。
+
+## 🟢 Session #34 完成 (2026-05-01)
+
+### 标准工作流：MergeBuffer 2026-04-30 Gemini Chat 批次整合
+
+**触发**：用户要求遵循 `standard-workflow.prompt.md`，继续执行知识图谱标准维护流程。
+
+#### Phase 0：状态恢复
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER | 已读取 Session #33，确认上轮完成 Quiz 题库生成 |
+| 技能文档 | 已读取 `knowledge-graph-management/SKILL.md` 与 `json-canvas/SKILL.md` |
+| MergeBuffer | 发现根目录 2026-04-30 批次 8 个待处理 Markdown |
+| 实验结果同步 | 检查 DNPM/WMTS 相关 `_ExperimentResultsAll.md`，未发现新远端实验结果 |
+
+#### Phase 1：内容融合
+| 来源主题 | 融合目标 | 结果 |
+|----------|----------|------|
+| L25 SDK/CAN/MCU/触觉分帧 | `Projects/World Model as Task Scheduler/DexterousHandActuatorModel/Actuator2RigidDynamicsModel_gap.md` | 新增 SDK→CAN→MCU→FOC 时序链、归一化指令非物理量、读取模式可信度、嵌入式概念闭环 |
+| 仿真 PD vs 真机级联闭环 | `Projects/World Model as Task Scheduler/DexterousHandActuatorModel/FOC_Control.md` | 新增 §6.5，明确位置目标到真实 link torque 的残差建模边界 |
+| Isaac Gym action 传播链 | `Projects/Dynamic Non-Prehensile Manipulation/ideas.md` | 补充 `ActorCritic → env.step → pre_physics_step → q_target → PD/drive` 链路，以及 `controlFrequencyInv` 的真实含义 |
+| TD / PPO / Policy Gradient 细节 | `Foundations/ReinforcementLearning.md` | 新增 TD 学习家族；补强 PPO rollout/update、importance ratio、value clipping、bounds loss、KL LR |
+| 力-位混合控制 / Unified Policy / FACET | `Foundations/ControlTheory.md` | 新增阻抗/导纳因果性校准，明确 Unified Policy 为准静态导纳、FACET 为动态导纳 |
+| 分析动力学微振动 | `Foundations/Dynamics.md` | 新增 §3.1.6 小振动线性化，连接平衡点二阶展开、质量阵/刚度阵和接触微振动 |
+| 主动复习 | `Quiz/02_Foundations_Control_and_Optimization.md`、`Quiz/03_Foundations_RL_Stochastic_Info.md` | 新增 Unified/FACET、L25 torque 归一化、TD、PPO、Isaac Gym action 链路题目 |
+
+#### Phase 2：索引、Canvas 与清理
+| 项目 | 结果 |
+|------|------|
+| `MergeBuffer/_MergeIndex.md` | 新增 2026-05-01 处理记录，逐项标注 8 个 Markdown 的融合目标 |
+| `Foundations/taxonomy.md` | 更新 Control / RL 现代 value-add：阻抗/导纳分层、TD/PPO 数据流 |
+| `KnowledgeGraph.canvas` | 更新 WMTS、Sim-to-Real、Control、RL 节点文案，加入 L25 SDK→CAN→MCU、CAN latency、阻抗/导纳、TD→PPO/SAC |
+| MergeBuffer 清理 | 8 个已处理 Markdown 均已删除；根目录仅保留 `_MergeIndex.md` |
+
+#### Phase 3：验证
+| 校验项 | 结果 |
+|--------|------|
+| Canvas JSON | 103 nodes / 161 edges；无重复 ID；无 dangling edge |
+| 关键 heading | Dynamics §3.1.6、ControlTheory §3.2.1、RL §2.3.1、FOC §6.5、Actuator §3.1、DNPM action 链均存在 |
+| Wikilink / heading | 本轮编辑的 10 个 Markdown 文件解析通过，0 个缺失目标 |
+| LaTeX 转义 | 已修复 `\t` 被 JSON 转义导致的公式损坏；复扫无残留可疑双反斜杠 |
+| `git diff --check` | 通过，无尾随空白/格式警告 |
+
+#### 当前状态
+- `MergeBuffer/` 根目录无未处理 Markdown（仅 `_MergeIndex.md`）。
+- 本轮无新远端实验结果需要同步到 DNPM/WMTS 动态迭代日志。
+- Canvas 已反映本轮新增的执行器时序、Sim-to-Real 延迟、控制因果性与 RL 数据流突破点。
+
+#### 下次会话建议
+- 可继续对 `PapersRecap/` 中与 FACET、Unified Policy、VICES 相关笔记做一次导纳/阻抗术语 Refine，避免后续论文笔记沿用含混表述。
+- 可把 L25 SDK/CAN/MCU 这条链路抽成一张独立 Canvas 子图，服务 WMTS actuator paper 的方法图草稿。
+
+## 🟢 Session #33 完成 (2026-05-01)
+
+### 全库严格面试式简答题题库生成（Quiz/）
+
+**触发**：用户要求“基于整份知识库，在 Quiz 文件夹下面生成各部分知识的小测”，题型为严格面试式简答题，并在题后附仔细正确答案，覆盖尽可能多的重要知识点和考点。
+
+#### Phase 0：状态恢复与覆盖抽样
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER | 已读取 Session #32，确认当前主线为知识图谱维护 |
+| Quiz/ | 初始为空，本次新建完整题库结构 |
+| MergeBuffer | 根目录仅 `_MergeIndex.md`；无新待处理根目录文件 |
+| 实验结果同步 | `Projects/**/all_Insights/_ExperimentResultsAll.md` 未发现；本次无远端实验结果需同步 |
+| Canvas 检查 | 本次新增为评测题库，不是新理论/算法突破点；`KnowledgeGraph.canvas` 无需新增节点 |
+
+#### Phase 1：题库结构
+新增 `Quiz/README.md` 作为总索引，并生成 11 个专题题库：
+
+| 文件 | 覆盖范围 | 题量 |
+|------|----------|------|
+| `01_Foundations_Physics_and_Geometry.md` | Dynamics / ContactMechanics / ComputationalGeometry | 30 |
+| `02_Foundations_Control_and_Optimization.md` | ControlTheory / Optimization | 32 |
+| `03_Foundations_RL_Stochastic_Info.md` | ReinforcementLearning / StochasticProcess / InformationTheory | 33 |
+| `04_Foundations_Perception_Representation_EmbodiedAI.md` | SignalProcessing / RepresentationLearning / EmbodiedAI | 30 |
+| `05_Papers_Sim2Real_and_Dexterous_RL.md` | Sim-to-Real / Dexterous RL 论文 | 30 |
+| `06_Papers_Tactile_Visuotactile_and_Contact.md` | Tactile / Visuotactile / Contact 论文 | 25 |
+| `07_Papers_VLA_WorldModel_and_Diffusion.md` | VLA / World Model / Diffusion Policy 论文 | 25 |
+| `08_Papers_Control_Safety_and_RealWorld_RL.md` | Control / Safety / Real-World RL 论文 | 25 |
+| `09_Projects_DNPM.md` | Dynamic Non-Prehensile Manipulation 项目与 ideas | 30 |
+| `10_Projects_WMTS.md` | World Model as Task Scheduler 项目与真机 RL ideas | 35 |
+| `11_Cross_Domain_Oral_Exam.md` | 跨领域综合口试与研究设计 | 30 |
+
+#### Phase 2：内容覆盖
+- Foundation 题库覆盖 11 个核心领域：动力学、接触力学、计算几何、控制、优化、RL、随机过程、信息论、信号处理、表征学习、具身智能。
+- PapersRecap 题库按四条研究线组织：Sim-to-Real/Dexterous RL、触觉与接触、VLA/World Model/Diffusion、控制安全与真实世界 RL。
+- Projects 题库覆盖 DNPM 的 PAI/DOC/课程/实验结论，以及 WMTS 的五模块架构、Actuator-Rigid 解耦、LAAA、TAR、Reliability Extensions、Reset-Free、安全过滤等。
+- Cross-Domain 口试题强调从策略输出、执行器、接触、物体动力学、触觉反馈、world model、安全部署到论文消融的完整因果链。
+
+#### Phase 3：机械校验
+| 校验项 | 结果 |
+|--------|------|
+| Quiz Markdown 文件数 | 12（11 个专题 + README） |
+| 简答题总数 | 325 |
+| `**标准答案：**` 数量 | 325 |
+| `**评分要点：**` 数量 | 325 |
+| Quiz 内 wikilink 解析 | 0 个缺失目标 |
+| VS Code Problems | Quiz 目录无错误 |
+
+#### 下次会话建议
+- 可把 Quiz 进一步拆成 Obsidian Bases 视图：按 Foundation / Paper / Project / 难度 / 高频考点筛选。
+- 可为 325 道题追加 `difficulty`、`source`、`review-interval` 等属性，形成 spaced repetition 题库。
+- 可抽取“高压面试评分 rubric”单独成文，用于模拟组会/资格考问答。
 
 ## 🟢 Session #32 完成 (2026-04-29)
 

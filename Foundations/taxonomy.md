@@ -20,11 +20,11 @@ created: 2026-01-31
 | 领域 (Domain) | 核心关注 (Primary Focus) | 关键实现/库 (Key Implementation) | 现代 Value-Add (Modern Insight) |
 |--------------|-------------------------|--------------------------------|-------------------------------|
 | [[Optimization]] | 决策生成 | iLQR / OSQP / cvxpy | 可微优化层 (Diff. Layers), MPC |
-| [[ControlTheory\|Control]] | 稳定性与交互 | Operational Space / franka_ros / SDP | 变阻抗控制 + 数据驱动 LMI 证书 |
+| [[ControlTheory\|Control]] | 稳定性与交互 | Transfer Function / State-space / LQR / SDP | 古典频域/状态空间 + 阻抗/导纳分层 + 数据驱动 LMI 证书 |
 | [[Dynamics]] | 物理建模 | ABA / RNEA / pinocchio | 可微物理引擎 (Brax, Dojo) |
 | [[ContactMechanics\|Contact Mech.]] | 交互物理 | GJK / EPA / Friction Cones | 软指模型, 黏滞-滑移检测 |
-| [[ReinforcementLearning\|RL]] | 行为学习 | PPO / SAC / Stable-Baselines3 | Sim-to-Real, 域随机化 |
-| [[SignalProcessing\|Signal Proc.]] | 状态估计 | EKF / Particle Filter | 视触觉感知 (GelSight as Vision) |
+| [[ReinforcementLearning\|RL]] | 行为学习 | TD / PPO / SAC / Stable-Baselines3 | 代码级 PPO 数据流, Sim-to-Real |
+| [[SignalProcessing\|Signal Proc.]] | 时频分析与状态估计 | Fourier / STFT / Wavelet / KF-EKF-PF | 采样带宽约束 + 视触觉状态估计 |
 | [[InformationTheory\|Info. Theory]] | 不确定性与探索 | Mutual Information / Entropy | 内在动机, 表征解耦 |
 | [[ComputationalGeometry\|Comp. Geometry]] | 空间推理 | SDFs / Voronoi / trimesh | 隐式神经表示 (Neural Fields) |
 | [[StochasticProcess\|Stochastic Proc.]] | 随机建模 | Gaussian Processes / SDEs | 扩散策略 (Diffusion Policies) |
@@ -77,8 +77,6 @@ created: 2026-01-31
               │ Embodied AI │
               │   VLA/E2E   │
               └─────────────┘
-    │Geometry │  │ Theory  │  │ Process │
-    └─────────┘  └─────────┘  └─────────┘
 ```
 
 ---
@@ -93,9 +91,8 @@ created: 2026-01-31
 | [[ContactMechanics]] | [[Dynamics]] | 接触动力学、LCP |
 | [[ReinforcementLearning]] | [[ControlTheory]] | 稳定性约束RL、Safe RL |
 | [[Optimization]] | [[ControlTheory]] | MPC、轨迹优化 |
-| [[ControlTheory]] | [[SignalProcessing]] | 噪声数据鲁棒镇定、状态估计、数据驱动 LMI 证书 |
+| [[ControlTheory]] | [[SignalProcessing]] | 频率响应/采样延迟、状态估计、噪声数据鲁棒镇定、数据驱动 LMI 证书 |
 | [[ReinforcementLearning]] | [[StochasticProcess]] | 扩散策略、GP-based RL |
-
 | [[InformationTheory]] | [[ReinforcementLearning]] | Mediator奖励、RL Scaling Laws 熵控制、内在动机 |
 | [[InformationTheory]] | [[SignalProcessing]] | 压缩-去噪对偶性、率失真→触觉去噪 |
 
@@ -108,6 +105,27 @@ created: 2026-01-31
 | [[EmbodiedAI]] | [[ControlTheory]] | 分层VLA中的低层控制 |
 | [[EmbodiedAI]] | [[ReinforcementLearning]] | Robot Learning范式 |
 | [[EmbodiedAI]] | [[RepresentationLearning]] | Vision Foundation Models |
+
+---
+
+## Foundation 理论大厦骨架索引
+
+> [!abstract] 本轮 Foundation 补齐标准
+> 每个 Foundation 不再只保存定义，而要显式回答“理论从哪里来、如何逐层构建、怎样落到灵巧操作失败模式或算法设计”。以下表格用于快速定位各领域的主线。
+
+| Foundation | 理论构建主线 | 关键落点 |
+|-----------|--------------|----------|
+| [[Dynamics]] | 几何表示 → 能量原理 → 约束动力学 → RNEA/ABA → 接触仿真 → 真机残差 | 高 DoF 多体求解、接触 solver、执行器建模 |
+| [[ContactMechanics]] | 接触几何 → 接触运动学 → 接触静力学 → 接触动力学 → 可微接触 | 力闭合、摩擦锥、LCP、可微物理 |
+| [[ComputationalGeometry]] | 集合运算 → 凸支持函数 → GJK/EPA → SDF → 神经隐式几何 | 最近点、法向、穿透深度、优化梯度 |
+| [[ControlTheory]] | 系统描述 → 稳定性 → 频域/延迟 → 柔顺控制 → MPC/OSF → 数据证书 | 负反馈、阻抗/导纳、相位裕度、安全闭环 |
+| [[Optimization]] | 可行域 → 目标函数 → 求解器 → 非凸景观 → CITO → 学习加速 | 轨迹优化、接触隐式、实时 MPC |
+| [[ReinforcementLearning]] | MDP/POMDP → Bellman/TD → 策略梯度 → 稳定更新 → 样本效率 → Sim-to-Real | PPO/SAC、credit assignment、真机安全数据利用 |
+| [[StochasticProcess]] | SDE → 马尔可夫性 → Bayes filter → GP/ensemble → MPPI → 随机互补 | belief、uncertainty、robust rollout |
+| [[SignalProcessing]] | 转导 → 采样 → 频域 → 时频 → 状态估计 → 控制接口 | 触觉滤波、滑移检测、KF/EKF/UKF/PF |
+| [[InformationTheory]] | belief → 熵/KL/MI → 主动感知 → 物理代价耦合 → 信息瓶颈/empowerment | 预期信息增益、主动触摸、表征压缩 |
+| [[RepresentationLearning]] | 重构 → 对比 → 几何 → 动作 → 因果表征 | 触觉/视觉 latent、3D flow、Diffusion/Flow Matching |
+| [[EmbodiedAI]] | 任务语义 → 空间 grounding → 动作生成 → 低层控制 → 数据飞轮 | VLA、action chunk、world model、真机闭环 |
 
 ---
 
@@ -126,13 +144,13 @@ created: 2026-01-31
 碰撞检测是运动规划的前置，SDF 是现代操作优化的核心。
 
 ### [[ControlTheory|控制理论]]
-从位置控制转向力/位混合控制、鲁棒/自适应控制，以及用短真机数据给出稳定性证书的数据驱动控制。
+从位置控制转向阻抗/导纳分层、力/位混合控制、鲁棒/自适应控制，以及用短真机数据给出稳定性证书的数据驱动控制。
 
 ### [[Optimization|优化理论]]
 轨迹优化是现代操作的核心，MPC 是实时性的关键。
 
 ### [[ReinforcementLearning|强化学习]]
-解决接触丰富、难以建模的复杂操作任务。
+解决接触丰富、难以建模的复杂操作任务；重点追踪 TD credit assignment、PPO rollout/update 数据流与真机 Sim-to-Real 约束。
 
 ### [[StochasticProcess|随机过程]]
 操作充满了不确定性（物体质量、摩擦系数未知）。

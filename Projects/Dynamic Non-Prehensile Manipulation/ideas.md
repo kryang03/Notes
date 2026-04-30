@@ -366,6 +366,22 @@ Control Frequency Curriculum（CFC）通过改变 Decimation（策略观察和�
 
 这意味着：**当前策略的实际控制目标几乎就是力矩，而非让末端执行器严格到达预期位置**。但通过位置控制器来间接输出具有动力学特征的力矩，这个逻辑链条本身是不通顺的。
 
+> [!important] 代码级 action 传播链
+> 当前仿真代码中的 action 不是直接写入关节角，也不是直接作为真实力矩，而是经历以下链路：
+>
+> $$
+> \text{ActorCritic}(o_t) \to a_t \to \text{env.step}(a_t) \to \text{pre\_physics\_step} \to q^{target}_t \to \text{PD/IsaacGym drive}.
+> $$
+>
+> 在 `pre_physics_step` 中，目标角通常按增量形式生成：
+> $$
+> q^{target}_t=\operatorname{clip}(q^{target}_{t-1}+\text{action\_scale}\cdot a_t,
+> q_{min},q_{max}).
+> $$
+> 一个高层 action 会在 `controlFrequencyInv` 个物理子步中保持为同一个目标；每个子步调用 low-level control 并执行一次 `gym.simulate`。若 `torque_control=True`，代码显式计算 $\tau=K_p(q^{target}-q)-K_d\dot q$ 并施加 effort；若 `False`，则把 $q^{target}$ 交给 Isaac Gym 内置位置驱动器，其 stiffness/damping 仍然等价于一个内部 PD。
+>
+> **研究含义**：改变 control frequency 不只是改变“策略多久决策一次”，也改变了同一个 $q^{target}$ 被低层 PD 冻结并反复执行的时间长度。因此 CFC/HDC 的对照实验必须把 `controlFrequencyInv`、`action_scale`、$K_p/K_d$ 和物理 `dt` 一起报告，否则很难区分算法增益与低层控制器增益。
+
 #### 3.1.2 控制架构的系统梳理
 
 要解决这个问题，需要把当前框架放在更广泛的控制体系中理解（详见 [[ControlTheory]]）：

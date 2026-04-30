@@ -31,6 +31,22 @@ related:
 > - [[Dynamics]] - GP 残差学习补偿刚体动力学模型误差
 > **核心概念**: SDE → Itō Calculus → 马尔可夫性 → 信念空间
 
+## 0. 理论大厦构建路线：从随机扰动到信念空间控制
+
+随机过程不是“给模型加噪声”的附属品，而是描述真实灵巧操作如何在不可观测、不可精确预测的接触界面中演化的基础语言。
+
+| 层级 | 关键问题 | 理论对象 | 灵巧操作映射 |
+|:--|:--|:--|:--|
+| 随机动力学层 | 状态为何不是单条轨迹？ | SDE、drift/diffusion、Itō calculus | 摩擦、触觉噪声、执行器扰动会随状态改变 |
+| 马尔可夫层 | 当前观测是否足够？ | Markov property、POMDP、history state | 单帧触觉看不见温度、滑移历史和隐藏接触模式 |
+| 信念更新层 | 如何融合新观测？ | Bayes filter、EKF/UKF/PF、RBPF | 接触定位与物体形状常是多峰后验 |
+| 非参数建模层 | 未知动力学如何学习？ | Gaussian Process、ensemble、epistemic uncertainty | 刚体模型外的残差与接触不确定性需要置信度 |
+| 随机控制层 | 如何在不确定性下选动作？ | MPPI、path integral、risk-sensitive control | 采样 action sequence 并按代价指数加权 |
+| 接触随机层 | 互补约束不确定怎么办？ | Stochastic complementarity、robust sampling | 摩擦阈值和接触间隙本身是随机变量 |
+
+> [!important] 与 [[ReinforcementLearning]] 的接口
+> StochasticProcess 提供 belief、uncertainty 和 stochastic rollout 的数学底座；RL 在其上学习策略。若不区分 aleatoric 与 epistemic，不确定性奖励和 safety filter 很容易追逐噪声而非知识缺口。
+
 ## 1. 引言：从确定性的幻象到随机性的本质
 
 在机器人学特别是灵巧操作（Dexterous Manipulation）的发展历程中，长期存在着一种对“确定性”的迷恋。经典的控制理论建立在精确模型的假设之上：刚体动力学是完美的，摩擦遵循简单的库仑定律，传感器读数真实地反映了物理世界的状态。这种范式在工业机械臂重复执行轨迹跟踪任务时取得了巨大成功。然而，当我们试图让多指灵巧手在非结构化环境中执行诸如手中转笔（In-hand Manipulation）、盲抓（Blind Grasping）或触觉探索等任务时，确定性模型的局限性暴露无遗。
@@ -502,9 +518,11 @@ MPPI 的核心范式转移：**Sampling-based Gradient-free Optimization (基于
 
 MPPI 的数学根基在于**信息论对偶性 (Information Theoretic Duality)**。 随机最优控制问题可以被转化为一个**路径积分 (Path Integral)** 估计问题。我们希望找到一个控制分布，使得系统的自由能（Free Energy）最小。根据 Feynman-Kac 定理，最优控制序列的概率分布与轨迹的 Cost 指数成正比 。
 
-$$\lambda \log \mathbb{E}_{\mathbb{Q}} \left$$
+$$
+F = -\lambda \log \mathbb{E}_{\mathbb{Q}}\left[\exp\left(-S(\xi)/\lambda\right)\right]
+$$
 
-直观地说，如果某条带噪声的轨迹 $\tau_i$ 的代价 $S(\tau_i)$ 很低，我们就赋予它极高的权重。
+直观地说，如果某条带噪声的轨迹 $\xi_i$ 的代价 $S(\xi_i)$ 很低，我们就赋予它极高的权重。
 
 - **$\lambda$ (Temperature Parameter)**：这是一个关键的超参数。在物理上，它类比于统计力学中的温度。
 

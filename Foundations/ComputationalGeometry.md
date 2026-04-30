@@ -30,6 +30,19 @@ related:
 >
 > **核心算法链**: 闵可夫斯基和 → GJK/EPA → SDF → 神经隐式场
 
+## 0. 理论大厦构建路线：从集合运算到可微接触几何
+
+计算几何在灵巧操作中的地位不是“碰撞检测工具箱”，而是把形状、距离、接触法向和优化梯度统一起来的底层语言。它的理论构建应按以下链条展开：
+
+1. **集合层**：物体是点集，碰撞是两个集合相交；闵可夫斯基差把“两物体问题”转成“原点是否落入一个集合”的问题。
+2. **凸几何层**：支持函数把复杂凸体压缩为方向查询；GJK 不显式构造闵可夫斯基差，而是在支持点生成的 simplex 上迭代逼近原点。
+3. **响应层**：EPA 把“是否碰撞”推进到“沿哪个方向退出、穿透多深”，为 [[ContactMechanics]] 的法向力和冲量响应提供几何输入。
+4. **连续场层**：SDF 把几何边界变成标量势场，梯度给出法向，距离给出碰撞代价，使 [[Optimization]] 能用梯度下降而不是二值判断。
+5. **神经场层**：DeepSDF/Neural UDF/NGDF 用数据学习连续几何，但必须接受 Eikonal 约束、法向校准和接触验证，否则会产生“看似平滑、物理错误”的法向。
+
+> [!tip] 与灵巧操作的贯穿问题
+> 手指能否安全推、滚、夹，并不取决于几何 mesh 有多漂亮，而取决于这条链能否稳定提供：最近点、接触法向、穿透深度、曲率/边缘提示、以及可用于优化的连续梯度。
+
 ## 1. 引言：几何——灵巧操作的物理语言
 
 ## 1. Introduction: Geometry as the Physics Language of Manipulation
@@ -38,7 +51,7 @@ related:
 
 当前的机器人学正处于一个范式转移的关键时刻：从传统的基于采样的几何规划（如RRT*、PRM）向基于优化的运动生成（Optimization-based Motion Generation）转变。在这一转变中，计算几何的角色发生了质的飞跃——它不再仅仅提供二值的碰撞检测（Collision Detection），而是必须提供连续、可导的梯度信息，以引导机器人在复杂的构型空间（Configuration Space, C-Space）中寻找最优解。
 
-本报告将从严谨的数学视角和工程实践出发，系统解构支撑现代灵巧操作的三大几何支柱：**闵可夫斯基和（Minkowski Sums）**作为构型空间障碍物的理论基础；\**GJK与EPA算法\**作为离散接触检测的工业标准；以及**有向距离场（Signed Distance Fields, SDF）**作为现代轨迹优化的核心势能场。同时，我们将审视**神经隐式表示（Neural Implicit Representations）**如何正在重塑我们对非凸物体和抓取流形的理解。
+本报告将从严谨的数学视角和工程实践出发，系统解构支撑现代灵巧操作的三大几何支柱：**闵可夫斯基和（Minkowski Sums）**作为构型空间障碍物的理论基础；**GJK与EPA算法**作为离散接触检测的工业标准；以及**有向距离场（Signed Distance Fields, SDF）**作为现代轨迹优化的核心势能场。同时，我们将审视**神经隐式表示（Neural Implicit Representations）**如何正在重塑我们对非凸物体和抓取流形的理解。
 
 ### 1.1 核心范式对比 (Core Paradigms Comparison)
 
@@ -396,7 +409,7 @@ $$\mathbf{v}_{c, \text{virtual}} = G^T \mathbf{v}_{obj}$$
 
 ### 6.2 滚动接触的微分几何 (Differential Geometry of Rolling Contact)
 
-在高级操作（如手指捻动硬币）中，我们希望维持**纯滚动（Pure Rolling）\**接触。这是非完整约束（Non-holonomic constraints）。 Montana公式描述了接触点坐标 $(u, v)$ 在两个曲面上随时间的演化。这需要计算曲面的\**曲率形式（Curvature Form）\**和\**度量张量（Metric Tensor）**。
+在高级操作（如手指捻动硬币）中，我们希望维持**纯滚动（Pure Rolling）**接触。这是非完整约束（Non-holonomic constraints）。 Montana公式描述了接触点坐标 $(u, v)$ 在两个曲面上随时间的演化。这需要计算曲面的**曲率形式（Curvature Form）**和**度量张量（Metric Tensor）**。
 
 - **应用：** 为了规划滚动操作，我们需要精确的几何模型来计算表面法线和曲率。多面体近似（如网格）在这里会失效，因为其曲率在顶点和棱边处是狄拉克δ函数（无限大）。因此，对于精细的滚动操作，基于NURBS或Neural SDF的光滑几何表示是必须的 。
 

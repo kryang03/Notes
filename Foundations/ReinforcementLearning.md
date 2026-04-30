@@ -38,6 +38,22 @@ related:
 > - [[Deep Dynamics Models for Learning Dexterous Manipulation]] - model-based RL 在 Shadow Hand 上的高效真机学习
 > - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - privileged teacher-student + adaptive curriculum 的 sim-to-real RL
 
+## 0. 理论大厦构建路线：从 Bellman 递推到真机闭环学习
+
+强化学习 Foundation 的主线必须从“最大化奖励”细化为“在未知、非平滑、部分可观测的物理系统中构造可更新的反馈策略”。
+
+| 层级 | 关键问题 | 理论工具 | 灵巧操作映射 |
+|:--|:--|:--|:--|
+| MDP/POMDP 层 | 状态是否足以预测未来？ | Markov state、belief、history encoder | 触觉迟滞、温度、CAN 延迟破坏单帧 Markov 性 |
+| Bellman 层 | 价值如何递推？ | TD、SARSA、Q-learning、GAE | 长因果链任务需要把成功/失败回传到早期接触动作 |
+| 策略梯度层 | 不可微环境中如何更新策略？ | log-derivative trick、baseline、advantage | 接触求解器不可微时仍可采样估计梯度 |
+| 稳定更新层 | 策略如何不突然崩溃？ | TRPO/PPO、KL、clipping、entropy | 防止已学会的接触时序被一次大更新破坏 |
+| 样本效率层 | 真机数据如何反复利用？ | SAC、replay、offline RL、conservative Q | 在硬件磨损和安全约束下提高数据价值 |
+| 迁移层 | 仿真策略如何上真机？ | DR、system ID、RMA、world model、safety filter | 将 action gap、transition gap、reward gap 分开诊断 |
+
+> [!important] Foundation 级判断标准
+> 任何 RL 算法进入本知识库时，都要说明四件事：数据来自哪里、梯度如何产生、旧数据能否重用、接触/执行器不确定性如何进入状态或训练分布。
+
 ## 摘要 (Abstract)
 
 本文档作为一份深度研究报告，旨在为Robotics Dexterous Manipulation（机器人灵巧操作）领域的构建Obsidian知识库提供理论基石。作为该领域的首席科学家，我将摒弃百科全书式的浅层描述，转而采用一种严谨、怀疑且深度的视角，剖析强化学习（Reinforcement Learning, RL）如何解决接触丰富（Contact-rich）、难以建模（Hard-to-model）的复杂操作任务。报告全文约15,000字，涵盖了从广义坐标与接触流形的物理本质，到DDPG、TD3、SAC等主流算法的数学推导与演进脉络，再到Sim-to-Real、触觉感知融合及Diffusion Policy等前沿技术的具体实现细节。
@@ -167,6 +183,51 @@ $$a_{safe} = \text{Exp}_q( \pi(s) )$$
 > 如何将 DQN 的稳定训练机制扩展到连续动作空间？这催生了两条演进路线：
 > - **Actor-Critic 路线** → DDPG → TD3 → SAC
 > - **Policy Gradient 路线** → REINFORCE → TRPO → PPO
+
+### 2.3.1 TD 学习家族：从预测到控制
+
+时序差分学习（Temporal-Difference Learning, TD）是 Value-based RL 和 Actor-Critic 的共同根。它的关键思想是 **bootstrap**：不用等整条 episode 结束，而是用“一步真实奖励 + 下一状态当前估计”更新当前价值。
+
+#### TD(0)：策略评估
+
+给定策略 $\pi$，状态价值的单步 TD 更新为：
+
+$$
+V(S_t)\leftarrow V(S_t)+\alpha\delta_t,
+\qquad
+\delta_t=R_{t+1}+\gamma V(S_{t+1})-V(S_t).
+$$
+
+这里 $\delta_t$ 是 TD error。它把 Monte Carlo 的真实采样回报和 Dynamic Programming 的 Bellman 自举结合起来：不需要环境模型，也不需要等待终止。
+
+#### SARSA 与 Q-Learning：On-Policy vs Off-Policy 控制
+
+控制问题需要学习动作价值 $Q(s,a)$。SARSA 与 Q-Learning 的差异只在 TD target 的下一项，但这正是安全性差异的来源：
+
+| 方法 | 更新目标 | 策略属性 | 行为倾向 |
+|:--|:--|:--|:--|
+| SARSA | $R_{t+1}+\gamma Q(S_{t+1},A_{t+1})$ | On-policy | 把探索风险纳入价值，偏保守 |
+| Q-Learning | $R_{t+1}+\gamma\max_a Q(S_{t+1},a)$ | Off-policy | 学最优贪婪策略，偏激进 |
+
+悬崖行走例子说明了这一区别：SARSA 会因为 $\epsilon$-greedy 探索可能掉崖而学到远离悬崖的路径；Q-Learning 假设未来总是选择最优动作，倾向贴边最短路。
+
+#### TD($\lambda$) 与资格迹
+
+TD(0) 只把当前 TD error 分配给上一个状态。TD($\lambda$) 引入资格迹 $E_t(s,a)$，让近期访问过的状态-动作对按 $\gamma\lambda$ 衰减获得 credit：
+
+$$
+E_t(s,a)=\gamma\lambda E_{t-1}(s,a)+\mathbf{1}\{(s,a)=(S_t,A_t)\},
+$$
+
+$$
+Q(s,a)\leftarrow Q(s,a)+\alpha\delta_t E_t(s,a).
+$$
+
+- $\lambda=0$：退化为单步 TD，偏低方差但传播慢。
+- $\lambda=1$：接近 Monte Carlo，传播快但方差高。
+
+> [!tip] 灵巧操作直觉
+> 转笔、换指、接住这类长因果链任务中，成功/失败奖励常常滞后于真正关键动作。TD($\lambda$) 与 GAE 的共同价值就在于用可控的衰减窗口把末端反馈回传给前序接触决策；这也是 PPO 中 GAE($\lambda$) 比纯 TD(0) 更常用的原因。
 
 ### 2.3.5 策略梯度定理与 REINFORCE (Policy Gradient Theorem & REINFORCE)
 
@@ -492,6 +553,23 @@ def compute_ppo_loss(obs, actions, old_log_probs, advantages, returns,
     total_loss = policy_loss + c1 * value_loss - c2 * entropy
     return total_loss
 ```
+
+> [!note] 代码实现对照：PPO 为什么“宏观 on-policy，微观带 off-policy 影子”
+> 在一次 `train_epoch` 中，`play_steps()` 先用固定的 $\theta_{old}$ 采集 rollout；随后多个 mini-epoch 会反复使用同一批 storage。第一轮更新后，当前策略已变成 $\theta$，但数据仍来自 $\theta_{old}$，因此需要重要性采样比率：
+> $$
+> r_t(\theta)=\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}.
+> $$
+> 若代码缓存的是 negative log-prob，则实现常写成：
+> $$
+> r_t=\exp\left[(-\log\pi_{old})-(-\log\pi_{new})\right].
+> $$
+> PPO 仍是 on-policy，因为 rollout 结束后旧数据会被丢弃，不能像 SAC/DQN 那样长期进入 replay buffer；但它在一个很短的 trust region 内借用了 off-policy 的 importance sampling 来提高样本复用率。
+
+> [!warning] 代码级 loss 细节
+> 真实工程实现常比论文三项 loss 多两类保护：
+> - **Value clipping**：$V_{clip}=V_{old}+\operatorname{clip}(V_\theta-V_{old},-\epsilon,\epsilon)$，critic loss 取 unclipped / clipped MSE 的较大值，防止 value 在旧数据上暴走。
+> - **Bounds loss**：对 actor 均值 $\mu$ 超出软边界（如 $[-1.1,1.1]$）的部分加二次惩罚，避免高斯均值长期落在 action clamp 外侧，导致采样大面积饱和。
+> - **KL 自适应学习率**：每个 mini-epoch 估计新旧高斯 $D_{KL}$，若策略漂移过快则降低 LR；这与 clipping 共同构成“软 trust region”。
 
 > [!warning] 灵巧操作工程避坑
 > 1. **维度陷阱**: 24-DoF 灵巧手的 `log_prob` 必须在动作维度求和（联合概率 = 各维度 log 概率之和）。漏掉 `.sum(dim=-1)` 会导致张量广播错误，网络默默学出无用策略

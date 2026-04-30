@@ -26,6 +26,22 @@ related:
 > - [[ContactMechanics]] - LCP/互补约束的处理
 > - [[ReinforcementLearning]] - 优化与RL的融合
 
+## 0. 理论大厦构建路线：从可行域到实时闭环优化
+
+优化理论在灵巧操作中的主线不是“有哪些优化算法”，而是“如何把物理约束写成可求解、可解释、可实时更新的问题”。
+
+| 层级 | 建模问题 | 数学工具 | 机器人意义 |
+|:--|:--|:--|:--|
+| 可行域层 | 什么状态/接触/力是允许的？ | 凸集、约束、KKT、互补条件 | 关节限位、摩擦锥、不可穿透约束 |
+| 目标层 | 什么轨迹算好？ | 代价函数、势函数、risk/energy terms | 成功率、能量、温度、安全裕度不可混成一团 |
+| 求解层 | 如何从当前轨迹改进？ | GD、Newton、SQP、内点法、iLQR/DDP | 决定 MPC 是否能在控制周期内收敛 |
+| 非凸层 | 为什么会卡住或失败？ | saddle、PL、strict saddle、平滑化 | 接触模式切换导致局部极小和梯度断裂 |
+| 接触层 | 模式未知时如何优化？ | CITO、LCP relaxation、implicit differentiation | 让求解器自动发现接触/滑移/分离时刻 |
+| 学习层 | 如何用数据加速或替代求解？ | 可微优化层、warm start、policy distillation | RL/IL 可学习求解器先验，但不能绕开物理约束 |
+
+> [!tip] 与 [[ControlTheory]] 的边界
+> Optimization 提供“每次如何解一个决策问题”；ControlTheory 关心“把这些解放进闭环后是否稳定”。MPC 正是两者的交界面。
+
 ## 1. 领域全景与首席科学家视角的执行摘要
 
 灵巧操作（Dexterous Manipulation）代表了机器人学中物理交互的最高形式。不同于简单的二值化抓取（Grasping），灵巧操作要求机器人手部与物体之间发生受控的相对运动，涉及频繁的接触状态切换（Making/Breaking Contact）、滚动（Rolling）与滑动（Sliding）。从控制论的角度来看，这是一个极具挑战性的高维、欠驱动、混合动力学（Hybrid Dynamics）系统问题。作为该领域的首席科学家，我们必须摒弃对“端到端”黑盒学习的盲目崇拜，转而深入剖析**轨迹优化（Trajectory Optimization, TrajOpt）**与**模型预测控制（Model Predictive Control, MPC）**在处理接触不连续性时的数学困境与工程妥协。
@@ -93,7 +109,7 @@ $$\mathcal{K}(\mu) = \{ (\lambda_n, \lambda_t) \mid \|\lambda_t\| \le \mu \lambd
 
 **为什么这是优化的噩梦？**
 
-对于基于梯度的优化器（Gradient-based Optimizer）而言，互补约束 $\phi(q) \lambda = 0$ 是**非凸的（Non-convex）\**且\**非光滑的（Non-smooth）**。
+对于基于梯度的优化器（Gradient-based Optimizer）而言，互补约束 $\phi(q) \lambda = 0$ 是**非凸的（Non-convex）**且**非光滑的（Non-smooth）**。
 
 - **非凸性**：可行域是坐标轴的并集，而不是一个凸集。
 - **梯度消失/爆炸**：在非接触状态下，力关于位置的梯度 $\frac{\partial \lambda}{\partial q}$ 恒为零；在接触瞬间，梯度理论上为无穷大（刚体碰撞）。这导致标准的反向传播算法无法获得有效的梯度指引。

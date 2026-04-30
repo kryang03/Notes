@@ -9,6 +9,15 @@ aliases:
   - 触觉感知
   - GelSight
   - 卡尔曼滤波
+  - 状态估计
+  - 傅里叶变换
+  - Fourier Transform
+  - 短时傅里叶变换
+  - STFT
+  - 小波变换
+  - Wavelet Transform
+  - Kalman Filter
+  - Extended Kalman Filter
 created: 2026-01-31
 related:
   - "[[ControlTheory]]"
@@ -27,17 +36,167 @@ related:
 >
 > **相关项目**: [[Dynamic Non-Prehensile Manipulation]] - 动态操作中的触觉感知
 
+## 0. 理论大厦构建路线：从传感器波形到闭环状态
+
+信号处理 Foundation 的主线是把物理接触界面的连续变化，变成控制器可用、带不确定性的状态估计。
+
+| 层级 | 核心问题 | 工具 | 灵巧操作意义 |
+|:--|:--|:--|:--|
+| 转导层 | 物理量如何变成电信号/图像？ | 电容、光度立体、MEMS、GelSight | 传感器非线性决定原始数据可信度 |
+| 采样层 | 连续信号如何离散记录？ | Nyquist、ZOH、anti-aliasing | 触觉/力/动作频率不匹配会制造假滑移 |
+| 频域层 | 噪声和事件在哪些频带？ | Fourier、PSD、notch、band-pass | 区分电气噪声、机械振动、真实 stick-slip |
+| 时频层 | 瞬态事件何时发生？ | STFT、wavelet、spectral centroid | 早期滑移/碰撞是短时高频事件 |
+| 滤波层 | 如何估计不可见状态？ | KF、EKF、UKF、PF、factor graph | 从局部触觉恢复物体位姿、接触模式、摩擦状态 |
+| 控制接口层 | 估计结果如何进入闭环？ | 延迟补偿、置信度、异常检测 | 估计器输出必须带时间戳和不确定性，不只是一个数 |
+
+> [!tip] 与 [[InformationTheory]] 的边界
+> SignalProcessing 负责“这条传感流如何变成可靠状态”；InformationTheory 负责“下一步该采哪条传感流、哪些信息值得保留”。
+
 ## 1. 绪论：灵巧操作中的信号处理危机与范式转移
 
 在机器人灵巧操作（Dexterous Manipulation）的演进历程中，我们正处于一个关键的转折点。长期以来，机械设计的复杂性曾是主要瓶颈，但随着多指灵巧手硬件的成熟，核心矛盾已转移至**感知与认知的鸿沟**。具体而言，如何从高维、嘈杂、非线性的触觉原始数据中，实时提取出接触状态、物体位姿及物理属性，成为了制约灵巧操作迈向非结构化环境的“阿喀琉斯之踵”。作为首席科学家，我必须指出，当前的触觉处理流程往往过于简化，未能充分挖掘物理接触中蕴含的丰富信息流。
 
-触觉感知的本质是对接触界面物理交互的数字化重构。与视觉感知的非接触式、全局性不同，触觉具有显著的**局部性（Locality）**、**交互性（Interactivity）\**和\**直接性（Directness）**。触觉信号不仅仅是被动接收的数据，它是机器人主动探索（Active Exploration）的结果。最新的综述研究将灵巧操作中的触觉感知划分为三个递进的层级：**门控信号（Gating Signals）**、**几何推理（Geometric Reasoning）\**和\**力主导控制（Force-dominant Control）** 。
+触觉感知的本质是对接触界面物理交互的数字化重构。与视觉感知的非接触式、全局性不同，触觉具有显著的**局部性（Locality）**、**交互性（Interactivity）**和**直接性（Directness）**。触觉信号不仅仅是被动接收的数据，它是机器人主动探索（Active Exploration）的结果。最新的综述研究将灵巧操作中的触觉感知划分为三个递进的层级：**门控信号（Gating Signals）**、**几何推理（Geometric Reasoning）**和**力主导控制（Force-dominant Control）** 。
 
 1. **门控信号**：这是最基础的层级，仅利用力信号的不连续性（如接触发生/断开）来触发状态机的相位转换。虽然在简单的抓取任务中有效，但在复杂的掌内操作（In-hand Manipulation）中显得捉襟见肘。
 2. **几何推理**：这一层级利用高密度的触觉反馈（如视觉触觉传感器VTS提供的图像）来重建接触面的微观几何形貌，实现毫米级的物体对齐与位姿估计。这是目前研究的热点，也是连接触觉与视觉感知的桥梁 。
 3. **力主导控制**：最高层级，完全基于力/触觉反馈闭环控制策略，视觉仅提供粗略引导。这对于处理可变形物体或在极度受限空间内的操作至关重要 。
 
 本报告将以极其严谨和深度的视角，剖析支撑这三个层级的信号处理架构。我们将摒弃肤浅的现象描述，深入到**传感器转导物理学（Transduction Physics）**、**信号病态的数学建模（Mathematical Modeling of Signal Pathologies）**、以及基于**因子图（Factor Graphs）**的概率状态估计框架。我们的目标不仅是理解现有的算法，更是要揭示从原始电压值到语义级状态估计的全链路信号处理逻辑。
+
+### 1.1 基础知识地图：从波形到状态估计
+
+> [!abstract] 本节回答“傅里叶、小波、KF/EKF 等是否进入 Foundation”
+> 这些概念原先已经散落在滑移检测和状态估计章节中，但缺少一条从连续信号、采样、频域、时频域、数字滤波到概率估计的系统骨架。本节把它们收束为一个可复用的信号处理底座，并与 [[ControlTheory#1.1 古典控制系统最小语法：从阶次到传递函数|控制系统传递函数/频率响应]] 建立接口。
+
+#### 1.1.1 信号、采样与混叠：离散化不是无损记录
+
+机器人中的“信号”可以是电机电流、关节位置、IMU 角速度、指尖法向力、GelSight 图像亮度、触觉阵列压力或策略输出动作。数学上先区分两类：
+
+| 类型 | 记号 | 典型来源 | 核心风险 |
+|------|------|----------|----------|
+| 连续时间信号 | $x(t)$ | 力/电流/真实物体运动 | 传感器带宽有限、模拟噪声 |
+| 离散时间信号 | $x[k]=x(kT_s)$ | 控制器日志、RL observation | 采样率不足导致混叠 |
+
+采样频率 $f_s=1/T_s$ 必须满足 Nyquist 条件：
+
+$$
+f_s > 2 f_{\max}.
+$$
+
+若触觉滑移的微振动含有 $f_{\max}=300\,\mathrm{Hz}$ 的有效能量，而控制/记录频率只有 $200\,\mathrm{Hz}$，高频成分会折叠到低频，被误读成慢漂移或低频振荡。实际系统因此需要：
+
+- **抗混叠滤波（anti-aliasing filter）**：采样前用模拟低通滤波器切掉 $f_s/2$ 以上频率。
+- **零阶保持（zero-order hold, ZOH）**：控制输出在两个采样点之间保持常值，等价于给闭环系统引入相位滞后。
+- **多速率处理**：触觉/电流可高频采样，视觉低频更新，最终在 [[ControlTheory|控制器]] 中进行同步融合。
+
+> [!tip] 灵巧操作判断准则
+> 采样率不是“越高越好”，而是必须匹配任务带宽。准静态装配可低频；stick-slip、碰撞、转笔 snap phase 需要高频；惯性飞行段可降频。这正是 [[TARC - Time-Adaptive Robotic Control]]、[[Elastic Time Step Reinforcement Learning, VTS-RL]] 与 [[Reinforcement Learning for Control with Multiple Frequencies]] 背后的信号处理约束。
+
+#### 1.1.2 傅里叶变换：把时间波形拆成频率模式
+
+**连续时间傅里叶变换（Continuous-Time Fourier Transform, CTFT）**定义为：
+
+$$
+X(\omega)=\int_{-\infty}^{\infty}x(t)e^{-j\omega t}\,dt,
+\qquad
+x(t)=\frac{1}{2\pi}\int_{-\infty}^{\infty}X(\omega)e^{j\omega t}\,d\omega.
+$$
+
+它回答的问题是：一个触觉/电流/位置误差信号中，哪些频率模式在贡献能量？在机器人中最常用的解释维度是：
+
+| 频域量 | 含义 | 操作中的读法 |
+|--------|------|--------------|
+| $\lvert X(\omega)\rvert$ | 幅值谱 | 哪些振动模式最强 |
+| $\angle X(\omega)$ | 相位谱 | 信号相对输入滞后多少 |
+| $\lvert X(\omega)\rvert^2$ | 能量谱 | 噪声/滑移/共振的能量分布 |
+
+**卷积定理**是傅里叶分析与滤波器设计的核心：
+
+$$
+(x*h)(t) \Longleftrightarrow X(\omega)H(\omega).
+$$
+
+也就是说，时域中用滤波器 $h$ 平滑触觉信号，等价于频域中乘以频率响应 $H(\omega)$。这与 [[ControlTheory#1.1.4 频率响应：Bode、Nyquist 与控制带宽|控制系统频率响应]] 是同一套语言：信号处理看“噪声如何被削弱”，控制理论看“闭环如何放大/抑制扰动”。
+
+**离散傅里叶变换（DFT）**用于有限长度数据：
+
+$$
+X[m]=\sum_{k=0}^{N-1}x[k]e^{-j2\pi mk/N},\qquad m=0,\ldots,N-1.
+$$
+
+**快速傅里叶变换（FFT）**不是新变换，而是 DFT 的 $O(N\log N)$ 快速算法。工程上它用于：
+
+- 识别电机/减速器的机械共振频率。
+- 判断触觉信号中是否出现滑移高频能量。
+- 估计控制日志中的 dominant mode，辅助选择 $K_p,K_d$ 或 notch filter。
+
+#### 1.1.3 STFT 与小波：非平稳信号的时频显微镜
+
+普通傅里叶变换假设整段信号的频率成分不随时间变化。但灵巧操作信号高度非平稳：接触发生、滑移、撞击、脱离都是瞬态事件。此时需要时频分析。
+
+**短时傅里叶变换（Short-Time Fourier Transform, STFT）**对局部窗口做傅里叶变换：
+
+$$
+X(\tau,\omega)=\int_{-\infty}^{\infty}x(t)w(t-\tau)e^{-j\omega t}\,dt.
+$$
+
+其中 $w(t-\tau)$ 是滑动窗口。窗口越短，时间定位越准但频率分辨率越差；窗口越长，频率分辨率越准但事件起点被模糊。这是时频不确定性原理在工程中的直接体现。
+
+**连续小波变换（Continuous Wavelet Transform, CWT）**使用可伸缩、可平移的母小波 $\psi$：
+
+$$
+W_x(a,b)=\frac{1}{\sqrt{a}}\int_{-\infty}^{\infty}x(t)\psi^*\left(\frac{t-b}{a}\right)dt.
+$$
+
+尺度 $a$ 大时观察低频慢变化，尺度 $a$ 小时观察高频瞬态。相比固定窗口 STFT，小波天然适合“低频看趋势、高频抓突变”。
+
+**离散小波变换（Discrete Wavelet Transform, DWT）**把信号递归分解为：
+
+$$
+x[k] \rightarrow \{A_L, D_L, D_{L-1}, \ldots, D_1\},
+$$
+
+其中 $A_L$ 是低频近似系数，$D_i$ 是不同尺度的高频细节系数。滑移检测通常监测某些 $D_i$ 的能量突增：
+
+$$
+E_i[t]=\sum_{k\in\mathcal{W}_t}D_i[k]^2.
+$$
+
+> [!important] STFT vs Wavelet 选型
+> - 若目标是稳定地监测一个已知频带，例如电机齿槽频率或结构共振，用 STFT/PSD。
+> - 若目标是捕捉未知时刻的短促冲击、滑移起点或接触切换，用 DWT/CWT。
+> - 若结果要进入实时闭环，必须把窗口长度/小波层级带来的延迟计入 [[ControlTheory|控制系统]] 的相位裕度。
+
+#### 1.1.4 数字滤波器：去噪、延迟与可控性的三角权衡
+
+常见滤波器可以按作用分为：
+
+| 滤波器 | 作用 | 灵巧操作例子 | 风险 |
+|--------|------|--------------|------|
+| Low-pass | 去掉高频噪声 | 平滑力传感器读数 | 过度平滑会延迟接触检测 |
+| High-pass | 保留突变/振动 | 滑移微振动检测 | 放大电子噪声 |
+| Band-pass | 只保留目标频带 | 齿轮啮合/滑移频带 | 需要先验频带 |
+| Notch | 抑制窄带共振 | 电机/结构共振点 | 误设会削弱真实接触信号 |
+| Moving average / EMA | 轻量实时平滑 | RL observation 预处理 | 引入群延迟 |
+
+因果滤波器只能使用当前和过去数据，因此一定引入延迟；离线零相位滤波（如 forward-backward filtering）可以去掉相位滞后，但不可用于实时控制。对触觉闭环而言，最重要的不是“滤得多干净”，而是**滤波延迟是否低于控制稳定裕度允许的上限**。
+
+#### 1.1.5 状态估计：从滤波波形到估计不可见状态
+
+滤波器处理的是观测 $z_t$；状态估计器要反推出不可直接观测的系统状态 $x_t$，例如物体位姿、接触点位置、摩擦系数、执行器温度隐变量。标准贝叶斯递推为：
+
+$$
+\underbrace{p(x_t\mid z_{1:t-1},u_{1:t-1})}_{\text{prediction}}
+=\int p(x_t\mid x_{t-1},u_{t-1})p(x_{t-1}\mid z_{1:t-1})\,dx_{t-1},
+$$
+
+$$
+\underbrace{p(x_t\mid z_{1:t},u_{1:t-1})}_{\text{update}}
+\propto p(z_t\mid x_t)p(x_t\mid z_{1:t-1},u_{1:t-1}).
+$$
+
+KF、EKF、UKF、PF、因子图都是这两步递推的不同近似：KF 假设线性高斯；EKF 做一阶线性化；UKF 用 sigma 点传播均值/协方差；PF 用粒子近似任意后验；因子图把一段时间窗口内的状态整体优化。详细演进见 §5.2。
 
 ------
 
@@ -94,7 +253,10 @@ $$B = \{b_1, \dots, b_N\}, \quad b_i \in \{0, 1\}$$
 - **白噪声（White Noise）**：在全频段均匀分布，主要由热噪声引起。
 - **闪烁噪声（1/f Noise）**：在低频段占主导，是导致零点漂移的主要原因 。
 
-$$PSD(f) = \lim_{T \to \infty} \frac{1}{T} E\left$$
+$$
+S_x(f)=\lim_{T \to \infty}\frac{1}{T}\mathbb{E}\left[\left|X_T(f)\right|^2\right],\qquad
+X_T(f)=\int_{-T/2}^{T/2}x(t)e^{-j2\pi ft}\,dt
+$$
 
 利用PSD分析结果，我们可以设计最优的数字滤波器（如卡尔曼滤波器或自适应陷波器），在保留高频接触瞬态信号（如滑移引起的微振动）的同时，最大限度地抑制低频漂移和宽带噪声 。这种频域的洞察力是设计高信噪比触觉系统的基础。
 
@@ -102,7 +264,7 @@ $$PSD(f) = \lim_{T \to \infty} \frac{1}{T} E\left$$
 
 ## 3. 视觉触觉传感（VTS）：几何重建的计算摄影学
 
-视觉触觉传感器（Vision-based Tactile Sensors, VTS），如GelSight、GelSlim、Soft-Bubble和Punyo，代表了触觉感知的范式转移。它们将触觉问题转化为计算机视觉问题，利用高分辨率摄像头观测弹性体膜的形变。这一领域的信号处理核心在于解两个逆问题：**逆光学问题（从图像到几何）\**和\**逆力学问题（从形变到力分布）**。
+视觉触觉传感器（Vision-based Tactile Sensors, VTS），如GelSight、GelSlim、Soft-Bubble和Punyo，代表了触觉感知的范式转移。它们将触觉问题转化为计算机视觉问题，利用高分辨率摄像头观测弹性体膜的形变。这一领域的信号处理核心在于解两个逆问题：**逆光学问题（从图像到几何）**和**逆力学问题（从形变到力分布）**。
 
 ### 3.1 光度立体视觉（Photometric Stereo）：从光影到微米级形貌
 
@@ -151,9 +313,9 @@ DST利用频域的特性，将空间域的微分运算转化为频域的乘法�
 
 Punyo传感器的力估计被建模为一个**平面应力（Plane Stress）**问题。算法首先通过视觉追踪获取节点位移 $\mathbf{u}$，然后利用刚度矩阵 $\mathbf{K}$ 求解节点力 $\mathbf{f}$。为了解决逆问题的病态性（Ill-posedness），引入了L1正则化项以强制接触力的稀疏性（假设接触区域是局部的）：
 
-$$ \min_{\mathbf{f}} \quad |
-
-| \mathbf{K}\mathbf{u} - \mathbf{f} ||_2^2 + \lambda ||\mathbf{f}||_1 $$
+$$
+\min_{\mathbf{f}} \quad \lVert \mathbf{K}\mathbf{u} - \mathbf{f} \rVert_2^2 + \lambda \lVert \mathbf{f} \rVert_1
+$$
 
 该优化问题是一个标准的凸优化问题（Convex Optimization），可以利用现成的求解器（如CVXPY）高效求解。相比于纯数据驱动的方法，这种基于物理模型的方法仅需校准少量参数（如杨氏模量 $E$），具有极强的泛化能力 。
 
@@ -169,17 +331,31 @@ $$ \min_{\mathbf{f}} \quad |
 
 #### 4.1.1 短时傅里叶变换（STFT）与谱质心
 
-对于非平稳的触觉信号，**短时傅里叶变换（STFT）**是提取时频特征的标准工具。滑移发生时，信号的频谱能量会向高频段转移。**谱质心（Spectral Centroid）**是衡量这一频谱重心移动的关键指标 。
+对于非平稳的触觉信号，**短时傅里叶变换（STFT）**是提取时频特征的标准工具。滑移发生时，信号的频谱能量会向高频段转移。STFT 的窗口长度应由物理时间尺度决定：若窗口覆盖多个接触相位，滑移起点会被平均掉；若窗口过短，频率分辨率不足，无法稳定区分滑移微振动与电子噪声。
+
+**谱质心（Spectral Centroid）**是衡量这一频谱重心移动的关键指标：
 
 在Python的`librosa`库中，谱质心的计算公式为：
 
 $$\text{Centroid}[t] = \frac{\sum_k S[k, t] \cdot f[k]}{\sum_k S[k, t]}$$
 
-其中 $S[k,t]$ 是第 $t$ 帧第 $k$ 个频率分量的幅度，$f[k]$ 是对应的中心频率。当监测到谱质心突然升高并伴随能量激增时，算法判定为滑移事件 。
+其中 $S[k,t]$ 是第 $t$ 帧第 $k$ 个频率分量的幅度，$f[k]$ 是对应的中心频率。当监测到谱质心突然升高并伴随能量激增时，算法判定为滑移事件。
+
+> [!tip] 与控制闭环的接口
+> STFT 检测到滑移后，控制器通常不是直接“停止”，而是提高法向力、降低切向速度、切换到更柔顺的 [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系|阻抗控制]] 或触发 stick-slip 模态策略。
 
 #### 4.1.2 小波变换（Wavelet Transform）：捕捉瞬态奇异点
 
-STFT受限于海森堡测不准原理，无法同时获得高的时间和频率分辨率。**小波变换（DWT/CWT）**通过多尺度分析，能够极好地捕捉滑移起始瞬间的奇异点（Singularity）。 研究表明，利用离散小波变换（DWT）将信号分解为近似系数和细节系数，滑移信号主要集中在特定层级的高频细节系数中。检测这些系数的能量突变（例如使用Kiang小波基），可以实现极低延迟（<10ms）和高准确率的滑移检测，甚至优于传统的阈值方法 。
+STFT受限于海森堡测不准原理，无法同时获得高的时间和频率分辨率。**小波变换（DWT/CWT）**通过多尺度分析，能够极好地捕捉滑移起始瞬间的奇异点（Singularity）。
+
+离散小波滑移检测的典型流水线为：
+
+1. 对力/压力/电流信号做 DWT，得到 $A_L$ 与多层细节系数 $D_i$。
+2. 选取与滑移频带对应的层级 $D_i$。
+3. 在滑动窗口内计算能量 $E_i[t]=\sum D_i[k]^2$。
+4. 当 $E_i[t]$ 超过自适应阈值并持续若干采样点时，判定早期滑移。
+
+相比单纯阈值法，小波方法的关键优势是**把“突变”与“慢漂移”分开**：温度漂移、慢速加载主要进入低频近似系数；滑移、碰撞和微振动进入高频细节系数。这使得它尤其适合软触觉传感器，因为软材料的迟滞会制造大量低频伪影。
 
 #### 4.1.3 深度学习方法：ConvLSTM
 
@@ -240,13 +416,25 @@ RLS算法通过迭代更新参数估计值 $\hat{\theta}$ 和协方差矩阵 $P$
 
 #### 5.2.1 卡尔曼滤波 (Kalman Filter, KF) — 线性高斯最优
 
-**形式化定义**：对于线性高斯系统 $x_{t+1} = A x_t + B u_t + w_t$, $z_t = H x_t + v_t$：
+**形式化定义**：对于线性高斯系统 $x_{t+1} = A x_t + B u_t + w_t$, $z_t = H x_t + v_t$，其中 $w_t\sim\mathcal{N}(0,Q)$、$v_t\sim\mathcal{N}(0,R)$，KF 在高斯族内给出最小均方误差估计。
+
+**Prediction**：
+
+$$
+\hat{x}_{t|t-1}=A\hat{x}_{t-1|t-1}+Bu_{t-1}
+$$
+
+$$
+P_{t|t-1}=AP_{t-1|t-1}A^T+Q
+$$
+
+**Update**：
 
 $$\hat{x}_{t|t} = \hat{x}_{t|t-1} + K_t (z_t - H \hat{x}_{t|t-1})$$
 
 $$K_t = P_{t|t-1} H^T (H P_{t|t-1} H^T + R)^{-1}$$
 
-其中 $K_t$ 为**卡尔曼增益**，$P$ 为协方差，$R$ 为观测噪声。
+其中 $K_t$ 为**卡尔曼增益**，$P$ 为协方差，$R$ 为观测噪声。创新项 $z_t-H\hat{x}_{t|t-1}$ 表示“观测与预测的冲突”，卡尔曼增益决定相信模型还是相信传感器。
 
 > [!important] 灵巧操作局限
 > KF 假设**线性动力学 + 高斯噪声**，对灵巧操作中的接触非线性（模式切换、摩擦锥约束）完全失效。
@@ -257,18 +445,31 @@ $$K_t = P_{t|t-1} H^T (H P_{t|t-1} H^T + R)^{-1}$$
 
 $$F_t = \frac{\partial f}{\partial x}\bigg|_{\hat{x}_t}, \quad H_t = \frac{\partial h}{\partial x}\bigg|_{\hat{x}_t}$$
 
-然后套用标准 KF 公式。
+然后套用标准 KF 公式。完整递推为：
+
+$$
+\hat{x}_{t|t-1}=f(\hat{x}_{t-1|t-1},u_{t-1}),\qquad
+P_{t|t-1}=F_tP_{t-1|t-1}F_t^T+Q
+$$
+
+$$
+K_t=P_{t|t-1}H_t^T(H_tP_{t|t-1}H_t^T+R)^{-1}
+$$
+
+$$
+\hat{x}_{t|t}=\hat{x}_{t|t-1}+K_t\big(z_t-h(\hat{x}_{t|t-1})\big).
+$$
 
 **灵巧操作应用**：手指关节状态估计、物体位姿跟踪中的刚体动力学模型。
 **失效场景**：接触/脱离瞬间，系统动力学发生不连续跳变，一阶线性化产生巨大误差。
 
 #### 5.2.3 无迹卡尔曼滤波 (Unscented Kalman Filter, UKF) — Sigma 点传播
 
-**核心思想**：不做线性化，而是选取 $2n+1$ 个 **sigma 点** 精确传播非线性变换的均值和协方差：
+**核心思想**：不显式求 Jacobian，而是选取 $2n+1$ 个 **sigma 点** 传播非线性变换的均值和协方差：
 
 $$\mathcal{X}_0 = \bar{x}, \quad \mathcal{X}_i = \bar{x} \pm \sqrt{(n + \kappa) P_{xx}}, \quad i = 1, \ldots, 2n$$
 
-**优势**：捕获二阶统计量（均值/协方差），对中等非线性比 EKF 更准确。
+**优势**：捕获二阶统计量（均值/协方差），对中等非线性比 EKF 更准确，且避免手写 Jacobian。
 **局限**：仍假设高斯分布，无法表示**多模态**后验（如物体可能在手指左侧或右侧）。
 
 #### 5.2.4 粒子滤波 (Particle Filter, PF) — 蒙特卡洛后验采样
@@ -278,7 +479,14 @@ $$\mathcal{X}_0 = \bar{x}, \quad \mathcal{X}_i = \bar{x} \pm \sqrt{(n + \kappa) 
 $$p(x_t | z_{1:t}) \approx \sum_{i=1}^{N} w_t^{(i)} \delta(x_t - x_t^{(i)})$$
 
 **更新**：预测 → 权重更新 → 重采样：
+
+$$
+x_t^{(i)}\sim p(x_t\mid x_{t-1}^{(i)},u_{t-1})
+$$
+
 $$w_t^{(i)} \propto w_{t-1}^{(i)} \cdot p(z_t | x_t^{(i)})$$
+
+当有效粒子数 $N_{\mathrm{eff}}=1/\sum_i(w_t^{(i)})^2$ 过低时，需要重采样以避免权重退化。
 
 **灵巧操作中的关键价值**：
 - 天然处理**多模态分布**（如物体位姿的多个假设）
@@ -311,9 +519,9 @@ $$P(X|Z) \propto \prod_i \phi_i(X_i; z_i)$$
 
 MAP推断等价于最小化负对数似然函数的非线性最小二乘问题：
 
-$$ \hat{X}_{MAP} = \arg \min_X \sum_i |
-
-| h_i(X_i) - z_i ||_{\Sigma_i}^2 $$
+$$
+\hat{X}_{MAP}=\arg\min_X\sum_i \lVert h_i(X_i)-z_i \rVert_{\Sigma_i}^2
+$$
 
 #### 5.3.2 触觉因子（Tactile Factors）的构建
 
@@ -445,7 +653,7 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 
 | **传感模态**            | **核心信号处理技术** | **关键算法库/工具**                              | **主要误差源**               | **最佳应用场景**                     |
 | ----------------------- | -------------------- | ------------------------------------------------ | ---------------------------- | ------------------------------------ |
-| **MEMS气压阵列**        | 时频分析             | PSD, Wavelet (PyWavelets), Kalman Filter         | 电子噪声 (1/f), 串扰         | 高频事件检测（滑移、碰撞），力控制   |
+| **MEMS气压阵列**        | 时频分析             | PSD, Fourier/STFT, Wavelet (PyWavelets), Kalman Filter         | 电子噪声 (1/f), 串扰         | 高频事件检测（滑移、碰撞），力控制   |
 | **电容式蒙皮**          | 非线性校准           | Mooney-Rivlin Model, PI Hysteresis Model         | 迟滞，边缘场，温漂           | 大面积安全覆盖，接触门控，粗略力感知 |
 | **视觉触觉 (GelSight)** | 计算摄影与视觉       | Photometric Stereo, Poisson Solver (DST), OpenCV | 积分漂移，高光反射，计算延迟 | 几何纹理识别，精密装配，位姿估计     |
 | **气泡传感器 (Punyo)**  | 物理建模与FEM        | Finite Element Method (FEM), Optical Flow, CVXPY | 模型失配，气压波动           | 柔性物体抓取，三维力矢量重建         |
@@ -484,8 +692,9 @@ $$F_{norm,i} = \tanh(k \cdot F_i)$$
 
 ### 时序信号与频率域
 - [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|Autoregressive Policies]]: 自回归时序建模在控制中的应用
-- [[The Sampling Theorem With Constant Amplitude Variable Width Pulses|Sampling Theorem]]: 机器人信号采样的基础理论
+- [[The Sampling Theorem With Constant Amplitude Variable Width Pulses|Sampling Theorem]]: 机器人信号采样的基础理论，连接 Nyquist、PWM 与傅里叶分析
 - [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]: 时序示教数据的熵引导采样
+- [[TARC - Time-Adaptive Robotic Control|TARC]]: 根据局部动力学带宽调整控制频率
 
 ### 多模态信号融合
 - [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)|HATO]]: 视觉-触觉多模态信号融合

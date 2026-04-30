@@ -32,6 +32,22 @@ related:
 > - [[Learning Agile and Dynamic Motor Skills for Legged Robots]] - 解析刚体动力学 + 学习型 Actuator Network 的结构化 Sim-to-Real
 > - [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]] - 灵巧手 joint-wise neural dynamics model
 
+## 0. 理论大厦构建路线：从能量原理到实时多体求解
+
+动力学 Foundation 的主线应从“力等于质量乘加速度”逐步升级为“约束流形上的能量、动量、接触冲量和可计算递推算法”。完整链条如下：
+
+| 层级 | 关键问题 | 理论对象 | 灵巧操作含义 |
+|:--|:--|:--|:--|
+| 几何层 | 构型如何表示？ | SE(3)、广义坐标、指数坐标 | 多指手和物体组成高维构型流形 |
+| 能量层 | 方程从哪里来？ | Lagrangian、Hamilton 原理、质量矩阵 | 解释惯量、势能、约束力为何以当前形式出现 |
+| 约束层 | 接触/闭链如何进入动力学？ | Lagrange 乘子、Pfaffian 约束、KKT 系统 | 接触力不是外加补丁，而是约束反力 |
+| 算法层 | 如何实时计算？ | RNEA、ABA、spatial vector algebra | 让高 DoF 灵巧手能在 kHz 级闭环中求解 |
+| 仿真层 | 接触如何数值稳定？ | LCP、PGS、soft constraint、implicit integrator | 决定策略学到真实物理还是仿真伪影 |
+| 适配层 | 真机差异如何补偿？ | actuator model、GP residual、system ID | 将刚体理论与 L25/CAN/传动非理想分开建模 |
+
+> [!important] 阅读标准
+> 本文件中每个动力学概念都应能回答三件事：它从哪条物理原理推出来、在数值算法中如何计算、在灵巧操作失败模式中对应什么现象。
+
 ## 1. 序言：动力学——灵巧操作的“暗物质” (Introduction: Dynamics as the "Dark Matter")
 
 在 Robotics Dexterous Manipulation（机器人灵巧操作）的宏大叙事中，Perception（感知）赋予了系统“看见”的能力，Planning（规划）提供了“决策”的智慧，但唯有 **Dynamics（动力学）** 才是连接数字世界与物理实体的终极桥梁。对于一只拥有 20 个以上 Degrees of Freedom (DoF) 的灵巧手（如 Shadow Hand 或 Allegro Hand）而言，动力学不仅是描述运动的方程，更是限制其性能的“暗物质”。它是看不见的，却主宰着从指尖微调（In-hand Manipulation）到强力抓取（Power Grasping）的一切物理交互。
@@ -333,6 +349,43 @@ $$\dot q = \frac{\partial H}{\partial p} = M^{-1} p, \qquad \dot p = -\frac{\par
 > | **Newton-Euler** spatial $(v, f)$ | 6D 旋量 | 实时计算（RNEA $O(N)$） |
 >
 > 现代物理引擎（MuJoCo, Drake）的 implicit integrator 实际上在 Hamiltonian 上做隐式中点法以保结构稳定。
+
+#### 3.1.6 小振动线性化：平衡点附近的二阶动力学
+
+> [!note] 教科书参考
+> 本节整合分析动力学微振动题解中的通用方法：选取广义坐标 → 写出 $T,V$ → 在平衡点二阶展开 → 求质量阵/刚度阵广义特征值。
+
+小振动理论回答的问题是：系统已经在平衡点附近，为什么还会“震动”？答案是：平衡点只意味着一阶广义力为零，$\partial V/\partial q=0$，并不意味着系统没有惯性。若初始条件存在微小位移或速度，系统会在势能曲率和动能度量共同决定的局部二次系统中往复交换能量。
+
+设 $q_0$ 为稳定平衡点，令微小扰动 $\eta=q-q_0$。若动能和势能在 $q_0$ 附近可写为：
+
+$$
+T \approx \frac{1}{2}\dot{\eta}^T M_0 \dot{\eta},\qquad
+V \approx V(q_0)+\frac{1}{2}\eta^T K_0 \eta,
+$$
+
+其中：
+
+$$
+M_0=M(q_0),\qquad K_0=\left.\frac{\partial^2 V}{\partial q^2}\right|_{q_0}.
+$$
+
+代入 Lagrange 方程得到线性小振动方程：
+
+$$
+M_0\ddot{\eta}+K_0\eta=0.
+$$
+
+固有频率由广义特征值问题给出：
+
+$$
+K_0\phi_i=\omega_i^2 M_0\phi_i.
+$$
+
+对单自由度系统，这退化为 $\omega_n=\sqrt{k/m}$，其中 $m$ 是广义质量，$k$ 是平衡点处的势能曲率。
+
+> [!important] 灵巧操作解释
+> 接触后的微小振动不是“噪声”，而是局部质量阵和接触/传动刚度共同决定的模态响应。高 $K_p$ 位置控制等价于增大 $K_0$，会提高自然频率并更容易激发未建模柔性；这正是 [[ControlTheory#3.1 问题链：刚度悖论与接触失效 (The Problem Chain: Stiffness Paradox & Contact Failure)|刚度悖论]] 的动力学版本。
 
 ### 3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)
 

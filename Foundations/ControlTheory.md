@@ -1,20 +1,29 @@
 ---
 tags:
-  - foundation
-  - control-theory
-  - dexterous-manipulation
+    - foundation
+    - control-theory
+    - dexterous-manipulation
 aliases:
-  - 控制理论
-  - Control
-  - 阻抗控制
-  - Impedance Control
+    - 控制理论
+    - Control
+    - 控制系统
+    - 传递函数
+    - Transfer Function
+    - 状态空间
+    - State Space
+    - 系统阶次
+    - Bode Plot
+    - 根轨迹
+    - 阻抗控制
+    - Impedance Control
 created: 2026-01-31
 related:
-  - "[[Dynamics]]"
-  - "[[Optimization]]"
-  - "[[ContactMechanics]]"
-  - "[[ReinforcementLearning]]"
-  - "[[EmbodiedAI]]"
+    - "[[Dynamics]]"
+    - "[[Optimization]]"
+    - "[[ContactMechanics]]"
+    - "[[SignalProcessing]]"
+    - "[[ReinforcementLearning]]"
+    - "[[EmbodiedAI]]"
 ---
 
 # 灵巧操作控制理论深度研究报告：从位置控制范式到接触隐式非线性动力学
@@ -32,6 +41,22 @@ related:
 > - [[Learning Agile and Dynamic Motor Skills for Legged Robots]] - action-to-torque Actuator Network 近似低层闭环控制链路
 > - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - proprioceptive student policy 调制底层运动 primitive
 
+## 0. 理论大厦构建路线：从负反馈到接触安全闭环
+
+控制理论在灵巧操作中的主线，是把“希望系统去哪里”转成“在扰动、延迟、接触非线性下仍能稳定到达”的闭环机制。
+
+| 层级 | 关键问题 | 理论工具 | 灵巧操作映射 |
+|:--|:--|:--|:--|
+| 系统描述层 | 输入、状态、输出如何相互作用？ | 传递函数、状态空间、可控/可观 | 建立电机、关节、接触、物体状态的接口 |
+| 稳定性层 | 闭环会不会发散或振荡？ | 极点、Lyapunov、passivity、ISS | 防止接触中高刚度导致振荡和冲击 |
+| 频域层 | 带宽、相位裕度、延迟如何影响性能？ | Bode、Nyquist、root locus | CAN/SDK/MCU 延迟直接吃掉相位裕度 |
+| 柔顺层 | 接触时该跟位置还是跟力？ | 阻抗、导纳、力/位混合 | 在推、夹、滚、滑之间切换控制因果性 |
+| 优化层 | 多目标与约束如何实时处理？ | LQR、MPC、OSF、QP | 同时管理任务、零空间、关节限位与接触力 |
+| 数据层 | 模型不准时如何仍给出证书？ | Willems lemma、data informativity、adaptive control | 用短真机轨迹建立稳定性或可控性证据 |
+
+> [!important] Foundation 级判断标准
+> 任何控制方法都必须说明三件事：误差如何被测量，输入如何被限制，闭环稳定性或安全性由什么机制保证。
+
 ## 1. 引言：灵巧操作的物理本质与控制挑战
 
 ## 1. Introduction: The Physical Essence and Control Challenges of Dexterous Manipulation
@@ -48,6 +73,207 @@ related:
 > - **开环控制**：输入不依赖输出，例如固定油门位置或固定清洗时间；环境变化（上坡、负载变化、餐具脏污程度）会直接造成输出漂移。
 > - **闭环控制**：传感器测量输出，与参考信号比较得到误差，再由控制器调整输入；这就是负反馈，也是 [[SignalProcessing|状态估计]]、[[Dynamics|动力学建模]] 与 [[Optimization|控制优化]] 汇合的接口。
 > - **阻尼直觉**：手指触摸振动酒杯会让声响更快消失，因为你改变了系统的能量耗散路径。灵巧手接触物体时的阻抗控制，本质上也是在设计“该吸收多少能量、该反弹多少能量”。
+
+### 1.1 古典控制系统最小语法：从阶次到传递函数
+
+> [!abstract] 本节补齐控制系统基础入口
+> 传递函数、几阶系统、极点零点、Bode/Nyquist、根轨迹、状态空间这些概念原先没有在本 Foundation 中系统展开。本节作为 §3 以后阻抗控制、§10 稳定性、§11 LQR、§12 自适应控制的前置语言，并与 [[SignalProcessing#1.1 基础知识地图：从波形到状态估计|信号处理基础变换与估计器]] 对接。
+
+#### 1.1.1 控制系统的三种等价视角
+
+控制系统可以从三层描述：
+
+| 视角 | 典型形式 | 适合回答的问题 |
+|------|----------|----------------|
+| 微分方程 | $a_n y^{(n)}+\cdots+a_1\dot y+a_0y=b_m u^{(m)}+\cdots+b_0u$ | 系统真实动力学如何演化 |
+| 传递函数 | $G(s)=Y(s)/U(s)$ | 输入某个频率/阶跃后输出怎样变化 |
+| 状态空间 | $\dot x=Ax+Bu,\ y=Cx+Du$ | 内部状态、可控性、可观性与 MIMO 系统 |
+
+灵巧操作中三者都需要：电机/减速器适合用低阶传递函数做辨识；整手机械臂适合用 [[Dynamics|多体动力学]] 写状态方程；触觉/视觉融合则需要 [[SignalProcessing|状态估计]] 把隐藏状态恢复出来。
+
+#### 1.1.2 系统阶次：极点数量决定“记忆长度”
+
+对单输入单输出 LTI 系统，传递函数定义为零初始条件下的拉普拉斯域输入输出比：
+
+$$
+G(s)=\frac{Y(s)}{U(s)}=\frac{b_m s^m+b_{m-1}s^{m-1}+\cdots+b_0}{a_n s^n+a_{n-1}s^{n-1}+\cdots+a_0}.
+$$
+
+约去公共因子后，分母多项式阶数 $n$ 就是系统阶次，也等于最小状态空间实现所需的状态维度。直觉上：阶次越高，系统需要记住越多内部变量。
+
+| 阶次 | 典型系统 | 最少状态 | 灵巧操作例子 |
+|------|----------|----------|--------------|
+| 0 阶 | 静态增益 $y=Ku$ | 无动态记忆 | 力传感器标定比例 |
+| 1 阶 | $\tau\dot y+y=Ku$ | 位置或温度一类慢变量 | 电机电流环、热漂移、低通滤波 |
+| 2 阶 | $M\ddot x+D\dot x+Kx=F$ | 位置 + 速度 | 关节伺服、弹簧-阻尼、阻抗控制 |
+| 高阶 | 多模态耦合 | 多个能量存储元件 | 柔性传动、多指接触、结构振动 |
+
+**一阶系统**：
+
+$$
+G(s)=\frac{K}{\tau s+1},\qquad y_{step}(t)=K\left(1-e^{-t/\tau}\right).
+$$
+
+$\tau$ 是时间常数。$t=\tau$ 时输出达到最终值约 $63.2\%$，$4\tau$ 到 $5\tau$ 基本收敛。执行器温度、低通滤波器、简单电流环常近似为一阶系统。
+
+**标准二阶系统**：
+
+$$
+G(s)=\frac{\omega_n^2}{s^2+2\zeta\omega_n s+\omega_n^2}.
+$$
+
+其中 $\omega_n$ 是自然频率，$\zeta$ 是阻尼比：
+
+| 阻尼比 | 响应形态 | 工程含义 |
+|--------|----------|----------|
+| $0<\zeta<1$ | 欠阻尼，有超调/振荡 | 快但可能激发接触反弹 |
+| $\zeta=1$ | 临界阻尼 | 不振荡的最快返回 |
+| $\zeta>1$ | 过阻尼 | 稳但慢 |
+
+质量-弹簧-阻尼系统：
+
+$$
+M\ddot x+D\dot x+Kx=F
+\quad\Rightarrow\quad
+\frac{X(s)}{F(s)}=\frac{1}{Ms^2+Ds+K}.
+$$
+
+这正是 §3.2 [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系|阻抗控制]] 的数学原型：调 $M,D,K$ 就是在调闭环二阶系统的自然频率与阻尼。
+
+#### 1.1.3 极点、零点与稳定性
+
+传递函数的分母根是**极点（poles）**，分子根是**零点（zeros）**：
+
+$$
+G(s)=K\frac{\prod_i(s-z_i)}{\prod_j(s-p_j)}.
+$$
+
+极点决定自然响应，零点决定输入如何被“塑形”。连续时间 LTI 系统稳定的必要充分条件是所有极点位于左半平面：
+
+$$
+\operatorname{Re}(p_j)<0.
+$$
+
+离散时间系统 $x_{k+1}=A_dx_k+B_du_k$ 的稳定条件是所有极点位于单位圆内：
+
+$$
+|z_j|<1.
+$$
+
+> [!warning] 灵巧操作中的危险极点
+> 高刚度 PD 与刚性环境接触会把闭环极点推向高频，若执行器、传动柔性或采样延迟没有被建模，真实系统可能出现未预测的振荡。这就是 §3.1 刚度悖论的古典控制解释。
+
+#### 1.1.4 频率响应：Bode、Nyquist 与控制带宽
+
+频率响应由 $s=j\omega$ 得到：
+
+$$
+G(j\omega)=|G(j\omega)|e^{j\phi(\omega)}.
+$$
+
+- **幅频响应** $|G(j\omega)|$：输入某个频率的正弦波会被放大或衰减多少。
+- **相频响应** $\phi(\omega)$：输出相对输入滞后多少。
+- **带宽**：闭环还能有效跟踪/抑制扰动的最高频率尺度。
+
+**Bode 图**把幅值和相位随频率变化画出来；**Nyquist 图**把复数 $G(j\omega)$ 的轨迹画在复平面。它们用于回答两个关键问题：
+
+| 指标 | 含义 | 对机器人控制的影响 |
+|------|------|-------------------|
+| 增益裕度 | 增益还能放大多少才失稳 | $K_p$ 调大到何处会振荡 |
+| 相位裕度 | 还能承受多少额外延迟 | 传感/通信/滤波延迟是否危险 |
+| 带宽 | 能响应多快的扰动 | 高频滑移能否被闭环抑制 |
+
+这与 [[SignalProcessing#1.1.2 傅里叶变换：把时间波形拆成频率模式|傅里叶变换]] 是同一套数学：信号处理关心“频率成分是什么”，控制理论关心“系统对这些频率成分做什么”。
+
+#### 1.1.5 PID、闭环传递函数与根轨迹
+
+经典 PID 控制器可写为：
+
+$$
+C(s)=K_p+\frac{K_i}{s}+K_d s.
+$$
+
+实际实现中微分项常加低通滤波，避免放大高频噪声：
+
+$$
+C_D(s)=\frac{K_d s}{1+s/\omega_d}.
+$$
+
+若对象传递函数为 $G(s)$，单位负反馈闭环为：
+
+$$
+T(s)=\frac{C(s)G(s)}{1+C(s)G(s)},\qquad
+S(s)=\frac{1}{1+C(s)G(s)}.
+$$
+
+其中 $T(s)$ 是参考到输出的互补灵敏度，$S(s)$ 是扰动/模型误差到输出的灵敏度。根轨迹研究的是随着增益变化，闭环极点如何移动。
+
+| PID 项 | 主要作用 | 风险 |
+|--------|----------|------|
+| $K_p$ | 提高刚度、减小误差 | 过大导致超调/接触冲击 |
+| $K_i$ | 消除稳态误差 | 积分饱和、接触时蓄能 |
+| $K_d$ | 增加阻尼 | 放大测量噪声，需要滤波 |
+
+> [!tip] DNPM 解释
+> [[Dynamic Non-Prehensile Manipulation|DNPM]] 中策略输出 $q_{target}$ 后由 PD 转为力矩，本质是策略在调一个固定结构闭环的参考输入。若 $K_p,K_d$ 固定，策略无法改变闭环极点，因此难以同时满足 snap phase 的高带宽和 contact phase 的顺应性。这也是 [[Idea-001-Phase-Adaptive Impedance|PAI]] 的控制理论动机。
+
+#### 1.1.6 状态空间、可控性与可观性
+
+状态空间模型为：
+
+$$
+\dot x=Ax+Bu,\qquad y=Cx+Du.
+$$
+
+它比传递函数更适合 MIMO、高阶和内部状态重要的系统。两组核心判据是：
+
+**可控性（controllability）**：
+
+$$
+\mathcal{C}=\begin{bmatrix}B&AB&A^2B&\cdots&A^{n-1}B\end{bmatrix},\qquad
+\operatorname{rank}(\mathcal{C})=n.
+$$
+
+**可观性（observability）**：
+
+$$
+\mathcal{O}=\begin{bmatrix}C\\CA\\CA^2\\\vdots\\CA^{n-1}\end{bmatrix},\qquad
+\operatorname{rank}(\mathcal{O})=n.
+$$
+
+可控性回答“电机输入是否能移动所有关键状态”；可观性回答“传感器是否足以恢复所有关键状态”。LQR 依赖可镇定性，Kalman Filter 依赖可检测性；两者通过 separation principle 连接为 LQG。这也是 [[SignalProcessing#5.2 状态估计的演进脉络：从卡尔曼滤波到因子图 (Evolution: KF → EKF → UKF → PF → Factor Graph)|KF/EKF/UKF/PF]] 必须进入 SignalProcessing Foundation 的原因。
+
+#### 1.1.7 离散化、Z 变换与采样延迟
+
+数字控制器运行在离散时间。连续 LTI 系统经零阶保持采样后：
+
+$$
+x_{k+1}=A_dx_k+B_du_k,
+$$
+
+$$
+A_d=e^{AT_s},\qquad B_d=\int_0^{T_s}e^{A\tau}B\,d\tau.
+$$
+
+Z 变换中的单位延迟 $z^{-1}$ 表示一个采样周期的滞后。延迟在频域中近似为相位滞后：
+
+$$
+e^{-sT_d}\big|_{s=j\omega}=e^{-j\omega T_d}.
+$$
+
+频率越高，同样的延迟消耗越多相位裕度。因此低频看似稳定的控制器，在高频接触切换或通信延迟下可能失稳。WMTS 的 CAN 延迟、触觉帧率、动作保持时间，都应被理解为闭环相位裕度预算的一部分。
+
+#### 1.1.8 与灵巧操作的映射表
+
+| 控制系统概念 | 灵巧操作中的问题 | 对应章节 |
+|--------------|------------------|----------|
+| 一阶系统 | 电流环、温度漂移、低通滤波 | §9 数据驱动控制，[[SignalProcessing#1.1.4 数字滤波器：去噪、延迟与可控性的三角权衡|SignalProcessing §1.1.4]] |
+| 二阶系统 | PD、阻抗、接触弹簧-阻尼 | §3.1-§3.2 |
+| 传递函数 | 执行器辨识、闭环调参 | §9.3 数据驱动 LQR / 镇定 |
+| Bode / 相位裕度 | 采样、通信、滤波延迟是否安全 | §7 鲁棒控制，§10 ISS |
+| 根轨迹 | $K_p,K_d$ 改变闭环极点 | §3.1 刚度悖论 |
+| 状态空间 | LQR/MPC/RL 控制器统一语言 | §8-§12 |
+| 可观性 | 触觉/视觉/本体感知是否能恢复物体状态 | [[SignalProcessing#5. 状态估计：从局部触觉到全局语义|SignalProcessing §5]] |
 
 ------
 
@@ -442,6 +668,36 @@ $$M_d (\ddot{x} - \ddot{x}_d) + B_d (\dot{x} - \dot{x}_d) + K_d (x - x_d) = F_{e
 > 2. 在动态非紧握操作中：snap 阶段高 $K_p$（发力）→ 旋转阶段低 $K_p$（柔顺滑动）→ catch 阶段中 $K_p$（精确接住）
 > 3. 多体扩展：arm 和 hand 分别定义参考模型，通过力传导参数 $a \in [0,1]$ 控制耦合程度
 
+#### 3.2.1 阻抗/导纳因果性校准：Unified Policy 与 FACET
+
+很多学习型力控论文会把“让机器人变软”统称为 impedance control，但从控制因果性看，需要更精确地区分：
+
+| 控制范式 | 输入 | 输出 | 典型底层硬件 | 标准形式 |
+|:--|:--|:--|:--|:--|
+| 阻抗控制 | 运动误差 $e,\dot e,\ddot e$ | 力/力矩 $F,\tau$ | 透明力矩控制 | $F=M\ddot e+D\dot e+Ke$ |
+| 导纳控制 | 外力 $F_{ext}$ | 参考运动 $x_{ref},\dot x_{ref}$ | 高刚度位置伺服 | $M\ddot x_{ref}+D\dot x_{ref}+K(x_{ref}-x_d)=F_{ext}$ |
+
+这一区分对真实机器人尤其重要：高减速比、丝杠、商用伺服和四足机器人通常更容易稳定执行位置/速度目标，而不是透明输出任意关节力矩。因此许多“学习型阻抗”系统工程上实际采用的是导纳架构：上层根据力或隐式受力表征生成退让轨迹，下层 PD/位置环追踪。
+
+**Unified Policy 的本质**：其核心公式
+
+$$
+x^{target}=x^{cmd}+\frac{F^{ext}+(F^{cmd}-F^{react})}{K}
+$$
+
+把估计力代数转换成位置偏移。若从导纳方程中令 $M,D\to0$，就得到纯弹簧准静态映射。因此它更准确地说是**基于显式力估计器的准静态导纳控制**。
+
+**[[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] 的本质**：其参考模型
+
+$$
+m\ddot{x}_{ref}=K_p(x_{des}-x_{ref})+K_d(\dot{x}_{des}-\dot{x}_{ref})+f_{ext}
+$$
+
+等价于动态导纳模型。FACET 的创新不在于直接输出力矩，而在于让 RL 策略学习追踪由虚拟质量-弹簧-阻尼系统积分出的 $x_{ref}(t)$，同时用 teacher-student 隐式编码受力信息。
+
+> [!important] 对灵巧手的设计启发
+> 若硬件是 L25 这类空心杯电机 + 丝杠 + 连杆耦合结构，直接做纯力矩阻抗控制会暴露全部 [[Actuator2RigidDynamicsModel_gap|Actuator-to-Rigid Gap]]。更稳健的路线是导纳式分层：上层学习力/触觉/历史状态到参考运动或阻抗参数的映射，下层保留硬件位置伺服；再用 Actuator Model 补偿延迟、温度、摩擦和背隙。
+
 > [!note] 教科书参考
 > Control Barrier Function 理论源自 Ames et al. (2017) 和控制理论经典文献。
 > 参考 [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints|LatentCBF 论文]] 的数学背景部分。
@@ -757,7 +1013,9 @@ int main() {
 
 混合控制律通常表示为：
 
-$$\tau = J^T \left$$
+$$
+τ = J^T \left(S u_{force} + (I-S)u_{pos}\right)
+$$
 
 其中 $u_{pos}$ 是位置控制器的输出（如PID计算出的加速度），$u_{force}$ 是力控制器的输出。
 

@@ -8,6 +8,25 @@ status: active
 
 # MergeBuffer 处理索引
 
+## 最新处理记录 (2026-05-01)
+
+### 2026-04-30 Gemini Chat 批次（8 个 Markdown）
+**主题**: L25 SDK/嵌入式链路、仿真 action 传播、PPO/TD 理论、力-位混合控制
+**状态**: 🟢 已完成
+
+| 文件 | 核心内容 | 融合目标 | 融合状态 |
+|:--|:--|:--|:--|
+| `L25________-2026-04-30-00-57-16.md` | L25 可读/可控量、CAN 帧结构、0-100 → 0-255 归一化、触觉分帧 | [[Actuator2RigidDynamicsModel_gap]] | ✅ 新增 SDK→CAN→MCU 时序链路与观测可信度 |
+| `___-2026-04-30-00-57-22.md` | MCU/STM32/CAN 关系、差分信号、仲裁、位时序 | [[Actuator2RigidDynamicsModel_gap]] | ✅ 新增嵌入式概念闭环 |
+| `_____Action_____-2026-04-30-00-58-20.md` | PPO action → target joint → PD/Isaac drive，controlFrequencyInv 语义 | [[Dynamic Non-Prehensile Manipulation]] / [[ReinforcementLearning]] | ✅ 新增代码级 action 传播链与 Quiz |
+| `__________PPO-2026-04-30-00-57-56.md` | PPO loss、value clipping、bounds loss、KL LR、on/off-policy 辩证 | [[ReinforcementLearning]] | ✅ 补强 PPO 三阶段与工程 loss |
+| `____TD______-2026-04-30-00-58-07.md` | TD(0)、SARSA、Q-Learning、TD($\lambda$) | [[ReinforcementLearning]] | ✅ 新增 TD 学习家族小节 |
+| `__________-2026-04-30-00-58-14.md` | Policy Gradient 手推与高斯/GMM 讨论 | [[ReinforcementLearning]] | ✅ 与既有策略梯度/PPO 单峰高斯章节合并强化 |
+| `机器人力-位混合控制解析.md` | Unified Policy vs FACET，阻抗/导纳因果性、硬件非理想破坏 | [[ControlTheory]] / [[FOC_Control]] | ✅ 新增阻抗/导纳校准与仿真 PD vs 真机级联环 |
+| `_____________-2026-04-30-00-58-30.md` | 分析动力学微振动、Lagrange 方程直觉 | [[Dynamics]] / Quiz | ✅ 新增 [[Dynamics#3.1.6 小振动线性化：平衡点附近的二阶动力学|小振动线性化]] |
+
+**处理结果**: 核心内容已整合至 Foundations、Projects、Quiz 与 Canvas；原 Markdown 文件已清理（2026-05-01）。
+
 ## 最新处理记录 (2026-04-27)
 
 ### HoverNotes/Untitl.md
