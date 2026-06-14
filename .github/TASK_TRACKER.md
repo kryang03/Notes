@@ -5,7 +5,38 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-06-14 (Session #39 — PDF 读取 skill + WMTS RelatedPapers 规范化 ✅)
+**最后更新**: 2026-06-14 (Session #40 — Research Insight Critic skill + ViserDex Planner-Tracker 证据链 ✅)
+
+## 🟢 Session #40 完成 (2026-06-14)
+
+### Research Insight Critic skill 与 ViserDex 原文回读
+
+**触发**：用户要求为项目内科研 insight / storytelling / 算法设计讨论创建批判性 research skill；随后询问 ViserDex 原文中的 goal 生成机制、随机 dense goal 是否等价于扩充任务空间，以及是否能支持当前 Planner-Tracker insight。
+
+#### 完成内容
+| 项目 | 结果 |
+|------|------|
+| Research skill | 新增全局 `/Users/yang/.codex/skills/research-insight-critic/` 与仓库 `.github/skills/research-insight-critic/` |
+| Skill 行为 | 强制先读 project docs 与 `RelatedPapersRecap/`，再进行 claim / assumption / falsifier / reviewer objection / experiment 级批判 |
+| ViserDex PDF 回读 | 用 `$pdf` workflow probe 原文，渲染并检查关键页：方法页、实验页、appendix reward/observation 表 |
+| DeXtreme 旁证 | 回读 DeXtreme 原文，确认 random target orientation in `SO(3)`、达成后采样新目标、从当前手指构型继续追踪 |
+| ViserDex recap 增强 | 更新 `Projects/World Model as Task Scheduler/RelatedPapersRecap/ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation.md`，补入 goal 生成、reward/obs、curriculum、真实效果与 Planner-Tracker 证据链 |
+
+#### 关键结论
+| 问题 | 结论 |
+|------|------|
+| ViserDex goal 如何生成 | 原文写到 policy 追踪 `g_t in SO(3)`，达成后采样新 target；ViserDex 未明确写出采样分布，DeXtreme 前作明确为 random target orientation in `SO(3)` |
+| 随机 dense goal 是否等价于扩充任务空间 | 不等价。它缓解固定轨迹过拟合，但仍只是终点姿态集合，不能覆盖中间轨迹、速度约束、接触相位与 state-conditioned feasibility |
+| 对 Planner-Tracker 的支持 | 支持“Tracker 很强但 Planner 很弱”的判断：ViserDex 是 goal-conditioned tracker + pose tracker + curriculum，不是显式 planner |
+| 对 WMTS 的启发 | WMTS 应把 random final-goal 扩展为 look-ahead buffer / state-conditioned / feasibility-aware task scheduling |
+
+#### 验证
+| 校验项 | 结果 |
+|--------|------|
+| Skill validator | `research-insight-critic` 全局与仓库版本均通过 `quick_validate.py` |
+| Skill 一致性 | 全局与仓库 `SKILL.md` 内容一致，无 TODO 残留 |
+| PDF probe | ViserDex 与 DeXtreme 均完成 `pdf_probe.py`，生成 layout text / page text / PNG |
+| Recap wikilinks | ViserDex recap 新增 note wikilinks 均可解析；PDF wikilink 对应 `RelatedPapers/` 中原文件 |
 
 ## 🟢 Session #39 完成 (2026-06-14)
 
