@@ -508,6 +508,7 @@ Genesis 是一个新兴的通用物理仿真平台，支持多种物理后端：
 
 ### Diffusion Policy & 生成式策略
 - [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation]] — 规划引导的扩散策略，双臂操作
+- [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] — 将 Rodrigues 正运动学模板改造成 Diffusion Policy denoising backbone，体现 action-centric neural architecture 对具身动作学习的价值
 - [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations]] — 仿真数据自动生成
 - [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization]] — 物理驱动数据生成
 

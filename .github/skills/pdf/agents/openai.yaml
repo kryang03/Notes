@@ -1,0 +1,4 @@
+interface:
+  display_name: "PDF"
+  short_description: "Render and inspect PDF content reliably"
+  default_prompt: "Use $pdf to render, extract, and inspect this PDF before summarizing it."

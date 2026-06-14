@@ -585,6 +585,9 @@ $$f(T \cdot \mathcal{P}) = f(\mathcal{P}) \quad \text{(Invariant)}$$
 $$\mathbf{v}_{out} = W \mathbf{v}_{in}$$
 其中 $W$ 作用在向量集合上，保持旋转等变性。
 
+> [!abstract] 动作结构先验：RodriNet
+> [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] 与通用 SE(3)-equivariant network 互补：后者关心外部坐标变换下的等变性，RodriNet 关心机器人内部 joint/link 特征如何沿运动学树传播。它把 [[Dynamics#2.4 刚体变换与指数坐标 (Rigid Body Transformations & Exponential Coordinates)|Rodrigues 正运动学模板]] 做成可学习 backbone，是高 DoF 动作表征中“结构化 action mixer”的代表。
+
 #### 4.3.2 T-Net：学习规范化变换
 
 PointNet 的 **T-Net** 是一种数据驱动的对齐方法：

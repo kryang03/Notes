@@ -102,6 +102,7 @@
 		{"id":"paper_act","type":"text","x":1590,"y":90,"width":350,"height":200,"color":"4","text":"## ACT (2023)\n**动作分块Transformer**\n\n💡 CVAE + Temporal Ensembling\n低成本双臂精细操作\n端到端模仿学习\n\n⭐ 双臂操作基石"},
 		{"id":"paper_recap","type":"text","x":1590,"y":340,"width":350,"height":200,"color":"4","text":"## RECAP / π₀.6 (2025)\n**经验驱动VLA后训练**\n\n💡 三阶段: IL→Offline→Online RL\n优势条件化策略\nAWR/GRPO统一视角\n\n⭐ VLA RL Post-Training"},
 		{"id":"paper_unified","type":"text","x":1590,"y":590,"width":350,"height":200,"color":"4","text":"## Unified Policy (2024)\n**On/Off-Policy统一框架**\n\n💡 Eval/Improve二维分解\nUpdate Schedule三态分类\nPPO/SAC/BRAC统一推导\n\n⭐ RL算法分类基石"},
+		{"id":"paper_rodrinet","type":"text","x":1590,"y":840,"width":350,"height":210,"color":"4","text":"## RodriNet (2026)\n**Neural Rodrigues Operator**\n\n运动学树 + Rodrigues 基底\n可学习动作 backbone\nDP 平均成功率 0.61\n\n⭐ 结构化动作表征范本"},
 		{"id":"proj_meeting_pipeline","type":"file","file":"Projects/Dynamic Non-Prehensile Manipulation/Dynamic Non-Prehensile Manipulation.md","subpath":"#6.5 Meeting-Synthesized Research Pipeline（2026-03 会议综合）","x":640,"y":-1300,"width":520,"height":220},
 		{"id":"found_theory_spine","type":"text","x":-1210,"y":2020,"width":2350,"height":160,"color":"6","text":"## Foundation 理论大厦骨架\n\n每个 Foundation 已补入 §0 路线：物理/数学起源 → 算法实现 → 灵巧操作失败模式 → 项目映射。\n\n主链: Dynamics/Contact/Geometry → Control/Optimization → Signal/Stochastic/Info → Representation/RL/EmbodiedAI\n\n→ [[Foundations/taxonomy#Foundation 理论大厦骨架索引]]"}
 	],
@@ -265,6 +266,10 @@
 		{"id":"e_bt2_unified","fromNode":"bt_sparse","fromSide":"bottom","toNode":"paper_unified","toSide":"top","color":"4","label":"RL统一理论"},
 		{"id":"e_unified_rl","fromNode":"paper_unified","fromSide":"top","toNode":"found_rl","toSide":"bottom","color":"6","label":"分类框架"},
 		{"id":"e_unified_optim","fromNode":"paper_unified","fromSide":"top","toNode":"found_optim","toSide":"bottom","color":"6","label":"优化理论"},
+		{"id":"e_bt7_rodrinet","fromNode":"bt_representation","fromSide":"bottom","toNode":"paper_rodrinet","toSide":"top","color":"4","label":"动作结构先验"},
+		{"id":"e_rodrinet_dyn","fromNode":"paper_rodrinet","fromSide":"top","toNode":"found_dynamics","toSide":"bottom","color":"6","label":"Rodrigues/FK"},
+		{"id":"e_rodrinet_repr","fromNode":"paper_rodrinet","fromSide":"top","toNode":"found_repr","toSide":"bottom","color":"6","label":"动作表征"},
+		{"id":"e_rodrinet_embodied","fromNode":"paper_rodrinet","fromSide":"top","toNode":"found_embodied","toSide":"bottom","color":"6","label":"DP backbone"},
 		{"id":"e_proj_meeting_pipeline","fromNode":"proj_dnpm_insight","fromSide":"right","toNode":"proj_meeting_pipeline","toSide":"left","color":"1","label":"会议综合"},
 		{"id":"e_pipeline_bt3","fromNode":"proj_meeting_pipeline","fromSide":"top","toNode":"bt_impedance","toSide":"bottom","color":"2","label":"分阶段落地"}
 	]

@@ -167,6 +167,9 @@ $$\hat{\omega} = \begin{bmatrix} 0 & -\omega_3 & \omega_2 \\ \omega_3 & 0 & -\om
 
 **物理意义**: 指数映射 $\exp: so(3) \to SO(3)$ 将"旋转轴 × 角度"这一直观参数化转换为旋转矩阵。这是 **等轴角表示（Axis-Angle Representation）** 的数学基础。
 
+> [!abstract] 前沿应用：Neural Rodrigues Operator
+> [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] 将本节 Rodrigues 公式中的 $1,\sin\theta,\cos\theta$ 基底保留下来，把由机器人结构决定的固定系数放宽为可学习权重，从而把经典正运动学递推改造成动作网络中的结构化 message passing 算子。
+
 **逆映射（对数）**: 给定旋转矩阵 $R$，可以恢复旋转轴和角度：
 
 $$\theta = \cos^{-1}\left(\frac{\text{trace}(R) - 1}{2}\right), \quad \omega = \frac{1}{2\sin\theta}\begin{bmatrix} r_{32} - r_{23} \\ r_{13} - r_{31} \\ r_{21} - r_{12} \end{bmatrix}$$

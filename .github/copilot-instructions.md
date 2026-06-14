@@ -34,6 +34,8 @@ Papers&Notes/
 │   │   └── textbook-integration.prompt.md
 │   └── skills/                  ← 详细操作技能文档
 │       ├── knowledge-graph-management/SKILL.md  ← 📖 完整管理指南
+│       ├── pdf/SKILL.md                         ← 📄 PDF 渲染/抽取/版面检查
+│       ├── paper-recap-insight/SKILL.md         ← 📄 论文 PDF principle-first recap
 │       ├── embodied-ai-resources/SKILL.md
 │       └── obsidian-skills/skills/  ← 🔄 远端同步 (sparse checkout)
 │           ├── defuddle/SKILL.md
@@ -56,6 +58,8 @@ Papers&Notes/
 |-----|------|---------|
 | `.github/TASK_TRACKER.md` | 跨会话任务追踪 | **每次会话开始必读，结束必更新** |
 | `.github/skills/knowledge-graph-management/SKILL.md` | 完整管理规范 | 操作前参考 |
+| `.github/skills/pdf/SKILL.md` | PDF 渲染、文本抽取、版面检查、论文读取探针 | 处理 PDF / 文件夹 PDF 时必须使用 |
+| `.github/skills/paper-recap-insight/SKILL.md` | 论文 PDF / 文件夹 PDF recap 的高颗粒度 skill | 用户要求 recap、精读、整理 PDF 时必须使用 |
 | `Foundations/taxonomy.md` | 领域分类索引 | 新增内容时检查 |
 | `MergeBuffer/_MergeIndex.md` | 待处理内容索引 | 处理新内容时更新 |
 | `Projects/*/all_Insights/_ExperimentResultsAll.md` | 🔄 远端服务器实验结果汇总 | **每次会话检查是否有新结果** |
@@ -138,6 +142,11 @@ Papers&Notes/
 
 ## 📄 论文笔记标准模板
 
+> [!important] PDF Recap Skill
+> 当用户要求对某篇 PDF、某个 PDF 文件夹、论文笔记、paper recap、精读或整理进行处理时，必须优先使用 `.github/skills/paper-recap-insight/SKILL.md` 或全局 `$paper-recap-insight`。
+> 读取 PDF 本身时必须先使用 `.github/skills/pdf/SKILL.md` 或全局 `$pdf`，通过 `pdfinfo`、`pdftotext -layout`、`pdfplumber/pypdf` 和 `pdftoppm` 渲染页交叉确认版面、公式、表格和图注。
+> 默认产物应是 insight / 原理 / 符号与变量来源 / 实验因果链导向，不默认输出“最小 PyTorch 逻辑”或代码实现段。
+
 ```markdown
 ---
 tags:
@@ -166,7 +175,7 @@ related:
 ## 2. 核心方法/理论
 ### 2.1 关键创新点（Delta 分析：与 SOTA 的增量是什么）
 ### 2.2 数学框架（完整推导链，不跳步，含变量物理意义）
-### 2.3 核心伪代码/代码逻辑（精简 PyTorch tensor ops，去掉防御性代码）
+### 2.3 概念信息流/算法机制（无代码）
 
 ## 3. 训练与实验细节
 ### 3.1 训练设定（数据来源/规模、监督信号、任务列表）
@@ -189,7 +198,7 @@ related:
 > [!important] 算法颗粒度标准
 > 论文笔记必须达到以下颗粒度（详见 `.github/skills/knowledge-graph-management/SKILL.md §2.3.1`）：
 > - 完整数学推导链（不跳步）+ 物理量来源追踪（Rollout/网络输出/计算图梯度属性）
-> - 精简核心代码逻辑（PyTorch tensor ops）+ 工程避坑指南
+> - 概念信息流、变量来源追踪、符号陷阱 + 工程/数值约束
 > - 训练细节盘点（数据/信号/指标/关键数字）+ Ablation 因果解读
 > - 理论局限性分析 + 替代方案对比 + 与用户研究的个性化 Insight
 

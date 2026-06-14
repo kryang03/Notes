@@ -5,7 +5,122 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-05-01 (Session #36 — Foundation 理论大厦全域细颗粒度补齐 ✅)
+**最后更新**: 2026-06-14 (Session #39 — PDF 读取 skill + WMTS RelatedPapers 规范化 ✅)
+
+## 🟢 Session #39 完成 (2026-06-14)
+
+### PDF 读取 workflow 固化与 WMTS RelatedPapersRecap 目录规范化
+
+**触发**：用户要求确认未来无 session 上下文时，PDF / 文件夹 PDF recap 会自动使用 paper recap skill；随后要求对 `Projects/World Model as Task Scheduler/RelatedPapers` 逐篇 recap，文件名与 PDF basename 完全一致但应写入 `RelatedPapersRecap/`；用户进一步指出旧短名 recap 是废弃文件，并提供 PDF 读取 skill 指令，要求融合成可复用 workflow。
+
+#### 完成内容
+| 项目 | 结果 |
+|------|------|
+| PDF skill | 新增全局 `/Users/yang/.codex/skills/pdf/` 与仓库 `.github/skills/pdf/` |
+| PDF 探针脚本 | 新增 `scripts/pdf_probe.py`：`pdfinfo` 元数据、`pdftotext -layout`、`pdfplumber` 分页文本、关键词页选择、`pdftoppm` PNG 渲染、`manifest.json` |
+| Recap skill 接入 | 更新全局与仓库本地 `paper-recap-insight`，要求 PDF recap 前先用 `$pdf` / `pdf_probe.py` 做版面与文本交叉抽取 |
+| 仓库规范接入 | 更新 `.github/copilot-instructions.md` 与 `knowledge-graph-management/SKILL.md`：PDF 任务必须用 `$pdf`；PDF recap 必须用 `$paper-recap-insight`；有 sibling recap 目录时输出到 recap 目录 |
+| WMTS recaps | 为 `RelatedPapers/` 48 篇 PDF 生成 48 个同 basename `.md` recap，并放入 `Projects/World Model as Task Scheduler/RelatedPapersRecap/` |
+| 旧文件清理 | 删除 `RelatedPapersRecap/` 中 40 个旧短名 recap（如 `DayDreamer Recap.md`、`Diffusion Policy Recap.md` 等），避免双入口 |
+| 索引修复 | 重写 `_RelatedPapersIndex.md`，只链接 48 个规范同名 recap，并记录旧短名文件已删除 |
+
+#### 关键规则固化
+| 规则 | 当前状态 |
+|------|----------|
+| PDF 读取 | 不再只依赖 `pdftotext`；必须结合 `pdfinfo`、`pdftotext -layout`、`pdfplumber/pypdf`、`pdftoppm` PNG 渲染 |
+| 批量论文 | 文件夹 PDF 逐篇处理，不把多篇论文混入同一上下文 |
+| 输出目录 | 若存在 `RelatedPapersRecap/` / `PapersRecap/` 等 recap 目录，recap 写入 recap 目录，不写入 PDF 原目录 |
+| 文件名 | Recap 文件名与 PDF basename 完全一致，仅后缀改为 `.md` |
+| 内容方向 | 默认写 insight / 原理 / 变量来源 / 符号陷阱 / ablation 因果链，不默认写“最小 PyTorch 逻辑” |
+
+#### 验证
+| 校验项 | 结果 |
+|--------|------|
+| Skill validator | 全局与仓库本地 `pdf`、`paper-recap-insight` 均通过 `quick_validate.py` |
+| PDF 探针实测 | 用 `Curiosity-Driven Exploration via Latent Bayesian Surprise.pdf` 跑通：生成 `manifest.json`、layout text、pdfplumber 分页文本、3 张 PNG |
+| PNG 视觉检查 | page 1 渲染正常，标题、摘要、双栏正文可读 |
+| Recap 数量 | `RelatedPapers/` 48 篇 PDF；`RelatedPapersRecap/` 48 篇同 basename recap；0 missing / 0 extra |
+| 旧短名清理 | `RelatedPapersRecap/*Recap.md` 数量为 0 |
+| 新 recap 链接 | `RelatedPapersRecap/` 内 wikilink 目标检查：0 missing |
+| 文本控制字符 | 48 个 recap 无 tab / CR / NUL / `\night` LaTeX 断裂残留 |
+
+#### 当前状态
+- 未来任何“读 PDF / 对 PDF 做 recap / 对文件夹 PDF 逐篇整理”任务，应先触发 `$pdf`，再触发 `$paper-recap-insight`。
+- WMTS RelatedPapers 的正式 recap 入口现在是 `Projects/World Model as Task Scheduler/RelatedPapersRecap/` 中 48 个同名 `.md` 文件；旧短名 recap 已删除。
+- `RelatedPapers/` 目录中不再放置误生成的 `.md` recap。
+
+## 🟢 Session #38 完成 (2026-06-14)
+
+### 全局 recap skill：将论文精读 taste 固化为可复用流程
+
+**触发**：用户要求根据 RodriNet recap 暴露出的论文 taste，总结“若只给 PDF 如何整理到同等颗粒度”的方法，并结合 `.github/skills` 生成一份以后每次可读取的 recap skill；同时删除默认“最小 PyTorch / core tensor ops”实现导向，转为 insight 与原理导向。
+
+#### 完成内容
+| 项目 | 结果 |
+|------|------|
+| Skill 位置 | 新增全局 Codex skill：`/Users/yang/.codex/skills/paper-recap-insight/`，未来任务可通过 `$paper-recap-insight` 触发 |
+| `SKILL.md` | 写入 PDF-only workflow、知识库上下文读取规则、原则优先的 recap 模板、禁止默认代码实现段落、质量门槛 |
+| `references/taste-rubric.md` | 固化用户 taste：第一性原理、变量来源、符号陷阱、无跳步公式、ablation 因果链、替代方案、个性化迁移、知识图谱更新 |
+| `agents/openai.yaml` | 修正 UI metadata 与默认 prompt：`Use $paper-recap-insight to create a principle-first recap from this paper PDF.` |
+| 默认内容调整 | 明确禁止默认输出 “最小 PyTorch 逻辑如下，只保留核心 tensor ops” 与代码优先实现段；如实现重要，只写为概念信息流、变量来源、数值约束或失败模式 |
+
+#### 验证
+| 校验项 | 结果 |
+|--------|------|
+| `quick_validate.py` | 通过：`Skill is valid!` |
+| 依赖处理 | 为运行 validator 安装用户级 `PyYAML 6.0.3` |
+| 文件检查 | skill 目录仅包含 `SKILL.md`、`agents/openai.yaml`、`references/taste-rubric.md`，无初始化占位垃圾文件 |
+
+#### 当前状态
+- 后续只给论文 PDF 时，应使用 `$paper-recap-insight`：先读 vault 的 `.github/TASK_TRACKER.md` 与知识图谱规范，再从 PDF 抽取理论根、变量来源、公式推导、实验与 ablation 因果链，最后对齐 Foundations / PapersRecap / Canvas。
+- 该 skill 已将“代码实现颗粒度”降为非默认能力，主目标改为 insight、原理、符号辨析和研究迁移。
+
+## 🟢 Session #37 完成 (2026-06-14)
+
+### RodriNet 论文 recap：从 Gemini 对话导出升级为 PapersRecap 范本
+
+**触发**：用户要求根据 `.github` 中知识图谱与论文整理规范，结合 `Example/Rodrigues Network for Learning Robot Actions.md` 中已有的大模型问答和提问颗粒度，完善该 recap，并将其作为后续整理和其他 Agent 的范本。
+
+#### Phase 0：状态恢复与材料读取
+| 项目 | 状态 |
+|------|------|
+| TASK_TRACKER | 已读取 Session #36，确认上一轮主线为 Foundation 理论大厦补齐 |
+| 管理规范 | 已读取 `.github/copilot-instructions.md`、`knowledge-graph-management/SKILL.md`、`standard-workflow.prompt.md`、论文精读/Refine 颗粒度要求 |
+| 目标文件 | 已读取 `Example/Rodrigues Network for Learning Robot Actions.md`，识别其核心价值在于用户追问变量来源、坐标系符号、齐次形式和算子 insight 的颗粒度 |
+| PDF 原文 | 已用 `pdftotext` 抽取 ICLR 2026 论文正文、实验表格、ablation、CUDA 细节 |
+| 实验同步 | WMTS `_ExperimentResultsAll.md` 仍为空模板；DNPM `_ExperimentResultsAll.md` 保持既有 Exp3a 运行中记录，本轮无新远端结果需合并 |
+
+#### Phase 1：Recap 范本化
+| 文件 | 结果 |
+|------|------|
+| `Example/Rodrigues Network for Learning Robot Actions.md` | 从 Gemini 原始对话导出重写为标准 PapersRecap 范本，新增 frontmatter、核心贡献、理论基础关联、变量来源追踪、数学推导、PyTorch/einsum 核心实现、实验数字、ablation 因果链、工程避坑、灵巧手转笔/Sim-to-Real 迁移和 Agent 提问颗粒度规范 |
+| `PapersRecap/RodriNet - Rodrigues Network for Learning Robot Actions.md` | 新增正式知识库版本，避免 `Example/` 不在链接扫描范围导致反向 wikilink 失效；`Example/` 文件继续作为完整范本入口保留 |
+
+#### Phase 2：知识图谱对齐
+| 文件 | 更新 |
+|------|------|
+| `Foundations/Dynamics.md` | 在 Rodrigues 公式小节新增 RodriNet 前沿应用 callout，说明 $1,\sin\theta,\cos\theta$ 基底如何被神经化 |
+| `Foundations/RepresentationLearning.md` | 在 SE(3) 等变/几何不变性小节新增 RodriNet 作为结构化 action mixer 的反向链接 |
+| `Foundations/EmbodiedAI.md` | 在 Diffusion Policy & 生成式策略索引中加入 RodriNet，标注其作为 DP denoising backbone 的 action-centric architecture 价值 |
+| `KnowledgeGraph.canvas` | 新增 `paper_rodrinet` 节点，并连接 `bt_representation`、`found_dynamics`、`found_repr`、`found_embodied` |
+
+#### Phase 3：验证
+| 校验项 | 结果 |
+|--------|------|
+| Canvas JSON | 解析通过；105 nodes / 165 edges；0 duplicate node；0 dangling edge |
+| Section-level links | `.github/scan_sections.py` 通过，0 个断裂章节链接 |
+| 新增 RodriNet wikilinks | 已通过新增 PapersRecap 正式文件消除本轮引入的断链 |
+| 全库 wikilink 扫描 | `.github/scan_links.py` 仍报告 156 个历史断链，主要来自旧笔记反斜杠转义链接、`sim2real`/硬件概念页缺失、Projects/WMTS 路径式链接；本轮新增内容未增加 RodriNet 相关断链 |
+| `git diff --check` | 本轮编辑文件通过，无尾随空白/格式警告 |
+
+#### 当前状态
+- RodriNet 论文 recap 已达到 `.github/skills/knowledge-graph-management/SKILL.md §2.3.1` 要求的颗粒度：公式无跳步、变量来源/梯度属性、核心 tensor ops、实验关键数字、ablation 因果链、替代方案对比和个性化迁移均已覆盖。
+- 该文件可作为后续论文整理与 Agent 行为的示例模板，尤其适用于运动学/控制/动作架构类论文。
+- 知识库中已有 RodriNet 的正式 PapersRecap 节点、Foundation 反向链接与 Canvas 可视化节点。
+
+#### 下次会话建议
+- 可单独执行一次全库链接清理，优先处理 `\]]` 反斜杠转义造成的 PapersRecap 断链，以及 `sim2real`、`传动`、`电机`、`减速器` 等硬件概念页缺失。
+- 可把 RodriNet 的灵巧手 PPO actor/critic 设计扩展成 `Projects/Dynamic Non-Prehensile Manipulation/ideas.md` 中的新候选实验。
 
 ## 🟢 Session #36 完成 (2026-05-01)
 
