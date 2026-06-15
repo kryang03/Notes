@@ -6,9 +6,7 @@
 > 原则源：`.github/skills/paper-recap-insight/SKILL.md` + `references/taste-rubric.md`。
 > 判定标准：四支柱齐全、变量来源表 + 无跳步推导、真实实验表 + 因果解释、3 维 limitation + 具体 WMTS/灵巧手迁移、无 generic filler / 无 LaTeX 损坏。
 
-**最后更新**: 2026-06-15 — 完成 23 篇范本级。已处理 23/47（RelatedPapers）。灵巧簇：+DexGen（扩散动作先验 generalist + gradient-guidance 安全投影；teleop 高层↔WMTS WM scheduler；笔工具使用先例）。
-**三种安全机制**（WMTS safety filter 可叠加）：DexGen 动作流形投影 / SafeDreamer cost critic / MoDem-V2·FOWM ensemble-LCB。
-**generalist 路线**：DexGen 扩散动作先验（训于 Oracle primitives）= WMTS DP generalist 强化版。
+**最后更新**: 2026-06-15 — 完成 41 篇范本级。已处理 41/47（RelatedPapers）。课程：+LBS（Bayesian surprise 抗 NoisyTV；Probe 求 epistemic 非 aleatoric）。剩余：CMA-ES、cmaes（优化工具 2）→ 表征/理论 5。
 **WM-core 论证线**: (1) **ensemble/不确定性线**：PDDM（2019 奠基：ensemble 动力学 + mean reward）→ MoDem-V2（AC-ensemble 显式 LCB, online-from-scratch）→ FOWM（Q-ensemble LCB Eq4, offline→online 微调）+ DiWA/World4RL/RWM/Model-Based Lookahead（单 WM/无 ensemble 的反面）→ WMTS 必须 ensemble+显式 LCB。FOWM+MoDem-V2 覆盖真机两模式。(2) **结构化光谱**：DexSim2Real2（显式刚体孪生）↔ DexWM（神经 latent，"latent 不足需结构化监督"）→ WMTS 取中间。(3) **无梯度规划**：PDDM/Model-Based Lookahead/DexSim2Real2/FOWM(MPPI)。(4) **安全**：SafeDreamer(cost)+MoDem-V2(保守探索)。(5) **降维**：eigengrasp+filtering。(6) **DNPM 经典先例**：PDDM 书写/Baoding。
 **读取方法**: 默认 `pdftotext -layout`（轻量、文本）；仅当抽取乱码或公式/表格不清时回退 Read 工具按页渲染。**每篇流程**: pdftotext 取正文 → Read 旧稿取 frontmatter（Write 前必须 Read）→ Write 重写。
 
@@ -36,36 +34,36 @@
 
 ### Diffusion / Imitation / VLA
 - [x] **Diffusion Policy: Visuomotor Policy** ✅ 2026-06-15 (范本级)
-- [ ] Beyond Human Demonstrations- Diffusion-Based RL to Generate Data for VLA
-- [ ] HG-DAgger- Interactive Imitation Learning with Human Experts
+- [x] **Beyond Human Demonstrations- Diffusion-Based RL to Generate Data for VLA** ✅ 2026-06-15 (范本级)
+- [x] **HG-DAgger- Interactive Imitation Learning with Human Experts** ✅ 2026-06-15 (范本级)
 
 ### Dexterous Manipulation / Sim-to-Real
 - [x] **DEXTERITYGEN- Foundation Controller for Unprecedented Dexterity** ✅ 2026-06-15 (范本级)
 - [x] **DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality** ✅ 2026-06-15 (范本级)
-- [ ] DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning
-- [ ] DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts
+- [x] **DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning** ✅ 2026-06-15 (范本级)
+- [x] **DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts** ✅ 2026-06-15 (范本级)
 - [x] **From Simple to Complex Skills- The Case of In-Hand Object Reorientation** ✅ 2026-06-15 (范本级)
-- [ ] Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning
-- [ ] LIGHTNING GRASP ... PROCEDURAL GRASP SYNTHESIS WITH CONTACT FIELDS
+- [x] **Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning** ✅ 2026-06-15 (范本级)
+- [x] **LIGHTNING GRASP ... PROCEDURAL GRASP SYNTHESIS WITH CONTACT FIELDS** ✅ 2026-06-15 (范本级)
 - [x] **SOLVING RUBIK'S CUBE WITH A ROBOT HAND** ✅ 2026-06-15 (范本级)
-- [ ] UniDexGrasp++- ... Geometry-aware Curriculum and Iterative GSL
+- [x] **UniDexGrasp++- ... Geometry-aware Curriculum and Iterative GSL** ✅ 2026-06-15 (范本级)
 - [x] **ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation** ✅ 2026-06-15 (范本级)
 - [x] **World Models for Learning Dexterous Hand-Object Interactions from Human Videos (DexWM)** ✅ 2026-06-15 (范本级)
 
 ### Locomotion / Sim-to-Real / Control
-- [ ] ANYmal parkour Learning agile navigation for quadrupedal robots
-- [ ] ASAP- Aligning Simulation and Real-World Physics ...
-- [ ] Learning Agile and Dynamic Motor Skills for Legged Robots
-- [ ] Learning a Unified Policy for Position and Force
-- [ ] Learning to Walk from Three Minutes of Real-World Data ...
-- [ ] Sim-to-Real: Learning Agile Locomotion For Quadruped Robots
+- [x] **ANYmal parkour Learning agile navigation for quadrupedal robots** ✅ 2026-06-15 (范本级)
+- [x] **ASAP- Aligning Simulation and Real-World Physics ...** ✅ 2026-06-15 (范本级)
+- [x] **Learning Agile and Dynamic Motor Skills for Legged Robots** ✅ 2026-06-15 (范本级)
+- [x] **Learning a Unified Policy for Position and Force** ✅ 2026-06-15 (范本级)
+- [x] **Learning to Walk from Three Minutes of Real-World Data ...** ✅ 2026-06-15 (范本级/WM 架构蓝图)
+- [x] **Sim-to-Real: Learning Agile Locomotion For Quadruped Robots** ✅ 2026-06-15 (范本级)
 
 ### Exploration / Curriculum / Optimization
-- [ ] Curiosity-Driven Exploration via Latent Bayesian Surprise
-- [ ] Curious Exploration via Structured World Models ...
-- [ ] Improving Policy Optimization with Generalist-Specialist Learning
-- [ ] Paired Open-Ended Trailblazer (POET)- ...
-- [ ] Prioritized Level Replay
+- [x] **Curiosity-Driven Exploration via Latent Bayesian Surprise** ✅ 2026-06-15 (范本级)
+- [x] **Curious Exploration via Structured World Models ...** ✅ 2026-06-15 (范本级)
+- [x] **Improving Policy Optimization with Generalist-Specialist Learning** ✅ 2026-06-15 (范本级)
+- [x] **Paired Open-Ended Trailblazer (POET)- ...** ✅ 2026-06-15 (范本级)
+- [x] **Prioritized Level Replay** ✅ 2026-06-15 (范本级)
 - [ ] The CMA Evolution Strategy: A Tutorial
 - [ ] cmaes- A Simple yet Practical Python Library for CMA-ES
 

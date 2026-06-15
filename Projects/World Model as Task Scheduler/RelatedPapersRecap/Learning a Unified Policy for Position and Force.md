@@ -3,176 +3,137 @@ tags:
   - paper
   - force-control
   - loco-manipulation
-  - control-theory
+  - force-estimation
   - WMTS
 aliases:
   - Unified Position-Force Policy
-paper-year: 2024
-read-date: 2026-06-14
-venue: arXiv
+paper-year: 2025
+read-date: 2026-06-15
+venue: CoRL 2025 (BIGAI / BUPT; Siyuan Huang)
 paper-pdf: "[[Learning a Unified Policy for Position and Force.pdf]]"
 related:
   - "[[ControlTheory]]"
-  - "[[ContactMechanics]]"
-  - "[[Dynamics]]"
+  - "[[ReinforcementLearning]]"
+  - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
+  - "[[Dynamic Non-Prehensile Manipulation]]"
 ---
 
-# Learning a Unified Policy for Position and Force
+# Learning a Unified Policy for Position and Force Control in Legged Loco-Manipulation
 
 > [!abstract] 核心贡献
-> 这篇论文的核心是统一位置控制和力控制，让 legged loco-manipulation 策略能在运动与交互之间切换，而不是固定使用单一控制接口。
+> 首个为腿式机器人**联合建模力 + 位置控制、且无需力传感器**的统一策略。在 Isaac Gym 里 RL 训练：模拟多样的位置+力命令 + 外部扰动力，学一个策略**从历史机器人状态估计力**、并通过位置/速度调整补偿之 → 支持位置跟踪、施力、力跟踪、柔顺交互。更关键：学到的**力估计模块给 IL 提供"力感知示范"**，在 4 个接触密集任务上**比纯位置控制 +39.5% 成功率（无外部力传感器）**。**对 WMTS：印证两件 WMTS 核心事项——(1) 接触力可从本体历史估计（无需力传感器，呼应 SSRL 外力残差）；(2) 力感知数据对接触密集 IL 至关重要（+39.5%，呼应 DexWM HC-loss、Beyond Human Demonstrations 数据质量）。WMTS 有真触觉，可比"估计"更进一步。**
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory]] — hybrid force/position control
-> - [[ContactMechanics]] — contact force constraints
-> - [[Dynamics]] — interaction dynamics
-
-> [!note] PDF 摘要摘录
-> Robotic loco-manipulation often involves contact-rich interactions with the environment, requiring the joint modeling of contact force and robot posi- tion. However, recent visuomotor policies often focus solely on learning position or force control, overlooking their co-learning. We propose the first unified policy for legged robots that jointly models force and position control learned without re- lying on force sensors. By simulating diverse combinations of position and force commands alongside external disturbance forces, we use reinforcement learning to learn a policy that estimates forces from historical robot states and compensates for them through position and velocity adjustments. This policy enables a wide range of manipulation behaviors under varying force and position inputs, includ- ing position tracking, force application, force tracking, and compliant interactions. Moreove
+> - [[ControlTheory]] — 统一力/位置控制；柔顺交互（compliance）；力补偿。
+> - [[ReinforcementLearning]] — RL 训统一策略；多样力+位置命令 + 扰动力 DR。
+> - [[EmbodiedAI]] — 腿式 loco-manipulation；力感知 IL 数据。
+> - [[Final_WMTS]] — **接触力可从本体历史估计 + 力感知数据对 IL 关键**；WMTS 用真触觉更强。
+> - [[Dynamic Non-Prehensile Manipulation]] — 转笔需力/柔顺控制 + 力感知数据。
+>
+> **核心技术**: 统一力-位置策略, 力估计器 (本体历史→力, 无力传感器), 位置/速度补偿, 力+位置命令 + 扰动力 DR, 力感知 IL 数据 (+39.5%)
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：转笔同样需要 phase-dependent control：空中/滑动阶段更像位置/速度控制，夹持/捕获阶段更像力/阻抗控制。
+这篇对 WMTS 的价值聚焦在**接触力主题**，与 [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]（外力残差估计）、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]（接触监督）、[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]（增益自适应）共同构成"**接触力是关键、且可学/可估**"的论证群。它的两条独特贡献：(1) **无力传感器、从本体历史估力**（与 SSRL 互证）；(2) **力感知数据显著提升接触密集 IL**（+39.5%，量化了"接触信息对 IL 的价值"）。出自 **BIGAI（Siyuan Huang）**，与 [[UniDexGrasp++- Improving Dexterous Grasping Policy Learning via Geometry-aware Curriculum and Iterative Generalist-Specialist Learning|UniDexGrasp++]] 同生态。
 
-## 1. 问题设定与动机
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-纯位置控制适合自由空间运动但接触力不可控；纯力控制适合交互但位姿精度和稳定性差。
+腿式 loco-manipulation 接触密集，需联合建模接触力 + 位置，但缺力传感硬件；现有 visuomotor 策略多只学位置或力、不共学，且 IL 数据多是纯轨迹（无接触信息）→ 连擦黑板这种基本接触任务都学不好。本文学一个**无力传感器的统一力-位置策略**，并用其力估计给 IL 补接触信息。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+纯位置控制像"只按计划走位、不管推没推到墙"——擦黑板会要么没碰到、要么压太狠。统一力-位置策略像"边走位边感知手上的力（从历史动作-状态反推）、并据此调整压多大"——这就是柔顺。力感知示范像"教学员时不仅记手的位置、还记用了多大力"，学员（IL）学得更好。可证伪含义：力建模的收益集中在**接触密集 + 需柔顺/力控**任务；纯自由空间运动收益小。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| 纯位置控制 RL | 位置跟踪 + DR | 接触密集/柔顺任务不行 |
+| 纯轨迹 IL 数据 | 位置轨迹 | 缺接触信息→接触任务学不好 |
+| 独立力/位置控制 | 分开处理 | 不共学、切换不顺 |
+| 需力传感器 | 硬件测力 | 多数腿式机器人无力传感 |
+| **本文统一策略** | **力+位置共学 + 本体估力 + 力感知数据** | 腿式 loco-manip（非多指 in-hand）；估力非真测 |
 
 ### 1.4 Delta 分析
-把 position/force action 放在同一策略输出或条件化控制框架中，可以让策略按接触阶段选择控制语义。
+精确增量：(1) **首个统一力-位置策略**（共学，非独立）；(2) **从本体历史估力、无需力传感器**；(3) **力估计模块给 IL 补接触信息** → +39.5%。把"纯位置 + 纯轨迹数据"换成"力-位置共学 + 力感知数据"。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：统一策略 + 力估计）
 
-### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
-|---|---|---|---|---|---|
-| $x$ | robot/contact state | sensors/estimator | observed | closed-loop state | delay matters |
-| $x_d, f_d$ | desired position/force | policy/task | chosen | control target | different units/semantics |
-| $S$ | selection/mixing variable | controller/policy | fixed/learned | force vs position channel | switching can chatter |
-| $\tau$ | joint torque/command | low-level control | computed | actuation | saturation and compliance |
+### 2.1 核心机制（无跳步）
+- **训练**：Isaac Gym RL，模拟**多样位置+力命令组合 + 外部扰动力**（DR）。
+- **力估计器**：从**历史机器人状态**估计当前所受力（无力传感器）。
+- **统一控制**：策略据估计力，通过**位置/速度调整**补偿/施加力 → 位置跟踪 / 施力 / 力跟踪 / 柔顺交互（按命令）。
+- **力感知 IL 数据**：用该策略采数据时，其力估计模块给示范**附上接触力信息** → 训接触密集 IL 策略，无需外部力传感器。
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 概念边界与符号陷阱
+- 力是**估计**（从本体历史），非真测——WMTS 有真触觉，可超越。
+- 统一策略按命令在位置/力/柔顺间切换。
+- 力感知数据 = 轨迹 + 估计接触力。
+- 腿式 loco-manip（足/臂接触），非多指 in-hand。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+## 3. 实验与验证
+- **统一策略**实现位置跟踪/施力/力跟踪/柔顺（quadruped manipulator + humanoid）。
+- **力感知 IL +39.5%**（4 接触密集任务，如擦黑板）vs 纯位置控制，**无外部力传感器**。**因果**：接触力信息让 IL 策略知道"用多大力"。
+- 边界：腿式（非 in-hand）；力估计非真测。
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-### 2.3 论文核心机制无跳步推导
-- 策略观察机器人状态、目标和接触信息。
-- 输出位置目标、力目标或混合控制参数。
-- 低层控制器把两类命令映射到关节力矩/目标。
+### 4.1 真正的 insight
+**接触密集 loco-manipulation 需联合建模力+位置，而接触力可从本体历史估计（无需力传感器）；用这个力估计统一控制并给 IL 数据补接触信息，可在接触任务上大幅提升（+39.5%）。** 一句话：**力可估、力共学、力感知数据关键——接触任务别只用位置。**
 
-从混合控制角度看，策略不是只输出一个动作标量，而是在位置和力两个控制语义之间分配权重：
-$$
-\tau = J^\top\left(S u_{force} + (I-S)u_{pos}\right)
-$$
-$S$ 的物理意义是选择哪些方向服从力交互、哪些方向服从位置跟踪。陷阱是 force/position 的单位、延迟和稳定性条件完全不同，不能当作同质 action 维度。
-
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
-
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：把 position/force action 放在同一策略输出或条件化控制框架中，可以让策略按接触阶段选择控制语义。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
-
-## 3. 训练、数据与实验
-
-### 3.1 PDF 结构线索
-- 1   Introduction
-- 2     Related Works
-- 3     Method
-- 3.1   A Unified Formulation for Force and Position Control
-- 3.2   Learning a Unified Force-Position Control Policy
-- 3.3   Force-aware Imitation Learning
-- 4     Experiment
-- 4.1    Force and Position Command Tracking
-
-### 3.2 关键结果与证据
-关注推、拉、搬运等任务成功率，接触力误差，位置跟踪误差，以及控制模式消融。
-
-- PDF 线索：provides force-aware demonstrations, improving model performance in contact-rich tasks without
-- PDF 线索：Moreover, we demonstrate that the learned policy enhances trajectory-based imita-
-- PDF 线索：force estimation module, achieving approximately ∼39.5% higher success rates
-- PDF 线索：in four challenging contact-rich manipulation tasks over position-control policies.
-- PDF 线索：bated in contact-rich manipulation tasks, where accurate modeling of contact forces is essential
-- PDF 线索：hardware. These challenges underscore the need for robust, adaptable policies to support effective
-
-### 3.3 Ablation 因果链
-只用位置 -> 接触冲击大；只用力 -> 空间定位差；统一策略有效说明任务需要随 phase 改变控制变量。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
-
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
-
-## 4. 核心洞见
-
-### 4.1 论文真正的 insight
-把 position/force action 放在同一策略输出或条件化控制框架中，可以让策略按接触阶段选择控制语义。
-
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+### 4.2 为什么有效
+(1) 力+位置共学 → 柔顺/力控；(2) 本体历史估力 → 免力传感器；(3) 扰动力 DR → 鲁棒；(4) 力感知数据 → IL 知道接触力。
 
 ### 4.3 什么时候会失效
-如果策略没有可靠接触状态，force/position 切换会抖动；需要触觉或 contact estimator。
+- 力估计在本体历史信息不足时不准。
+- 多指高维 in-hand 接触力比足-地复杂。
+- 纯自由空间任务力建模收益小。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与局限（未来与结合）
+- 与 [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]（外力残差给 WM）互补：本文力估计给**控制 + IL 数据**，SSRL 给 **WM 预测**。
+- 与 [[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]（增益自适应）、[[DyWA: Dynamics-adaptive World Action Model|DyWA]]（变阻抗）同属力/接触控制族。
+- 局限：估力非真测（WMTS 有触觉）；腿式非 in-hand。
 
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+## 6. 对用户研究的启发（未来与结合）
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 6.1 对 WMTS / DNPM 的迁移
 
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+| WMTS 模块 | 本文对应 | 迁移设计 |
+|---|---|---|
+| **接触力建模** | 本体历史估力 | WMTS 用**触觉 + 本体**估/测接触力（比纯本体估更准） |
+| **Oracle 数据** | 力感知示范 (+39.5%) | WMTS Oracle 产**力/触觉感知数据**（非纯轨迹）训 generalist |
+| 柔顺控制 | 统一力-位置 | 转笔需力控/柔顺（接触力调节） |
+| WM 输入 | 力估计 | 与 SSRL 外力残差互补：WM 用触觉测接触力 |
 
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-转笔同样需要 phase-dependent control：空中/滑动阶段更像位置/速度控制，夹持/捕获阶段更像力/阻抗控制。
+**核心论证（critical thinking）**：这篇为 WMTS 的**接触力主题**加两条实证。(1) **接触力可从本体历史估计（无需力传感器）**——与 [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]] 的外力残差估计互证，说明即便没有触觉，力也是可学的潜变量；而 **WMTS 有真触觉阵列（5×12×6）**，所以可以做得更准——用触觉直接观测接触力，而非从本体历史反推。(2) **力感知数据对接触密集 IL 价值巨大（+39.5%）**——这量化了"接触信息对 IL 的重要性"，与 [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]] 的 HC-loss（latent 不够、需结构化接触监督）、[[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training|Beyond Human Demonstrations]]（数据质量）合流，共同指向：**WMTS 的 Oracle 必须产出力/触觉感知的数据（而非纯位置轨迹）来训 DP generalist**，否则转笔这种接触主导任务的 generalist 会像"纯轨迹 IL 擦黑板"一样失败。**边界**：腿式足-地接触相对低维，转笔多指接触高维；本文是**估力**，WMTS 应**用触觉测力**更可靠。出自 BIGAI（Siyuan Huang），与 UniDexGrasp++ 同生态，资产可复用。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- 力感知 vs 纯位置数据：转笔上对照"Oracle 产力/触觉感知数据" vs "纯轨迹数据"训 generalist，测成功率（对标 +39.5%）。
+- 触觉测力 vs 本体估力：WMTS 用触觉直接测接触力 vs 本体历史估，测精度。
+- 柔顺控制：转笔接触力调节用统一力-位置思路。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 足-地接触（低维）不能直接外推多指 in-hand（高维）。
+- 估力非真测；WMTS 用触觉更准。
+- 力建模收益在接触密集任务，自由空间小。
 
 ## 7. 与知识体系的联系
 
 ### 与 [[ControlTheory]] 的联系
-hybrid force/position control。这篇论文提供的是一个可迁移的结构化 bias：它把 纯位置控制适合自由空间运动但接触力不可控；纯力控制适合交互但位姿精度和稳定性差。 转化为可建模、可采样或可约束的问题。
+统一力/位置控制、柔顺交互（compliance）；从历史估力并经位置/速度补偿——学习式力控。
 
-### 与 [[ContactMechanics]] 的联系
-contact force constraints。这篇论文提供的是一个可迁移的结构化 bias：它把 纯位置控制适合自由空间运动但接触力不可控；纯力控制适合交互但位姿精度和稳定性差。 转化为可建模、可采样或可约束的问题。
+### 与 [[ReinforcementLearning]] 的联系
+RL 训统一策略；多样力+位置命令 + 扰动力 DR；力感知数据增强 IL。
 
-### 与 [[Dynamics]] 的联系
-interaction dynamics。这篇论文提供的是一个可迁移的结构化 bias：它把 纯位置控制适合自由空间运动但接触力不可控；纯力控制适合交互但位姿精度和稳定性差。 转化为可建模、可采样或可约束的问题。
+### 与 [[EmbodiedAI]] 的联系
+腿式 loco-manipulation；无力传感器的力估计；接触密集任务（擦黑板等）。
+
+### 与 [[Final_WMTS]] 的联系
+接触力可从本体历史估计（WMTS 用触觉更准）；力感知数据对接触 IL 关键（+39.5%）→ WMTS Oracle 须产力/触觉感知数据；与 SSRL 外力残差互补。
 
 ## References
-- 原始 PDF：[[Learning a Unified Policy for Position and Force.pdf]]
-- 项目入口：[[Final_WMTS]]
+- 原始 PDF：[[Learning a Unified Policy for Position and Force.pdf]]（BIGAI/BUPT，CoRL 2025，arXiv 2505.20829）
+- 力/接触主题群：[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]（外力残差）、[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]（增益）、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]（接触监督）
+- 数据质量呼应：[[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training|Beyond Human Demonstrations]]
+- 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

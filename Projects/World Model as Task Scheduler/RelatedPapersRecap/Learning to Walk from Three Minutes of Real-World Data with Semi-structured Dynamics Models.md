@@ -2,178 +2,185 @@
 tags:
   - paper
   - semi-structured-dynamics
+  - model-based-rl
   - locomotion
   - real-world-data
+  - ensemble
   - WMTS
 aliases:
+  - SSRL
   - Three-Minute Semi-Structured Dynamics
 paper-year: 2024
-read-date: 2026-06-14
-venue: arXiv/CoRL
+read-date: 2026-06-15
+venue: CoRL 2024 (UT Austin / UW; Fridovich-Keil)
 paper-pdf: "[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models.pdf]]"
 related:
-  - "[[Dynamics]]"
   - "[[ReinforcementLearning]]"
-  - "[[Optimization]]"
+  - "[[ControlTheory]]"
+  - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
+  - "[[Dynamic Non-Prehensile Manipulation]]"
 ---
 
-# Learning to Walk from Three Minutes of Real - World Data with Semi - structured Dynamics Models
+# SSRL: Learning to Walk from 3 Minutes of Real Data with Semi-structured Dynamics
 
 > [!abstract] 核心贡献
-> 这篇论文展示半结构化 dynamics model 的数据效率：用物理结构承载已知部分，用学习残差吸收真实差异，只需很少真机数据。
+> **WMTS world model 架构的"蓝图级"先例**：提出 **semi-structured dynamics model**——把**已知第一性原理（Lagrangian 刚体动力学）**与**黑箱自回归模型**无缝结合。具体：用**一组概率模型（ensemble）估计外部/接触力** $\hat\tau^e$（条件于历史 obs+action），再通过**已知 Lagrangian ODE** $M(q)\ddot q+\dots=B\tau+F^e$ 积分 + 学习噪声项 → 概率单步预测 → 自回归多步。如此用**远少于以往**的数据做准长程预测。配套 **SSRL**（semi-structured RL，Dyna 式：真实数据 + 想象短 rollout + model-free RL）在真机 Unitree Go1 上**从零、用 3 分钟真实数据**学会硬地与软地（记忆海绵）动态步态。**对 WMTS：这几乎就是 WMTS WM 该有的样子——已知 actuator+rigid 结构（Lagrangian）+ ensemble 估计接触力残差（从触觉/历史）+ 自回归 + Dyna RL；它解决了 [[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]（纯显式建不了形变/接触）与神经 WM（无结构、要大数据）的张力，且 3 分钟样本效率让 WMTS 的"≤1h 真机"显得宽裕。**
 
 > [!tip] 与理论基础的关联
-> - [[Dynamics]] — transition model grounded in physics
-> - [[ReinforcementLearning]] — model-based policy improvement
-> - [[Optimization]] — MPC / trajectory search
-
-> [!note] PDF 摘要摘录
-> Traditionally, model-based reinforcement learning (MBRL) methods arXiv:2410.09163v2 [cs.RO] 28 Oct 2024 exploit neural networks as flexible function approximators to represent a priori unknown environment dynamics. However, training data are typically scarce in practice, and these black-box models often fail to generalize. Modeling archi- tectures that leverage known physics can substantially reduce the complexity of system-identification, but break down in the face of complex phenomena such as contact. We introduce a novel framework for learning semi-structured dynamics models for contact-rich systems which seamlessly integrates structured first prin- ciples modeling techniques with black-box auto-regressive models. Specifically, we develop an ensemble of probabilistic models to estimate external forces, condi- tioned on historical observations and actions, and integrate these predictio
+> - [[ControlTheory]] — Lagrangian 刚体动力学 $M(q)\ddot q+C\dot q+g=B\tau+F^e$；已知结构 + 未知外力。
+> - [[ReinforcementLearning]] — Dyna 式 MBRL（真实数据 + 想象 rollout + model-free 更新）。
+> - [[EmbodiedAI]] — 真机从零学步态、3 分钟数据、硬/软地泛化。
+> - [[Final_WMTS]] — **WMTS WM 架构蓝图**：结构化 Lagrangian + ensemble 接触力残差 + 自回归 + Dyna。
+> - [[Dynamic Non-Prehensile Manipulation]] — 转笔同理：已知手/笔刚体 + 学多指接触力残差。
+>
+> **核心技术**: Semi-structured dynamics (Lagrangian + 黑箱), Ensemble 概率外力估计 $\hat\tau^e$, 自回归多步预测, 学习噪声项, SSRL (Dyna), 3 分钟真机数据, Go1 硬/软地
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 的 Rigid Dynamic Model + Actuator residual 正是半结构化路线：不要让神经网络重新发现牛顿力学，只让它学仿真缺口。
+SSRL 是知识库里 **与 WMTS world model 架构最贴合的一篇**——它把我前面反复论证的"**结构化先验 + 学习残差 + ensemble**"在真机 contact-rich 系统上落地并证明极致样本效率（3 分钟）。它精确收束两条对立路线：
 
-## 1. 问题设定与动机
+- **纯显式物理（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]）**：刚体可重建、但建不了形变/复杂接触。
+- **纯神经 WM（[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/[[Robotic World Model: A Neural Network Simulator|RWM]]）**：通用、但无结构、需大数据、有 model-exploitation。
+- **SSRL semi-structured**：**已知部分用第一性原理（Lagrangian），难建的接触力用 ensemble 黑箱估计残差**——两全。
+
+读它要抓核心方程结构：$M,B$ 已知（几何/惯量），只学 $F^e$（外部/接触力）。这正是 WMTS 该对手-笔系统做的：刚体/actuator 已知、学多指接触力残差。它与 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]（ensemble 黑箱动力学）、[[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills|ASAP]]（残差对齐）、[[Robotic World Model: A Neural Network Simulator|RWM]]（自回归）密切相关，但**结构化程度恰到好处**。
+
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-纯黑箱模型需要大量数据；纯解析模型无法准确描述真实接触、执行器和地面交互。
+MBRL 用黑箱神经网络建动力学，但数据稀缺时不泛化、不胜 model-free；纯结构化物理模型高效但**建不了接触**（开放难题），且常需特权状态（精确知道何时何地接触）。SSRL 问：**能否用已知结构 + 板载传感、轻量地建 contact-rich 动力学？** 答案：semi-structured——Lagrangian 已知 + ensemble 估外力残差，3 分钟真机学会走路。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+纯神经 WM 像"完全不懂物理、纯靠海量数据猜"（数据贵、不泛化）；纯显式物理像"懂刚体但一遇到脚踩软泥（接触）就抓瞎"。SSRL 像"懂刚体力学（Lagrangian 算好骨架运动），只把'地面给脚多大反力'这件难事交给一组学生（ensemble）从手感历史去估"——骨架精确、难点学习、且因骨架已知，学得又快又准。可证伪含义：semi-structured 的样本效率优势依赖"**结构（刚体）确实已知且主导**，残差（接触力）虽难但可从历史估"；若结构本身错，残差补不回。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| 黑箱神经 MBRL（[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/[[Robotic World Model: A Neural Network Simulator|RWM]]） | NN 灵活逼近 | 数据稀缺不泛化、不胜 model-free |
+| 纯结构化物理 | 第一性原理 | **建不了接触**；需特权状态（何时何地接触） |
+| 物理信息 NN（PINN） | 软物理约束 | 不 scale 到真机 contact-rich |
+| 显式接触（需 SDF/特权） | 接触面表示 | 板载传感难可靠估计 |
+| **SSRL semi-structured** | **Lagrangian + ensemble 外力残差** | 需结构主导；quadruped 足-地接触（非多指 in-hand） |
 
 ### 1.4 Delta 分析
-把刚体动力学/接触结构作为 inductive bias，再学习残差，可以用几分钟真实数据形成可控制模型。
+精确增量：**semi-structured = Lagrangian 刚体（已知 $M,B$）+ ensemble 概率外力估计 $\hat\tau^e$（黑箱，条件历史）+ 自回归 + 学习噪声**。相对黑箱：注入刚体结构 → 样本效率暴增（3 分钟）；相对纯结构化：把"建不了的接触"交给 ensemble 残差，且只用板载传感（不需特权接触状态）。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：Lagrangian + ensemble 外力残差）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度/空间 | 来源 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
 |---|---|---|---|---|---|
-| $s_t$ | state/latent state | env/encoder | observed/computed | planning state | partial observability |
-| $a_{t:t+H}$ | candidate action sequence | sampler/policy prior | chosen | MPC candidate | dimension explosion |
-| $\hat f_\theta$ | learned dynamics | transition data | learned | predict next state | short horizon reliability only |
-| $J$ or $R$ | planning objective | task cost/reward | computed | selection criterion | objective misspecification |
-| $\Sigma$ / ensemble | uncertainty | model ensemble | computed | risk estimate | calibration needed |
+| $q,\dot q$ | 广义坐标/速度 | 状态 | observed | 机器人构型 | — |
+| $M(q),B$ | 惯量/分配矩阵 | **已知**（几何/惯量） | 固定 | 第一性原理结构 | a priori，不学 |
+| $\tau$ | 电机力矩 | 策略 | 选择 | 关节力矩 | 经 $B$ 分配 |
+| $F^e/\tau^e$ | 外部/接触力 | **未知** | — | 环境给的力 | **要学的难点** |
+| $\hat\tau^e$ | 估计外力 | **ensemble 概率模型** | learned | 黑箱残差，条件历史 $h_t$ | ensemble → 不确定性 |
+| 噪声项 | 学习 | — | learned | 概率单步预测 | — |
+| $h_t$ | 历史 obs+action | replay | 条件 | 自回归依据 | 喂回 $\hat\tau^e$ |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
-
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
-
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 建立含物理先验的 dynamics model。
-- 用少量真实 trajectory 拟合未知参数或 residual。
-- 在模型上规划/控制，再用真实数据闭环更新。
-
-从 sim-to-real 动力学角度看，真实闭环不是理想刚体系统，而是“刚体动力学 + 执行器/接触残差”：
+### 2.2 Semi-structured 动力学（无跳步，核心）
+Lagrangian 运动方程：
 $$
-q_{t+1} = f_{rigid}(q_t,\dot q_t,\tau_t, c_t) + \Delta_{act/contact}(h_t,u_t)
+M(q)\ddot q + C(q,\dot q)\dot q + g(q) = B\tau + F^e,
 $$
-策略若只在理想 $f_{rigid}$ 上训练，会把延迟、饱和、摩擦和接触相位误差留到真机暴露；alignment/actuator model 的作用就是让训练时看到这些偏差。
+其中 $M,B$（及 $C,g$）由**已知几何/惯量**确定，$F^e$ = 环境接触力（未知、难建）。SSRL：
+1. **ensemble 外力估计**：$\hat\tau^e$ = 一组**确定性外力估计器**（ensemble），条件于历史 $h_t$（obs+action）；
+2. **结构积分**：把 $\hat\tau^e$ 代入 Lagrangian ODE 积分 + 加**学习噪声**项 → **概率 1-step 预测** $p_s(s_{t+1}\mid s_t,a_t)$；
+3. **自回归**：预测喂回 $h_t$ → 多步预测；
+4. **拟合**：用真实数据拟合这个 semi-structured 表示。
+
+**关键**：只学 $F^e$（接触力残差），刚体部分用第一性原理 → 极少数据即准长程。
+
+### 2.3 SSRL（Dyna 式 RL）
+- **确定性策略**在真机收集数据；
+- **随机策略 + 学到的 semi-structured 模型** hallucinate **短想象 rollout**（从真实数据分支）；
+- **model-free RL** 用合成数据更新策略。
+（这是 Dyna/MBPO 结构，同 [[Robotic World Model: A Neural Network Simulator|RWM]]/[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]。）
 
 ### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+- semi-structured：**结构（Lagrangian）已知 + 残差（外力）学习**——不是纯黑箱也不是纯物理。
+- ensemble 在**外力残差**上（非整动力学）→ 轻量 + 不确定性。
+- 只用**板载传感**，不需特权接触状态（何时何地接触）。
+- quadruped 足-地接触（相对低维），非多指 in-hand 接触（高维）。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：把刚体动力学/接触结构作为 inductive bias，再学习残差，可以用几分钟真实数据形成可控制模型。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+## 3. 实验与验证
+- **Go1 从零、3 分钟真机数据**学会硬地 + 记忆海绵（软地）动态步态。**因果**：刚体结构已知 → 只学外力残差 → 极少数据即准。
+- **胜近期方法**（更快、更动态）。**因果**：黑箱 MBRL 数据不够、纯物理建不了软地接触；semi-structured 两全。
+- 软地泛化：ensemble 外力估计适应不同地面接触。
 
-## 3. 训练、数据与实验
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-### 3.1 PDF 结构线索
-- 1       Introduction
-- 2    Preliminaries and Problem Formulation
-- 3     Semi-structured Reinforcement Learning
-- 3.1   External Torque Estimators
-- 3.2   Generating Forwards Predictions
-- 3.3   Approximate Maximum Likelihood Estimation
-- 3.4   Policy Optimization
-- 4     Experimental Results
+### 4.1 真正的 insight
+**把动力学拆成"已知第一性原理结构（Lagrangian 刚体）+ 难建的残差（外部/接触力，用 ensemble 概率模型从历史估）"，能用极少真机数据（3 分钟）做准长程预测并学会 contact-rich 步态——结构提供样本效率，ensemble 残差吸收接触这个开放难题，且只需板载传感。** 一句话：**结构化骨架 + 学习接触力残差 + ensemble = 样本高效的 contact-rich WM。**
 
-### 3.2 关键结果与证据
-标题强调约 3 分钟真实数据学会 walking，关键指标是数据量、步态稳定、真机成功率。
-
-- PDF 线索：complexity boundary for real-world learning. We validate our approach on a real-
-- PDF 线索：both hard and soft surfaces with just a few minutes of real-world data. Video and
-- PDF 线索：MBRL literature struggle to generalize beyond the training data [6, 7, 8], and thus do not outperform
-- PDF 线索：to make learning new behaviors in the real world practical for many applications.
-- PDF 线索：not scale to the complexities of real-world learning for contact rich-systems such as walking robots
-- PDF 线索：made [19, 15]. However, reliably estimating these quantities in the real-world using noisy on-board
-
-### 3.3 Ablation 因果链
-无结构黑箱 -> 数据不够；无学习残差 -> 解析模型偏差无法消除；半结构化有效说明 bias 和 adaptation 都必要。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
-
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
-
-## 4. 核心洞见
-
-### 4.1 论文真正的 insight
-把刚体动力学/接触结构作为 inductive bias，再学习残差，可以用几分钟真实数据形成可控制模型。
-
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+### 4.2 为什么有效
+(1) 已知刚体结构大幅降样本复杂度；(2) ensemble 外力残差吸收难建的接触；(3) 自回归 + 学习噪声 → 概率长程预测；(4) Dyna 想象 rollout 放大数据；(5) 只用板载传感、不需特权接触状态。
 
 ### 4.3 什么时候会失效
-物理先验错误会限制模型上限；对转笔，需要确保接触/摩擦模式没有被过度简化。
+- 结构本身错（刚体假设不成立）→ 残差补不回。
+- 接触力维度极高/极复杂（多指 in-hand）→ ensemble 残差更难。
+- 历史不足以推断当前接触状态。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与局限（未来与结合）
 
 ### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+semi-structured = 物理结构 + 黑箱残差的混合模型：样本效率来自结构降维、表达力来自残差。比纯物理灵活、比纯黑箱省数据；受限于"结构主导且正确"。ensemble 给残差不确定性。
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 5.2 算法维度（WM 结构化谱系，对 WMTS 决定性）
+| WM 类型 | 代表 | 结构化程度 |
+|---|---|---|
+| 纯显式物理孪生 | [[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] | 全结构（建不了形变） |
+| **semi-structured** | **本文 SSRL** | **结构 + 残差（恰当）** |
+| 黑箱（结构化训练） | [[Robotic World Model: A Neural Network Simulator|RWM]]/[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] | 弱结构 + ensemble |
+| 纯 latent | [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]] | 无物理结构 |
 
 ### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+结构正确性、外力维度、历史长度、Dyna rollout 长度是主要边界；多指高维接触、触觉未覆盖（但正是 WMTS 要补的输入）。
 
-## 6. 对用户研究的启发
+## 6. 对用户研究的启发（未来与结合）
 
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 的 Rigid Dynamic Model + Actuator residual 正是半结构化路线：不要让神经网络重新发现牛顿力学，只让它学仿真缺口。
+### 6.1 对 WMTS / DNPM 的迁移（WM 架构蓝图）
+
+| WMTS 模块 | SSRL 对应 | 迁移设计 |
+|---|---|---|
+| **WM 架构** | semi-structured（Lagrangian + ensemble 外力） | **直接采用**：WMTS WM = 已知手/笔 actuator+rigid Lagrangian + ensemble 估**多指接触力残差** |
+| ensemble/不确定性 | ensemble 外力估计 | 接触力残差 ensemble → disagreement/LCB（呼应 PDDM/MoDem-V2/FOWM） |
+| 触觉输入 | 历史 obs（板载） | WMTS 把**触觉 5×12×6** 作残差估计器的关键输入（SSRL 只用本体，WMTS 加触觉更强） |
+| 样本效率 | 3 分钟真机 | WMTS "≤1h 真机" 很宽裕；结构让数据需求骤降 |
+| imagination | Dyna 短 rollout | WMTS WM 短 rollout + PPO/model-free |
+
+**核心论证（critical thinking）**：SSRL 是 **WMTS world model 模块的架构蓝图**——它把我贯穿多篇 recap 论证的"结构化先验 + 学习残差 + ensemble"在真机 contact-rich 系统上**证明可行且极致样本高效（3 分钟）**。WMTS 的 WM 几乎应直接照此设计：**已知手指/笔的 actuator+rigid Lagrangian 动力学（$M,B$ 由 LinkerHand 几何/惯量给定）+ 一组 ensemble 概率模型估计多指-笔接触力残差 $F^e$（条件于触觉 + 本体历史）+ 自回归多步 + Dyna 想象 rollout 配 PPO**。这一架构同时解决前面所有张力：(1) 对 [[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]（纯显式建不了接触/形变）——把接触交给残差；(2) 对纯神经 WM（无结构、大数据、model-exploitation）——注入刚体结构降数据、ensemble 控 exploitation；(3) 对 [[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills|ASAP]]（delta-action 假设结构性 gap 小）——SSRL 显式把接触力建成残差通道，比 ASAP 的动作残差更贴合"结构性接触 gap"。**WMTS 的增量**：SSRL 只用本体感觉估足-地外力（低维），**WMTS 应把触觉阵列作为接触力残差估计器的一等输入**（多指接触高维，触觉直接观测接触），这正是 [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]] HC-loss 洞见（latent 不够、需结构化接触监督）的落点。**唯一需验证**：足-地接触相对低维，转笔多指接触维度高、变化快，ensemble 残差估计能否同样高效是 WMTS 的核心实验。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- WMTS WM 蓝图实现：LinkerHand+笔的 Lagrangian（已知 $M,B$）+ ensemble 接触力残差（触觉+本体条件）+ 自回归，测转笔长程预测样本效率（对标 3 分钟）。
+- 触觉 vs 纯本体残差估计：测加触觉对接触力残差精度的提升。
+- 结构化 vs 纯神经 WM：转笔上对照 semi-structured vs Dreamer-latent 的样本效率与 model-exploitation。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 足-地接触（低维）成功不能直接外推多指 in-hand（高维接触）。
+- semi-structured 依赖刚体结构正确；笔接触建模需准。
+- ensemble 残差在高维快变接触上的效率需实测。
 
 ## 7. 与知识体系的联系
 
-### 与 [[Dynamics]] 的联系
-transition model grounded in physics。这篇论文提供的是一个可迁移的结构化 bias：它把 纯黑箱模型需要大量数据；纯解析模型无法准确描述真实接触、执行器和地面交互。 转化为可建模、可采样或可约束的问题。
+### 与 [[ControlTheory]] 的联系
+Lagrangian 刚体动力学 $M(q)\ddot q+C\dot q+g=B\tau+F^e$；已知结构 + 未知外力的经典分解，用 ensemble 学外力。
 
 ### 与 [[ReinforcementLearning]] 的联系
-model-based policy improvement。这篇论文提供的是一个可迁移的结构化 bias：它把 纯黑箱模型需要大量数据；纯解析模型无法准确描述真实接触、执行器和地面交互。 转化为可建模、可采样或可约束的问题。
+Dyna 式 MBRL：真实数据 + semi-structured 模型想象短 rollout + model-free 更新；ensemble 概率预测。
 
-### 与 [[Optimization]] 的联系
-MPC / trajectory search。这篇论文提供的是一个可迁移的结构化 bias：它把 纯黑箱模型需要大量数据；纯解析模型无法准确描述真实接触、执行器和地面交互。 转化为可建模、可采样或可约束的问题。
+### 与 [[EmbodiedAI]] 的联系
+真机从零学步态、3 分钟数据、硬/软地泛化、仅板载传感——极致样本效率的具身学习。
+
+### 与 [[Final_WMTS]] 的联系
+WMTS WM 架构蓝图：actuator+rigid Lagrangian + ensemble 接触力残差（触觉条件）+ 自回归 + Dyna；解决显式/神经 WM 张力；3 分钟样本效率印证结构化的价值。
 
 ## References
-- 原始 PDF：[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models.pdf]]
-- 项目入口：[[Final_WMTS]]
+- 原始 PDF：[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models.pdf]]（UT Austin/UW，CoRL 2024，arXiv 2410.09163）
+- WM 结构化谱系：[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]（全结构）、[[Robotic World Model: A Neural Network Simulator|RWM]]/[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]（黑箱+ensemble）、[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]（latent）
+- 残差对照：[[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills|ASAP]]（动作残差）
+- 触觉/接触监督呼应：[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]
+- 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

@@ -4,173 +4,173 @@ tags:
   - dexterous-manipulation
   - geometry-aware
   - multi-task-learning
+  - generalist
   - WMTS
 aliases:
   - Geometry-Aware Dexterous MTL
+  - Geometry-Dex
 paper-year: 2021
-read-date: 2026-06-14
-venue: arXiv/CoRL
+read-date: 2026-06-15
+venue: ICRA 2021 (arXiv 2111.03062; Berkeley/Google/CMU)
 paper-pdf: "[[Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning.pdf]]"
 related:
-  - "[[ContactMechanics]]"
-  - "[[Dynamics]]"
   - "[[ReinforcementLearning]]"
+  - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
+  - "[[Dynamic Non-Prehensile Manipulation]]"
 ---
 
-# Generalization in Dexterous Manipulation via Geometry - Aware Multi - Task Learning
+# Geometry-Dex: Generalization via Geometry-Aware Multi-Task Learning
 
 > [!abstract] 核心贡献
-> 这篇工作强调几何感知的多任务学习：灵巧操作泛化的关键不是记住物体 ID，而是把物体形状转成能影响接触和动作的几何表征。
+> 一个**反直觉的"generalist ≥ specialist"结果**：用**多任务学习 + 几何感知物体表示（PointNet 点云编码）**，单个 generalist 策略能做 100+ 几何多样物体的 in-hand 操作，并零样本泛化到未见形状/尺寸；更惊人的是，多任务 generalist **不仅泛化更好，还在训练集与 held-out 测试集上都超过单物体 specialist（oracle）**。两阶段：先用点云预训练物体表示编码器，再用该表示做几何感知多任务 RL。发现 **linear scaling**——训练物体越多、泛化越好。**对 WMTS：它强力支撑 "单一 DP generalist 可行且能正迁移超过专家" 这一路线，但与 [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]（monolithic 最差情况崩、需 MoE 专家）形成关键张力——分水岭是表示质量 × 任务难度，这正是 WMTS 必须判断的设计抉择。**
 
 > [!tip] 与理论基础的关联
-> - [[ContactMechanics]] — contact mode, friction, grasp stability
-> - [[Dynamics]] — hand-object rigid body dynamics
-> - [[ReinforcementLearning]] — policy learning under contact
+> - [[ReinforcementLearning]] — 多任务 RL；generalist vs specialist；正迁移。
+> - [[EmbodiedAI]] — 几何感知物体表示驱动的灵巧泛化；点云预训练 + 多任务。
+> - [[Final_WMTS]] — **支撑 WMTS DP generalist 路线**；与 DexReMoE MoE 的张力 = WMTS 的 generalist/专家抉择。
+> - [[Dynamic Non-Prehensile Manipulation]] — in-hand 操作泛化；转笔 generalist 同需好表示。
+>
+> **核心技术**: 几何感知多任务 RL, PointNet 物体表示预训练, generalist≥specialist 正迁移, linear scaling, 100+ 物体零样本泛化
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 的 world model 应把笔的半径、长度、质量分布、表面摩擦作为 condition，而不是把“笔”当单一任务标签。
+Geometry-Dex 在灵巧簇里是 **"generalist 路线"的奠基性正面证据**（2021，Abbeel/Pathak）。它对 WMTS 的价值是**与 [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]] 配对形成一个核心设计抉择**：
 
-## 1. 问题设定与动机
+- **Geometry-Dex（正方）**：好表示（PointNet）+ 多任务 → 单一 generalist 匹配甚至**超过** specialist（正迁移），且零样本泛化、linear scaling。**主张：generalist 够，且更好。**
+- **DexReMoE（反方）**：更难场景（空中重力、复杂形状）→ monolithic generalist **最差情况崩**（0.69）→ 需 MoE 专家兜底（6.05）。**主张：generalist 不够，需专家。**
+
+读它要回答 WMTS 的关键问题：**何时一个 generalist 够、何时需专家+scheduler？** Geometry-Dex 指出**表示质量 × 任务难度**是分水岭——表示能"meaningfully associate tasks"时正迁移、generalist 胜；任务太难/表示不足时 worst-case 崩、需专家。
+
+## 1. 问题设定与价值（逻辑与价值）
 
 ### 1.1 一句话核心
-没有几何条件的策略会把不同物体的接触可行性平均化；只用类别标签又无法处理未见形状。
+RL 训出的灵巧策略多是单物体 specialist、难泛化；社区"误以为"泛化超出当前 RL 能力。本文证明：**简单多任务学习 + 合适物体表示，就能让现有 RL 产出强泛化 generalist，甚至超过 specialist。**
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+specialist 像"只练过一个物体的偏科生"；naïve 多任务像"什么都学但互相干扰的差生"。但只要给一个**能把不同物体几何关联起来的好表示（PointNet）**，多任务就从"互相干扰"变"互相促进"（正迁移）——generalist 反超偏科生，连没见过的物体也会。可证伪含义：正迁移依赖**表示能关联任务**；表示差则多任务退化为干扰、generalist 不如 specialist。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| 单物体 specialist（OpenAI/[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]） | 单物体 RL | 不泛化、每物体一系统不实际 |
+| naïve 多任务（无好表示） | 联合训练 | 任务干扰、性能降（社区误解） |
+| **Geometry-Dex** | **多任务 + PointNet 几何表示** | （较简单 reorientation，2021）；表示质量决定成败 |
+| [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]（MoE） | 专家 + router | 更难场景需专家兜 worst-case |
 
 ### 1.4 Delta 分析
-点云/几何编码器能提供接触面、尺寸和可抓取区域信息，多任务训练迫使策略学习形状到动作的可迁移映射。
+精确增量：(1) 证明多任务 generalist **不必**降性能、反而能匹配 specialist；(2) 用**几何感知表示（PointNet）**实现正迁移 → generalist **超过** specialist（含 unseen）；(3) 揭示 **linear scaling**（更多物体→更好泛化）。把"specialist 才行"的信念翻成"好表示下 generalist 更好"。
 
-## 2. 核心方法与理论
+## 2. 核心方法与理论（原理与理论：几何表示 + 多任务）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
 |---|---|---|---|---|---|
-| $q,\dot q$ | hand joint state | proprioception/sim | observed | robot configuration | command is not torque |
-| $T_o,R_o$ | object pose/rotation | vision/state estimator | observed/estimated | task state | latency/noise changes contact action |
-| $c_i,f_i$ | contact mode/force | sim/tactile/inferred | hidden/observed | physical interaction | often unobserved in vision-only setup |
-| $a_t$ | joint target/torque/action | policy | chosen | low-level command | controller semantics affect dynamics |
-| $g$ | goal pose/task condition | task sampler | fixed per episode | desired outcome | may be infeasible under contact |
+| 物体点云 | point cloud | 物体 | 输入 | 几何输入 | — |
+| 物体表示 | embedding | PointNet $\theta_o$ | 预训练后**冻结** | 几何感知表示 | 关联任务的关键 |
+| $s_t$ | 状态 | 环境 | observed | 含物体表示 | — |
+| 策略 $\theta_\pi$ | 多任务 policy | 多任务 RL | learned | generalist | 单一策略跨物体 |
+| $a_t$ | 动作 | 策略 | learned | 控制 | — |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 两阶段（无跳步）
+1. **表示预训练**：用物体点云训 PointNet 编码器 → 几何感知物体表示（编码器随后冻结）。
+2. **几何感知多任务 RL**：在 100+ 物体上做多任务 RL，策略条件于编码的物体表示。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+**为什么正迁移**：表示**能 meaningfully associate tasks**（几何相近的物体表示相近）→ 跨物体共享结构被利用 → 多任务从干扰变促进 → generalist 匹配/超过 specialist，且对 unseen 物体（表示插值）泛化。
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+### 2.3 概念边界与符号陷阱
+- 核心是**表示**：generalist 能否超 specialist 取决于表示是否关联任务（PointNet 几何）。
+- generalist≥specialist 是**经验发现**（特定设定），非普适定理——DexReMoE 的更难设定就反例。
+- 2021 设定（ADROIT 式 reorientation），非高速 spin。
+- 编码器冻结后只训策略（两时标解耦）。
 
-### 2.3 论文核心机制无跳步推导
-- 输入手部状态、目标和物体几何表示。
-- 几何编码器提取 shape latent。
-- 多任务策略根据 shape latent 调整接触位置、手形和动作幅度。
+## 3. 训练、数据与实验（实验与验证）
 
-从手-物动力学角度看，策略真正控制的是带接触约束的混合系统：
-$$
-M(q)\ddot q + C(q,\dot q) = \tau + J_c(q)^\top f_c,
-\quad f_c \in \mathcal{K}_{friction},
-\quad c_t \in \{\text{stick, slip, break}\}
-$$
-论文的结构性贡献通常是在减少 contact mode 搜索、几何泛化或低层执行器偏差。陷阱是很多变量在仿真中可见，在真机上只能被估计。
+### 3.1 实验设置
+100+ 几何多样物体 in-hand 操作（reorientation），训练集 + held-out 未见物体（unseen 形状/尺寸）。对照单物体 specialist（oracle）、naïve 多任务。
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+### 3.2 关键结果与因果解释
+- **generalist 匹配 specialist**：多任务策略匹配逐物体 oracle。**因果**：好表示下多任务不干扰。
+- **generalist 超过 specialist（含 unseen，核心）**：在训练 + held-out 上都超 specialist。**因果**：正迁移——共享几何结构让 generalist 学到比单物体更鲁棒的策略。
+- **linear scaling**：训练物体越多，泛化越好。**因果**：更多几何覆盖 → 表示空间更完整。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：点云/几何编码器能提供接触面、尺寸和可抓取区域信息，多任务训练迫使策略学习形状到动作的可迁移映射。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
-
-## 3. 训练、数据与实验
-
-### 3.1 PDF 结构线索
-- 1 UC Berkeley, 2 Google Brain, 3 Carnegie Mellon University
-- A. Multi-Task Joint Training
-- A. Evaluated Objects
-- B. Role of Object Representation
-- A. Effectiveness of Multi-Task Training
-- 1 We note that the representation is multi-task in nature as it is obtained
-
-### 3.2 关键结果与证据
-关注跨物体成功率、未见几何泛化、几何输入消融和多任务规模。
-
-- PDF 线索：work, we show that policies learned by existing reinforcement
-- PDF 线索：tation. We show that a single generalist policy can perform
-- PDF 线索：or size. Interestingly, we find that multi-task learning with
-- PDF 线索：but even outperforms the single-object specialist policies on
-- PDF 线索：While most animals exhibit fine-grained motor controls for tioned goal but also outperforms the single-task oracles, on both
-- PDF 线索：perform most sophisticated tasks with ease. Therefore, devel- generalization is out of reach for current RL algorithms.
-
-### 3.3 Ablation 因果链
-去掉几何表示 -> 未见物体失败；去掉多任务训练 -> shape latent 不被迫承载可操作信息。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 3.3 Ablation / 对照因果链
+- `naïve 多任务（无 PointNet 表示）→ 任务干扰 → 不如 specialist`。
+- `specialist → 不泛化 unseen`。
+- `减少训练物体数 → 泛化下降`（scaling）。
 
 ### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+- 较简单 reorientation（2021），非高速 spin。
+- 依赖表示质量；表示差则正迁移消失。
+- generalist≥specialist 是此设定的经验结论。
 
-## 4. 核心洞见
+## 4. 核心洞见（逻辑与价值 + 未来）
 
 ### 4.1 论文真正的 insight
-点云/几何编码器能提供接触面、尺寸和可抓取区域信息，多任务训练迫使策略学习形状到动作的可迁移映射。
+**有了能关联任务的几何感知表示（PointNet），多任务 generalist 不仅不降性能，反而能正迁移、超过单物体 specialist，并零样本泛化到未见物体、随物体数 linear scaling——泛化不是 RL 能力不足，而是表示与多任务设计不足。** 一句话：**表示对了，一个 generalist 胜过一堆 specialist。**
 
 ### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+(1) PointNet 表示让几何相近物体表示相近 → 跨任务共享结构；(2) 多任务利用共享结构正迁移；(3) 表示插值 → unseen 泛化；(4) 更多物体 → 表示更完整（scaling）。
 
 ### 4.3 什么时候会失效
-静态几何不能解释动态摩擦和接触状态；高速转笔还需要 online dynamics adaptation。
+- 表示不能关联任务（差表示）→ 多任务退化为干扰。
+- 任务太难/多样（[[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]] 空中重力复杂形状）→ monolithic worst-case 崩。
+- 高速动态接触（spin）未验证。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与理论局限（未来与结合）
 
 ### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+正迁移 = 共享表示下多任务的归纳偏置收益；上界由表示关联任务的程度决定。无形式化保证；generalist≥specialist 是经验、非定理（DexReMoE 反例）。
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 5.2 算法维度（generalist vs 专家，对 WMTS 关键）
+| 路线 | 代表 | 主张 | 适用 |
+|---|---|---|---|
+| **单 generalist（好表示）** | 本文 Geometry-Dex | generalist≥specialist | 表示好、任务可关联 |
+| **MoE 专家 + router** | [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]] | 专家兜 worst-case | 任务难、worst-case 关键 |
+| 单策略 + 动力学条件 | [[DyWA: Dynamics-adaptive World Action Model|DyWA]] | 自适应单策略 | 动力学变化 |
+| 高层选低层 | [[From Simple to Complex Skills- The Case of In-Hand Object Reorientation|From Simple to Complex]] | 复用 + 纠错 | 有可复用技能 |
 
 ### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+表示质量、任务难度、物体数 scaling 是主要变量；高速 spin、触觉、worst-case 鲁棒未深入（DexReMoE 补）。
 
-## 6. 对用户研究的启发
+## 6. 对用户研究的启发（未来与结合）
 
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 的 world model 应把笔的半径、长度、质量分布、表面摩擦作为 condition，而不是把“笔”当单一任务标签。
+### 6.1 对 WMTS / DNPM 的迁移
+
+| WMTS 模块 | Geometry-Dex 对应 | 迁移设计 |
+|---|---|---|
+| **DP generalist** | 多任务 generalist | 支撑 WMTS 用单一 generalist；正迁移超专家 |
+| **表示** | PointNet 几何表示 | WMTS 用 **触觉 + 几何 + 动力学** 表示关联转笔任务 |
+| generalist vs 专家 | generalist≥specialist | 与 DexReMoE 权衡：好表示→generalist；worst-case 难→加专家 |
+| 数据 scaling | linear scaling | 更多转笔配置/物体 → 泛化更好 |
+
+**核心论证（critical thinking）**：Geometry-Dex 与 [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]] 共同给 WMTS 一个**必须自己判断的设计抉择**：**单一 DP generalist vs MoE 专家 + scheduler**。Geometry-Dex（正方，2021，较简单 reorientation）证明：**只要表示能关联任务（PointNet 几何），generalist 正迁移、反超 specialist、零样本泛化、linear scaling**——这强力支撑 WMTS 用单一 DP generalist 而非一堆专家。DexReMoE（反方，更难空中重力复杂形状）证明：**任务足够难时 monolithic worst-case 崩，需专家兜底**。**分水岭是"表示质量 × 任务难度"**：(a) WMTS 若能学到好的**触觉+几何+动力学表示**关联不同转笔配置，则单一 generalist 可能足够且正迁移；(b) 但转笔是高速接触主导、worst-case（最难初始姿态/笔参）灾难失败代价高，故 WMTS 宜**默认单一 generalist + 对 worst-case 配置加专家/scheduler 兜底**（融合两者：Geometry-Dex 的好表示 generalist 打底 + DexReMoE 的专家兜 worst-case + scheduler 路由）。Geometry-Dex 的 **linear scaling** 也给数据策略背书：覆盖更多转笔配置 → 泛化更好。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- 表示消融：转笔上对照"触觉+几何+动力学表示 generalist" vs naïve 多任务 vs specialist，验证正迁移（复刻 generalist≥specialist）。
+- generalist vs MoE：在转笔 worst-case 配置上对照单 generalist（Geometry-Dex 式）vs MoE（DexReMoE 式），定分水岭。
+- scaling：测转笔配置数与泛化的关系（复刻 linear scaling）。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- generalist≥specialist 是较简单 reorientation 的经验结论；高速 spin 与复杂 worst-case 未必成立（DexReMoE 反例）。
+- 依赖表示质量；WMTS 表示须含触觉/接触。
+- 2021 设定，非高速动态。
 
 ## 7. 与知识体系的联系
 
-### 与 [[ContactMechanics]] 的联系
-contact mode, friction, grasp stability。这篇论文提供的是一个可迁移的结构化 bias：它把 没有几何条件的策略会把不同物体的接触可行性平均化；只用类别标签又无法处理未见形状。 转化为可建模、可采样或可约束的问题。
-
-### 与 [[Dynamics]] 的联系
-hand-object rigid body dynamics。这篇论文提供的是一个可迁移的结构化 bias：它把 没有几何条件的策略会把不同物体的接触可行性平均化；只用类别标签又无法处理未见形状。 转化为可建模、可采样或可约束的问题。
-
 ### 与 [[ReinforcementLearning]] 的联系
-policy learning under contact。这篇论文提供的是一个可迁移的结构化 bias：它把 没有几何条件的策略会把不同物体的接触可行性平均化；只用类别标签又无法处理未见形状。 转化为可建模、可采样或可约束的问题。
+多任务 RL 的正迁移：好表示下 generalist 匹配/超过 specialist；linear scaling。
+
+### 与 [[EmbodiedAI]] 的联系
+几何感知物体表示（PointNet 预训练）驱动灵巧泛化；100+ 物体零样本到 unseen 形状/尺寸。
+
+### 与 [[Final_WMTS]] 的联系
+支撑 WMTS DP generalist 路线（正迁移超专家）；与 DexReMoE MoE 的张力 = WMTS generalist/专家抉择（分水岭=表示质量×任务难度）；linear scaling 背书数据策略。
 
 ## References
-- 原始 PDF：[[Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning.pdf]]
-- 项目入口：[[Final_WMTS]]
+- 原始 PDF：[[Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning.pdf]]（Berkeley/Google/CMU，ICRA 2021，arXiv 2111.03062）
+- 对立面（MoE 专家）：[[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]
+- generalist-specialist 相关：[[UniDexGrasp++- Improving Dexterous Grasping Policy Learning via Geometry-aware Curriculum and Iterative Generalist-Specialist Learning|UniDexGrasp++]]
+- 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

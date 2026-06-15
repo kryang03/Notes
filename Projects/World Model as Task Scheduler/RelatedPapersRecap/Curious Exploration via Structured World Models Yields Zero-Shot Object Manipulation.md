@@ -3,178 +3,138 @@ tags:
   - paper
   - world-model
   - curiosity
+  - epistemic-uncertainty
   - object-centric
-  - manipulation
   - WMTS
 aliases:
   - Structured WM Curiosity
+  - CEE-US
 paper-year: 2022
-read-date: 2026-06-14
-venue: NeurIPS/ICLR
+read-date: 2026-06-15
+venue: NeurIPS 2022 (MPI Tübingen; Sancaktar, Martius)
 paper-pdf: "[[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation.pdf]]"
 related:
-  - "[[InformationTheory]]"
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"
+  - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
 
-# Curious Exploration via Structured World Models Yields Zero - Shot Object Manipulation
+# CEE-US: Curious Exploration via Structured World Models Yields Zero-Shot Manipulation
 
 > [!abstract] 核心贡献
-> 这篇工作说明：结构化 world model 加上好奇心探索，可以在没有任务 reward 的情况下学到可迁移的物体操作能力。
+> 用**结构化 world model（GNN，关系归纳偏置）+ ensemble 估 epistemic uncertainty**，在 WM 内**规划朝向最大新颖性/不确定性（信息增益）**做内在动机的"好奇自由玩耍"——早期就与物体交互、逐渐复杂。自强化循环（好模型↔好探索）。**纯内在、任务无关探索后，用 model-based planning 零样本解 stacking/flipping/pick&place/throwing，并泛化到未见物体数/排列**。**对 WMTS：它给出 ensemble 不确定性的"探索（Probe）一面"——规划朝高 epistemic 不确定（GNN 集成 disagreement）去采信息丰富数据、降不确定、改进 WM；这正是 [[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]] 的 LCB（避不确定、安全 exploit）的对偶。WMTS scheduler 的 Solve/Probe/Reject 由同一 ensemble 不确定性驱动：Probe 求不确定（CEE-US）、Solve 避不确定（LCB）。**
 
 > [!tip] 与理论基础的关联
-> - [[InformationTheory]] — surprise/information gain
-> - [[ReinforcementLearning]] — intrinsic reward exploration
-> - [[StochasticProcess]] — belief and uncertainty
-
-> [!note] PDF 摘要摘录
-> It has been a long-standing dream to design artificial agents that explore their environment efficiently via intrinsic motivation, similar to how children perform curious free play. Despite recent advances in intrinsically motivated reinforce- ment learning (RL), sample-efficient exploration in object manipulation scenarios remains a significant challenge as most of the relevant information lies in the sparse agent-object and object-object interactions. In this paper, we propose to use structured world models to incorporate relational inductive biases in the control loop to achieve sample-efficient and interaction-rich exploration in compositional multi-object environments. By planning for future novelty inside structured world models, our method generates free-play behavior that starts to interact with objects early on and develops more complex behavior over time. Instead of using model
+> - [[ReinforcementLearning]] — 内在动机 RL；model-based planning；探索-利用。
+> - [[StochasticProcess]] — ensemble GNN 的 epistemic uncertainty；信息增益。
+> - [[EmbodiedAI]] — 多物体操作；自由玩耍 → 零样本下游任务。
+> - [[Final_WMTS]] — **ensemble 不确定性的探索面（Probe）**，LCB（Solve）的对偶；结构化（关系）WM。
+>
+> **核心技术**: 结构化 WM (GNN 关系归纳偏置), ensemble GNN epistemic uncertainty, 规划朝最大新颖性/信息增益, 内在动机自由玩耍, 零样本 model-based planning
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 若要调度转笔任务，world model latent 不应只是压缩观测，而应显式拆出 object pose、contact mode、finger actuation state。
+CEE-US 给 WMTS 的 ensemble 不确定性补上**"探索（Probe）一面"**。库内 ensemble 论文（[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]/[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]]）多用 ensemble disagreement 做 **LCB——避开不确定（安全 exploit）**；CEE-US 反过来——**规划朝向高不确定（好奇 explore）去主动采集信息、降不确定、改进 WM**。这是同一 ensemble 信号的两面，正对应 WMTS scheduler 的 **Probe（求不确定以学习）vs Solve（避不确定以稳）**。它还是**结构化（关系 GNN）WM**的代表，与 SSRL/DexSim2Real2 的结构化主题呼应。MPI Martius 组。
 
-## 1. 问题设定与动机
+## 1. 问题设定与价值（逻辑与价值）
 
 ### 1.1 一句话核心
-像素级探索容易把注意力浪费在背景变化；无结构 latent world model 不知道哪些状态变量对应可控物体。
+内在动机探索（好奇）在多物体操作上难样本高效——关键信息在稀疏的 agent-物体/物体-物体交互里，而"新颖刺激 ≠ 有用信息"。CEE-US 用结构化 WM（GNN）+ ensemble 不确定性，在 WM 内规划朝信息增益，做交互丰富的自由玩耍，并零样本解下游任务。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+像好奇的孩子自由玩：不是随机乱动（新颖≠有用），而是**朝"我还不懂的地方"去玩**（最大 epistemic 不确定 = 最大信息增益），玩过就懂了（降不确定），越玩越会。结构化 WM（关系 GNN）让它懂"物体间关系"，所以早早去摆弄物体。可证伪含义：好奇探索的样本效率依赖"**不确定性度量准（ensemble）+ 结构化偏置抓住交互**"；无结构或不确定性差则退化为无用新颖。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| 新颖性内在奖励（无结构） | 新颖=奖励 | 新颖≠有用；多物体交互稀疏难探 |
+| 用 model 只算内在奖励 | model→reward | 没用 model 做规划/零样本 |
+| 非结构化 WM | 黑箱 | 缺关系偏置、样本低效 |
+| **CEE-US** | **结构化 GNN WM + ensemble + 规划信息增益** | 仿真多物体；GNN 关系假设 |
 
 ### 1.4 Delta 分析
-如果 world model 的 latent 因子对应对象或物理实体，ensemble disagreement/信息增益就会更集中地驱动物体交互，从而支持 zero-shot downstream manipulation。
+精确增量：(1) **结构化 WM（GNN 关系偏置）**抓多物体交互；(2) **规划朝最大 epistemic 不确定（ensemble GNN disagreement）= 信息增益**（不只算内在奖励，还规划）；(3) **自强化循环 + 零样本下游 planning**（探索副产物是可用 WM）。把"非结构新颖奖励"换成"结构化 WM + 信息增益规划 + 零样本复用"。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：结构化 WM + 信息增益规划）
 
-### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
-|---|---|---|---|---|---|
-| $b_t$ | belief/posterior | Bayesian model | computed | uncertainty state | approximation can be overconfident |
-| $z_t$ | latent state | encoder/world model | computed | compressed dynamics variable | may ignore controllable factors |
-| $a_t$ | exploration action | policy | chosen | intervention to gain information | novelty not equal information |
-| $D_{KL}$ | belief change | posterior update | computed reward | Bayesian surprise | direction of KL matters |
-| $r^i_t$ | intrinsic reward | exploration module | computed | drives exploration | can chase noise |
+### 2.1 核心机制（无跳步）
+- **结构化 WM**：GNN（关系归纳偏置）建多物体动力学；**ensemble of GNNs** 估 epistemic uncertainty。
+- **信息增益规划**：在 WM 内**规划动作朝最大 epistemic 不确定（ensemble 预测 disagreement）**——即去最不懂的地方。
+- **主动数据 + 更新**：执行该计划采数据 → 更新 WM → 不确定性下降（信息增益）。
+- **自强化循环**：好模型 → 好探索 → 更好模型。
+- **零样本下游**：探索后的 WM 直接 model-based planning 解 stacking/flipping/pick&place/throwing，泛化未见物体数/排列。
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 概念边界与符号陷阱
+- 规划朝**高**不确定（explore），与 LCB 朝**低**不确定（exploit）相反——同信号两用。
+- 结构化 = 关系 GNN（多物体），非 latent 黑箱。
+- 内在阶段**任务无关**；下游零样本（无额外训练）。
+- 仿真多物体（非真机灵巧）。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+## 3. 实验与验证
+- 内在自由玩耍：早交互物体、渐复杂。**因果**：结构化 WM + 信息增益规划聚焦有用交互。
+- **零样本下游**：stacking/flipping/pick&place/throwing，泛化未见物体数/排列。**因果**：好奇探索副产一个能 planning 的好 WM。
+- 边界：仿真多物体；GNN 关系假设。
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-### 2.3 论文核心机制无跳步推导
-- 学习结构化 latent dynamics，把场景分解为对象状态或可交互因子。
-- 用模型不确定性/预测分歧作为 intrinsic reward 采集交互。
-- 下游任务只给目标或少量 reward，在已学 dynamics 上规划或微调。
+### 4.1 真正的 insight
+**用结构化 WM（关系 GNN）+ ensemble epistemic uncertainty，在 WM 内规划朝最大信息增益（不确定性）做好奇探索，不仅样本高效地交互多物体，其副产的 WM 还能零样本 planning 解下游任务——好模型与好探索自强化。** 一句话：**朝"最不懂处"规划探索，副产一个能零样本解任务的 WM。**
 
-从信息论角度看，探索奖励应衡量 belief 的变化，而不是视觉新奇本身：
-$$
-r_t^{\mathrm{int}} \propto D_{KL}\left(q_{t+1}(\theta \mid h_t,a_t,o_{t+1})\;\|\;q_t(\theta \mid h_t)\right)
-$$
-如果 KL 大，说明这次交互真正改变了模型对动力学或环境参数的信念；如果只是 prediction error 大但 posterior 不变，可能只是不可控噪声。
-
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
-
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：如果 world model 的 latent 因子对应对象或物理实体，ensemble disagreement/信息增益就会更集中地驱动物体交互，从而支持 zero-shot downstream manipulation。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
-
-## 3. 训练、数据与实验
-
-### 3.1 PDF 结构线索
-- 1       Introduction
-- 2     Method
-- 2.1     Preliminaries
-- 2.1.1    Planning and Model Predictive Control
-- 2.2     World Model with Graph Neural Networks
-- 2.3        Epistemic Uncertainty as Intrinsic Reward
-- 2.4        The CEE-US Algorithm
-- 3     Experiments
-
-### 3.2 关键结果与证据
-看 zero-shot 物体移动/推拉/交互任务成功率，以及结构化 latent 相比非结构模型的探索效率。
-
-- PDF 线索：up another avenue: zero-shot generalization to downstream tasks via model-based
-- PDF 线索：solves challenging downstream tasks such as stacking, flipping, pick & place, and
-- PDF 线索：an agent even without extrinsic tasks and corresponding rewards. Similar to how children learn, we
-- PDF 线索：want Reinforcement Learning (RL) agents to learn through play and then be able to solve new tasks
-- PDF 线索：ration and zero-shot generalization to tasks. Recent advances in general-purpose model predictive
-- PDF 线索：downstream tasks in a zero-shot generalization manner.
-
-### 3.3 Ablation 因果链
-去掉结构化对象表示 -> curiosity 仍存在但采样分散 -> 因为不确定性不能绑定到可控物体变量。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
-
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
-
-## 4. 核心洞见
-
-### 4.1 论文真正的 insight
-如果 world model 的 latent 因子对应对象或物理实体，ensemble disagreement/信息增益就会更集中地驱动物体交互，从而支持 zero-shot downstream manipulation。
-
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+### 4.2 为什么有效
+(1) 结构化 GNN 抓多物体交互；(2) ensemble 估 epistemic 不确定准；(3) 规划朝信息增益（非随机新颖）；(4) 自强化循环；(5) WM 可零样本复用。
 
 ### 4.3 什么时候会失效
-对象分解在多指遮挡和高速接触中可能不稳定；需要触觉或状态估计补足视觉 object-centric 表示。
+- 不确定性度量差 → 探无用新颖。
+- 无关系结构 → GNN 偏置不适用。
+- 真机/接触密集高维（仿真多物体相对简单）。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与局限（未来与结合）
+- ensemble 不确定性两面：**explore（本文，求不确定）vs exploit-LCB（[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]]，避不确定）**。
+- 好奇/学习潜力：[[Prioritized Level Replay|PLR]]（TD-error 学习潜力）、[[Curiosity-Driven Exploration via Latent Bayesian Surprise|Latent Bayesian Surprise]]（surprise）。
+- 局限：仿真、GNN 关系假设。
 
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+## 6. 对用户研究的启发（未来与结合）
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 6.1 对 WMTS / DNPM 的迁移
 
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+| WMTS 模块 | CEE-US 对应 | 迁移设计 |
+|---|---|---|
+| **Scheduler Probe 队列** | 规划朝 epistemic 不确定 | WMTS Probe = 朝高 ensemble disagreement 的转笔配置探索、采信息 |
+| ensemble 双用 | explore（求不确定） | 与 LCB（避不确定，Solve）对偶；同 ensemble 驱动 Solve/Probe/Reject |
+| 结构化 WM | GNN 关系 | WMTS 接触关系可用 GNN（手指-笔接触图）或 actuator+rigid |
+| WM 自改进 | 好奇采数据降不确定 | WMTS 真机微调阶段主动 Probe 降 WM 不确定 |
 
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 若要调度转笔任务，world model latent 不应只是压缩观测，而应显式拆出 object pose、contact mode、finger actuation state。
+**核心论证（critical thinking）**：CEE-US 给 WMTS 的 ensemble 不确定性补上**关键的"探索面"**，与之前的"利用面"合成完整图景。库内 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]/[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]] 用 ensemble disagreement 做 **LCB——避开不确定区以安全利用**；CEE-US 用同一信号**反向——朝不确定区规划以好奇探索、采集信息、改进 WM**。这两面正是 WMTS scheduler 的 **Solve/Probe/Reject** 的核心机制：**同一个 ensemble 不确定性，Solve 时避（LCB 安全 exploit）、Probe 时求（信息增益 explore）、Reject 时判（不可学/不安全则弃）**。结合 [[Prioritized Level Replay|PLR]] 的学习潜力（高不确定=高学习潜力，与 CEE-US 一致），WMTS scheduler 的 Probe 队列就是"朝 WM 最不确定的转笔配置去探索以最快改进 WM"。CEE-US 还示范**结构化 WM（关系 GNN）**——WMTS 的接触可建成手指-笔接触关系图（GNN），或用 SSRL 的 actuator+rigid——两种结构化路线。**边界**：CEE-US 仿真多物体（关系相对清晰），转笔是高速接触（关系图变化快），GNN 能否实时捕捉需验证；且其零样本是 planning（WMTS 接触不可微宜配 PPO）。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- WMTS Probe：scheduler 朝 ensemble disagreement 高的转笔配置探索，对照随机/均匀，测 WM 改进速度。
+- ensemble 双用：同 ensemble 做 Solve(LCB) + Probe(信息增益)，测 Solve/Probe/Reject 划分。
+- 结构化 WM：GNN 接触图 vs actuator+rigid，测转笔预测。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 仿真多物体（关系清晰）≠ 高速转笔接触。
+- 零样本 planning，转笔不可微宜配 PPO。
+- GNN 关系假设需适配手-笔接触。
 
 ## 7. 与知识体系的联系
 
-### 与 [[InformationTheory]] 的联系
-surprise/information gain。这篇论文提供的是一个可迁移的结构化 bias：它把 像素级探索容易把注意力浪费在背景变化；无结构 latent world model 不知道哪些状态变量对应可控物体。 转化为可建模、可采样或可约束的问题。
-
 ### 与 [[ReinforcementLearning]] 的联系
-intrinsic reward exploration。这篇论文提供的是一个可迁移的结构化 bias：它把 像素级探索容易把注意力浪费在背景变化；无结构 latent world model 不知道哪些状态变量对应可控物体。 转化为可建模、可采样或可约束的问题。
+内在动机 RL（信息增益）；model-based planning；探索-利用以 ensemble 不确定性统一。
 
 ### 与 [[StochasticProcess]] 的联系
-belief and uncertainty。这篇论文提供的是一个可迁移的结构化 bias：它把 像素级探索容易把注意力浪费在背景变化；无结构 latent world model 不知道哪些状态变量对应可控物体。 转化为可建模、可采样或可约束的问题。
+ensemble GNN 的 epistemic uncertainty；规划朝信息增益（不确定性最大化）。
+
+### 与 [[EmbodiedAI]] 的联系
+多物体操作的好奇自由玩耍 → 零样本下游任务（stacking 等），泛化未见排列。
+
+### 与 [[Final_WMTS]] 的联系
+ensemble 不确定性的探索面（Probe，求不确定）= LCB（Solve，避不确定）的对偶；同 ensemble 驱动 Solve/Probe/Reject；结构化（关系 GNN）WM 路线。
 
 ## References
-- 原始 PDF：[[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation.pdf]]
+- 原始 PDF：[[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation.pdf]]（MPI Tübingen，NeurIPS 2022）
+- ensemble 利用面（对偶）：[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]、[[Finetuning Offline World Models in the Real World|FOWM]]（LCB）
+- 学习潜力/好奇：[[Prioritized Level Replay|PLR]]、[[Curiosity-Driven Exploration via Latent Bayesian Surprise|Latent Bayesian Surprise]]
+- 结构化 WM：[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]
 - 项目入口：[[Final_WMTS]]

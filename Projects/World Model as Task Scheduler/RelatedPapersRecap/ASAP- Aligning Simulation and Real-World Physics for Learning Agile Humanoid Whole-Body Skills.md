@@ -4,168 +4,160 @@ tags:
   - humanoid
   - sim-to-real
   - whole-body-control
+  - residual-action
   - WMTS
 aliases:
   - ASAP
 paper-year: 2025
-read-date: 2026-06-14
-venue: arXiv
+read-date: 2026-06-15
+venue: arXiv 2502.01143 (CMU / NVIDIA; Guanya Shi, Yuke Zhu, Jim Fan)
 paper-pdf: "[[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills.pdf]]"
 related:
-  - "[[Dynamics]]"
-  - "[[ControlTheory]]"
   - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
 
-# ASAP: Aligning Simulation and Real - World Physics for Learning Agile Humanoid Whole - Body Skills
+# ASAP: Aligning Simulation and Real-World Physics for Agile Humanoid Skills
 
 > [!abstract] 核心贡献
-> ASAP 关注 humanoid 全身技能的 sim-to-real physics alignment：真正问题不是会不会在仿真里模仿动作，而是真机动力学、接触和执行器响应偏差会把 agile whole-body skill 推出稳定域。
+> 解决 sim-real **动力学 mismatch** 的两阶段框架，让 Unitree G1 人形做敏捷全身技能（Ronaldo 庆祝转体、Kobe 后仰跳投、1.5m 跳）。核心是 **delta（residual）action model**：(1) 用 retarget 的人类动作在 sim 预训练 motion tracking 策略，部署真机收集真实轨迹；(2) 训一个 **delta action 模型**，使"sim 在原动作 + delta 后的状态"逼近真实状态（最小化 sim 态与真实态差）；(3) **冻结 delta 模型嵌进 simulator 对齐真实物理**，在校正后的 sim 里 fine-tune 策略；(4) 部署时**去掉 delta 模型**直接上真机。**对 WMTS：delta-action 是继 DR（[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]] 盲随机化）、full-WM（[[Finetuning Offline World Models in the Real World|FOWM]]/[[DayDreamer- World Models for Physical Robot Learning|DayDreamer]] 学动力学）之后的第三条 sim-to-real 哲学——保留物理 sim、用学到的残差动作吸收 gap，再在校正 sim 里微调；轻量、可与 WMTS 结构化 WM 结合。**
 
 > [!tip] 与理论基础的关联
-> - [[Dynamics]] — whole-body/contact dynamics
-> - [[ControlTheory]] — low-level tracking and stability
-> - [[ReinforcementLearning]] — sim-to-real policy learning
+> - [[ReinforcementLearning]] — sim 预训练 motion tracking + 校正 sim 内 fine-tune。
+> - [[ControlTheory]] — delta action = 对 sim 动力学的残差校正（学习式 sim 对齐）。
+> - [[EmbodiedAI]] — 人形全身 sim-to-real；retarget 人类动作。
+> - [[Final_WMTS]] — **第三条 sim-to-real 哲学（delta-action 对齐 sim）**；可与结构化 WM 结合；亦关联用户 Humanoid Locomotion 项目。
+>
+> **核心技术**: Delta (residual) Action Model, 两阶段 (sim 预训→真实数据→对齐→微调), 人类动作 retarget, motion tracking, 部署去 delta, Unitree G1
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 可把 ASAP 的 alignment 视为 actuator model 在线校准：真实 L25 电机的延迟/饱和/摩擦偏差应反馈给任务调度器，而不只是调 policy 参数。
+ASAP 在知识库里是 **sim-to-real "第三条哲学" 的代表**，补全 sim-real gap 的处理谱系：
 
-## 1. 问题设定与动机
+- **DR（[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]/[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]）**：盲随机化覆盖真实分布。
+- **full-WM（[[Finetuning Offline World Models in the Real World|FOWM]]/[[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]）**：学一个动力学模型，在其内训。
+- **ASAP delta-action**：**保留物理 sim，学一个残差动作模型吸收 sim-real gap**，在校正后的 sim 里微调。
+
+读它要抓 delta-action 的巧思：不重建动力学（WM）、不盲随机化（DR），而是**学最小残差让现有 sim 匹配真实**——前提是 sim 大体正确（残差小）。它与用户的 **Humanoid Locomotion 项目**直接相关，也与 [[Robotic World Model: A Neural Network Simulator|RWM]]（ETH 学 NN 仿真器）形成"学残差 vs 学整模型"的对照。
+
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-Humanoid 的全身自由度高、接触切换多、动作幅度大；只靠固定域随机化会覆盖不足，只靠真机 RL 又太贵且危险。
+人形敏捷全身技能受 sim-real 动力学 mismatch 限。SysID/DR 费力或过保守（牺牲敏捷）。ASAP 用 delta-action 模型从真实数据学一个残差校正，把 sim 物理对齐真实，再在校正 sim 里微调策略 → 敏捷且可迁移。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+sim 像"一张略有偏差的地图"。DR 是"在地图上到处加噪练到对任何偏差都不怕"（盲、保守）；full-WM 是"重画一张地图"（重）；ASAP 是"**学一个小修正量贴在旧地图上让它准**"（delta action），然后在修正后的准地图上精修路线。修好后上路（真机）就不用修正量了。可证伪含义：delta-action 有效要求 **sim 大体正确、gap 可由动作残差吸收**；若 gap 来自 sim 无法表达的结构（如未建的接触），残差吸收不了。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| SysID | 校准 sim 参数 | 费力；real 超出建模分布时失效 |
+| DR（[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]） | 盲随机化 | 过保守牺牲敏捷；调参多 |
+| full-WM（[[Finetuning Offline World Models in the Real World|FOWM]]/[[Robotic World Model: A Neural Network Simulator|RWM]]） | 学整动力学 | 重；model-exploitation |
+| **ASAP delta-action** | 残差校正现有 sim | 需 sim 大体正确；gap 须可由动作残差吸收；全身（非 in-hand） |
 
 ### 1.4 Delta 分析
-把仿真物理与真实轨迹之间的偏差显式纳入学习闭环，可以让策略在接近真实的动力学分布上训练，而不是希望随机化偶然覆盖真实系统。
+精确增量：**delta (residual) action model**——从真实 rollout 学一个残差动作，使"sim(动作+delta)"的状态轨迹逼近真实，从而**对齐 sim 物理而不重建它**；冻结后嵌 sim 微调策略，部署去除。把"随机化/重建动力学"换成"学最小残差对齐"。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：delta-action 四阶段）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
 |---|---|---|---|---|---|
-| $q,\dot q$ | body/joint state | proprioception | observed | whole-body state | state estimator delay |
-| $u_t$ | motor command | policy/controller | chosen | desired joint target/torque | actuator bandwidth limits |
-| $\phi$ | dynamics/domain parameters | randomization/ID | fixed/latent | mass/friction/delay | hidden on real robot |
-| $J_c, f_c$ | contact Jacobian/forces | physics/contact | computed/hidden | ground interaction | contact timing dominates transfer |
-| $r,c$ | reward/cost | task/safety spec | observed | skill and safety signal | reward hacking risk |
+| 人类动作 retarget | motion | 人类视频→G1 | 数据 | tracking 目标 | imitation goal |
+| $a_t$ | 动作 | 策略 | learned | 名义动作 | — |
+| $a_t'=a_t+\text{delta}$ | 校正动作 | delta 模型 | learned | 残差校正后动作 | 仅训练期用 |
+| $s_t$ vs $s_t^r$ | sim 态 / 真实态 | sim / 真机 | observed | 对齐目标 | 最小化 $\|s_t-s_t^r\|$ |
+| delta action 模型 | 残差 | 真实数据训 | learned | 吸收 sim-real gap | 训练后**冻结**，部署**去除** |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 四阶段（无跳步，ASAP Fig 2）
+1. **Motion tracking 预训练 + 真实轨迹收集**：retarget 人类动作 → sim 预训练多个 tracking 策略 → 真机 rollout 收集真实轨迹 $(s^r,a^r)$。
+2. **Delta action 模型训练**：基于真实 rollout，训 delta 模型使 **sim 在 $a_t'=a_t+\text{delta}$ 下的状态 $s_t$ 逼近真实 $s_t^r$**（最小化差）——即让 sim 动力学经残差校正后匹配真实。
+3. **策略 fine-tune**：**冻结 delta 模型嵌进 simulator**（此时 sim 物理已对齐真实），在校正 sim 里 fine-tune 预训练 tracking 策略。
+4. **真实部署**：部署 fine-tuned 策略，**不再用 delta 模型**（策略已适应校正后的真实物理）。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+### 2.3 概念边界与符号陷阱
+- delta-action **对齐 sim**，不重建 sim（≠ WM）也不盲随机化（≠ DR）。
+- delta 模型**只在训练期用**（校正 sim），部署去除——这是它与"在 WM 里部署"的关键区别。
+- 前提：**sim 大体正确、gap 可由动作残差吸收**；sim 无法表达的结构性 gap（未建接触）吸收不了。
+- 全身敏捷（G1），非 in-hand 接触。
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+## 3. 实验与验证
+- Unitree G1 敏捷全身技能（Ronaldo 转体、Kobe 跳投、1.5m 跳、单腿平衡）真机成功。**因果**：delta-action 对齐 sim 物理，微调策略迁移敏捷动作。
+- 胜 SysID/DR：更敏捷（不过保守）、更省调参。
+- 边界：全身（非 in-hand）；需 sim 大体正确。
 
-### 2.3 论文核心机制无跳步推导
-- 先在仿真中获得可行的全身技能或 motion tracking policy。
-- 用真实执行数据识别 sim-real gap：关节跟踪误差、接触时序、身体姿态偏移、执行器饱和。
-- 迭代调整动力学参数、残差模型或策略适应模块，使仿真 rollout 更接近真实轨迹。
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-从 sim-to-real 动力学角度看，真实闭环不是理想刚体系统，而是“刚体动力学 + 执行器/接触残差”：
-$$
-q_{t+1} = f_{rigid}(q_t,\dot q_t,\tau_t, c_t) + \Delta_{act/contact}(h_t,u_t)
-$$
-策略若只在理想 $f_{rigid}$ 上训练，会把延迟、饱和、摩擦和接触相位误差留到真机暴露；alignment/actuator model 的作用就是让训练时看到这些偏差。
+### 4.1 真正的 insight
+**与其盲随机化（DR）或重建动力学（WM），不如从真实数据学一个 delta（residual）action 模型，让现有物理 sim 经残差校正后匹配真实，再在校正 sim 里微调策略——部署时去除 delta，得到敏捷且可迁移的全身技能。** 一句话：**学最小残差对齐 sim，比盲随机化或重建动力学更轻更敏捷。**
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
-
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：把仿真物理与真实轨迹之间的偏差显式纳入学习闭环，可以让策略在接近真实的动力学分布上训练，而不是希望随机化偶然覆盖真实系统。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
-
-## 3. 训练、数据与实验
-
-### 3.1 PDF 结构线索
-- B. Different Usage of Delta Action Model
-- C. Does ASAP Fine-Tuning Outperform Random Action Noise
-- C. Implementation of Delta Dynamics Learning
-
-### 3.2 关键结果与证据
-重点看真实 humanoid 的动态技能成功率、跟踪误差、摔倒率和跨技能复用，而不是只看仿真 reward。
-
-- PDF 线索：between simulation and the real world. Existing approaches, first stage, we pre-train motion tracking policies in simulation
-- PDF 线索：(DR) methods, often rely on labor-intensive parameter tuning deploy the policies in the real world and collect real-world data
-- PDF 线索：(b) Delta Action Model Training (c) Policy Fine-tuning (d) Real World Deployment
-- PDF 线索：we pre-train multiple motion tracking policies to roll out real-world trajectories. (b) Delta Action Model Training: Based on the real-world rollout data,
-- PDF 线索：we train the delta action model by minimizing the discrepancy between simulation state st and real-world state srt . (c) Policy Fine-tuning: We freeze the
-- PDF 线索：delta action model, incorporate it into the simulator to align the real-world physics and then fine-tune the pre-trained motion tracking policy. (d) Real-World
-
-### 3.3 Ablation 因果链
-去掉 real-world alignment -> 仿真中高 reward 的动作在真机上出现相位漂移和接触冲击 -> 说明物理误差不是噪声，而是闭环稳定性的系统性偏置。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
-
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
-
-## 4. 核心洞见
-
-### 4.1 论文真正的 insight
-把仿真物理与真实轨迹之间的偏差显式纳入学习闭环，可以让策略在接近真实的动力学分布上训练，而不是希望随机化偶然覆盖真实系统。
-
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+### 4.2 为什么有效
+(1) delta 吸收 sim-real gap 而不牺牲敏捷（DR 的过保守）；(2) 保留物理 sim 的结构（不像 WM 从零学）；(3) 校正 sim 内微调 → 策略适应真实物理；(4) 部署去 delta → 无额外推理负担。
 
 ### 4.3 什么时候会失效
-如果真实数据只覆盖温和动作，alignment 会把模型校准到局部；对转笔这类极端接触任务，必须主动采集接近失败边界的数据。
+- sim 无法表达的结构性 gap（未建接触/形变）→ 残差吸收不了。
+- sim 偏差太大（残差非小量）→ delta 模型难学。
+- 真实数据不足以覆盖技能状态空间。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与局限（未来与结合）
 
 ### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+delta-action 是"学习式 sim 对齐"：假设真实动力学 ≈ sim 动力学 + 动作残差校正。比 SysID（参数校准）更灵活、比 DR（分布覆盖）更精准、比 WM（重建）更轻——但受限于"残差可吸收 gap"的假设。
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 5.2 算法维度（sim-to-real 三哲学，对 WMTS 关键）
+| 哲学 | 代表 | 机制 |
+|---|---|---|
+| **DR（盲覆盖）** | [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]/[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]] | 随机化覆盖真实 |
+| **full-WM（重建）** | [[Finetuning Offline World Models in the Real World|FOWM]]/[[Robotic World Model: A Neural Network Simulator|RWM]] | 学动力学、其内训 |
+| **delta-action（对齐）** | 本文 ASAP | 残差校正现有 sim |
 
 ### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+sim 保真前提、真实数据覆盖、残差可吸收性、全身 vs in-hand 是主要边界；接触密集、触觉未覆盖。
 
-## 6. 对用户研究的启发
+## 6. 对用户研究的启发（未来与结合）
 
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 可把 ASAP 的 alignment 视为 actuator model 在线校准：真实 L25 电机的延迟/饱和/摩擦偏差应反馈给任务调度器，而不只是调 policy 参数。
+### 6.1 对 WMTS / DNPM / Humanoid Locomotion 的迁移
+
+| 模块 | ASAP 对应 | 迁移设计 |
+|---|---|---|
+| **sim-to-real（WMTS）** | delta-action 对齐 sim | WMTS 可用 delta-action 校正物理 sim（替/补 full-WM）：真实数据学残差、校正 sim 微调 Oracle/generalist |
+| 与结构化 WM 结合 | 残差 on 物理 sim | WMTS 的 actuator+rigid 结构化 sim + delta-action 残差 = 结构先验 + 学习残差（呼应 DexSim2Real2 显式 + 残差） |
+| Humanoid Locomotion 项目 | G1 全身敏捷 | 用户 Humanoid 项目可直接用 ASAP 范式 |
+| 部署 | 去 delta | 微调期校正、部署轻量 |
+
+**核心论证（critical thinking）**：ASAP 给 WMTS 补上 **sim-to-real 的"第三条哲学"**。WMTS 默认走 full-WM（学动力学 + 在其内训/精炼），但 ASAP 提示一个更轻的选项：**保留 actuator+rigid 物理 sim，只学一个 delta-action 残差吸收 sim-real gap，在校正 sim 里微调，部署去除残差**。这与我在 [[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] recap 提的"结构化先验 + 学习残差"完全合流——**WMTS 的理想形态可能不是纯神经 WM，而是"结构化物理 sim + delta-action/残差 + ensemble 不确定性"**：结构先验保物理正确性（无 model-exploitation）、delta 残差吸收 sim 建不准的部分、ensemble 量化残差不确定。**但对转笔的关键警示**：ASAP 的前提是 **sim 大体正确、gap 可由动作残差吸收**——而转笔的高速接触动力学恰恰是 **sim 难建准、gap 可能是结构性的（接触模式 sim 根本没有）**，此时 delta-action 残差吸收不了（它假设状态空间对、只是动作偏），可能仍需 full-WM 或结构化 WM 补结构性 gap。ASAP 是全身敏捷（G1），非 in-hand 接触——delta-action 对相对光滑的全身动力学有效，对接触切换密集的转笔需验证。它也直接服务用户的 **Humanoid Locomotion 项目**。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- delta-action vs full-WM：转笔上对照"结构化 sim + delta-action 残差微调" vs "full-WM 内微调"，测 sim-real gap 闭合与敏捷度。
+- 残差可吸收性测试：测转笔的 sim-real gap 是动作残差可吸收（ASAP 适用）还是结构性（需 WM）。
+- 三哲学组合：结构化 sim + delta-action + ensemble-LCB 的叠加。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 全身敏捷成功不能外推 in-hand 接触；转笔 gap 可能结构性、残差吸收不了。
+- delta-action 假设 sim 大体正确；转笔 sim 难建准。
+- 部署去 delta 依赖策略已适应校正物理。
 
 ## 7. 与知识体系的联系
 
-### 与 [[Dynamics]] 的联系
-whole-body/contact dynamics。这篇论文提供的是一个可迁移的结构化 bias：它把 Humanoid 的全身自由度高、接触切换多、动作幅度大；只靠固定域随机化会覆盖不足，只靠真机 RL 又太贵且危险。 转化为可建模、可采样或可约束的问题。
+### 与 [[ReinforcementLearning]] 的联系
+sim 预训练 motion tracking + 校正 sim 内 fine-tune；retarget 人类动作作 imitation goal。
 
 ### 与 [[ControlTheory]] 的联系
-low-level tracking and stability。这篇论文提供的是一个可迁移的结构化 bias：它把 Humanoid 的全身自由度高、接触切换多、动作幅度大；只靠固定域随机化会覆盖不足，只靠真机 RL 又太贵且危险。 转化为可建模、可采样或可约束的问题。
+delta action = 对 sim 动力学的学习式残差校正（sim 对齐），与 SysID/自适应控制一脉但用神经残差。
 
-### 与 [[ReinforcementLearning]] 的联系
-sim-to-real policy learning。这篇论文提供的是一个可迁移的结构化 bias：它把 Humanoid 的全身自由度高、接触切换多、动作幅度大；只靠固定域随机化会覆盖不足，只靠真机 RL 又太贵且危险。 转化为可建模、可采样或可约束的问题。
+### 与 [[EmbodiedAI]] 的联系
+人形全身 sim-to-real；从人类视频 retarget 敏捷动作；G1 真机敏捷技能。
+
+### 与 [[Final_WMTS]] 的联系
+sim-to-real 第三哲学（delta-action 对齐 sim）；WMTS 可"结构化 sim + delta 残差 + ensemble"组合；但转笔结构性 gap 可能需 full-WM；直接服务用户 Humanoid Locomotion 项目。
 
 ## References
-- 原始 PDF：[[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills.pdf]]
-- 项目入口：[[Final_WMTS]]
+- 原始 PDF：[[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills.pdf]]（CMU/NVIDIA，arXiv 2502.01143）
+- sim-to-real 三哲学：[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]（DR）、[[Finetuning Offline World Models in the Real World|FOWM]]/[[Robotic World Model: A Neural Network Simulator|RWM]]（full-WM）、本文（delta-action）
+- 结构化+残差呼应：[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]
+- 项目入口：[[Final_WMTS]]、Humanoid Locomotion 项目
