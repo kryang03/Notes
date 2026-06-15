@@ -2,176 +2,168 @@
 tags:
   - paper
   - latent-space
-  - representation-learning
   - survey
+  - taxonomy
   - WMTS
 aliases:
   - Latent Space Survey
-paper-year: 2024
-read-date: 2026-06-14
-venue: arXiv survey
+paper-year: 2026
+read-date: 2026-06-16
+venue: arXiv 2604.02029 (survey, NUS/Fudan/Tsinghua 等)
 paper-pdf: "[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook.pdf]]"
 related:
-  - "[[RepresentationLearning]]"
-  - "[[InformationTheory]]"
   - "[[EmbodiedAI]]"
+  - "[[ReinforcementLearning]]"
+  - "[[StochasticProcess]]"
   - "[[Final_WMTS]]"
 ---
 
 # The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook
 
-> [!abstract] 核心贡献
-> 这篇 latent space 综述的价值是把 latent 看作可压缩、可生成、可控制、可推理的中间世界，而不只是 encoder 输出的向量。
+> [!abstract] 核心贡献（综述）
+> 一篇**以语言模型为中心**的 latent space 大综述，主张 **latent space 是计算的"原生基底"**：许多内部过程（推理、规划）在**连续 latent 空间**比在人类可读的显式 token 轨迹里更自然——显式空间有语言冗余、离散化瓶颈、序列低效、语义损失。按五视角组织：**Foundation**（什么是 latent space；vs 显式/verbal 空间；vs 生成式视觉模型）、**Evolution**（prototype→formation→expansion→outbreak）、**Mechanism**（Architecture/Representation/Computation/Optimization）、**Ability**（Reasoning/Planning/Modeling/Perception/Memory/Collaboration/**Embodiment**）、**Outlook**。**对 WMTS：它是 latent 计算的坐标系——可定位 WMTS 的 latent WM、latent planning、embodiment；但其"纯 latent 为原生基底"的主张与 WMTS 的结构化物理方向（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]/[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]）形成关键张力：WMTS 走"结构化 + latent 残差"，不全押纯 latent。**
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning]] — latent/architecture inductive bias
-> - [[InformationTheory]] — compression and task-relevant information
-> - [[EmbodiedAI]] — context-conditioned robot intelligence
+> - [[EmbodiedAI]] — latent space 的 Embodiment 能力（具身 latent 计算）。
+> - [[ReinforcementLearning]] — latent planning/modeling（latent 内规划、世界建模）。
+> - [[StochasticProcess]] — latent 表示（VAE/diffusion/transformer）。
+> - [[Final_WMTS]] — **latent 计算坐标系**；latent-vs-显式张力（WMTS=结构化+latent 残差）。
 
-## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
+## 0. 阅读定位与价值（综述/地图）
 
-它在当前知识库中的角色是：WMTS 应为 latent 设验收标准：能预测接触结果、能区分失败模式、能被 task scheduler 稳定操纵。
+> [!note] 综述类 recap 适配
+> 无单一方法，故"原理"→分类框架（§2），"实验"→领域概念证据（§3）。这是**语言中心**的 latent 综述，对 WMTS 的相关部分是 **Modeling / Planning / Embodiment** 能力 + latent-vs-显式框架；大宗（LLM latent reasoning）较 tangential。它与库内两篇 WM 综述（[[A Step Toward World Models- A Survey on Robotic Manipulation|操作 WM]]、[[Learning to Model the World: A Survey of World|全 AI WM]]）互补：那两篇分类 WM，本篇分类 latent space 本身。
 
-## 1. 问题设定与动机
+WMTS 的 WM 在 latent 内 rollout，本综述给"latent 计算"的通用框架。但 WMTS 的核心张力恰是**latent vs 结构化物理**——本综述champions latent，WMTS 选结构化+latent 残差，读它要带着这个批判视角。
+
+## 1. 问题设定与价值（逻辑与价值）
 
 ### 1.1 一句话核心
-机器人 world model 常把 latent 当黑箱，导致不知道哪些维度对应物理状态、任务语义或控制可达性。
+语言模型多用显式 token 轨迹（人类可读）做内部计算，但显式空间有**语言冗余、离散化瓶颈、序列低效、语义损失**。越来越多工作表明推理/规划等过程在**连续 latent 空间**更自然。本综述统一梳理 latent space 的定义、分类与研究。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+显式 token 推理像"凡事都要先翻译成人话再想"——啰嗦、丢精度、串行慢。latent 推理像"直接在脑内连续概念空间里想，不必逐字说出来"——快、信息密、无语义损失。本综述给这片"脑内空间"画地图。可证伪含义：latent 优势在"过程不需人类可读、且连续表示更紧致"时显著；需可解释/可验证处显式仍有价值（WMTS 安全相关处正需可解释）。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
 
-### 1.4 Delta 分析
-通过梳理 latent 的形成机制、几何结构和能力边界，可以判断某个 latent 是否适合 planning/control。
+| 计算空间 | 特点 | 关键局限 |
+|---|---|---|
+| 显式/verbal（token 轨迹） | 人类可读、可解释 | 语言冗余、离散瓶颈、序列低效、语义损失 |
+| 生成式视觉 latent | 像素/视觉 latent | 偏感知重构、非语言推理基底 |
+| **本综述聚焦的语言 latent** | 连续、紧致、可推理 | 不可解释（高风险控制需谨慎）；语言中心 |
 
-## 2. 核心方法与理论
+### 1.4 Delta 分析（综述自身贡献）
+首个**统一**梳理语言模型 latent space 的综述：五视角（Foundation/Evolution/Mechanism/Ability/Outlook）+ Mechanism 四线（Architecture/Representation/Computation/Optimization）+ Ability 七维（含 Embodiment）。把碎片化的 latent 研究组织成可导航地图。
 
-### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
-|---|---|---|---|---|---|
-| $x$ | input/context/trajectory | dataset/sensors | observed | raw information | contains nuisance factors |
-| $z$ | latent representation | encoder/meta-learner | computed/learned | compressed task variable | must be controllable not just reconstructive |
-| $p_\theta$ | decoder/dynamics/function | model | learned | maps latent to signal/future | generalization depends on training distribution |
-| $g$ | task/condition | prompt/context | observed/fixed | selects behavior/function | context may be spurious |
+## 2. 分类框架（原理 → 综述的 Mechanism/Ability 分类）
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.1 五视角结构
+- **Foundation**：latent space 概念；vs 显式/verbal 空间（表征属性 + 功能能力）；vs 生成式视觉模型。
+- **Evolution**：prototype → formation → expansion → **outbreak**（latent 计算的发展史）。
+- **Mechanism**：见 §2.2。
+- **Ability**：见 §2.3。
+- **Outlook**：perspective / challenge / future。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+### 2.2 Mechanism 四线（latent 怎么工作）
+| 线 | 子类 | 含义 |
+|---|---|---|
+| **Architecture** | Backbone / Component / Auxiliary | 承载 latent 的网络结构 |
+| **Representation** | Internal / External / Learnable / Hybrid | latent 表示形式（模型内部激活 vs 外部记忆 vs 可学 vs 混合） |
+| **Computation** | Compressed / Expanded / Adaptive / Interleaved | latent 计算模式（压缩/扩展/自适应/与显式交错） |
+| **Optimization** | Pre-training / Post-training / Inference | 何时塑造 latent |
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+### 2.3 Ability 七维（latent 使能什么）
+Reasoning、Planning、Modeling、Perception、Memory、Collaboration、**Embodiment**——latent 支撑的能力谱。对 WMTS 最相关：**Modeling（世界建模）、Planning（latent 规划）、Embodiment（具身）**。
 
-### 2.3 论文核心机制无跳步推导
-- 回顾 autoencoder、VAE、diffusion、transformer 等 latent 表示。
-- 讨论 latent geometry、disentanglement、controllability、compositionality。
-- 分析 latent 能力与数据/目标函数的关系。
-
-从表征学习角度看，latent 的价值取决于它是否保留了任务相关的因果变量：
+### 2.4 概念边界与符号陷阱
+- 语言中心：多数指 LLM 的 latent reasoning；WMTS 关心的是机器人 latent WM（Modeling/Embodiment 子集）。
+- "latent 原生基底"是 thesis，非定论；可解释/安全处显式仍有价值。
+- latent（连续、不可解释）vs 显式物理（可解释、可验证）是 WMTS 的核心取舍。
+- 下式给一般 latent 计算视角（编码-解码/动力学）：
 $$
 z = E_\phi(x, c),
 \quad \hat y = D_\theta(z, q),
 \quad \text{or}\quad z_{t+1}=F_\theta(z_t,a_t)
 $$
-如果训练目标只要求重构，$z$ 可能保留视觉细节却丢掉控制变量；若加入 dynamics/reward/context 约束，latent 才更可能服务 planning。
+WMTS 的 WM 即 $z_{t+1}=F_\theta(z_t,a_t)$ 的结构化版（$F$ 含 actuator+rigid 物理 + latent 残差）。
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+### 2.5 信息流（综述视角）
+观测/token → latent 表示（Representation）→ latent 计算（Computation，可与显式 Interleaved）→ 解码/行动；Optimization 在 pre/post-training/inference 各阶段塑造 latent；Ability 是其下游表现。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：通过梳理 latent 的形成机制、几何结构和能力边界，可以判断某个 latent 是否适合 planning/control。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+## 3. 领域证据与挑战（实验 → 概念证据）
 
-## 3. 训练、数据与实验
+### 3.1 证据性质
+综述无实验，证据是**概念框架 + 跨领域案例**（latent reasoning/planning/modeling 的代表工作）。统一了此前碎片化的 latent 研究（机制/模态/任务各异，缺统一视角）。
 
-### 3.1 PDF 结构线索
-- 1   Introduction
-- 2.1     Concept
-- 2.2     Comparison with Explicit Space
-- 2.2.1   Representational Properties
-- 2.2.2   Functional Capabilities
-- 2.3   Comparison with Generative Visual Models
-- 3.1        Prototype
-- 3.2   Formation
+### 3.2 关键论点
+- 显式 token 计算的结构性局限（冗余/离散/串行/语义损失）驱动 latent 转向。
+- latent 从早期 latent reasoning 扩到 planning/modeling/perception/memory/collaboration/embodiment。
+- Mechanism 四线 + Ability 七维给统一坐标。
 
-### 3.2 关键结果与证据
-综述型证据主要是概念框架和跨领域案例。
+### 3.3 对照因果链
+- `显式 token 推理 → 语言冗余/串行 → 低效 + 语义损失`。
+- `latent 推理 → 连续紧致 → 高效但不可解释`。
+- `latent 只优化重构 → 丢控制变量；加 dynamics/reward → 偏可行动结构`（与 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]] reward-driven latent 一致）。
 
-- PDF 线索：tasks, lacking a unified perspective on how latent space is defined, classified, and studied.
-- PDF 线索：Representation, Computation, and Optimization. From the perspective of Ability, we show how latent
-- PDF 线索：tables, accessible links, and repositories, to facilitate further research and community engagement.
-- PDF 线索：verbalized units, i.e., subword-level tokens [168], that are directly interpretable by humans. The training
-- PDF 线索：straightforward correspondence to human-interpretable semantic, structural, or perceptual features [148, 239].
-- PDF 线索：language-based models to prioritize the intrinsic semantic essence, unlocking potential across diverse tasks.
+### 3.4 边界
+- 语言中心；机器人 latent 是 Modeling/Embodiment 子集。
+- 不可解释 → 高风险控制需谨慎。
+- 综述广而不深；具体回单篇。
 
-### 3.3 Ablation 因果链
-若 latent 只优化重构，它可能保留视觉细节但丢掉控制变量；若加入 dynamics/reward，它才会偏向可行动结构。
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 4.1 真正的 insight
+**latent space 不只是 encoder 输出，而是计算的"原生基底"：许多内部过程（推理/规划/建模/具身）在连续 latent 比在显式 token 轨迹更自然、更高效、无语义损失；可按 Mechanism（架构/表示/计算/优化）× Ability（推理…具身）统一组织。** 一句话：**把 latent 当计算基底而非中间向量，并按机制/能力分类。**
 
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+### 4.2 为什么这个框架有用（对 WMTS）
+给 WMTS 的 latent WM 一个定位坐标（Representation 形式、Computation 模式、Modeling/Embodiment 能力），并明确 latent-vs-显式的权衡——这正是 WMTS 选"结构化+latent 残差"的决策维度。
 
-## 4. 核心洞见
+### 4.3 综述的局限
+- 语言中心，机器人/接触着墨少。
+- "纯 latent 原生基底"是 thesis，与 WMTS 结构化方向有张力。
+- 广而不深。
 
-### 4.1 论文真正的 insight
-通过梳理 latent 的形成机制、几何结构和能力边界，可以判断某个 latent 是否适合 planning/control。
+## 5. 替代视角与局限（未来与结合）
+- 与两篇 WM 综述（[[A Step Toward World Models- A Survey on Robotic Manipulation|操作 WM]]、[[Learning to Model the World: A Survey of World|全 AI WM]]）互补：本篇分类 latent space，那两篇分类 WM。
+- latent（本篇）vs 结构化物理（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]）vs semi-structured（[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]）——WMTS 取后两者倾向。
 
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+## 6. 对用户研究的启发（未来与结合）
 
-### 4.3 什么时候会失效
-不要把 latent 神秘化；无法解释变量来源和失败边界的 latent 不适合作为高风险真机控制核心。
+### 6.1 对 WMTS / DNPM 的迁移
 
-## 5. 替代方案与理论局限
+| WMTS 模块 | 本综述对应 | 设计 |
+|---|---|---|
+| **latent WM 定位** | Representation/Computation 分类 | 给 WMTS WM latent 定位（结构化 hybrid 表示 + adaptive 计算） |
+| latent planning | Planning 能力 | WMTS WM 内 latent rollout 规划 |
+| Embodiment | Embodiment 能力 | 具身 latent（含触觉/接触） |
+| latent vs 显式 | Foundation 对比 | WMTS 决策：安全/可解释处用显式物理，效率处用 latent |
 
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+**核心论证（critical thinking）**：本综述给 WMTS 一个**latent 计算的坐标系**，但更重要的是它把 WMTS 的**核心设计张力**摆上台面：**latent vs 显式**。综述champions"latent 是原生基底"（连续、高效、无语义损失），这对 LLM 推理成立；但 **WMTS 的 WM 处理的是物理接触动力学，恰恰需要可解释、可验证、无 model-exploitation 的结构**——所以 WMTS **不全押纯 latent**，而走 **结构化物理（actuator+rigid，[[Learning Agile and Dynamic Motor Skills for Legged Robots|Hwangbo]]/[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]）+ latent 残差** 的中间路线（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] 显式极、[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]] 纯 latent 极，WMTS 居中）。综述的价值是：(1) 用其 Representation（hybrid）/Computation（adaptive）分类**精确描述 WMTS WM 的 latent 部分**；(2) 提醒 WMTS 在**效率敏感处**（高频 rollout）可更 latent、在**安全/可解释处**（接触力安全、Reject 判定）必须显式/结构化。**定位**：语言中心的广survey，对 WMTS 是 latent 计算的概念地图 + latent-vs-结构化决策框架，非技术方法；与两篇 WM 综述构成"WM 分类 + latent 分类"的双坐标。
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 6.2 可行动项
+- 用 Representation/Computation 分类标注 WMTS WM 的 latent 设计（hybrid 结构化+残差、adaptive 计算）。
+- 明确 latent-vs-显式分工表：效率处 latent、安全/可解释处显式物理。
 
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
-
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 应为 latent 设验收标准：能预测接触结果、能区分失败模式、能被 task scheduler 稳定操纵。
-
-### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
-
-### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+### 6.3 不应过度依赖的点
+- 语言中心；机器人接触动力学需结构化，勿全押纯 latent。
+- 广而不深；具体回单篇 + 结构化 WM 论文。
 
 ## 7. 与知识体系的联系
 
-### 与 [[RepresentationLearning]] 的联系
-latent/architecture inductive bias。这篇论文提供的是一个可迁移的结构化 bias：它把 机器人 world model 常把 latent 当黑箱，导致不知道哪些维度对应物理状态、任务语义或控制可达性。 转化为可建模、可采样或可约束的问题。
-
-### 与 [[InformationTheory]] 的联系
-compression and task-relevant information。这篇论文提供的是一个可迁移的结构化 bias：它把 机器人 world model 常把 latent 当黑箱，导致不知道哪些维度对应物理状态、任务语义或控制可达性。 转化为可建模、可采样或可约束的问题。
-
 ### 与 [[EmbodiedAI]] 的联系
-context-conditioned robot intelligence。这篇论文提供的是一个可迁移的结构化 bias：它把 机器人 world model 常把 latent 当黑箱，导致不知道哪些维度对应物理状态、任务语义或控制可达性。 转化为可建模、可采样或可约束的问题。
+latent space 的 Embodiment 能力；具身 latent 计算（含感知/记忆/协作）。
+
+### 与 [[ReinforcementLearning]] 的联系
+latent Planning/Modeling（latent 内规划与世界建模）；与 Dreamer 系 latent imagination 一脉。
+
+### 与 [[StochasticProcess]] 的联系
+latent 表示的生成式基础（VAE/diffusion/transformer）；Representation/Computation 分类。
+
+### 与 [[Final_WMTS]] 的联系
+latent 计算坐标系定位 WMTS WM latent（hybrid 结构化+残差、adaptive）；latent-vs-显式张力 → WMTS 选结构化+latent 残差；与两篇 WM 综述构成双坐标。
 
 ## References
-- 原始 PDF：[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook.pdf]]
+- 原始 PDF：[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook.pdf]]（多机构，arXiv 2604.02029）
+- 互补综述：[[A Step Toward World Models- A Survey on Robotic Manipulation|操作 WM 综述]]、[[Learning to Model the World: A Survey of World|全 AI WM 综述]]
+- latent-vs-结构化谱：[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer（latent）]]、[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL（semi-structured）]]、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2（显式）]]
 - 项目入口：[[Final_WMTS]]

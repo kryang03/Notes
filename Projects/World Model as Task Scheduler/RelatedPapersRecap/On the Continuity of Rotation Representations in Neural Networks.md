@@ -3,169 +3,176 @@ tags:
   - paper
   - rotation-representation
   - so3
-  - representation-learning
+  - continuity
   - WMTS
 aliases:
   - Continuous Rotation Representations
+  - 6D Rotation
 paper-year: 2019
-read-date: 2026-06-14
-venue: CVPR
+read-date: 2026-06-16
+venue: CVPR 2019 (Zhou et al.)
 paper-pdf: "[[On the Continuity of Rotation Representations in Neural Networks.pdf]]"
 related:
-  - "[[RepresentationLearning]]"
-  - "[[Dynamics]]"
-  - "[[ComputationalGeometry]]"
+  - "[[ControlTheory]]"
+  - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
+  - "[[Dynamic Non-Prehensile Manipulation]]"
 ---
 
 # On the Continuity of Rotation Representations in Neural Networks
 
 > [!abstract] 核心贡献
-> 这篇论文说明 SO(3) 表示不是工程小细节：四元数/欧拉角等低维表示存在拓扑不连续，神经网络回归会在这些断点附近学得很痛苦。
+> 证明**用神经网络回归旋转时，表示的连续性是决定性的工程问题**：欧拉角、四元数、轴角等 **≤4D 表示在 SO(3) 上不连续**（作为 SO(3)→欧式空间的映射），网络在不连续点附近误差大、难学。给出连续性必要维数——SO(3) 连续表示**至少需 5D**——并提出**连续 6D**（两个 3D 向量经 Gram-Schmidt 成旋转矩阵前两列）、5D、**9D**（3×3 矩阵 SVD 正交化到最近 SO(3)）。实验（姿态估计、IK、点云配准）证**连续（6D/9D）全面优于不连续（四元数/欧拉/轴角）**，尤其大范围旋转。**对 WMTS/DNPM：凡网络输出旋转处——笔姿态、手腕/物体目标、WM 预测下一姿态、DP/PPO 旋转分量——都应用 6D/9D 而非欧拉/四元数；[[DyWA: Dynamics-adaptive World Action Model|DyWA]] 即用 9D。几乎零成本、必采纳的工程纪律。**
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning]] — continuous representation of non-Euclidean structure
-> - [[Dynamics]] — SO(3) pose/rotation state
-> - [[ComputationalGeometry]] — manifold and embedding constraints
+> - [[ControlTheory]] — SO(3) 姿态/旋转状态；连续表示利于回归与控制。
+> - [[EmbodiedAI]] — 机器人姿态估计/IK/操作中的旋转回归。
+> - [[Final_WMTS]] — **WMTS 所有旋转输出用 6D/9D**；DyWA 用 9D。
+> - [[Dynamic Non-Prehensile Manipulation]] — 转笔笔姿态/相位旋转回归必用连续表示。
+>
+> **核心技术**: SO(3) 表示连续性定理, 6D Gram-Schmidt, 5D, 9D SVD 正交化, 连续 > 不连续, 姿态估计/IK/点云
 
-## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
+## 0. 阅读定位与价值
 
-它在当前知识库中的角色是：WMTS 的笔姿态、手腕/物体目标都应避免欧拉角；DP 或 world model 预测旋转时优先使用 6D/rotation matrix。
+这是一条**几乎零成本、必采纳的工程纪律**，非可选优化。WMTS/DNPM 处处要网络输出旋转（笔姿态、手腕目标、WM 预测下一姿态、DP/PPO 旋转分量），本文证明**用错表示（欧拉/四元数）会因拓扑不连续在边界姿态学崩**，用对（6D/9D）几乎免费解决。[[DyWA: Dynamics-adaptive World Action Model|DyWA]] 已用 9D，[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]] 等运动表示也需正确旋转表示。读它只需记结论 + 6D/9D 构造。
 
-## 1. 问题设定与动机
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-旋转空间是非欧式流形；把它硬塞进 3D/4D 欧式坐标会产生等价类、符号翻转或奇异点。
+SO(3) 是非欧式流形；强行用 3D/4D 欧式坐标（欧拉/四元数/轴角）表示会产生**不连续**（等价类、双覆盖 $q\equiv-q$、$\pm\pi$ 翻转、奇异点）。NN 回归连续目标才好学，故**不连续表示在边界姿态误差大**。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+把地球面（流形）硬画到平面地图（低维欧式），必有撕裂线（不连续，如经度 ±180° 接缝）——走到接缝坐标突变。网络回归像"学这张地图"，接缝处目标突变→学不准。本文证明：要无撕裂（连续）**至少需 5 维**；6D/9D 给无接缝表示。可证伪含义：劣势集中在**大范围/全域旋转**（跨接缝）；小角度局部差距小。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 表示 | 维数 | 关键局限 |
+|---|---|---|
+| 欧拉角 | 3D | 万向锁奇异、不连续、顺序歧义 |
+| 轴角 | 3D | $\pm\pi$ 不连续、零角奇异 |
+| 四元数 | 4D | **双覆盖 $q\equiv-q$**、不连续 |
+| **6D（Gram-Schmidt）** | 6D | **连续**；需正交化（共线奇异罕见） |
+| **9D（SVD）** | 9D | **连续**；冗余但稳健 |
 
 ### 1.4 Delta 分析
-使用 5D/6D 连续表示并通过正交化映射回旋转矩阵，可以让网络在欧式输出空间中看到连续目标。
+精确增量：(1) 形式化"表示连续性"（编码+解码映射皆连续）；(2) 证 SO(3) 连续表示需 ≥5D；(3) 构造连续 5D/6D/9D；(4) 实验证连续 > 不连续。把"旋转表示是实现细节"升级为"由拓扑决定、影响可学性的一等问题"。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：连续性 + 6D/9D 构造）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+| 变量 | 维度/空间 | 来源 | 性质 | 意义 | 陷阱 |
 |---|---|---|---|---|---|
-| $R$ | SO(3) rotation matrix | pose/decoder | physical state | orientation | orthogonality constraint |
-| $x_{6D}$ | two 3D vectors | network output | learned/computed | continuous rotation representation | not itself a rotation until projected |
-| $\Pi(x)$ | orthogonalization map | postprocess | computed | maps to SO(3) | singular if vectors collinear |
-| $q$ | quaternion | alternative representation | computed | orientation double cover | $q$ and $-q$ same rotation |
+| $R$ | SO(3) 旋转矩阵 | 真值/目标 | 物理状态 | 朝向 | 正交约束 |
+| $x_{6D}=(a,b)$ | 两个 $\mathbb R^3$ | 网络输出 | learned | 连续旋转表示 | 本身不是旋转，需投影 |
+| $\Pi$ | 正交化映射 | 后处理 | computed | 表示→SO(3) | 6D 共线奇异；9D 用 SVD |
+| $q$ | 四元数 | 替代表示 | computed | 朝向（双覆盖） | $q\equiv-q$ 不连续 |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 连续性定理（无跳步）
+表示 = 一对映射：$f:SO(3)\to\mathbb R^d$（编码）与 $g:\mathbb R^d\to SO(3)$（解码）。称表示**连续**当 $f,g$ 皆连续。SO(3) 是连通紧致 3 流形；拓扑论证：$d\le 4$ 不存在连续表示（必有不连续点）；连续表示需 $d\ge 5$。网络回归 $f(R)$，若 $f$ 不连续，相近旋转目标可突变 → 难学、边界误差大。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
-
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 分析 SO(3) 到低维欧式空间的连续嵌入限制。
-- 构造 6D 表示：用两个 3D 向量经 Gram-Schmidt 生成旋转矩阵前两列。
-- 训练网络回归连续表示，再投影为合法 rotation。
-
-从 SO(3) 表示角度看，网络输出不应该直接被当作合法旋转，而应先在连续欧式空间中回归，再投影回旋转流形：
+### 2.3 6D / 9D 构造（无跳步）
+**6D（Gram-Schmidt）**：网络输出两个向量 $a,b\in\mathbb R^3$，经 Gram-Schmidt 正交化成旋转矩阵前两列（下式）；**9D（SVD）**：网络输出 3×3 矩阵 $M=U\Sigma V^\top$，取 $R=UV^\top$（修正 det 保 $+1$）投影到最近 SO(3)。**陷阱**：网络输出本身不是旋转，须经正交化投影为合法 $R$。
+6D Gram-Schmidt 构造如下（投影回 SO(3)）：
 $$
 a,b \in \mathbb{R}^3,
 \quad r_1=rac{a}{\|a\|},
 \quad r_2=rac{b-(r_1^\top b)r_1}{\|b-(r_1^\top b)r_1\|},
 \quad r_3=r_1\times r_2
 $$
-$R=[r_1,r_2,r_3]$ 才是最终旋转矩阵。陷阱是 $x_{6D}$ 本身不是旋转；它只是一个连续、便于学习的中间表示。
+$R=[r_1,r_2,r_3]$ 即合法旋转矩阵；$x_{6D}$/$M$ 本身不是旋转，只是连续、便于学习的中间表示，须经正交化投影。
 
 ### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+- 表示连续 ≠ 旋转合法：网络输出需正交化投影（Gram-Schmidt / SVD）。
+- 四元数双覆盖 $q\equiv-q$ 是不连续根源之一；欧拉角万向锁、轴角 $\pm\pi$ 同理。
+- 连续性解决**可学性**，**不**解决物理一致性（姿态可能与接触/速度不符，需 WM/物理约束）。
+- 9D 冗余但 SVD 投影稳健；6D 更省（Gram-Schmidt 共线奇异罕见）。损失在 SO(3) 上（测地距离或 $\|R-\hat R\|$）。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：使用 5D/6D 连续表示并通过正交化映射回旋转矩阵，可以让网络在欧式输出空间中看到连续目标。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+### 2.5 适用范围
+通用工程纪律：任何用 NN 回归 SO(3) 的场景（姿态估计、IK、点云配准、WM 姿态预测、策略旋转动作）都应用连续表示；论文也给出 n 维旋转（SO(n)）的连续表示推广。
 
-## 3. 训练、数据与实验
+## 3. 训练、数据与实验（实验与验证）
 
-### 3.1 PDF 结构线索
-- PDF 文本抽取未稳定识别章节标题；需要人工读图/附录时再补。
+### 3.1 实验设置
+任务：3D 姿态估计、逆运动学（IK）、点云配准、n 维旋转回归。对照连续（6D/9D/5D）vs 不连续（欧拉/四元数/轴角）表示，相同网络容量。
 
-### 3.2 关键结果与证据
-关注姿态估计/旋转回归误差，尤其是边界姿态和训练稳定性。
+### 3.2 关键结果与因果解释
+- **连续（6D/9D/5D）全面优于不连续（欧拉/四元数/轴角）**，尤其**全范围旋转**；相同神经元数下连续表示误差更低、训练更稳。
+- **因果**：不连续表示在接缝/奇异姿态附近目标突变 → 网络逼近难 → 误差集中于边界姿态；连续表示目标平滑 → 易逼近。
+- 论文还把结论推广到 n 维旋转（SO(n)）。
 
-- PDF 线索：3D, and n-dimensional rotations. We demonstrate that for representations should in many cases be “harder” to approx-
-- PDF 线索：works to learn. We show that the 3D rotations have con- given number of neurons.
-- PDF 线索：rotation representations outperform discontinuous ones for Section 4.1 some discontinuous representations, such as Eu-
-- PDF 线索：several practical problems in graphics and vision, includ- ler angle and quaternion representations. We show that for
-- PDF 线索：Recently, there has been an increasing number of appli- to n − 2 dimensions in a continuous way. We show that
-- PDF 线索：are used to perform regressions on rotations. This has been and 5D. While we focus on rotations, we show how our con-
-
-### 3.3 Ablation 因果链
-使用 quaternion/axis-angle -> 在等价符号或 $\pi$ 附近不连续；6D 表示降低不连续带来的优化困难。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 3.3 Ablation / 对照因果链
+- `四元数/轴角 → 在双覆盖/$\pm\pi$ 附近不连续 → 边界姿态误差大`。
+- `欧拉角 → 万向锁奇异 + 顺序歧义`。
+- `连续 6D/9D → 无接缝突变 → 误差降、训练稳`（论文核心对照）。
 
 ### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+- 连续性是**可学性**，非物理约束；输出姿态仍需 WM/物理保证一致。
+- 6D Gram-Schmidt 共线输入奇异（罕见）；9D SVD 更稳但冗余。
+- 小角度局部旋转两类表示差距小（全范围才显著）。
 
-## 4. 核心洞见
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-### 4.1 论文真正的 insight
-使用 5D/6D 连续表示并通过正交化映射回旋转矩阵，可以让网络在欧式输出空间中看到连续目标。
+### 4.1 真正的 insight
+**用 NN 回归旋转时，表示的拓扑连续性决定可学性：SO(3) 连续表示至少需 5D，故欧拉角/四元数（≤4D）不连续、边界姿态学崩；用连续 6D（Gram-Schmidt）/9D（SVD）并投影回 SO(3)，几乎免费大幅降低旋转回归误差。** 一句话：**别用欧拉角/四元数回归旋转——用 6D/9D 连续表示。**
 
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+### 4.2 为什么有效
+连续表示让回归目标随旋转平滑变化（无接缝突变），逼近更易、边界更稳；正交化保证输出合法旋转。
 
 ### 4.3 什么时候会失效
-6D 表示解决连续性，不解决物理约束；预测出的姿态仍可能与接触/速度不一致。
+- 仅小角度局部旋转 → 不连续表示也勉强可用。
+- 连续性不解决**物理一致性**（姿态 vs 接触/速度）。
+- 6D Gram-Schmidt 共线输入奇异（罕见）。
 
 ## 5. 替代方案与理论局限
 
 ### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+连续性由 SO(3) 拓扑（连通紧致 3 流形）决定，是必要条件而非启发式；≤4D 必不连续是定理级结论。
 
 ### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+| 表示 | 维数 | 连续 | 备注 |
+|---|---|---|---|
+| 欧拉/轴角 | 3D | 否 | 避免回归用 |
+| 四元数 | 4D | 否 | 双覆盖 |
+| 5D/6D | 5-6D | 是 | 推荐 6D 省 |
+| 9D | 9D | 是 | SVD 稳健 |
 
 ### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+连续性是可学性非物理；需正交化投影；高范围旋转才显著。
 
-## 6. 对用户研究的启发
+## 6. 对用户研究的启发（未来与结合）
 
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 的笔姿态、手腕/物体目标都应避免欧拉角；DP 或 world model 预测旋转时优先使用 6D/rotation matrix。
+### 6.1 对 WMTS / DNPM 的迁移（工程纪律）
+
+| WMTS 输出旋转处 | 用什么 | 理由 |
+|---|---|---|
+| **笔姿态 / 目标朝向** | 6D/9D | 转笔全范围旋转，欧拉/四元数会跨接缝学崩 |
+| **WM 预测下一姿态** | 6D/9D | WM 旋转预测平滑（[[DyWA: Dynamics-adaptive World Action Model|DyWA]] 用 9D） |
+| **DP/PPO 动作旋转分量** | 6D/9D | 动作含旋转时连续表示 |
+| 物体/手腕状态 | 6D/9D | 状态表示连续 |
+
+**核心论证（critical thinking）**：这是 WMTS **必采纳、近零成本的工程纪律**。转笔涉及**笔的全范围旋转**（绕指一圈跨越所有朝向），若 WM/DP/PPO 用欧拉角或四元数回归笔姿态，必在**接缝姿态（±π、双覆盖切换）处误差爆炸、训练不稳**——正是本文证明的拓扑不连续后果。WMTS 应在**所有输出旋转的网络**（WM 预测下一笔姿态、DP/PPO 旋转分量、目标朝向、物体/手腕状态）统一用 **6D（省）或 9D（稳，[[DyWA: Dynamics-adaptive World Action Model|DyWA]] 即用 9D）+ 正交化投影**。与 [[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]] 的周期相位表示正交互补（FLD 管周期时间结构、本文管单帧旋转表示）。**唯一边界**：连续表示解决**可学性**，不解决**物理一致性**——网络可能输出连续但与接触/速度不符的姿态，需 WM/物理约束（[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]/结构化 WM）兜。**定位**：基础工程纪律，WMTS 默认全局采用。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- 旋转表示消融：转笔笔姿态回归 6D/9D vs 四元数/欧拉，测全范围旋转的边界误差。
+- WM 姿态预测：9D vs 四元数，测长 rollout 姿态漂移。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 连续性 ≠ 物理一致性（需 WM/约束补）。
+- 小角度局部差距小（但转笔全范围必用连续）。
 
 ## 7. 与知识体系的联系
 
-### 与 [[RepresentationLearning]] 的联系
-continuous representation of non-Euclidean structure。这篇论文提供的是一个可迁移的结构化 bias：它把 旋转空间是非欧式流形；把它硬塞进 3D/4D 欧式坐标会产生等价类、符号翻转或奇异点。 转化为可建模、可采样或可约束的问题。
+### 与 [[ControlTheory]] 的联系
+SO(3) 姿态/旋转状态表示；连续表示避免万向锁/双覆盖，利于姿态回归与控制。
 
-### 与 [[Dynamics]] 的联系
-SO(3) pose/rotation state。这篇论文提供的是一个可迁移的结构化 bias：它把 旋转空间是非欧式流形；把它硬塞进 3D/4D 欧式坐标会产生等价类、符号翻转或奇异点。 转化为可建模、可采样或可约束的问题。
+### 与 [[EmbodiedAI]] 的联系
+机器人姿态估计、IK、点云配准、操作旋转回归的通用工程纪律。
 
-### 与 [[ComputationalGeometry]] 的联系
-manifold and embedding constraints。这篇论文提供的是一个可迁移的结构化 bias：它把 旋转空间是非欧式流形；把它硬塞进 3D/4D 欧式坐标会产生等价类、符号翻转或奇异点。 转化为可建模、可采样或可约束的问题。
+### 与 [[Final_WMTS]] 的联系
+WMTS 所有旋转输出用 6D/9D；DyWA 已用 9D；与 FLD 周期相位表示互补；连续性非物理一致性（需 WM 补）。
 
 ## References
-- 原始 PDF：[[On the Continuity of Rotation Representations in Neural Networks.pdf]]
-- 项目入口：[[Final_WMTS]]
+- 原始 PDF：[[On the Continuity of Rotation Representations in Neural Networks.pdf]]（Zhou et al.，CVPR 2019）
+- 应用 9D：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]
+- 运动表示互补：[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]]
+- 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

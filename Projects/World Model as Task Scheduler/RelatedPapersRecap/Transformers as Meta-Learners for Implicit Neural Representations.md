@@ -3,178 +3,171 @@ tags:
   - paper
   - transformer
   - meta-learning
+  - hypernetwork
   - implicit-neural-representation
   - WMTS
 aliases:
   - Transformer INR Meta-Learner
+  - Trans-INR
 paper-year: 2022
-read-date: 2026-06-14
-venue: arXiv/ECCV
+read-date: 2026-06-16
+venue: ECCV 2022 (UCSD; Yinbo Chen, Xiaolong Wang)
 paper-pdf: "[[Transformers as Meta-Learners for Implicit Neural Representations.pdf]]"
 related:
-  - "[[RepresentationLearning]]"
-  - "[[InformationTheory]]"
+  - "[[ReinforcementLearning]]"
+  - "[[StochasticProcess]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
 
-# Transformers as Meta - Learners for Implicit Neural Representations
+# Transformers as Meta-Learners for Implicit Neural Representations
 
 > [!abstract] 核心贡献
-> 这篇论文把 Transformer 用作 implicit neural representation 的 meta-learner：从上下文样本中快速生成/调节表示函数。
+> 用 **Transformer 作 hypernetwork**，从观测**一次前向直接生成整套 INR（implicit neural representation）权重**（set-to-set 映射），无需逐实例梯度下降。动机：(a) 从零梯度拟合 INR 慢、稀疏观测不泛化；(b) 现有 hypernetwork 多生成**单个向量调节 INR 权重 → 单向量信息瓶颈**限制重建精度；(c) gradient-based meta-learning 可推全权重但需高阶导 + 固定初始化、仍要梯度下降。本文把观测转 data tokens、把 INR 权重视为各层权重矩阵的列向量、用 initialization tokens（每列一个）经 Transformer 映射出全权重，**绕过单向量瓶颈且免逐实例梯度下降**，并与 gradient-based meta-learning 建立联系。2D 图像回归 + NeRF 视图合成验证。**对 WMTS：这是"一次前向生成任务特定网络"的快速适应（amortized meta-learning）机制——WMTS 的 LAAA 可用 Transformer hypernetwork 从少量真实 transition 直接生成适配后的 actuator/contact 模型权重，比逐任务微调快、比 DyWA/FiLM 的单向量条件更具表达力（破单向量瓶颈）。**
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning]] — latent/architecture inductive bias
-> - [[InformationTheory]] — compression and task-relevant information
-> - [[EmbodiedAI]] — context-conditioned robot intelligence
+> - [[ReinforcementLearning]] — amortized meta-learning（一次前向出任务网络）；快速适应。
+> - [[StochasticProcess]] — Transformer set-to-set 映射观测→权重。
+> - [[EmbodiedAI]] — context-conditioned 快速建模（每物体/动力学）。
+> - [[Final_WMTS]] — **LAAA 的 hypernetwork 快速适应 + 破单向量瓶颈**（胜 DyWA/FiLM 单向量条件）。
 
-> [!note] PDF 摘要摘录
-> . Implicit Neural Representations (INRs) have emerged and shown their benefits over discrete representations in recent years. How- ever, fitting an INR to the given observations usually requires optimiza- tion with gradient descent from scratch, which is inefficient and does not generalize well with sparse observations. To address this problem, most of the prior works train a hypernetwork that generates a single vector to modulate the INR weights, where the single vector becomes an infor- mation bottleneck that limits the reconstruction precision of the output INR. Recent work shows that the whole set of weights in INR can be precisely inferred without the single-vector bottleneck by gradient-based meta-learning. Motivated by a generalized formulation of gradient-based meta-learning, we propose a formulation that uses Transformers as hy- pernetworks for INRs, where it can directly build 
+## 0. 阅读定位与价值（架构/meta-learning）
 
-## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
+WMTS 的适应谱系里，本文给"**hypernetwork 一次前向生成任务网络**"这一极。对照：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]/[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]] 用**单向量/FiLM 条件**（本文指出是瓶颈）、[[Finetuning Offline World Models in the Real World|FOWM]] 用**梯度微调**（慢）、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]/[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL]] 用**隐式 in-context**。本文 = **显式生成全权重**，表达力高于单向量、快于梯度。INR 本身（连续函数表示）对 WMTS 次要，核心可取的是 hypernetwork meta-learning 机制。
 
-它在当前知识库中的角色是：WMTS 可借鉴为 in-context dynamics adapter：用少量真实 transition 调节 actuator/contact model，而不是重训整个网络。
-
-## 1. 问题设定与动机
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-INR 通常每个实例都要优化参数，适应慢；机器人中类似问题是每个物体/任务/动力学都要快速建模。
+INR 把数据表示为神经函数（坐标→信号，如图像 $f(x,y){\to}$RGB、NeRF）。但每个 INR 要从零梯度下降拟合（慢、稀疏不泛化）；单向量 hypernetwork 有瓶颈；梯度 meta-learning 需高阶导。本文用 Transformer hypernetwork 一次前向生成全 INR 权重。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+逐实例梯度拟合像"每张图都从零学一个小网络"（慢）。单向量 hypernetwork 像"用一个旋钮调一个通用网络"（旋钮信息太少，细节丢）。本文像"一个会读图的专家（Transformer）看一眼观测、直接写出整套网络权重"——一次成型、信息不被旋钮卡。可证伪含义：全权重生成的优势在"单向量瓶颈限制重建精度"时显著；任务简单时单向量也够。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 机制 | 局限 |
+|---|---|---|
+| 逐实例梯度拟合 INR | 从零优化 | 慢；稀疏观测不泛化 |
+| 单向量 hypernetwork | 生成 1 向量调节权重 | **单向量信息瓶颈**，重建精度低 |
+| gradient-based meta-learning | 推全权重 | 需高阶导 + 固定初始化、仍要梯度下降 |
+| **Trans-INR** | Transformer 一次前向生成全权重 | INR/视觉为主；全权重生成较重 |
 
 ### 1.4 Delta 分析
-Transformer 可以把上下文观测映射成函数参数或条件表示，相当于 amortized meta-learning。
+精确增量：用 **Transformer 作 hypernetwork**（观测 tokens + 初始化 tokens → 全权重 column vectors），**直接生成整套 INR 权重**，绕过单向量瓶颈、免逐实例梯度下降、免高阶导；并把 Transformer hypernetwork 与 gradient-based meta-learning 形式化联系起来。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：Transformer hypernetwork → 全权重）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+| 变量 | 维度/空间 | 来源 | 性质 | 意义 | 陷阱 |
 |---|---|---|---|---|---|
-| $x$ | input/context/trajectory | dataset/sensors | observed | raw information | contains nuisance factors |
-| $z$ | latent representation | encoder/meta-learner | computed/learned | compressed task variable | must be controllable not just reconstructive |
-| $p_\theta$ | decoder/dynamics/function | model | learned | maps latent to signal/future | generalization depends on training distribution |
-| $g$ | task/condition | prompt/context | observed/fixed | selects behavior/function | context may be spurious |
+| 观测 obs | data tokens | 图像/视图 | observed | 输入上下文 | 稀疏时不确定 |
+| init tokens | 每列一个 | 设计 | 输入 | 占位 INR 权重列 | 数量 = 权重列数 |
+| INR 权重 $W_l$ | 各层权重矩阵 | Transformer 输出 | learned 生成 | 任务特定网络 | 视为列向量集合 |
+| INR $f$ | 坐标→信号 | $W_l$ 构成 | 推理 | 连续表示 | 连续函数（接触不连续张力） |
+| Transformer | hypernetwork | 训练 | learned | set-to-set 映射 | 全权重生成较重 |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 核心机制（无跳步）
+1. **观测 → data tokens**：把输入观测（图像 patch / 视图）编码成 token 序列。
+2. **INR 权重视为列向量**：把目标 INR 各层权重矩阵的列当作要生成的对象，为每列建一个 **initialization token**。
+3. **Transformer set-to-set**：把 data tokens + init tokens 一起喂 Transformer，输出每个 init token 对应的**权重列向量** → 拼成整套 INR 权重 $\{W_l\}$。
+4. **查询**：得到的 INR $f$ 可在任意坐标查询生成连续信号（图像/NeRF）。
+**关键**：一次前向出全权重，无逐实例梯度、无单向量瓶颈、无高阶导。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+### 2.3 与 gradient-based meta-learning 的联系
+本文从 gradient-based meta-learning 的广义形式出发：梯度 meta-learning 用"初始化 + 梯度更新"得任务权重；本文把"更新"换成 **Transformer 对 init tokens 的注意力聚合观测**——amortize 掉梯度步，一次前向逼近 meta-learned 权重。INR 权重的 amortized 推断（呼应 [[Curiosity-Driven Exploration via Latent Bayesian Surprise|amortized 推断]]思想）。
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 输入少量坐标-值或观测上下文。
-- Transformer 聚合上下文并输出 INR 参数/latent。
-- INR 查询任意坐标生成连续信号。
-
-从表征学习角度看，latent 的价值取决于它是否保留了任务相关的因果变量：
+### 2.4 概念边界与符号陷阱
+- hypernetwork 生成**全权重**（非单向量），破瓶颈但较重。
+- amortized（一次前向）≠ 梯度 meta-learning（多步），是其近似。
+- INR 是连续函数 → 与接触不连续有张力（需事件/模式变量补，呼应 [[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]] 的 phase reset/contact token）。
+- 下式给出一般 amortized 表示视角（编码-解码/动力学）：
 $$
 z = E_\phi(x, c),
 \quad \hat y = D_\theta(z, q),
 \quad \text{or}\quad z_{t+1}=F_\theta(z_t,a_t)
 $$
-如果训练目标只要求重构，$z$ 可能保留视觉细节却丢掉控制变量；若加入 dynamics/reward/context 约束，latent 才更可能服务 planning。
+本文的 hypernetwork 即把 $E_\phi$（观测→表示）推到极致：输出整套权重而非单 $z$。
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+### 2.5 信息流（无代码）
+观测 → data tokens；INR 权重列 → init tokens；二者 → Transformer（注意力聚合）→ 每列权重 → 拼成 INR → 任意坐标查询。全程一次前向，无梯度更新。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：Transformer 可以把上下文观测映射成函数参数或条件表示，相当于 amortized meta-learning。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+## 3. 训练、数据与实验（实验与验证）
 
-## 3. 训练、数据与实验
+### 3.1 实验设置
+2D 图像回归（连续图像 INR）+ 3D 视图合成（NeRF INR）。Transformer hypernetwork 从观测一次前向生成 INR 全权重；对比单向量 hypernetwork、gradient-based meta-learning。
 
-### 3.1 PDF 结构线索
-- 1   Introduction
-- 2   Related Work
-- 3     Method
-- 3.1   Problem Formulation
-- 3.2   Motivating from gradient-based meta-learning
-- 3.3   Transformers as Meta-Learners
-- 3.4   Weight Grouping
-- 4     Experiments
+### 3.2 关键结果与因果解释
+- **重建精度高于单向量 hypernetwork**。**因果**：全权重生成绕过单向量信息瓶颈，能表达复杂图像/3D 细节。
+- **跨任务/域有效**（图像 + NeRF）。**因果**：set-to-set 映射通用于不同 INR。
+- **免逐实例梯度下降**：一次前向出权重，快于从零拟合。
 
-### 3.2 关键结果与证据
-关注重建质量、few-shot adaptation、跨实例泛化和上下文长度。
-
-- PDF 线索：strate the effectiveness of our method for building INRs in different tasks
-- PDF 线索：continuous data representations for various tasks in computer vision. With INR,
-- PDF 线索：pacity to capture the fine details of a complex real-world image or 3D object,
-- PDF 线索：while these works show promising results in generative tasks [49,1,5], they do
-- PDF 线索：not have high precision in reconstruction tasks [5]. The single-vector modulated
-- PDF 线索：3D domains, including image regression and view synthesis. We show that our ap-
-
-### 3.3 Ablation 因果链
-没有 meta-learner -> 每个实例慢速优化；没有足够上下文 -> 表示不确定且泛化差。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 3.3 Ablation / 对照因果链
+- `单向量 hypernetwork → 信息瓶颈 → 重建精度低`（本文动机）。
+- `gradient meta-learning → 需高阶导 + 固定初始化、仍要梯度步`。
+- `Transformer 全权重生成 → 破瓶颈 + 免梯度 → 精度高、快`。
+- `weight grouping`（§3.4）：把权重分组生成，平衡表达力与 token 数。
 
 ### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+- INR/视觉为主，非机器人接触。
+- 全权重生成较重（token 数 = 权重列数；weight grouping 缓解）。
+- 连续 INR 与接触不连续有张力。
 
-## 4. 核心洞见
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-### 4.1 论文真正的 insight
-Transformer 可以把上下文观测映射成函数参数或条件表示，相当于 amortized meta-learning。
+### 4.1 真正的 insight
+**用 Transformer 作 hypernetwork、把目标网络权重视为列向量并以 set-to-set 注意力一次前向生成整套权重，可绕过单向量 hypernetwork 的信息瓶颈、免逐实例梯度下降与高阶导——是 gradient-based meta-learning 的 amortized 近似。** 一句话：**一次前向生成整套任务网络权重，比单向量条件更具表达力、比梯度适应更快。**
 
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+### 4.2 为什么有效
+全权重生成破单向量瓶颈；Transformer 注意力聚合观测 amortize 掉梯度步；权重视为 token 列使生成结构化。
 
 ### 4.3 什么时候会失效
-INR 的连续函数拟合与接触不连续存在张力；需要事件/模式变量补充。
+- 全权重生成 token 数大、较重。
+- 观测稀疏时生成不确定。
+- 连续 INR 不擅长不连续（接触事件）。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与理论局限（未来与结合）
+- 适应机制谱：单向量/FiLM 条件（[[DyWA: Dynamics-adaptive World Action Model|DyWA]]/[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]，轻但瓶颈）< gradient meta-learning（慢）< **Transformer 全权重 hypernetwork（本文，表达力高）**；隐式 ICL（[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL]]/[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]）是另一路。
+- 局限：重、视觉、连续函数。
 
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+## 6. 对用户研究的启发（未来与结合）
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 6.1 对 WMTS / DNPM 的迁移
 
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+| WMTS 模块 | 本文启发 | 设计 |
+|---|---|---|
+| **LAAA（快速适应）** | Transformer hypernetwork 一次前向生成权重 | 从少量真实 transition 一次前向**生成适配后的 actuator/contact 模型权重**（比微调快） |
+| 条件方式 | 破单向量瓶颈 | WMTS 适配若用 [[DyWA: Dynamics-adaptive World Action Model|DyWA]]/FiLM 单向量条件，遇大动力学变化可能瓶颈→可升级为 hypernetwork 全/分组权重生成 |
+| 适应谱选择 | hypernetwork vs FiLM vs 梯度 vs ICL | 按"适应幅度 × 算力 × 速度"选：小变化 FiLM、大变化 hypernetwork、远分布微调 |
+| 连续表示 | INR | 连续转笔轨迹/相位可用 INR，但接触事件需离散补（配 FLD） |
 
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 可借鉴为 in-context dynamics adapter：用少量真实 transition 调节 actuator/contact model，而不是重训整个网络。
+**核心论证（critical thinking）**：本文给 WMTS 的适应机制谱补上**"hypernetwork 一次前向生成全权重"**这一极，并贡献一个对 WMTS 现有设计的**批判**：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]/[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]] 用**单向量/FiLM 条件**做动力学/增益适应——本文明确指出**单向量是信息瓶颈**，对复杂适应（大动力学/接触变化）重建精度不足。因此 WMTS 的 LAAA 应按**适应幅度分级**：(a) 小变化（轻微延迟/温漂）→ FiLM 单向量条件（轻、够用）；(b) 大变化（换笔/大摩擦差）→ **Transformer hypernetwork 生成（部分）模型权重**（破瓶颈、表达力高）；(c) 远超训练分布 → 在线微调（[[Finetuning Offline World Models in the Real World|FOWM]]）。这把库内适应论文统一成一个**按幅度选机制**的谱：FiLM（DyWA）/ hypernetwork（本文）/ 梯度微调（FOWM）/ 隐式 ICL（[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL]]/[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]）。**边界**：本文是 INR/视觉，全权重生成较重（weight grouping 缓解）；转笔的接触不连续与连续 INR 有张力（需配 [[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]] 的 phase reset/contact token）。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- LAAA hypernetwork：从少量真实 transition 用 Transformer 生成适配 actuator 模型权重，对照 FiLM 单向量条件，测大动力学变化下的适应精度（验证瓶颈论）。
+- 适应幅度分级：测小/大/远分布变化下 FiLM vs hypernetwork vs 微调的精度-速度权衡。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 全权重生成重；高频实时需 weight grouping/小网络。
+- INR/视觉 ≠ 接触动力学；连续函数不擅接触事件。
+- 单向量瓶颈在小变化时不明显（FiLM 仍够用）。
 
 ## 7. 与知识体系的联系
 
-### 与 [[RepresentationLearning]] 的联系
-latent/architecture inductive bias。这篇论文提供的是一个可迁移的结构化 bias：它把 INR 通常每个实例都要优化参数，适应慢；机器人中类似问题是每个物体/任务/动力学都要快速建模。 转化为可建模、可采样或可约束的问题。
+### 与 [[ReinforcementLearning]] 的联系
+amortized meta-learning：一次前向生成任务特定网络，是 gradient-based meta-learning 的快速近似。
 
-### 与 [[InformationTheory]] 的联系
-compression and task-relevant information。这篇论文提供的是一个可迁移的结构化 bias：它把 INR 通常每个实例都要优化参数，适应慢；机器人中类似问题是每个物体/任务/动力学都要快速建模。 转化为可建模、可采样或可约束的问题。
+### 与 [[StochasticProcess]] 的联系
+Transformer set-to-set 映射（观测 tokens + init tokens → 权重列）；amortized 推断视角。
 
 ### 与 [[EmbodiedAI]] 的联系
-context-conditioned robot intelligence。这篇论文提供的是一个可迁移的结构化 bias：它把 INR 通常每个实例都要优化参数，适应慢；机器人中类似问题是每个物体/任务/动力学都要快速建模。 转化为可建模、可采样或可约束的问题。
+context-conditioned 快速建模（每物体/动力学一次前向出模型）；INR 连续表示。
+
+### 与 [[Final_WMTS]] 的联系
+LAAA 的 hypernetwork 快速适应一极；破单向量瓶颈（批判 DyWA/FiLM 单向量条件）；适应机制按幅度分级（FiLM/hypernetwork/微调/ICL）。
 
 ## References
-- 原始 PDF：[[Transformers as Meta-Learners for Implicit Neural Representations.pdf]]
+- 原始 PDF：[[Transformers as Meta-Learners for Implicit Neural Representations.pdf]]（UCSD，ECCV 2022，arXiv 2208.02801）
+- 单向量条件对照（被批判）：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]（FiLM）、[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]
+- 适应谱：[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL]]、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]、[[Finetuning Offline World Models in the Real World|FOWM]]
+- 连续/接触互补：[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]]
 - 项目入口：[[Final_WMTS]]

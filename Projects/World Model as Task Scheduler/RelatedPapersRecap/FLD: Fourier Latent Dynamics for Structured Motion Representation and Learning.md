@@ -4,174 +4,151 @@ tags:
   - latent-dynamics
   - fourier
   - motion-representation
+  - periodic-motion
   - WMTS
 aliases:
   - FLD
 paper-year: 2024
-read-date: 2026-06-14
-venue: ICLR
+read-date: 2026-06-16
+venue: ICLR 2024 (MIT; Chenhao Li, Sangbae Kim)
 paper-pdf: "[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning.pdf]]"
 related:
-  - "[[RepresentationLearning]]"
-  - "[[InformationTheory]]"
+  - "[[StochasticProcess]]"
+  - "[[ControlTheory]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
+  - "[[Dynamic Non-Prehensile Manipulation]]"
 ---
 
 # FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning
 
 > [!abstract] 核心贡献
-> FLD 用 Fourier latent dynamics 表示结构化运动，把周期性/准周期性运动从黑箱 latent 中显式拉出来。
+> 自监督的**结构化运动表示 + 生成**方法（MIT，ICLR 2024），针对**周期/准周期运动**。核心：在**连续参数化的 latent 空间**里用**频域（Fourier）**抽取时空关系，并**强制 latent 动力学**（预测 latent 随时间演化）——这是对 Periodic Autoencoder (PAE) 的关键扩展（PAE 只静态编码、不预测；FLD 加预测结构）。运动控制器由 latent 参数化驱动，可**在线跟踪大范围运动含训练未见目标**；配 **fallback 机制**——动态调整跟踪策略、**对潜在危险目标拒绝并退到安全动作**；在 open-ended 学习里长期导航新目标、**避开 unlearnable 区域**。**对 WMTS/DNPM：转笔本质是周期/准周期运动，FLD 的 Fourier latent 可紧凑参数化转笔相位/风格并平滑插值/泛化；其 fallback（拒危险/不可学目标→安全）正是 WMTS 的 Solve/Probe/Reject + 安全过滤；作者 Chenhao Li 即 [[Robotic World Model: A Neural Network Simulator|RWM]] 作者。**
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning]] — latent/architecture inductive bias
-> - [[InformationTheory]] — compression and task-relevant information
-> - [[EmbodiedAI]] — context-conditioned robot intelligence
+> - [[StochasticProcess]] — 频域 latent + 连续参数化；latent 动力学预测。
+> - [[ControlTheory]] — 相位/频率/幅值驱动的运动控制（CPG 思想）；fallback 安全。
+> - [[EmbodiedAI]] — 结构化运动表示用于 locomotion/控制；open-ended 学习。
+> - [[Final_WMTS]] — **转笔周期运动的 latent 参数化 + fallback=Solve/Probe/Reject+安全**；RWM 同作者。
+> - [[Dynamic Non-Prehensile Manipulation]] — 转笔=周期/准周期运动，FLD 是其运动表示候选。
+>
+> **核心技术**: Fourier latent dynamics (扩展 PAE), 连续参数化 latent, 频域时空结构, latent 动力学预测, 运动控制器在线跟踪, fallback 机制 (拒危险→安全), open-ended 学习
 
-## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
+## 0. 阅读定位与价值
 
-它在当前知识库中的角色是：转笔天然是相位驱动任务；WMTS 可用 FLD 风格 latent 表示笔-手接触相位，而不是让 scheduler 从离散 token 猜周期。
+FLD 在知识库里是**周期运动结构化表示**的代表，对 **DNPM/转笔**有独特价值——**转笔是周期/准周期运动**（笔绕指循环），而 FLD 正是为此类运动设计。它有两条对 WMTS 直击的线：(1) **Fourier latent 参数化**——把转笔的相位/频率/幅值显式参数化，比让 scheduler 从离散 token 猜周期更结构化、可插值；(2) **fallback 机制**——控制器识别危险/不可学目标并退到安全动作，正是 WMTS 的 **Reject 队列 + 安全过滤**。作者 Chenhao Li 也是 [[Robotic World Model: A Neural Network Simulator|RWM]] 作者，两篇可对读（FLD 给运动表示，RWM 给 WM）。
 
-## 1. 问题设定与动机
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-许多机器人运动具有频率、相位、幅值结构；普通 latent dynamics 会把这些可解释结构混在高维状态里，导致泛化和控制调节困难。
+参考轨迹（动捕）数据稀疏、覆盖不全；策略只会复制数据、不学底层动力学结构，导致插值/迁移差。FLD 用频域结构化 latent + latent 动力学，把周期运动的时空规律显式参数化，增强插值/泛化，并能在线跟踪未见目标、对危险目标 fallback。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+普通 latent 把运动当"一长串高维状态死记"——没覆盖的动作就不会。FLD 像"用傅里叶把运动拆成频率/相位/幅值的乐谱"——会了几支曲子就能**改调、变速、插值出新曲**（连续参数化），且乐谱本身带"接下来怎么走"（latent 动力学）。遇到弹不了的曲子（unlearnable/危险）就**退回安全的弹法**（fallback）。可证伪含义：结构化收益在"运动有**周期/相位结构**"时最大；纯非周期/突发运动 Fourier 表示不足（需 phase reset/contact token）。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| 原始轨迹模仿 | 复制动捕 | 数据稀疏、不学动力学、插值/迁移差 |
+| 黑箱 latent dynamics（Dreamer 等） | 紧凑 latent | 周期结构混在高维、可控性差 |
+| CPG / 解析周期控制器 | 正弦/中央模式发生器 | 需先验物理、表达受限 |
+| **PAE（Periodic Autoencoder）** | 频域 latent | **静态、不预测、不充分表达整体运动** |
+| **FLD** | **Fourier latent + 动力学预测 + 连续参数化 + fallback** | 非周期/突发接触表示不足；locomotion 验证 |
 
 ### 1.4 Delta 分析
-把 latent motion 分解为频率、相位、振幅等 Fourier 参数，可以让策略在结构化运动空间中组合和迁移技能。
+精确增量（相对 PAE）：(1) **强制 latent 动力学**——latent 不只静态编码，还预测演化（PAE 缺）；(2) **连续参数化 latent**——平滑插值/泛化到未见运动；(3) **运动控制器 + fallback**——在线跟踪未见目标、拒危险目标退安全。把"静态频域编码"升级为"可预测、可插值、可安全跟踪的结构化运动动力学"。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：Fourier latent + 动力学 + fallback）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度/空间 | 来源 | 性质 | 意义 | 陷阱 |
 |---|---|---|---|---|---|
-| $x$ | input/context/trajectory | dataset/sensors | observed | raw information | contains nuisance factors |
-| $z$ | latent representation | encoder/meta-learner | computed/learned | compressed task variable | must be controllable not just reconstructive |
-| $p_\theta$ | decoder/dynamics/function | model | learned | maps latent to signal/future | generalization depends on training distribution |
-| $g$ | task/condition | prompt/context | observed/fixed | selects behavior/function | context may be spurious |
+| 运动轨迹 | 高维状态序列 | 动捕/sim | observed | 原始运动 | 稀疏、覆盖不全 |
+| Fourier latent params | 频率/相位/幅值 | 频域编码 | learned | 结构化运动参数 | 周期假设 |
+| latent 动力学 | $z_{t+1}=F(z_t)$ | 预测结构 | learned | latent 演化 | 扩展 PAE 的关键 |
+| 连续参数 | latent 流形 | 参数化 | computed | 插值/泛化坐标 | 平滑→非周期失效 |
+| 控制器 | 策略 | latent 参数化驱动 | learned | 在线跟踪 | 含 fallback |
+| fallback 判据 | 风险/可学性 | 控制器 | computed | 拒危险→安全 | =Reject/安全 |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 核心机制（无跳步）
+1. **频域结构化编码**：把运动轨迹编码到**频域 latent**（频率/相位/幅值），抓周期时空结构（承自 PAE）。
+2. **latent 动力学**：强制 latent 随时间**可预测演化**（$z_{t+1}=F(z_t)$）——FLD 对 PAE 的核心扩展，使 latent 服务预测/控制而非仅重构。
+3. **连续参数化**：latent 连续 → 平滑插值/泛化到未见运动。
+4. **运动控制器 + fallback**：控制器由 latent 参数化驱动在线跟踪目标运动；**fallback** 动态调整跟踪、识别危险/不可学目标并退到安全动作。
+5. **open-ended 学习**：配自适应目标采样，长期导航新目标、避开 unlearnable 区域。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+### 2.3 概念边界与符号陷阱
+- FLD latent 是**频域结构化 + 预测**，不是黑箱 latent。
+- 连续参数化 → 插值；但**非周期/突发接触**（如掉笔瞬间）平滑 Fourier 表示不足 → 需 phase reset / contact event token。
+- fallback = 拒危险/不可学目标（Reject + 安全）。
+- locomotion（MIT Sangbae Kim）验证。
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+## 3. 训练、数据与实验（实验与验证）
+- 运动重构、skill transfer、locomotion 在线跟踪含**未见目标**；open-ended 长期学习导航新目标、避 unlearnable。
+- **频域结构消融**：去 Fourier 结构 → latent 仍能重构但**可控性、长 horizon 稳定性下降**（周期规律未参数化）。
+- fallback：对危险目标退安全，提升安全跟踪。
+- 边界：locomotion 周期运动；非周期突发接触表示不足。
 
-### 2.3 论文核心机制无跳步推导
-- 编码运动轨迹到 latent。
-- 用 Fourier 基底或频域参数描述 latent 随时间的演化。
-- 下游控制通过调相位/幅值/频率生成或适应运动。
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-从表征学习角度看，latent 的价值取决于它是否保留了任务相关的因果变量：
-$$
-z = E_\phi(x, c),
-\quad \hat y = D_\theta(z, q),
-\quad \text{or}\quad z_{t+1}=F_\theta(z_t,a_t)
-$$
-如果训练目标只要求重构，$z$ 可能保留视觉细节却丢掉控制变量；若加入 dynamics/reward/context 约束，latent 才更可能服务 planning。
+### 4.1 真正的 insight
+**周期/准周期运动应在频域 latent 里结构化表示并强制 latent 动力学（可预测演化）+ 连续参数化（可插值泛化）；配 fallback 机制对危险/不可学目标退安全——如此可在线跟踪未见目标并在 open-ended 学习中避开 unlearnable 区域。** 一句话：**把周期运动拆成可预测、可插值的频域结构，并对学不了的目标安全 fallback。**
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
-
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：把 latent motion 分解为频率、相位、振幅等 Fourier 参数，可以让策略在结构化运动空间中组合和迁移技能。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
-
-## 3. 训练、数据与实验
-
-### 3.1 PDF 结构线索
-- 1    I NTRODUCTION
-- 2    R ELATED WORK
-- 3    P RELIMINARIES
-- 4     A PPROACH
-- 4.1   P ROBLEM FORMULATION
-- 4.2   F OURIER L ATENT DYNAMICS
-- 4.3   M OTION LEARNING
-- 4.3.1   P OLICY TRAINING
-
-### 3.2 关键结果与证据
-看 motion reconstruction、skill transfer、locomotion/control downstream performance，以及频域结构消融。
-
-- PDF 线索：presents strong long-term learning capabilities in open-ended learning tasks, strategically navigating
-- PDF 线索：target sampling on open-ended motion learning tasks. Supplementary videos and more details for
-- PDF 线索：latent space. These representation methods have shown success in controlling non-linear dynamical
-- PDF 线索：long-horizon tasks (Hafner et al., 2019), and imitating motion sequences (Berseth et al., 2019). A
-- PDF 线索：quency domain. Frequency domain methods have been proposed for various motion-related tasks,
-- PDF 线索：motion learning tasks (Starke et al., 2023). Despite such progress, PAE is restricted to representing
-
-### 3.3 Ablation 因果链
-去掉 Fourier 结构 -> latent 仍能重构但可控性和长 horizon 稳定性下降 -> 因为周期规律没有被参数化。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
-
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
-
-## 4. 核心洞见
-
-### 4.1 论文真正的 insight
-把 latent motion 分解为频率、相位、振幅等 Fourier 参数，可以让策略在结构化运动空间中组合和迁移技能。
-
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+### 4.2 为什么有效
+(1) 频域抓周期时空结构；(2) latent 动力学使其可预测/可控（胜 PAE 静态）；(3) 连续参数化插值泛化；(4) fallback 保安全、避 unlearnable。
 
 ### 4.3 什么时候会失效
-非周期接触切换和突发失稳不能完全由平滑 Fourier 表示捕捉；需要 phase reset 或 contact event token。
+- 非周期/突发接触切换（掉笔）→ 平滑 Fourier 不足，需 phase reset/contact token。
+- 运动无周期结构 → Fourier 偏置不适用。
+- locomotion→in-hand 接触的迁移需验证。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与局限（未来与结合）
+- PAE（静态频域）、黑箱 latent dynamics（Dreamer）、CPG（解析周期）。FLD 取"频域 + 预测 + 连续 + fallback"。
+- 局限：非周期接触、locomotion 验证。
 
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+## 6. 对用户研究的启发（未来与结合）
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 6.1 对 WMTS / DNPM 的迁移
 
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+| 模块 | FLD 对应 | 迁移设计 |
+|---|---|---|
+| **转笔运动表示** | Fourier latent（频率/相位/幅值） | 转笔=周期运动 → FLD latent 参数化转笔相位/风格，平滑插值不同转速/手型 |
+| **scheduler 任务参数化** | 连续参数化 latent | scheduler 在连续转笔 latent 上选/生成任务（vs 离散 token） |
+| **Reject + 安全** | fallback（拒危险→安全） | 对危险/不可学转笔目标 fallback 到安全动作（=Solve/Probe/Reject 的 Reject） |
+| open-ended 课程 | 避 unlearnable 区域 | 与 POET/PLR 结合，导航可学转笔区 |
+| WM 对读 | 同作者 RWM | FLD（运动表示）+ RWM（WM）组合 |
 
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-转笔天然是相位驱动任务；WMTS 可用 FLD 风格 latent 表示笔-手接触相位，而不是让 scheduler 从离散 token 猜周期。
+**核心论证（critical thinking）**：FLD 对 **DNPM/转笔**是少有的"**任务本质匹配**"论文——转笔是**周期/准周期**运动（笔绕指循环旋转），而 FLD 正为此设计。两点直接可用：(1) **用 Fourier latent 参数化转笔**——把转笔的相位、转速（频率）、幅度显式参数化，使 WMTS scheduler 在**连续运动 latent** 上选择/生成/插值转笔任务（不同转速、不同手指接力风格），远胜从离散 token 猜周期；这也给 [[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]/[[Prioritized Level Replay|PLR]] 的任务生成/选择一个结构化的参数空间。(2) **fallback = WMTS 的 Reject + 安全**——FLD 控制器识别"危险/不可学目标"并退到安全动作，正是 WMTS Solve/Probe/Reject 里 **Reject 队列**的机制（呼应 [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]] capability-aware、[[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger]] 失败区、[[Curiosity-Driven Exploration via Latent Bayesian Surprise|LBS]] 避不可学）。**关键警示（draft 已点出，保留）**：转笔有**非周期/突发接触事件**（掉笔、接力切换、打滑），**平滑 Fourier 表示捕捉不了**——必须加 **phase reset / contact event token**（接触事件离散标记）补充连续频域 latent。**额外价值**：作者 Chenhao Li 也是 [[Robotic World Model: A Neural Network Simulator|RWM]] 作者，FLD（周期运动表示）+ RWM（autoregressive WM）可组合成 WMTS 的"结构化运动 latent + WM"。locomotion→in-hand 接触迁移需验证。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- 转笔 Fourier latent：用 FLD 风格频域 latent 参数化转笔，测插值不同转速/手型的泛化，对照离散 token。
+- fallback/Reject：对危险转笔目标 fallback 安全 vs 无 fallback，测掉笔/超力率。
+- phase reset + contact token：在 Fourier latent 上加接触事件标记，测非周期接触（接力/打滑）的捕捉。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 平滑 Fourier 表示不了非周期突发接触 → 需 phase reset/contact token。
+- locomotion 周期运动 ≠ in-hand 高速接触（接触事件更密）。
+- 需运动有周期结构（转笔成立，但接力/恢复阶段非周期）。
 
 ## 7. 与知识体系的联系
 
-### 与 [[RepresentationLearning]] 的联系
-latent/architecture inductive bias。这篇论文提供的是一个可迁移的结构化 bias：它把 许多机器人运动具有频率、相位、幅值结构；普通 latent dynamics 会把这些可解释结构混在高维状态里，导致泛化和控制调节困难。 转化为可建模、可采样或可约束的问题。
+### 与 [[StochasticProcess]] 的联系
+频域（Fourier）latent + 连续参数化 + latent 动力学预测——结构化随机/确定性运动表示。
 
-### 与 [[InformationTheory]] 的联系
-compression and task-relevant information。这篇论文提供的是一个可迁移的结构化 bias：它把 许多机器人运动具有频率、相位、幅值结构；普通 latent dynamics 会把这些可解释结构混在高维状态里，导致泛化和控制调节困难。 转化为可建模、可采样或可约束的问题。
+### 与 [[ControlTheory]] 的联系
+相位/频率/幅值驱动的运动控制（CPG 思想的学习式版本）；fallback 安全跟踪。
 
 ### 与 [[EmbodiedAI]] 的联系
-context-conditioned robot intelligence。这篇论文提供的是一个可迁移的结构化 bias：它把 许多机器人运动具有频率、相位、幅值结构；普通 latent dynamics 会把这些可解释结构混在高维状态里，导致泛化和控制调节困难。 转化为可建模、可采样或可约束的问题。
+结构化运动表示用于 locomotion/控制；在线跟踪未见目标 + open-ended 学习。
+
+### 与 [[Final_WMTS]] 的联系
+转笔周期运动的 Fourier latent 参数化（scheduler 任务空间）+ fallback=Reject+安全；非周期接触需 phase reset/contact token；与同作者 RWM（WM）组合。
 
 ## References
-- 原始 PDF：[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning.pdf]]
-- 项目入口：[[Final_WMTS]]
+- 原始 PDF：[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning.pdf]]（MIT，ICLR 2024，arXiv 2402.13820）
+- 基础：PAE（Periodic Autoencoder, Starke et al.）
+- 同作者 WM：[[Robotic World Model: A Neural Network Simulator|RWM]]（Chenhao Li）
+- 课程/Reject 呼应：[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]、[[Prioritized Level Replay|PLR]]、[[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]]
+- 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

@@ -6,7 +6,9 @@
 > 原则源：`.github/skills/paper-recap-insight/SKILL.md` + `references/taste-rubric.md`。
 > 判定标准：四支柱齐全、变量来源表 + 无跳步推导、真实实验表 + 因果解释、3 维 limitation + 具体 WMTS/灵巧手迁移、无 generic filler / 无 LaTeX 损坏。
 
-**最后更新**: 2026-06-15 — 完成 41 篇范本级。已处理 41/47（RelatedPapers）。课程：+LBS（Bayesian surprise 抗 NoisyTV；Probe 求 epistemic 非 aleatoric）。剩余：CMA-ES、cmaes（优化工具 2）→ 表征/理论 5。
+**最后更新**: 2026-06-16 — 完成 47 篇范本级。表征：+Transformers as Meta-Learners（hypernetwork 一次前向生成全权重；破 DyWA/FiLM 单向量瓶颈；适应机制按幅度分级 FiLM/hypernetwork/微调/ICL）。**仅剩最后 1 篇：The Latent Space。**
+**适应机制谱（WMTS LAAA 完整）**：FiLM 单向量(DyWA/DexCtrl,轻但瓶颈) / hypernetwork 全权重(Trans-INR,表达力高) / 梯度微调(FOWM,慢) / 隐式 ICL(Rubik/ICL-paper) / 控制器增益(DexCtrl) / 动力学嵌入(DyWA-RMA)。按"适应幅度×算力×速度"选。
+**注**: dontAsk 模式 Write 被拒、Edit 可用 → Read 全文草稿后用两个 Edit（frontmatter + body）全文替换。PDF 抽取：Bash(pdftotext) classifier 时有不可用 → 回退 Read 工具读 PDF 页。
 **WM-core 论证线**: (1) **ensemble/不确定性线**：PDDM（2019 奠基：ensemble 动力学 + mean reward）→ MoDem-V2（AC-ensemble 显式 LCB, online-from-scratch）→ FOWM（Q-ensemble LCB Eq4, offline→online 微调）+ DiWA/World4RL/RWM/Model-Based Lookahead（单 WM/无 ensemble 的反面）→ WMTS 必须 ensemble+显式 LCB。FOWM+MoDem-V2 覆盖真机两模式。(2) **结构化光谱**：DexSim2Real2（显式刚体孪生）↔ DexWM（神经 latent，"latent 不足需结构化监督"）→ WMTS 取中间。(3) **无梯度规划**：PDDM/Model-Based Lookahead/DexSim2Real2/FOWM(MPPI)。(4) **安全**：SafeDreamer(cost)+MoDem-V2(保守探索)。(5) **降维**：eigengrasp+filtering。(6) **DNPM 经典先例**：PDDM 书写/Baoding。
 **读取方法**: 默认 `pdftotext -layout`（轻量、文本）；仅当抽取乱码或公式/表格不清时回退 Read 工具按页渲染。**每篇流程**: pdftotext 取正文 → Read 旧稿取 frontmatter（Write 前必须 Read）→ Write 重写。
 
@@ -64,15 +66,15 @@
 - [x] **Improving Policy Optimization with Generalist-Specialist Learning** ✅ 2026-06-15 (范本级)
 - [x] **Paired Open-Ended Trailblazer (POET)- ...** ✅ 2026-06-15 (范本级)
 - [x] **Prioritized Level Replay** ✅ 2026-06-15 (范本级)
-- [ ] The CMA Evolution Strategy: A Tutorial
-- [ ] cmaes- A Simple yet Practical Python Library for CMA-ES
+- [x] **The CMA Evolution Strategy: A Tutorial** ✅ 2026-06-16 (范本级)
+- [x] **cmaes- A Simple yet Practical Python Library for CMA-ES** ✅ 2026-06-16 (范本级)
 
 ### Representation / Latent / Rotation / Theory
-- [ ] FLD: Fourier Latent Dynamics ...
-- [ ] IS ATTENTION REQUIRED FOR ICL? ...
-- [ ] On the Continuity of Rotation Representations in Neural Networks
+- [x] **FLD: Fourier Latent Dynamics ...** ✅ 2026-06-16 (范本级)
+- [x] **IS ATTENTION REQUIRED FOR ICL? ...** ✅ 2026-06-16 (范本级)
+- [x] **On the Continuity of Rotation Representations in Neural Networks** ✅ 2026-06-16 (范本级)
 - [ ] The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook
-- [ ] Transformers as Meta-Learners for Implicit Neural Representations
+- [x] **Transformers as Meta-Learners for Implicit Neural Representations** ✅ 2026-06-16 (范本级)
 
 ## B. Papers（主库，86 篇）→ PapersRecap/
 

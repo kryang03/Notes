@@ -4,12 +4,13 @@ tags:
   - optimization
   - evolution-strategy
   - cma-es
+  - black-box-optimization
   - WMTS
 aliases:
   - CMA-ES Tutorial
 paper-year: 2016
-read-date: 2026-06-14
-venue: arXiv tutorial
+read-date: 2026-06-16
+venue: arXiv 1604.00772 tutorial (Nikolaus Hansen, Inria)
 paper-pdf: "[[The CMA Evolution Strategy: A Tutorial.pdf]]"
 related:
   - "[[Optimization]]"
@@ -21,158 +22,134 @@ related:
 # The CMA Evolution Strategy: A Tutorial
 
 > [!abstract] 核心贡献
-> CMA-ES 的核心是用搜索分布的均值、协方差和步长自适应来优化黑箱目标；它不是随机试错，而是在样本排名中估计局部二阶结构。
+> Hansen 的权威教程，系统讲 **CMA-ES（Covariance Matrix Adaptation Evolution Strategy）**——最强的**无梯度黑箱优化器**之一。核心：从多元正态 $\mathcal N(m,\sigma^2 C)$ 采样候选 → 选最优 $\mu$ 个、加权重组**移动均值 $m$** → **自适应协方差 $C$**（rank-$\mu$ 从当前种群估 + rank-one 用 evolution path/cumulation 累积成功方向）→ **自适应步长 $\sigma$**（共轭 evolution path）。$C$ 渐近**逼近目标函数 Hessian 的逆**，使其在**病态、非凸、不可分**问题上高效且对旋转/缩放不变。**对 WMTS：CMA-ES 是多处现成的无梯度优化器——(1) WM 内 CEM/MPC 规划（采样动作序列、协方差自适应，胜 random shooting/MPPI）；(2) sim 参数/超参/reward 系数优化；(3) 课程/任务分布优化。无梯度性正合接触不可微。**
 
 > [!tip] 与理论基础的关联
-> - [[Optimization]] — black-box stochastic search
-> - [[StochasticProcess]] — sampling distribution adaptation
-> - [[ReinforcementLearning]] — policy/task parameter search
+> - [[Optimization]] — 无梯度黑箱优化；协方差自适应 ≈ 二阶信息（逆 Hessian）。
+> - [[StochasticProcess]] — 多元正态采样；evolution path（累积随机步）。
+> - [[ReinforcementLearning]] — 策略/规划的无梯度优化器（CEM/MPC/ES 基础）。
+> - [[Final_WMTS]] — **WM 内规划 + sim 参数/课程优化的无梯度工具**；接触不可微宜无梯度。
+>
+> **核心技术**: 多元正态采样, 加权重组移动均值, rank-$\mu$ + rank-one 协方差自适应, evolution path/cumulation, 步长 $\sigma$ 控制, 不变性, 逆 Hessian 逼近
 
-## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
+## 0. 阅读定位与价值（工具/参考）
 
-它在当前知识库中的角色是：WMTS 可用 CMA-ES 搜索 task generator 参数、课程边界或 residual model 超参，尤其适合不可微真机评价。
+> [!note] 这是优化器教程，非机器人/WM 方法
+> CMA-ES 教程是**数学工具**，对 WMTS 的价值是**提供无梯度优化器**给规划与参数搜索。它是 [[cmaes- A Simple yet Practical Python Library for CMA-ES|cmaes 库]] 的算法，也是 [[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]] 的 ES、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] 的 iCEM、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] 的 MPPI 的"更强协方差自适应版"。
 
-## 1. 问题设定与动机
+读它要抓 **CMA-ES 为何强**：不像 random shooting/固定协方差 CEM 盲采，而是**学搜索分布的形状（协方差 ≈ 逆 Hessian）**，对病态高维（灵巧手高 DOF 动作空间）高效。
+
+## 1. 问题设定与价值（逻辑与价值）
 
 ### 1.1 一句话核心
-很多机器人任务生成/参数搜索不可微、噪声大、评价昂贵；梯度方法不可用或不可靠。
+黑箱优化：只能查询 $f(x)$、无梯度。CMA-ES 用不断自适应的多元正态分布采样-选择-更新，**自动学景观局部形状（协方差）与步长**，病态非凸不可分上远胜随机/固定协方差法。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+random shooting 像"各方向等概率乱撒点"——病态山谷（一陡一缓）极差。CMA-ES 像"边找边学山谷形状（协方差）、把采样椭球对齐走向、自动调步长"——缓方向大步、陡方向小步。可证伪含义：协方差自适应收益在"**病态/不可分/非凸**"最大；各向同性良态差距小。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| 梯度下降 | 可微 + 梯度 | 不可微/黑箱不适用 |
+| Random shooting | 均匀采样 | 病态高维灾难 |
+| 固定协方差 CEM | elite 更新均值/方差（对角） | 不学相关/形状 |
+| 参数空间 ES | 高斯扰动 | 不学景观形状 |
+| **CMA-ES** | **协方差 + 步长自适应（≈逆 Hessian）** | $O(n^2)$ 高维成本 |
 
 ### 1.4 Delta 分析
-通过更新高斯搜索分布 $N(m, \sigma^2 C)$，协方差矩阵会逐渐对齐目标函数的有效方向，从而在黑箱空间中形成自然坐标系。
+把 ES 协方差自适应讲清：(1) **rank-$\mu$**（从 $\mu$ 个 elite 步最大似然估协方差）；(2) **rank-one + cumulation**（evolution path 累积连续步方向）；(3) **步长 $\sigma$ 控制**（共轭 path）；(4) **不变性**（旋转/单调/缩放）。
 
-## 2. 核心方法与理论
+## 2. 核心方法（原理与方法：采样-重组-自适应）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度 | 来源 | 性质 | 意义 | 陷阱 |
 |---|---|---|---|---|---|
-| $m$ | search mean | CMA-ES state | computed | current best distribution center | not necessarily best sample |
-| $C$ | covariance matrix | rank updates | computed | learned search geometry | sample cost grows with dimension |
-| $\sigma$ | global step size | path adaptation | computed | exploration scale | too small premature convergence |
-| $x_i$ | candidate parameters | sampling | chosen/evaluated | policy/task params | black-box evaluation noise |
-| $f(x_i)$ | fitness | environment/evaluator | observed | ranking signal | scale ignored in rank-based update |
+| $m$ | 搜索均值 | CMA-ES 状态 | computed | 分布中心 | 不一定是最优样本 |
+| $C$ | 协方差矩阵 | rank 更新 | computed | 学到的搜索几何 | $O(n^2)$ |
+| $\sigma$ | 全局步长 | path 自适应 | computed | 探索尺度 | 太小早收敛 |
+| $x_i$ | 候选参数 | 采样 | 评估 | 策略/任务参数 | 黑箱评估噪声 |
+| $f(x_i)$ | 适应度 | 评估器 | observed | 排序信号 | rank-based 忽略尺度 |
+| $p_c,p_\sigma$ | evolution path | cumulation | computed | 累积步方向 | 协方差/步长各一条 |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 算法循环（无跳步）
+每代 $g$：
+1. **采样**：$x_k\sim m^{(g)}+\sigma^{(g)}\mathcal N(0,C^{(g)})$。
+2. **选择+重组**：取最优 $\mu$，加权 $m^{(g+1)}=\sum_i w_i x_{i:\lambda}$。
+3. **协方差自适应**：rank-$\mu$（$C\leftarrow(1-c_\mu)C+c_\mu\sum_i w_i y_iy_i^T$）+ rank-one（$+c_1 p_c p_c^T$，cumulation）。
+4. **步长控制**：共轭 path $p_\sigma$ 长度 vs 期望 → 调 $\sigma$。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
-
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 从当前分布采样候选参数。
-- 按任务回报/适应度排序样本。
-- 更新均值、演化路径、协方差和全局步长。
-
-从黑箱优化角度看，CMA-ES 维护的是搜索分布而不是单点参数：
-$$
-x_i = m + \sigma \mathcal{N}(0,C),
-\quad m \leftarrow \sum_i w_i x_{i:\lambda},
-\quad C \leftarrow \text{rank-one/rank-}\mu\text{ update}
-$$
-排序后的样本决定均值移动方向，演化路径决定步长和协方差更新。它的关键 insight 是用采样分布学习搜索坐标系，因此适合不可微、噪声大、评价昂贵的机器人参数搜索。
+### 2.3 为什么有效
+(1) $C\propto$ 逆 Hessian → 病态预条件；(2) cumulation 降噪加速；(3) 步长/方向分离自适应；(4) 不变性鲁棒少调参。
 
 ### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+- $C$ 学**形状**（相关性），对角 CEM 不学。
+- evolution path = 累积步（cumulation）。
+- $\sigma$ 与 $C$ 分开自适应。
+- 高维 $O(n^2)$ → 需低秩/对角变体。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：通过更新高斯搜索分布 $N(m, \sigma^2 C)$，协方差矩阵会逐渐对齐目标函数的有效方向，从而在黑箱空间中形成自然坐标系。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+## 3. 验证（教程性质）
+- 不做新实验，但 CMA-ES 是黑箱优化基准长期 SOTA（病态非凸不可分）。
+- 不变性 + 协方差自适应是鲁棒高效的理论支撑。
+- 边界：高维成本；超参（$\lambda,\mu,c_*$，有良好默认）。
 
-## 3. 训练、数据与实验
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-### 3.1 PDF 结构线索
-- 0     Preliminaries                                                                           3
-- 1     Basic Equation: Sampling                                                                8
-- 2     Selection and Recombination: Moving the Mean                                           8
-- 3     Adapting the Covariance Matrix                                                         10
-- 4     Step-Size Control                                                                      19
-- 5     Discussion                                                                             22
-- 0       Preliminaries
-- 0.1     Eigendecomposition of a Positive Definite Matrix
+### 4.1 真正的 insight
+**无梯度优化可通过自适应多元正态采样分布（协方差≈逆 Hessian + 自适应步长 + cumulation）达近二阶效率、对问题变换不变——病态非凸不可分黑箱上远胜随机/固定协方差。** 一句话：**学搜索分布的形状与步长，无梯度也能高效。**
 
-### 3.2 关键结果与证据
-教程价值在于推导 invariance、rank-based update、step-size control 和 covariance adaptation。
+### 4.2 为什么有效
+协方差≈逆 Hessian 预条件 + cumulation 降噪 + 步长/方向分离 + 不变性。
 
-- PDF 线索：p ∈ Rn , evolution path, a sequence of successive (normalized) steps, the strategy takes over
-- PDF 线索：for any full rank n × n-matrix A we find a positive definite Hessian such that 21 (Ax)T Ax =
-- PDF 线索：setting (compare Table 1 in Appendix A), −m(g) cancels out m(g) , and Equations (9) and (6)
-- PDF 线索：by exploiting dependencies between successive steps applying cumulation (Sect. 3.3.2). Fi-
-- PDF 线索：reproduce selected, i.e. successful steps, giving a justification for what a “better” covariance
-- PDF 线索：weights as defined in Table 1 in Appendix A are somewhere in between these two propos-
+### 4.3 局限
+- 高维 $O(n^2)$（需低秩变体）。
+- 极高维/极多模态难。
+- 黑箱（不用可得梯度）。
 
-### 3.3 Ablation 因果链
-只更新均值 -> 无法学习变量相关性；固定协方差 -> 在病态 landscape 上低效；rank update 提供尺度不变鲁棒性。
+## 5. 替代方案与局限（未来与结合）
+- 无梯度规划谱：random shooting < CEM（固定协方差）< MPPI（[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]）< iCEM（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]）< **CMA-ES（协方差自适应）**。
+- 实现：[[cmaes- A Simple yet Practical Python Library for CMA-ES|cmaes 库]]。
 
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+## 6. 对用户研究的启发（未来与结合）
 
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+### 6.1 对 WMTS / DNPM 的迁移
 
-## 4. 核心洞见
+| WMTS 用途 | CMA-ES 角色 | 设计 |
+|---|---|---|
+| **WM 内 CEM/MPC 规划** | 无梯度动作序列优化 | 协方差自适应选 chunk，胜 random shooting/MPPI（病态高 DOF） |
+| sim 参数/超参优化 | 黑箱优化 | 结构化 WM 物理参数、reward 系数、actuator net 超参 |
+| 课程/任务分布 | ES | 优化任务分布参数（配 POET/PLR） |
+| 高 DOF 降维 | 低维 CMA-ES | 配 eigengrasp 降维使 $O(n^2)$ 可行 |
 
-### 4.1 论文真正的 insight
-通过更新高斯搜索分布 $N(m, \sigma^2 C)$，协方差矩阵会逐渐对齐目标函数的有效方向，从而在黑箱空间中形成自然坐标系。
-
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
-
-### 4.3 什么时候会失效
-CMA-ES 样本成本随维度上升；对高维动作序列，应先降维到技能/latent 参数。
-
-## 5. 替代方案与理论局限
-
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
-
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
-
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
-
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 可用 CMA-ES 搜索 task generator 参数、课程边界或 residual model 超参，尤其适合不可微真机评价。
+**核心论证（critical thinking）**：CMA-ES 对 WMTS 是**现成无梯度优化器工具**，恰合 WMTS **接触不可微 → 无梯度采样优化**（与 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] MPPI、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] iCEM 同源，但**协方差自适应**在病态高 DOF 更高效）。三处可用：WM 内 chunk 选择规划（胜 random shooting）、sim 参数/超参/reward 黑箱调优、课程/任务分布优化。**关键权衡**：$O(n^2)$ 在 21-DOF×horizon 动作序列上贵 → 配 **eigengrasp（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]）降维**或低秩 CMA-ES 变体。**定位**：工具非方法，取作规划/优化引擎，不"迁移"概念。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- WM 规划优化器对比：转笔 chunk 选择 CMA-ES vs MPPI vs random shooting，测收敛/成功率。
+- eigengrasp + CMA-ES 降维规划可行性。
+- CMA-ES 优化结构化 WM 物理参数 vs 手调。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- 高维协方差成本 → 降维/低秩。
+- 工具非方法，不解决 WM/策略本身。
+- 有可信梯度时一阶法更优（但接触不可微下无梯度是优势）。
 
 ## 7. 与知识体系的联系
 
 ### 与 [[Optimization]] 的联系
-black-box stochastic search。这篇论文提供的是一个可迁移的结构化 bias：它把 很多机器人任务生成/参数搜索不可微、噪声大、评价昂贵；梯度方法不可用或不可靠。 转化为可建模、可采样或可约束的问题。
+无梯度黑箱优化标杆；协方差自适应 ≈ 逆 Hessian 预条件；不变性。
 
 ### 与 [[StochasticProcess]] 的联系
-sampling distribution adaptation。这篇论文提供的是一个可迁移的结构化 bias：它把 很多机器人任务生成/参数搜索不可微、噪声大、评价昂贵；梯度方法不可用或不可靠。 转化为可建模、可采样或可约束的问题。
+多元正态采样分布自适应；evolution path = 累积随机步（cumulation）。
 
 ### 与 [[ReinforcementLearning]] 的联系
-policy/task parameter search。这篇论文提供的是一个可迁移的结构化 bias：它把 很多机器人任务生成/参数搜索不可微、噪声大、评价昂贵；梯度方法不可用或不可靠。 转化为可建模、可采样或可约束的问题。
+策略/规划的无梯度优化器（CEM/MPC/ES/POET 的算法基础）。
+
+### 与 [[Final_WMTS]] 的联系
+WM 内规划 + sim 参数/课程优化的无梯度工具；接触不可微宜无梯度；配 eigengrasp 降维控成本。
 
 ## References
-- 原始 PDF：[[The CMA Evolution Strategy: A Tutorial.pdf]]
+- 原始 PDF：[[The CMA Evolution Strategy: A Tutorial.pdf]]（Hansen，Inria，arXiv 1604.00772）
+- 实现：[[cmaes- A Simple yet Practical Python Library for CMA-ES|cmaes 库]]
+- 无梯度规划同族：[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]、[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]
 - 项目入口：[[Final_WMTS]]
