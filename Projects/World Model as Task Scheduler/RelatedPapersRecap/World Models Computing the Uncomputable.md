@@ -3,165 +3,120 @@ tags:
   - paper
   - world-model
   - conceptual
+  - vision-essay
   - WMTS
 aliases:
   - World Models Essay
-paper-year: 2024
-read-date: 2026-06-14
-venue: essay
+  - Computing the Uncomputable
+paper-year: 2025
+read-date: 2026-06-15
+venue: 业界愿景随笔 (General Intuition; co-written w/ Pim De Witte)
 paper-pdf: "[[World Models Computing the Uncomputable.pdf]]"
 related:
   - "[[EmbodiedAI]]"
-  - "[[RepresentationLearning]]"
   - "[[ReinforcementLearning]]"
   - "[[Final_WMTS]]"
 ---
 
-# World Models Computing the Uncomputable
+# World Models: Computing the Uncomputable（愿景随笔）
 
-> [!abstract] 核心贡献
-> 这篇文章从概念层面强调 world model 的本质：用有限可计算的内部模拟近似外部世界中不可完全枚举的未来。
+> [!abstract] 核心贡献（一篇随笔，非研究论文）
+> 这是一篇**业界愿景随笔**（General Intuition，与 Pim De Witte 合写），不是研究论文——**无方法、无实验、无公式推导**。它的价值是一个有力的**概念框架**：World Model 把"动态、难以大规模仿真的情形（如模拟整座球场上千人的随机群体行为，传统引擎 O(N)~O(N²)）"压缩成神经网络的**一次固定成本前向**，即"**computing the uncomputable**"；而把 WM 与 video model 区分开的关键是 **action**——video model 被动预测下一帧 $P(x_{t+1}\mid x_t)$（像旁观的梦），World Model 按干预预测下一状态 $P(s_{t+1}\mid s_t,a_t)$（像可塑造剧情的清醒梦）。**对 WMTS，它只在"动机/框架"层面有用（为什么用 WM、动作条件化、实时恒定成本对高频控制的意义），绝不能当技术证据引用——它是有推广意图的愿景文，作者自己都承认 WM 定义尚不清晰、炒作将至。**
 
 > [!tip] 与理论基础的关联
-> - [[EmbodiedAI]] — world model as embodied intelligence substrate
-> - [[RepresentationLearning]] — state abstraction and latent structure
-> - [[ReinforcementLearning]] — planning and policy learning
+> - [[EmbodiedAI]] — WM 作为物理世界控制的路径；"观察-计算-决策-行动"的具身循环。
+> - [[ReinforcementLearning]] — 动作条件化 $P(s_{t+1}\mid s_t,a_t)$ 是 MDP 转移核的本质。
+> - [[Final_WMTS]] — **仅供 WMTS 动机段引用**：action-conditioned WM、固定成本实时推理；不作技术依据。
+>
+> **核心论点**: Action-conditioned 预测 $P(s_{t+1}\mid s_t,a_t)$ vs video $P(x_{t+1}\mid x_t)$；固定成本前向"算不可算"；WM 作为新基础模型类别（>LLM for 空间时序）
 
-## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
+## 0. 阅读定位与范本价值（含文体判定）
 
-它在当前知识库中的角色是：WMTS 的 world model 不必生成完整视觉世界，只需预测转笔任务的关键因果变量：姿态、速度、接触、可恢复性和执行成本。
+> [!warning] 这是愿景随笔，不是论文
+> 本文是公司愿景文（General Intuition），**无方法/实验/可证伪结果**，含融资与行业站队叙事（LeCun AMI $1.03B、Fei-Fei Li World Labs $1B+、DeepMind、NVIDIA Jim Fan）。作者自承"WM 定义尚不清晰""六个月内人人自称 World Model 公司"。因此本 recap 的首要任务是**文体判定 + 批判隔离**：把可用的概念框架抽出来，明确它不能作技术证据。
 
-## 1. 问题设定与动机
+它在知识库里的角色：**WMTS 动机段的措辞与直觉来源**——"为什么 WM 能做传统仿真做不到的事""动作为什么是关键"。技术上一切回到已 recap 的真论文（[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]/[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]] 等）。
+
+## 1. 核心论点与价值（逻辑与价值）
 
 ### 1.1 一句话核心
-如果把 world model 理解成“完整复制世界”，会落入不可计算陷阱；机器人需要的是任务相关的、可行动的近似。
+传统引擎仿真复杂场景成本随复杂度爆炸（O(N)~O(N²)）、耗时不可预测；机器人却必须在**恒定时间内**响应任意复杂场景。World Model 把"难仿真的动态"吸收进网络权重，推理时是**固定成本前向**——于是"算不可算"，且实时性对机器人成立。
 
-### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+### 1.2 关键概念（值得 WMTS 借的三点）
+1. **Action 作为压缩**：动作携带足够信息去 unroll 未来状态，直到下一动作更新——这把"显式模拟每个交互"换成"动作条件化的一步预测"。
+2. **固定成本实时推理**：场景再复杂，前向 pass 成本不变——对高频灵巧控制（CAN 1Mbps、毫秒级）这是真需求。
+3. **video vs world 的区分**：$P(x_{t+1}\mid x_t)$（被动旁观梦）vs $P(s_{t+1}\mid s_t,a_t)$（可干预清醒梦）——$a_t$ 是分界。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 论点的可疑处（critical thinking）
+- "固定成本"≠"准确"：前向成本恒定，但**预测精度**在 OOD/复杂接触处仍崩（这正是 ensemble/不确定性要解决的，随笔避而不谈）。
+- "算不可算"是修辞：WM 不是计算不可计算函数，而是用学习的摊销近似替代显式仿真——**近似有误差**（model-exploitation），随笔不提。
+- 行业叙事 + 融资信号 ≠ 科学证据。
 
-### 1.4 Delta 分析
-世界模型的价值来自压缩和选择：保留会影响行动后果的因果结构，舍弃对当前目标无关的细节。
+### 1.4 Delta（相对真 WM 论文）
+本文**没有方法增量**；它的"增量"是把 WM 的价值主张用直觉语言讲清楚（imagination 恒定成本、动作条件化、新基础模型类别）。技术内容是对 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]] 系 $P(s_{t+1}\mid s_t,a_t)$ 的通俗复述。
 
-## 2. 核心方法与理论
+## 2. 概念框架（原理与理论 → 概念，无方法）
 
-### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
-|---|---|---|---|---|---|
-| $s,a,o$ | state/action/observation | paper taxonomy | conceptual | world model interface | definitions differ by field |
-| $\hat f$ | predictive model | taxonomy | learned | simulated future | usefulness depends on downstream decision |
-| $H$ | prediction/planning horizon | method design | fixed/chosen | how far model is trusted | long horizon accumulates error |
-| $U$ | utility/reward/task metric | evaluation | computed | control relevance | prediction metric may mismatch utility |
-
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
-
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
-
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 把外部世界压缩为内部状态。
-- 在内部状态上模拟行动后果。
-- 用模拟结果选择下一步行动，并用真实反馈修正模型。
-
-从综述/概念角度看，这篇论文不应被读成单一算法，而应被读成分类坐标系：
+唯一的"公式"是两个对比表达：
 $$
-\text{World Model} = (\text{state abstraction},\text{action interface},\text{prediction horizon},\text{decision use})
+\text{Video model（被动）: } P(x_{t+1}\mid x_t),\qquad \text{World model（干预）: } P(s_{t+1}\mid s_t,a_t).
 $$
-对 WMTS 来说，最重要的问题不是“是否叫 world model”，而是这个模型的预测是否会改变任务调度、动作筛选和安全判断。
+其余是类比（清醒梦 vs 普通梦、球场上千人模拟、人类恒定努力想象）。**无 latent 结构、无训练目标、无规划算法**——这些都在真论文里。故本节只记录：本文把"动作条件化"和"固定成本想象"作为 WM 的定义性特征，与库内 Dreamer/PDDM 的 $P(s'\mid s,a)$ 一致，但**不提供如何学准、如何抗误差**。
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+## 3. 证据状态（实验与验证 → 诚实记账）
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：世界模型的价值来自压缩和选择：保留会影响行动后果的因果结构，舍弃对当前目标无关的细节。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+> [!important] 无实验、无可证伪结论
+> 本文不含任何实验、benchmark、消融或定量结果。其"证据"是**行业信号**（巨额融资、知名人物背书）与**直觉类比**。按知识库标准，这**不构成技术验证**。任何关于 WM 性能/可行性的主张，须回到 [[A Step Toward World Models- A Survey on Robotic Manipulation|综述]] 与单篇实证（[[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]] 的 FVD、[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]] 的真机成功率等）。
 
-## 3. 训练、数据与实验
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-### 3.1 PDF 结构线索
-- PDF 文本抽取未稳定识别章节标题；需要人工读图/附录时再补。
+### 4.1 真正可取的 insight
+**WM 相对传统仿真的本质优势是"把难仿真的动态摊销进权重，换取推理时的固定成本与实时性"，而动作条件化 $P(s_{t+1}\mid s_t,a_t)$ 是它区别于被动 video model 的定义性特征。** 这两点是 WMTS 动机段的好措辞。
 
-### 3.2 关键结果与证据
-概念性文章不提供标准实验，适合作为 WMTS 的问题定义哲学背景。
+### 4.2 为什么这个框架有传播力
+用清醒梦 vs 普通梦、球场模拟等强类比，把抽象的 model-based 价值讲得直觉化；点出实时恒定成本这一机器人真痛点。
 
-- PDF 线索：The world is a place where unexpected futures unfold, but in somewhat predictable ways. As
-- PDF 线索：In robotics, machines must respond to situations in the real world in the same amount of time, regardless of
-- PDF 线索：This action-conditioned approach allows models to learn and plan interactively. Today, this is intractable in
-- PDF 线索：even the best simulation engines, and definitely not at predictable compute costs. Actions help models
-- PDF 线索：This ability to compute the uncomputable is why we believe World Models will unlock progress in
-- PDF 线索：The real world is different. It responds to what you do or instruct to do, and predicts the full range of things
+### 4.3 它回避/失效的地方
+- 精度与 model-exploitation：固定成本不保证准确，随笔完全不提（而这是 WMTS 的核心难题）。
+- 接触/触觉/灵巧高速：完全未涉及。
+- 定义模糊 + 炒作：作者自承。
 
-### 3.3 Ablation 因果链
-追求完整预测 -> 计算和数据不可承受；只保留奖励相关预测 -> 可能忽略安全和恢复性；需要任务相关但不短视的抽象。
+## 5. 局限与替代（未来与结合）
+- **作为引用**：仅可在 WMTS"动机/愿景"段引为直觉，**不可**作方法/性能依据。
+- **替代来源**：技术主张一律改引综述 + 单篇实证（[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]/[[Finetuning Offline World Models in the Real World|FOWM]]/[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]）。
+- **批判保留**：固定成本 ≠ 准确；"算不可算"是修辞而非计算理论。
 
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+## 6. 对用户研究的启发（未来与结合）
 
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+### 6.1 对 WMTS 的（有限）用处
+| 用途 | 可取处 | 注意 |
+|---|---|---|
+| 动机段措辞 | "固定成本实时推理""动作条件化""算不可算" | 标注为愿景，不引为证据 |
+| 实时性论证 | 高频灵巧控制需恒定成本前向 | 但需配 ensemble 保精度 |
+| video vs world 区分 | $a_t$ 是分界 | 与 [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]] 的 NWM/PEVA 对照一致 |
 
-## 4. 核心洞见
+**核心论证（critical thinking）**：这篇随笔对 WMTS 的真正用处只有一处——**给"为什么用 World Model"提供有力的直觉措辞**（固定成本实时推理、动作条件化、清醒梦类比）。但它系统性回避了 WMTS 的**全部核心难题**：精度、model-exploitation、接触/触觉、不确定性。换言之，**它讲的是 WM 的"卖点"，WMTS 要解决的是 WM 的"难点"**。把它放进知识库的正确方式是：动机段可引其直觉，但任何技术决策都必须由真论文（ensemble-LCB、结构化物理、autoregressive 训练）支撑。**它也是一面镜子**：提醒我在 WMTS 论文里**不要落入同样的修辞陷阱**——不要用"算不可算"这类口号代替"在转笔上 WM 预测误差多大、ensemble 如何抑制 model-exploitation"的硬证据。
 
-### 4.1 论文真正的 insight
-世界模型的价值来自压缩和选择：保留会影响行动后果的因果结构，舍弃对当前目标无关的细节。
+### 6.2 可行动项
+- WMTS 动机段：可借"固定成本实时推理 + 动作条件化"一句，立即接真论文证据。
+- 自检清单：凡 WMTS 文稿出现 WM 价值主张，确保有单篇实证支撑，不止愿景。
 
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
-
-### 4.3 什么时候会失效
-哲学概念不能替代工程验证；每个抽象都要用真机失败案例校验。
-
-## 5. 替代方案与理论局限
-
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
-
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
-
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
-
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 的 world model 不必生成完整视觉世界，只需预测转笔任务的关键因果变量：姿态、速度、接触、可恢复性和执行成本。
-
-### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
-
-### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+### 6.3 不应做的事
+- 不引本文作性能/可行性证据。
+- 不沿用"算不可算"等修辞替代定量分析。
 
 ## 7. 与知识体系的联系
 
 ### 与 [[EmbodiedAI]] 的联系
-world model as embodied intelligence substrate。这篇论文提供的是一个可迁移的结构化 bias：它把 如果把 world model 理解成“完整复制世界”，会落入不可计算陷阱；机器人需要的是任务相关的、可行动的近似。 转化为可建模、可采样或可约束的问题。
-
-### 与 [[RepresentationLearning]] 的联系
-state abstraction and latent structure。这篇论文提供的是一个可迁移的结构化 bias：它把 如果把 world model 理解成“完整复制世界”，会落入不可计算陷阱；机器人需要的是任务相关的、可行动的近似。 转化为可建模、可采样或可约束的问题。
+"观察-计算-决策-行动"的具身循环；WM 作为物理世界控制路径的愿景表达。
 
 ### 与 [[ReinforcementLearning]] 的联系
-planning and policy learning。这篇论文提供的是一个可迁移的结构化 bias：它把 如果把 world model 理解成“完整复制世界”，会落入不可计算陷阱；机器人需要的是任务相关的、可行动的近似。 转化为可建模、可采样或可约束的问题。
+动作条件化 $P(s_{t+1}\mid s_t,a_t)$ 即 MDP 转移核；与 model-based RL 的 $P(s'\mid s,a)$ 一致，但本文不涉及学习/规划算法。
+
+### 与 [[Final_WMTS]] 的联系
+仅供 WMTS 动机段引用（固定成本实时、动作条件化）；技术决策回真论文；亦为反面镜：WMTS 须用硬证据而非口号。
 
 ## References
-- 原始 PDF：[[World Models Computing the Uncomputable.pdf]]
+- 原始 PDF：[[World Models Computing the Uncomputable.pdf]]（General Intuition 愿景随笔）
+- 技术依据改引：[[A Step Toward World Models- A Survey on Robotic Manipulation|综述]]、[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]、[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]
 - 项目入口：[[Final_WMTS]]

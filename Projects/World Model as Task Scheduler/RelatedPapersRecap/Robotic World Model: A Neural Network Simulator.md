@@ -3,178 +3,217 @@ tags:
   - paper
   - world-model
   - neural-simulator
-  - robotics
+  - model-based-rl
+  - legged-robot
+  - sim-to-real
   - WMTS
 aliases:
   - Robotic World Model
+  - RWM
 paper-year: 2025
-read-date: 2026-06-14
-venue: arXiv
+read-date: 2026-06-15
+venue: arXiv 2501.10100 (ETH Zurich, Hutter/Krause 组)
 paper-pdf: "[[Robotic World Model: A Neural Network Simulator.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
   - "[[StochasticProcess]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
 
-# Robotic World Model: A Neural Network Simulator
+# Robotic World Model (RWM): A Neural Network Simulator
 
 > [!abstract] 核心贡献
-> Robotic World Model 把 learned model 明确当作 neural network simulator：目标是替代部分真实/物理仿真 rollout，用于鲁棒策略优化。
+> 学一个**不依赖任何领域归纳偏置**的通用神经网络仿真器，用于部分可观、随机、低层机器人控制，关键是**自监督 autoregressive 训练**（训练时就喂模型自己的预测，而非 teacher-forcing）+ **dual-autoregressive 机制**（内层 GRU 隐状态在 M 步历史上递推、外层把 N 步预测反馈回输入），从而在仅用 N=8 的 forecast horizon 训练下仍能 **稳定 autoregressive rollout 100+ 步**。再用 **MBPO-PPO**（Dyna+PPO，在想象里跑 PPO）训策略，**零样本部署到 ANYmal D 四足与 Unitree G1 人形硬件**。号称首个"在 learned NN simulator 上无领域知识地可靠训练策略并以最小性能损失部署到真机"的框架。**它几乎就是 WMTS 主张的 locomotion 版先例——通用 WM + PPO + 真机、用 PPO（score-function）而非 analytic 梯度——但它靠"训练精度"而非 ensemble/uncertainty 抗 model-exploitation，且是 locomotion 非接触密集灵巧操作。WMTS 的差异化（ensemble+不确定性、结构化接触 WM、调度器角色）正是要补它的不足。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — model-based RL / imagination rollout
-> - [[StochasticProcess]] — latent transition and uncertainty
-> - [[EmbodiedAI]] — robot learning loop
-
-> [!note] PDF 摘要摘录
-> Learning robust and generalizable world models is crucial for enabling efficient and scalable robotic control in real-world environments. In this work, we in- troduce a novel framework for learning world models that accurately capture complex, partially observable, and stochastic dynamics. The proposed method employs a dual-autoregressive mechanism and self-supervised training to achieve reliable long-horizon predictions without relying on domain-specific inductive biases, ensuring adaptability across diverse robotic tasks. We further propose a policy optimization framework that leverages world models for efficient training in imagined environments and seamless deployment in real-world systems. This work advances model-based reinforcement learning by addressing the challenges of long-horizon prediction, error accumulation, and sim-to-real transfer. By providing a scalable and robust fram
+> - [[ReinforcementLearning]] — POMDP；MBPO/Dyna + PPO 混合（model-based imagination + model-free 更新）。
+> - [[ControlTheory]] — 低层连续控制（50Hz 四足/人形）；与 Hutter 组 locomotion 一脉。
+> - [[StochasticProcess]] — WM 预测下一观测的高斯分布（mean/std）；POMDP 部分可观；噪声下 rollout 稳定性。
+> - [[EmbodiedAI]] — collect→train WM→imagine→update policy 的真机数据飞轮；零样本硬件部署。
+> - [[Final_WMTS]] — **WMTS "通用 WM + PPO + 真机" 路线的最近先例**；autoregressive 训练 + 预测 privileged 接触 可直接借；其"靠精度而非 ensemble"是 WMTS 要超越的点。
+>
+> **核心技术**: 自监督 Autoregressive 训练 (Eq 1-2), Dual-Autoregressive (内层 GRU hidden + 外层预测反馈), Gaussian 观测预测, Privileged 接触预测, MBPO-PPO (Eq 3, Algo 1), 100+ 步 rollout
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 可以把 Rigid+Actuator model 看成 specialized robotic world model，重点评价“预测是否改变调度决策”。
+RWM 是知识库里**与 WMTS 主张最像的一篇**：不走 Dreamer 的 latent imagination，而是直接学一个**观测空间**的通用神经仿真器，再把 **PPO** 搬进想象训策略，最后零样本上真机。读它的关键是做"**同与异**"的精确切分——
 
-## 1. 问题设定与动机
+- **同**：通用 WM（无领域偏置）+ PPO（score-function，对非光滑鲁棒）+ 真机部署，与 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]] recap §6 给 WMTS 的结论（用 PPO 不用 analytic 梯度）一致。
+- **异**：RWM 抗 model-exploitation 的手段是**训练精度**（autoregressive 训练 + 长 rollout 稳定），**不是** ensemble/uncertainty；且它是 **locomotion**（相对光滑），不是接触密集的手内操作。
+
+它与 [[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]（真机在线 WM-RL）、[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]]（WM 主干 + 抗误差累积）互补：DayDreamer 证真机可行、STORM 给主干选型、RWM 给"**通用观测空间 WM + PPO 长 rollout + 真机**"的完整配方。
+
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-真实试验昂贵，物理仿真偏差大；但纯视频生成 world model 又缺少控制接口。
+真机 RL 的 model-free（PPO/SAC）样本需求太高、难落地；现有 WM 要么靠领域归纳偏置（足底动力学、刚体、频域参数化…）难泛化，要么是 latent（Dreamer）。RWM 问：**能否学一个无领域偏置的通用神经仿真器，在部分可观/随机/不连续的低层控制上做可靠长 horizon 预测，并据此用 PPO 训出可上真机的策略？**
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+teacher-forcing 训 WM 像"练琴时每个音都有老师按住手纠正"——演出（自回放）时没人纠正，错误一步步滚雪球（误差累积/幻觉）。RWM 改成"**练习时就让你自己连着弹、错了也继续**"（autoregressive 训练），于是模型见过自己会犯的错、学会在自己的预测上继续稳住——这就是它能"训 N=8、跑 100+ 步"的根。再加双重自回归（内层记历史、外层喂预测）让长程依赖与不连续转移都稳。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+可证伪含义：优势应集中在"**长 horizon + 部分可观 + 有噪声/不连续**"的低层控制；若 horizon 短、全可观，teacher-forcing 也够，RWM 的增益收窄。
+
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| model-free（PPO/SAC） | 直接从交互学 π | 真机样本需求太高 |
+| 结构化 WM（足底/刚体/频域/Lagrangian） | 强领域物理 | 需领域知识、难泛化到新任务 |
+| latent WM（PlaNet/[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/TD-MPC2） | 紧凑 latent + imagination | latent 抽象、teacher-forcing 训练；长 rollout 误差累积 |
+| MBPO（Dyna，短 rollout） | model 准时才用 | 短 horizon rollout，避免 model 误差 |
+| teacher-forcing 训练（多数架构） | 用真值做下一步 | N=1，自回放时分布失配、误差累积 |
+| **RWM** | **无领域偏置 + autoregressive 训练 + dual-AR** | locomotion 验证；靠精度抗 exploitation（无 ensemble）；GRU 观测空间 |
 
 ### 1.4 Delta 分析
-如果神经 simulator 能接收机器人状态/动作并预测控制相关后果，它可以成为 policy optimization 的可微/快速训练场。
+精确增量 = **(自监督 autoregressive 训练) + (dual-autoregressive GRU 架构) + (MBPO-PPO over 长 rollout)**。相对 MBPO（短 rollout 避 model 误差）：RWM 把 rollout 拉到 100+ 步还稳；相对 Dreamer（latent + teacher-forcing）：RWM 观测空间 + autoregressive 训练；相对结构化 WM：无领域偏置。核心因果主张：**autoregressive 训练把训练分布对齐到测试（自回放）分布**，这是长 horizon 稳定的根源。
 
-## 2. 核心方法与理论
+## 2. 核心方法与理论（原理与理论：autoregressive 训练 + dual-AR + MBPO-PPO）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
 |---|---|---|---|---|---|
-| $o_t$ | observation/image/proprioception | real rollout/replay | observed | partial view of world | not equal to Markov state |
-| $a_t$ | robot action/action chunk | policy or dataset | chosen/condition | intervention applied to world | control interface matters |
-| $z_t,h_t$ | latent stochastic/deterministic state | encoder/RSSM | computed/learned | compact dynamics state | must preserve reward/control info |
-| $p_\theta(z_{t+1}|z_t,a_t)$ | transition model | world model training | learned | imagination dynamics | model bias accumulates |
-| $r_t,c_t$ | reward/cost | environment/model head | observed/predicted | optimization signal | reward accuracy not same as safety |
+| $o_t$ | 观测（本体感觉，低维） | 真机/sim | observed | POMDP 观测（非 Markov 状态） | **观测空间**，非 latent、非像素 |
+| $a_t$ | 连续动作 | 策略 | 选择 | 低层控制指令 | 50Hz 控制 |
+| $M$ | =32 | 超参 | 固定 | history horizon（内层 AR） | 历史越长越准但越贵 |
+| $N$ | =8 | 超参 | 固定 | forecast horizon（外层 AR，训练用） | 训 N=8 却能跑 100+ 步 |
+| $o'_{t+k}$ | 预测观测 | WM autoregressive | learned ($\phi$) | k 步预测（喂回自身） | Eq 1：混真历史 + 自预测 |
+| $p_\phi(\cdot)$ | 高斯（mean,std） | GRU WM | learned | 下一观测分布 | 预测分布非点估计 |
+| $c_t,c'_{t+k}$ | privileged（如**接触**） | sim 特权 / WM 预测 | learned | 辅助预测目标 | 隐式嵌入长程关键信息 |
+| $\alpha$ | <1 | 超参 | 固定 | 多步损失衰减因子 | 远步权重低 |
+| $\pi_\theta$ | 策略 | MBPO-PPO | learned ($\theta$) | 在想象观测上的策略 | PPO，**score-function 非 analytic** |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
-
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
-
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 用机器人交互数据训练 action-conditioned world model。
-- 在 neural simulator 中 rollout policy，估计 reward/risk。
-- 结合真实数据校正模型并优化策略鲁棒性。
-
-从 world model RL 角度看，核心是用 learned transition 在内部 rollout 中近似真实闭环：
+### 2.2 自监督 autoregressive 训练（Eq 1-2，无跳步）
+WM $p_\phi$ 用 M 步历史观测-动作预测下一观测分布。**k 步预测**混合真历史与自身预测（Eq 1）：
 $$
-\max_\pi \; \mathbb{E}\left[\sum_t r(s_t,a_t) - \lambda c(s_t,a_t)\right],
-\quad s_{t+1} \sim \hat p_\theta(s_{t+1}\mid s_t,a_t)
+o'_{t+k}\sim p_\phi\big(\cdot \mid o_{t-M+k:t},\ o'_{t+1:t+k-1},\ a_{t-M+k:t+k-1}\big).
 $$
-但真正的 insight 在 $\hat p_\theta$、$\pi$、$c$ 或任务分布是否带有正确结构。若结构错了，公式仍然成立，行为会系统性失败。
+即第 1 步用真历史，之后逐步把自己的预测 $o'$ 接回输入——**训练时就模拟测试时的自回放**。损失是 N 步多步预测误差，带衰减 $\alpha$，并加 privileged（如接触）预测（Eq 2）：
+$$
+L=\frac1N\sum_{k=1}^N \alpha^k\big[L_o(o'_{t+k},o_{t+k})+L_c(c'_{t+k},c_{t+k})\big].
+$$
+训练数据用大小 $M+N$ 的滑窗构造；reparameterization trick 让梯度穿过 autoregressive 预测。**teacher-forcing 是 N=1 的特例**（用真值做下一步、并行度高，但鲁棒性差、误差累积，Fig 2b）。预测 privileged 接触 = 给隐状态加一路监督，隐式编码长程关键信息。
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+### 2.3 dual-autoregressive 机制（架构关键）
+GRU-based，预测下一观测的高斯 (mean, std)。两层自回归：
+- **内层（inner）**：在 context horizon $M$ 内，**GRU 隐状态逐历史步递推更新**——吸收部分可观历史。
+- **外层（outer）**：把 forecast horizon $N$ 的**预测观测反馈回网络**——训练长 rollout 鲁棒性。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：如果神经 simulator 能接收机器人状态/动作并预测控制相关后果，它可以成为 policy optimization 的可微/快速训练场。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+二者叠加 → 对长程依赖与不连续转移都稳。选 GRU 是因其"低维输入上维持长程历史"的能力（与 STORM 选 Transformer 的取舍不同；RWM 观测低维，GRU 够）。
 
-## 3. 训练、数据与实验
+### 2.4 MBPO-PPO 策略优化（Eq 3，Algorithm 1）
+受 MBPO（Dyna）启发，但**用 PPO 在长 autoregressive rollout 上优化**。想象里动作由策略基于 WM 预测观测递归生成（Eq 3）：$a'_{t+k}\sim\pi_\theta(\cdot\mid o'_{t+k})$，奖励由想象观测 + privileged 算。
 
-### 3.1 PDF 结构线索
-- 1   Introduction
-- 2     Related work
-- 2.1   World Models for Robotics
-- 2.2   Model-Based Reinforcement Learning
-- 3     Approach
-- 3.1   Reinforcement Learning and World Models
-- 3.2   Self-supervised Autoregressive Training
-- 3.3     Policy Optimization on Learned World Models
+**Algorithm 1**：① 用 $\pi_\theta$ 与真环境交互、数据入 replay $D$；② 用 $D$ 按 Eq 2 autoregressive 训 WM $p_\phi$；③ 从 $D$ 采样初始化想象 agent；④ 用 $\pi_\theta,p_\phi$ rollout T 步；⑤ PPO 更新 $\pi_\theta$。循环。
 
-### 3.2 关键结果与证据
-关注 neural simulator rollout 与真实/物理仿真的误差、policy transfer success 和 robustness。
+**关键挑战与结果**：论文明说"**model 误差会在策略学习时被利用**（model-exploitation），且 PPO 需要的长 autoregressive rollout 会放大预测误差"。RWM 的回答是**靠训练得到的高精度**——它能在 **100+ autoregressive 步**上稳定跑 MBPO-PPO，远超 MBPO/Dreamer/TD-MPC。
 
-- PDF 线索：and scalable robotic control in real-world environments. In this work, we in-
-- PDF 线索：biases, ensuring adaptability across diverse robotic tasks. We further propose a
-- PDF 线索：in imagined environments and seamless deployment in real-world systems. This
-- PDF 线索：and efficient robotic systems in real-world applications.
-- PDF 线索：results in underutilization of the valuable data generated during real-world interactions. Robotic
-- PDF 线索：behavior to new conditions [9]. The inability to exploit real-world experience for further learning
+### 2.5 概念边界与符号陷阱
+- **观测空间 WM**：RWM 直接预测观测（高斯），不抽 latent（≠ Dreamer/STORM），也不预测像素（≠ World4RL）。又一种 "world model" 义项。
+- M（历史/内层）≠ N（预测/外层）；训练 N=8 ≠ 部署 rollout 长度（100+）。
+- PPO 是 **score-function 梯度**，不穿 WM 反传（与 Dreamer analytic gradient 对立）——这正是 WMTS 取的路线。
+- 抗 model-exploitation 靠**精度**，**没有** ensemble/uncertainty——这是它与 WMTS 的根本分野。
+- 预测 privileged 接触是**辅助监督**，部署时不需要特权。
 
-### 3.3 Ablation 因果链
-没有 action-conditioned simulator -> 只能生成被动画面；没有真实校正 -> 模型漏洞会被 policy exploit。
+## 3. 训练、数据与实验（实验与验证）
 
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 3.1 实验设置
+Isaac Lab 多机器人多任务 + 真机（ANYmal D 四足、Unitree G1 人形）。ANYmal 50Hz，WM 训 M=32、N=8。观测/动作空间见原文 Table S2/S4。对照 MLP baseline、MBPO/Dreamer/TD-MPC。
+
+### 3.2 关键结果与因果解释
+- **长 rollout 保真（Fig 3a / Fig 1）**：训 N=8，却能从 t=32 起 autoregressive 预测到 **200 步**仍贴合真值。**因果**：dual-autoregressive + 自回放训练让模型见过自身误差分布、学会稳住——克服 compounding error。
+- **噪声鲁棒（Fig 3b）**：对观测+动作加高斯噪声，RWM（黄）误差累积显著低于 MLP baseline（灰），多噪声尺度下都稳。**因果**：autoregressive 训练把"偏离训练分布"的情形也纳入，避免 MLP 那样一偏就 hallucination。
+- **MBPO-PPO 100+ 步**：能在上百 autoregressive 步上稳定优化策略，远超 MBPO/Dreamer/TD-MPC——印证 WM 精度与稳定性。
+- **零样本硬件**：ANYmal D + G1 直接部署、最小性能损失。
+
+### 3.3 Ablation / 对照因果链
+- `teacher-forcing(N=1) → 自回放分布失配 → 误差累积、长 rollout 崩`（Fig 2 对照核心）。
+- `MLP 替 GRU dual-AR → 噪声下误差累积大、鲁棒性差`（Fig 3b）。
+- `增大 M、N → 精度升但算力涨`（需折中，附录 A.4.1）。
+- `去 privileged 接触预测 → 失去隐式长程信息`（辅助目标的作用）。
 
 ### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+- locomotion（四足/人形），相对光滑动力学；**非接触密集手内操作**。
+- 观测空间低维本体感觉，未涉及像素/触觉高维。
+- 靠训练精度抗 exploitation，无 ensemble/uncertainty 显式机制。
+- M、N 增大算力涨，需调参。
 
-## 4. 核心洞见
+## 4. 核心洞见（逻辑与价值 + 未来）
 
 ### 4.1 论文真正的 insight
-如果神经 simulator 能接收机器人状态/动作并预测控制相关后果，它可以成为 policy optimization 的可微/快速训练场。
+**用自监督 autoregressive 训练（训练即喂自身预测）+ dual-autoregressive GRU，学一个无领域偏置的通用观测空间神经仿真器，使其在长 horizon、部分可观、有噪声下稳定，从而能用 PPO 在 100+ 步想象 rollout 上训出可零样本上真机的策略。** 一句话：**autoregressive 训练对齐训练/测试分布，是长 horizon WM 稳定与可用于 PPO 的关键。**
 
 ### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+(1) 自回放训练消除 teacher-forcing 的分布失配；(2) dual-AR 让内层记历史、外层抗长 rollout 误差；(3) 预测高斯 + privileged 接触给隐状态丰富监督；(4) MBPO-PPO 用 model-free PPO 的鲁棒性 + model-based 的样本效率。
 
 ### 4.3 什么时候会失效
-neural simulator 越通用越可能牺牲接触精度；灵巧手需要局部高保真而非全局花哨生成。
+- 接触密集/不连续剧烈（手内高速）：GRU 观测空间 WM 精度会降，靠精度抗 exploitation 的策略可能失守。
+- M、N 不足或算力受限时长 rollout 退化。
+- 无 ensemble → 在 OOD 处仍可能被 PPO 利用（论文承认是挑战，靠精度缓解非根除）。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与理论局限（未来与结合）
 
 ### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+RWM 是 Dyna 式 MBRL：策略改进上界由 WM 长 rollout 精度决定。它对 model-exploitation 的处理是**经验精度**而非形式化不确定性——无误差界、无 disagreement 惩罚。POMDP 下靠历史编码补可观性。
 
 ### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+| 方法 | 优点 | 缺点 | 与 RWM 关系 |
+|---|---|---|---|
+| MBPO（短 rollout） | 避 model 误差 | 短 horizon | RWM 拉长到 100+ 步 |
+| [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]（latent+AC） | 样本效率、analytic grad | latent、teacher-forcing | RWM 观测空间 + autoregressive + PPO |
+| TD-MPC2（latent+MPC） | 强 model-based | latent、规划 | RWM 直接 PPO，长 rollout |
+| 结构化 WM | 物理准 | 需领域知识 | RWM 无偏置、更通用 |
+| PETS（概率 ensemble） | 有 uncertainty | 短 horizon | **RWM 缺的 ensemble，正是 WMTS 要加的** |
 
 ### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+M/N 调参与算力、GRU 观测空间对接触的表达力、无 ensemble、locomotion 局限是主要边界；接触/触觉/灵巧手未覆盖。
 
-## 6. 对用户研究的启发
+## 6. 对用户研究的启发（未来与结合：WMTS 的最近先例与超越点）
 
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 可以把 Rigid+Actuator model 看成 specialized robotic world model，重点评价“预测是否改变调度决策”。
+### 6.1 对 WMTS / 灵巧手的迁移
+
+| WMTS 模块 | RWM 对应 | 迁移设计 |
+|---|---|---|
+| **通用 WM + PPO Oracle** | RWM + MBPO-PPO | WMTS 的"WM 内训 PPO"有了 locomotion 完整先例；用 PPO（score-function）正确 |
+| WM 训练法 | 自监督 autoregressive | **直接采用**：训练即喂自身预测，抗 compounding error（比 teacher-forcing 强） |
+| 接触建模 | 预测 privileged 接触 | WMTS 把**触觉/接触力**作为 privileged + 一等观测预测 |
+| 长 horizon 稳定 | dual-autoregressive | 内层记接触历史、外层抗 rollout 误差 |
+| **抗 model-exploitation** | 靠训练精度（无 ensemble） | **WMTS 必须加 ensemble + disagreement/LCB**——这是 WMTS 超越 RWM 的核心 |
+
+**核心论证（critical thinking）**：RWM 给 WMTS 的是**最强的"可行性 + 配方"证据**：通用 WM + PPO + 真机这条路在 locomotion 上已经走通，且它的 autoregressive 训练法、dual-AR、预测 privileged 接触都能直接搬。但 WMTS 的差异化恰在 RWM 的三处局限：(1) **RWM 靠训练精度抗 model-exploitation，没有 ensemble**——论文自己承认"model 误差会被 PPO 利用、长 rollout 放大误差"，只是 locomotion 较光滑、精度够用；灵巧手接触密集、动力学更难学准，**单 WM 靠精度不够，必须 ensemble + 不确定性惩罚**（这与 DiWA/World4RL 单 WM 软肋的结论一致，三篇共同指向 WMTS 的 ensemble 设计）。(2) **RWM 是观测空间 GRU，对接触表达弱**——WMTS 要 actuator+rigid 结构化 + 触觉。(3) **RWM 把 WM 仅当 Dyna 仿真器**，WMTS 还要 WM 当**任务调度器/ranking/安全过滤**（SafeDreamer 路线），是更主动的用法。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- 在手内任务上复刻 RWM 的 autoregressive 训练 + 预测接触，对照 teacher-forcing：测长 rollout 保真与 PPO 稳定性。
+- RWM 单 WM（靠精度）vs WMTS ensemble（靠不确定性）：在 OOD 摩擦/物体下测 PPO 想象-真机回报 gap 与 model-exploitation。
+- GRU 观测空间 vs 结构化 actuator WM：测接触密集任务的预测精度上限。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- locomotion 的长 rollout 稳定**不能**直接外推到接触密集手内高速任务。
+- "靠精度抗 exploitation"在灵巧手上不够 → 必须 ensemble。
+- 观测空间 GRU 对接触/力表达有限，需结构化 + 触觉。
 
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-model-based RL / imagination rollout。这篇论文提供的是一个可迁移的结构化 bias：它把 真实试验昂贵，物理仿真偏差大；但纯视频生成 world model 又缺少控制接口。 转化为可建模、可采样或可约束的问题。
+POMDP + MBRL；MBPO/Dyna + PPO 混合（Eq 3, Algo 1），model-based 想象 + model-free 更新；PPO 用 score-function 梯度（不穿 WM）。
+
+### 与 [[ControlTheory]] 的联系
+50Hz 低层连续控制（四足/人形），Hutter 组 locomotion 一脉；学到的 NN 仿真器替代手工动力学模型用于控制综合。
 
 ### 与 [[StochasticProcess]] 的联系
-latent transition and uncertainty。这篇论文提供的是一个可迁移的结构化 bias：它把 真实试验昂贵，物理仿真偏差大；但纯视频生成 world model 又缺少控制接口。 转化为可建模、可采样或可约束的问题。
+WM 预测下一观测的高斯分布（mean/std）；POMDP 部分可观；autoregressive rollout 在噪声下的误差累积分析。
 
 ### 与 [[EmbodiedAI]] 的联系
-robot learning loop。这篇论文提供的是一个可迁移的结构化 bias：它把 真实试验昂贵，物理仿真偏差大；但纯视频生成 world model 又缺少控制接口。 转化为可建模、可采样或可约束的问题。
+collect→train WM→imagine→update policy 的真机数据飞轮；ANYmal D + Unitree G1 零样本硬件部署。
+
+### 与 [[Final_WMTS]] 的联系
+WMTS "通用 WM + PPO + 真机" 路线的最近 locomotion 先例；autoregressive 训练 + 预测接触可直接借；其"靠精度而非 ensemble、观测空间 GRU、仅当仿真器"三点局限，正是 WMTS 用 ensemble+不确定性、结构化接触 WM、调度器角色去超越的地方。
 
 ## References
-- 原始 PDF：[[Robotic World Model: A Neural Network Simulator.pdf]]
+- 原始 PDF：[[Robotic World Model: A Neural Network Simulator.pdf]]（ETH Zurich，arXiv 2501.10100）
+- 算法来源：MBPO（Dyna）、PPO；对照 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]、TD-MPC2、PETS（概率 ensemble）
+- 真机 WM-RL 兄弟：[[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]
+- WM 主干对照：[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]]
 - 项目入口：[[Final_WMTS]]

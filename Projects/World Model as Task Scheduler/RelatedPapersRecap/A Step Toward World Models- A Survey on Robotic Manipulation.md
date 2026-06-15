@@ -4,169 +4,155 @@ tags:
   - world-model
   - robotic-manipulation
   - survey
+  - taxonomy
   - WMTS
 aliases:
   - WM Survey Manipulation
-paper-year: 2024
-read-date: 2026-06-14
-venue: arXiv survey
+  - A Step Toward World Models
+paper-year: 2025
+read-date: 2026-06-15
+venue: arXiv 2511.02097 (survey, Tongji)
 paper-pdf: "[[A Step Toward World Models- A Survey on Robotic Manipulation.pdf]]"
 related:
   - "[[EmbodiedAI]]"
-  - "[[RepresentationLearning]]"
   - "[[ReinforcementLearning]]"
+  - "[[StochasticProcess]]"
   - "[[Final_WMTS]]"
 ---
 
 # A Step Toward World Models: A Survey on Robotic Manipulation
 
 > [!abstract] 核心贡献
-> 这篇综述把机器人操作中的 world model 从“预测器”重新定位为连接感知、动作、规划和泛化的中间层：瓶颈不是某个网络结构，而是如何让模型预测对控制有用的未来。
+> 一篇 2025 的**操作领域 world model 综述**，不强行定义 WM，而是**按"是否具备 world model 的核心能力"**来梳理操作方法。它给出一张可用的地图：**三问**（世界是什么 / 为什么建模 / 怎么建模 / 离"完全体"多远）+ **三范式**（Implicit World Modeling、Latent Dynamics Modeling、Video Generation）+ **两功能**（Decision Support 决策支持 / Training Facilitation 训练促进）+ **架构**（Flat / Hierarchical）+ **七挑战**（数据、感知表征、长程推理、时空一致性、泛化、**物理感知**、记忆）。理论锚点引 Richens et al.：**任何能泛化解多步任务的 agent 必隐式学到一个预测性世界模型**。**对 WMTS 它不是方法而是坐标系——能把我已 recap 的所有 WM 论文归位、并精确定位 WMTS 在 "Latent Dynamics + Training Facilitation + 物理感知 + 灵巧" 的位置与它要填的空白。**
 
 > [!tip] 与理论基础的关联
-> - [[EmbodiedAI]] — world model as embodied intelligence substrate
-> - [[RepresentationLearning]] — state abstraction and latent structure
-> - [[ReinforcementLearning]] — planning and policy learning
+> - [[EmbodiedAI]] — 具身智能：WM 让 agent 理解上下文、想象后果、规划行动。
+> - [[ReinforcementLearning]] — WM 的两功能之一 Decision Support（规划/价值）；Richens"泛化⟹隐式 WM"。
+> - [[StochasticProcess]] — Latent Dynamics Modeling 范式（RSSM/JEPA/扩散）。
+> - [[Final_WMTS]] — **WMTS 的领域坐标系**：定位 WMTS = Latent Dynamics + Decision Support&Training Facilitation + Physics-informed + 灵巧；其"物理感知 / 长程 / 记忆"挑战正是 WMTS 卖点。
+>
+> **核心框架**: 三范式 (Implicit / Latent Dynamics / Video Generation), 两功能 (Decision Support / Training Facilitation), 架构 (Flat/Hierarchical), 七挑战, Richens 定理
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 应把 Rigid Dynamics Model、Actuator Model、Task Scheduler 分开评估：前者解释物理短 horizon，后者解释任务长 horizon，不能混成一个黑箱 latent。
+这是 RelatedPapers 里**唯一的"地图"类论文**——不提供方法，而提供**坐标系**。它的范本价值不在某个公式，而在：把我已逐篇 recap 的 WM 论文（Dreamer/STORM/RWM/DiWA/World4RL/DexWM/DexSim2Real2/PDDM/MoDem-V2/FOWM…）**归到统一分类**，并据此**定位 WMTS 与识别空白**。因此本 recap 刻意做成**导航图**：用综述的轴把库内论文排好，再标出 WMTS 的位置与它要填的洞。
 
-## 1. 问题设定与动机
+> [!note] 综述类 recap 的结构适配
+> 综述无单一方法/公式，故本文不套"变量来源表 + 无跳步推导"，而把"原理与理论"替换为**分类框架 + 库内论文归位**（§2），把"实验与验证"替换为**领域经验状态/挑战证据**（§3）。这是对 recap 方法的合理适配，非偷懒。
+
+## 1. 问题设定与价值（逻辑与价值）
 
 ### 1.1 一句话核心
-机器人操作论文里 world model 的定义分散：有的预测图像，有的预测 latent state，有的预测可供 MPC 使用的动力学，有的承担任务抽象。没有统一 taxonomy 时，WMTS 很容易把“能预测”误认为“能调度任务”。
+WM 的定义/范围/架构/能力至今含混；综述不锁死定义，而是**审视"展现 WM 核心能力"的操作方法**（感知-预测-控制），提炼一个完全体 WM 应有的组件/能力/功能，给出领域地图与未来方向。
 
-### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+### 1.2 关键框架（地图四问）
+1. **世界是什么**：对象（物理/agent/环境/虚拟）× 属性（形状/尺寸/重量/材料）× 空间关系（拓扑/方向/距离）× 时间关系（顺序/同时/**因果**）。
+2. **为什么建模**：Richens et al.——**任何能泛化解多步任务的 agent 必隐式学一个预测性 WM**（WM 不是可选，是泛化的必要条件）。
+3. **怎么建模**：三范式（见 §2.1）。
+4. **离完全体多远**：七挑战 + 未来方向（§3）。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 竞争视角（领域分歧）
+- **Video generation 派**（Wang 等）：用视频生成模型当 WM，编码海量世界知识、按观测/动作预测未来帧。
+- **Latent/abstract state 派**（LeCun/JEPA）：建抽象 latent 世界状态，不重构像素。
+- **VLA 派**（Zitkovich/RT）：不显式生成未来状态，靠 vision-language-action 隐式建模。
 
-### 1.4 Delta 分析
-只要按照状态抽象、动作接口、预测 horizon、可规划性和闭环更新方式拆解 world model，就能判断一个 WM 是否真正能服务操作任务，而不是只做视觉生成。
+### 1.4 Delta（综述自身的增量）
+不限于"自称 WM"的方法，而按**核心能力**纳入更广方法；给出操作领域**comprehensive taxonomy + 核心组件/能力定义 + 未来方向**。这把零散工作组织成可导航的地图。
 
-## 2. 核心方法与理论
+## 2. 分类框架与库内论文归位（原理与理论 → 分类框架）
 
-### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
-|---|---|---|---|---|---|
-| $s,a,o$ | state/action/observation | paper taxonomy | conceptual | world model interface | definitions differ by field |
-| $\hat f$ | predictive model | taxonomy | learned | simulated future | usefulness depends on downstream decision |
-| $H$ | prediction/planning horizon | method design | fixed/chosen | how far model is trusted | long horizon accumulates error |
-| $U$ | utility/reward/task metric | evaluation | computed | control relevance | prediction metric may mismatch utility |
+### 2.1 三范式（Paradigms）
+| 范式 | 含义 | 库内归位 |
+|---|---|---|
+| **Implicit World Modeling** | 不显式生成未来状态，靠动作预测隐式建模（VLA 类） | （库内偏少；VLA 相关在 Diffusion/IL 簇） |
+| **Latent Dynamics Modeling** | 高维→紧凑 latent，预测 latent 动力学 | [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]、[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]]、[[Robotic World Model: A Neural Network Simulator|RWM]]、[[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]、[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]](TD-MPC)、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] |
+| **Video Generation** | 生成未来帧作为 WM | [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]（像素扩散）；DexWM 的 NWM/PEVA 对照 |
+| （超出三范式）**显式物理** | 物理仿真器/数字孪生 | [[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 两功能（Functions）
+- **Decision Support**（决策支持）：WM 配 value/planner 做规划——[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]、[[Model-Based Lookahead Reinforcement Learning for in-hand manipulation|Model-Based Lookahead]]、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]、[[Finetuning Offline World Models in the Real World|FOWM]]。
+- **Training Facilitation**（训练促进）：WM 当仿真器/想象训策略——[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]、[[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]、[[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]、[[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]、[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]]。
+- **WMTS 同时用两者**：WM 做 task scheduling/ranking/safety（Decision Support）+ 精炼 DP generalist（Training Facilitation）。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
-
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 按输入/输出划分：视觉观测、物理状态、latent state、动作序列、奖励或可达性。
-- 按使用方式划分：模型预测控制、imagination policy learning、data generation、safety checking、task scheduling。
-- 把 manipulation 的核心难点落到接触、长时序、部分可观测、物体泛化和 real-world adaptation。
-
-从综述/概念角度看，这篇论文不应被读成单一算法，而应被读成分类坐标系：
-$$
-\text{World Model} = (\text{state abstraction},\text{action interface},\text{prediction horizon},\text{decision use})
-$$
-对 WMTS 来说，最重要的问题不是“是否叫 world model”，而是这个模型的预测是否会改变任务调度、动作筛选和安全判断。
+### 2.3 架构与世界表示
+- **Flat vs Hierarchical**（System 2 解释环境 + System 1 执行）：WMTS 的"scheduler（高层选任务）+ PPO/DP（低层执行）"是**层级架构**。
+- **世界表示维度/视角**：2D/3D、ego/外视、latent/显式——WMTS 取 actuator+rigid 结构化 + 触觉（偏显式物理 + latent 残差）。
 
 ### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+- "world model" 在综述里是**能力束**（编码状态 + 捕捉动力学 + 预测/规划/推理），不是单一架构——呼应我在各 recap 反复区分的"WM 多义项"。
+- Richens 定理是**存在性**论证（泛化⟹隐式 WM），不保证学到的 WM 准确或可规划。
+- 三范式有重叠（World4RL 像素扩散兼具 Latent/Video-gen 特征）。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：只要按照状态抽象、动作接口、预测 horizon、可规划性和闭环更新方式拆解 world model，就能判断一个 WM 是否真正能服务操作任务，而不是只做视觉生成。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+## 3. 领域经验状态与挑战（实验与验证 → 挑战证据）
 
-## 3. 训练、数据与实验
+综述无实验，但**七挑战**刻画了领域的经验天花板，且每条都直接对应 WMTS 的设计应力点：
 
-### 3.1 PDF 结构线索
-- A. Paradigms
-- A. Data Limitations
-- B. Perception and Representation
-- E. Generalization
-- A. Conclusion
+| 挑战 | 领域现状 | 对 WMTS 的意义 |
+|---|---|---|
+| 数据限制 | 灵巧数据稀缺 | WMTS 用 sim Oracle + ≤1h 真机 + 人类视频先验（[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]） |
+| 感知与表征 | latent 不一定含任务关键信息 | [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]] HC-loss 证 latent 不足→WMTS 加触觉/接触 |
+| 长程推理 | autoregressive 误差累积 | [[Robotic World Model: A Neural Network Simulator|RWM]] autoregressive 训练 / [[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]] 随机性 抗累积 |
+| 时空一致性 | 生成漂移 | WMTS rollout horizon 受限 + ensemble |
+| 泛化 | 跨物体/物理差 | [[DyWA: Dynamics-adaptive World Action Model|DyWA]] 动力学自适应 |
+| **物理感知** | 多数 WM 不显式建物理 | **WMTS 卖点**：actuator+rigid 结构化 + 触觉（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] 显式物理一极） |
+| 记忆 | 长时依赖 | Transformer WM（[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]]）/历史编码（[[Robotic World Model: A Neural Network Simulator|RWM]]/[[DyWA: Dynamics-adaptive World Action Model|DyWA]]） |
 
-### 3.2 关键结果与证据
-综述型论文没有单一实验指标，价值在于分类轴：prediction target、planning interface、data regime、embodiment gap。
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-- PDF 线索：ing tasks such as manipulation, navigation, and decision-making. V-F Physics-informed Learning . . . . . . . 16
-- PDF 线索：C ONTENTS ties, assisting in tasks that are dangerous, repetitive, or demand
-- PDF 线索：the Lens of World Modeling . . . . . . 3 ultimately act intelligently in the real world. Richens et al.
-- PDF 线索：III Overview of World Models 5 multi-step tasks must implicitly learn a predictive model of
-- PDF 线索：training and evaluation by generating realistic rollouts and reliably support robotic tasks?
-- PDF 线索：real-world models. domains, embodied intelligence integrates a physical body,
+### 4.1 综述真正的 insight
+**WM 不该由"是否自称 WM"或单一架构定义，而该由核心能力（编码状态、捕捉动力学、支持预测/规划/推理）定义；操作领域的 WM 可沿三范式 × 两功能 × 架构 × 七挑战组织；且 Richens 定理给出强理论动机——泛化解多步任务必隐式需要 WM。** 这把零散工作收进一张可导航的地图。
 
-### 3.3 Ablation 因果链
-如果只比较像素预测质量，容易高估对操作的帮助；如果加入控制闭环指标，模型误差的时间累积和 contact mode error 才会暴露。
+### 4.2 为什么这张地图有用（对 WMTS）
+它让我能：(1) 把库内每篇 WM 论文**归位**（§2）；(2) **定位 WMTS** = Latent Dynamics（+显式物理残差）× Decision Support&Training Facilitation × Hierarchical × 主打物理感知/长程/记忆；(3) 据七挑战**核对 WMTS 是否每条都有对策**（数据/感知/长程/一致性/泛化/物理/记忆——逐条对得上）。
 
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 4.3 综述的局限（什么时候这张地图不够）
+- 初版、偏分类不偏深度评测；无统一 benchmark 横评。
+- 三范式有重叠、边界模糊。
+- 对**灵巧高速接触**这一具体硬场景着墨有限（survey 覆盖广但不深）。
+- Richens 定理是存在性，不给可学性/可规划性保证。
 
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+## 5. 综述自身的局限与替代（未来与结合）
+- **替代视角**：另一篇 [[Learning to Model the World: A Survey of World|Learning to Model the World 综述]]（更偏通用 WM 方法论）与本篇（偏操作领域）互补。
+- **深度 vs 广度**：survey 给广度，具体设计仍需回到单篇（PDDM/MoDem-V2/FOWM 给 ensemble-LCB 细节；DexWM 给 HC-loss；DexSim2Real2 给显式物理）。
+- **物理感知**被列为关键未来方向但综述未给成熟方案——正是 WMTS 要原创贡献处。
 
-## 4. 核心洞见
+## 6. 对用户研究的启发（未来与结合：定位 WMTS）
 
-### 4.1 论文真正的 insight
-只要按照状态抽象、动作接口、预测 horizon、可规划性和闭环更新方式拆解 world model，就能判断一个 WM 是否真正能服务操作任务，而不是只做视觉生成。
+### 6.1 WMTS 在地图上的坐标
+| 维度 | WMTS 的选择 | 综述依据 |
+|---|---|---|
+| 范式 | Latent Dynamics + 显式物理残差 | 介于 Latent（[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]）与显式（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]）之间 |
+| 功能 | Decision Support（调度/ranking/安全）+ Training Facilitation（精炼 DP） | 综述两功能 WMTS 全占 |
+| 架构 | Hierarchical（scheduler + PPO/DP） | System2/System1 |
+| 主攻挑战 | **物理感知 + 长程 + 记忆 + 数据** | 七挑战里 WMTS 的差异化集中在物理感知（触觉/接触/actuator） |
 
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+**核心论证（critical thinking）**：这篇综述给 WMTS 最大的价值是**确认 WMTS 不是在重复某一范式，而是在三范式交叉处填一个具体空白**——用**结构化物理 + latent 残差**的 WM，**同时做决策支持（task scheduler）与训练促进（精炼 generalist）**，主攻综述列为关键未来方向却无成熟方案的**物理感知**（灵巧接触/触觉）。综述的七挑战恰好是一张 WMTS 设计自检表：数据（sim Oracle+人类视频+≤1h 真机）、感知表征（触觉补 latent，呼应 DexWM HC-loss）、长程（autoregressive 训练 + ensemble，呼应 RWM）、一致性（ensemble）、泛化（动力学自适应，呼应 DyWA）、物理感知（结构化+触觉，WMTS 原创）、记忆（Transformer/历史编码）——**逐条都有对策即说明 WMTS 设计完备；缺哪条即暴露风险**。同时 Richens 定理给 WMTS 一个理论靠山：要让 generalist 泛化到多步转笔，隐式 WM 是必要的，WMTS 把它显式化、结构化、可调度。
 
-### 4.3 什么时候会失效
-不要把“世界模型”当成万能记忆库；对灵巧手，若模型不显式处理接触切换、执行器延迟和观测缺失，长 horizon task scheduling 会被短 horizon 误差拖垮。
+### 6.2 可行动项
+- 用本综述的分类表做 WMTS 文献定位图（把库内论文按范式/功能/挑战排成矩阵，标 WMTS 坐标与空白）。
+- 按七挑战做 WMTS 设计自检 checklist（每条列 WMTS 对策 + 风险）。
+- 引 Richens 定理作 WMTS 动机段的理论支撑。
 
-## 5. 替代方案与理论局限
-
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
-
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
-
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
-
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 应把 Rigid Dynamics Model、Actuator Model、Task Scheduler 分开评估：前者解释物理短 horizon，后者解释任务长 horizon，不能混成一个黑箱 latent。
-
-### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
-
-### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+### 6.3 不应过度依赖的点
+- survey 是地图非深度评测；具体机制回单篇。
+- 物理感知方向综述未给方案，WMTS 不能指望照搬，需原创。
 
 ## 7. 与知识体系的联系
 
 ### 与 [[EmbodiedAI]] 的联系
-world model as embodied intelligence substrate。这篇论文提供的是一个可迁移的结构化 bias：它把 机器人操作论文里 world model 的定义分散：有的预测图像，有的预测 latent state，有的预测可供 MPC 使用的动力学，有的承担任务抽象。没有统一 taxonomy 时，WMTS 很容易把“能预测”误认为“能调度任务”。 转化为可建模、可采样或可约束的问题。
-
-### 与 [[RepresentationLearning]] 的联系
-state abstraction and latent structure。这篇论文提供的是一个可迁移的结构化 bias：它把 机器人操作论文里 world model 的定义分散：有的预测图像，有的预测 latent state，有的预测可供 MPC 使用的动力学，有的承担任务抽象。没有统一 taxonomy 时，WMTS 很容易把“能预测”误认为“能调度任务”。 转化为可建模、可采样或可约束的问题。
+WM 作为具身智能的内部表示，支撑理解上下文、想象后果、规划行动；操作领域 WM 的能力地图。
 
 ### 与 [[ReinforcementLearning]] 的联系
-planning and policy learning。这篇论文提供的是一个可迁移的结构化 bias：它把 机器人操作论文里 world model 的定义分散：有的预测图像，有的预测 latent state，有的预测可供 MPC 使用的动力学，有的承担任务抽象。没有统一 taxonomy 时，WMTS 很容易把“能预测”误认为“能调度任务”。 转化为可建模、可采样或可约束的问题。
+两功能之一 Decision Support = 规划/价值；Richens"泛化解多步任务⟹隐式 WM"为 model-based RL 提供理论动机。
+
+### 与 [[StochasticProcess]] 的联系
+Latent Dynamics Modeling 范式（RSSM/JEPA/扩散）是随机隐变量序列模型在操作上的实例。
+
+### 与 [[Final_WMTS]] 的联系
+WMTS 的领域坐标系：定位 WMTS 在 Latent+显式物理残差 × 双功能 × 层级 × 物理感知；七挑战 = WMTS 设计自检表；Richens 定理 = WMTS 理论动机。
 
 ## References
-- 原始 PDF：[[A Step Toward World Models- A Survey on Robotic Manipulation.pdf]]
+- 原始 PDF：[[A Step Toward World Models- A Survey on Robotic Manipulation.pdf]]（Tongji，arXiv 2511.02097）
+- 互补综述：[[Learning to Model the World: A Survey of World|Learning to Model the World]]
+- 被归位的库内 WM 论文：[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]、[[Robotic World Model: A Neural Network Simulator|RWM]]、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]] 等
 - 项目入口：[[Final_WMTS]]

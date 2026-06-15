@@ -3,173 +3,141 @@ tags:
   - paper
   - world-model
   - survey
-  - representation-learning
+  - taxonomy
+  - evaluation
   - WMTS
 aliases:
   - World Model Survey
-paper-year: 2024
-read-date: 2026-06-14
-venue: arXiv survey
+  - Learning to Model the World
+paper-year: 2026
+read-date: 2026-06-15
+venue: TechRxiv 2026 (survey, MBZUAI/CAS 等)
 paper-pdf: "[[Learning to Model the World: A Survey of World.pdf]]"
 related:
   - "[[EmbodiedAI]]"
-  - "[[RepresentationLearning]]"
   - "[[ReinforcementLearning]]"
+  - "[[StochasticProcess]]"
   - "[[Final_WMTS]]"
 ---
 
-# Learning to Model the World: A Survey of World
+# Learning to Model the World: A Survey of World Models in AI
 
 > [!abstract] 核心贡献
-> 这篇 world model 综述提供更宽的背景：world model 可以是预测模型、生成模型、latent simulator、agent memory 或 planning substrate。
+> 一篇**跨全 AI 领域**的 world model 大综述（机器人、自动驾驶、科学发现、游戏仿真、GUI agent、可解释性/可信性）。与 [[A Step Toward World Models- A Survey on Robotic Manipulation|操作领域综述]]（能力导向、三范式、限于 manipulation）互补，它的差异化在三点：(1) **带形式化数学公式的四分支分类**——observation-level generative / latent space / RL-based / object-centric；(2) **系统的 benchmark / 评测指标 / 仿真平台 / 横评**（操作综述缺的"评测"维度）；(3) **跨域视角**——把驾驶/游戏/科学的 WM 技术拉进同一框架。**对 WMTS 它补两样操作综述没给的：一套可借的 WM 评测指标/基准（衡量长程一致性、泛化、可信性），与"object-centric WM"这一显式分支（DyWA 一类的归属）。**
 
 > [!tip] 与理论基础的关联
-> - [[EmbodiedAI]] — world model as embodied intelligence substrate
-> - [[RepresentationLearning]] — state abstraction and latent structure
-> - [[ReinforcementLearning]] — planning and policy learning
+> - [[EmbodiedAI]] — WM 作为连接感知-认知-控制的通用智能系统。
+> - [[ReinforcementLearning]] — 四分支之一 RL-based WM（Dreamer 系）。
+> - [[StochasticProcess]] — latent space / observation-level generative 分支（生成式/隐变量）。
+> - [[Final_WMTS]] — **WMTS 的评测与跨域参照**：四分支定位 + benchmark/metric 选型 + object-centric 分支归属。
+>
+> **核心框架**: 四分支形式化分类 (observation-generative / latent / RL-based / object-centric), benchmark+metric+仿真平台横评, 跨域应用, 可信性/可解释性, 挑战 (长程一致性/泛化)
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 应把“任务调度器所需 world knowledge”限定为可行动预测：动作后状态、失败概率、可恢复性、执行成本。
+这是 RelatedPapers 里**第二张地图**，且与 [[A Step Toward World Models- A Survey on Robotic Manipulation|第一张（操作领域）]]**刻意互补**——所以本 recap **不重复 landscape**，只补第一篇没给的三件事：**形式化四分支**、**评测体系**、**跨域视角**。读它的价值是：(1) 用带公式的四分支给库内论文一个更"数学"的归类；(2) 拿它的 benchmark/metric 给 WMTS 选评测标准；(3) 从驾驶/游戏/科学 WM 里借可迁移技术。
 
-## 1. 问题设定与动机
+> [!note] 综述类 recap 适配（同第一篇）
+> 无单一方法，故"原理与理论"→形式化分类框架（§2），"实验与验证"→评测体系（§3）。与 [[A Step Toward World Models- A Survey on Robotic Manipulation|操作综述]] 交叉引用，避免重复。
+
+## 1. 问题设定与价值（逻辑与价值）
 
 ### 1.1 一句话核心
-不同社区对 world model 的目标不同，导致“会生成视频”和“能支持控制”被混用。
+WM 研究碎片化（范式/领域/评测各异）。本综述系统梳理全 AI 的 WM，**用形式化四分支统一**，并补齐**评测（benchmark/metric/平台）**与**跨域应用**，做成一个可比较、可推进的统一参照（含持续更新的 GitHub）。
 
-### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+### 1.2 与第一篇综述的分工（关键）
+| 维度 | [[A Step Toward World Models- A Survey on Robotic Manipulation|操作综述]] | **本篇（全 AI）** |
+|---|---|---|
+| 范围 | 仅 robotic manipulation | 全 AI（机器人+驾驶+科学+游戏+GUI） |
+| 分类 | 能力导向，三范式 | **形式化四分支（带公式）** |
+| 评测 | 弱（无横评） | **强（benchmark/metric/平台/横评）** |
+| 对 WMTS | 定位坐标 + 七挑战自检 | **评测选型 + object-centric 归属 + 跨域借鉴** |
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 Delta（综述自身增量）
+相对前序 WM 综述：(1) 跨更广领域；(2) **形式化四分支公式**；(3) 系统 benchmark/metric/仿真平台 + 横评；(4) 含可信性/可解释性。
 
-### 1.4 Delta 分析
-用建模对象、学习信号、rollout 接口、规划使用方式和泛化能力作为分类轴，可以比较不同 WM 范式。
+## 2. 形式化四分支分类与库内归位（原理与理论 → 分类框架）
 
-## 2. 核心方法与理论
+| 分支 | 形式化要点 | 库内归位 |
+|---|---|---|
+| **Observation-level Generative** | 直接预测未来观测 $o_{t+1}=f(o_{\le t},a_t)$（像素/视频） | [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]（像素扩散）；DexWM 的 NWM/PEVA 对照 |
+| **Latent Space** | 编码到 latent、在 latent 预测（高效、抽象） | [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]、[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]]、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]、[[Robotic World Model: A Neural Network Simulator|RWM]]、TD-MPC([[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]]) |
+| **RL-based** | WM 服务 RL 训练/规划 | [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/[[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]、[[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]、[[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL|SafeDreamer]] |
+| **Object-centric** | 用对象级嵌入表示环境，跨场景/任务推理泛化 | [[DyWA: Dynamics-adaptive World Action Model|DyWA]]（动力学+物体中心倾向）；操作任务天然 object-centric |
 
-### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
-|---|---|---|---|---|---|
-| $s,a,o$ | state/action/observation | paper taxonomy | conceptual | world model interface | definitions differ by field |
-| $\hat f$ | predictive model | taxonomy | learned | simulated future | usefulness depends on downstream decision |
-| $H$ | prediction/planning horizon | method design | fixed/chosen | how far model is trusted | long horizon accumulates error |
-| $U$ | utility/reward/task metric | evaluation | computed | control relevance | prediction metric may mismatch utility |
+**WMTS 的归位**：主体在 **Latent Space + RL-based** 交叉（latent 动力学 + 服务 PPO/调度），并向 **object-centric**（物体/接触中心）与显式物理倾斜——是四分支的**混合体**。
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.1 概念边界与符号陷阱
+- 四分支**非互斥**：World4RL 既 observation-generative 又服务 RL；Dreamer 既 latent 又 RL-based。分类是主轴非硬墙。
+- object-centric 是本综述**显式独立的一支**（第一篇未单列）——对操作（物体为中心）尤其相关。
+- 形式化公式给统一记号，但不同分支的 $f$、latent、reward 语义不同（呼应我各 recap 的"WM 多义项"）。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+## 3. 评测体系与领域横评（实验与验证 → 评测体系）
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+这是本综述对 WMTS **最独特的贡献**——第一篇缺的评测维度：
+- **Benchmark**：预训练视频基准 + 下游任务基准（§4.1.1-2）。
+- **评测指标**：为 WM 设计的通用指标，衡量**泛化、因果推理、长程一致性**（§4.1.3）；预测保真（FVD/FID/LPIPS，见 [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]] Table I）+ 下游任务成功率。
+- **仿真平台/物理引擎**（§4.2）：IsaacGym/Isaac Lab 等（库内 DyWA/Model-Based Lookahead/RWM 用）。
+- **横评**（§4.3）：跨 WM 比较结果。
+- **挑战**：长程一致性、泛化（贯穿库内 STORM/RWM 的 autoregressive 误差累积主题）。
 
-### 2.3 论文核心机制无跳步推导
-- 整理从 model-based RL、generative video、LLM/agent memory 到 robotics WM 的谱系。
-- 比较显式状态模型、latent dynamics、token world model 和 diffusion world model。
-- 讨论 evaluation：prediction likelihood、planning return、transfer 和 robustness。
+## 4. 核心洞见（逻辑与价值 + 未来）
 
-从综述/概念角度看，这篇论文不应被读成单一算法，而应被读成分类坐标系：
-$$
-\text{World Model} = (\text{state abstraction},\text{action interface},\text{prediction horizon},\text{decision use})
-$$
-对 WMTS 来说，最重要的问题不是“是否叫 world model”，而是这个模型的预测是否会改变任务调度、动作筛选和安全判断。
+### 4.1 综述真正的 insight
+**把碎片化的 WM 研究用形式化四分支（observation-generative / latent / RL-based / object-centric）统一，并补齐评测体系与跨域视角，使 WM 可比较、可推进。** object-centric 被提为独立一支，评测被系统化——这是它相对能力导向综述的方法论增量。
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+### 4.2 为什么这张地图有用（对 WMTS）
+(1) 形式化四分支给库内论文更精确归类；(2) 评测体系让 WMTS 有**可借的指标/基准**（长程一致性、泛化、保真度）；(3) 跨域（驾驶/游戏/科学 WM）提供可迁移技术池；(4) object-centric 分支提示 WMTS 的物体/接触中心表示有独立方法论支撑。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：用建模对象、学习信号、rollout 接口、规划使用方式和泛化能力作为分类轴，可以比较不同 WM 范式。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+### 4.3 综述的局限
+- 跨域广但每域浅；灵巧高速接触不是重点。
+- 四分支重叠、边界软。
+- TechRxiv 预印本、非同行评审、持续更新中。
 
-## 3. 训练、数据与实验
+## 5. 替代视角与局限（未来与结合）
+- 与 [[A Step Toward World Models- A Survey on Robotic Manipulation|操作综述]] 配对使用：本篇给评测+四分支+跨域，操作综述给操作专属能力+七挑战。
+- 具体机制仍回单篇（PDDM/MoDem-V2/FOWM 的 ensemble-LCB；DexWM HC-loss；DexSim2Real2 显式物理）。
+- 评测指标需针对灵巧接触定制（综述的通用指标不够细）。
 
-### 3.1 PDF 结构线索
-- 1     I NTRODUCTION
-- 2.2   Latent-Space World Models
-- 2.5     Discussion of Expected World Models
-- 3.1     World Models for Robotics
-- 3.3.1 Social Science and Socioeconomic Systems
-- 3.5     World Models for GUI-Based Agents
-- 4.1.1       Pretrained Video Benchmarks
-- 3.7   Limitations of WMs in Downstream Applications
+## 6. 对用户研究的启发（未来与结合：WMTS 评测与归类）
 
-### 3.2 关键结果与证据
-综述价值在于概念 taxonomy 和 open problems，而非单一结果。
+### 6.1 对 WMTS 的迁移
 
-- PDF 线索：are with the Mohamed bin Zayed University of Artificial Intelligence, ing direct interaction with the real world [106], which is
-- PDF 线索：Email: yulun100@gmail.com. limits their scalability to complex real-world scenarios. Re-
-- PDF 线索：This work was supported in part by the National Nature Science Foundation and slot encoding [141] are employed to learn interpretable
-- PDF 线索：the foundation for neural WMs and broadens their applica- TABLE 1
-- PDF 线索：reasoning and generalization across scenes and tasks. physical [19], biological [268], and medical treatment [234],
-- PDF 线索：§4.1 Benchmark Datasets & §4.1.2 Benchmarks on Downstream Tasks
+| WMTS 需求 | 本综述提供 | 用法 |
+|---|---|---|
+| **WM 评测标准** | benchmark/metric/平台/横评 | 选长程一致性 + 泛化 + 保真度 + 下游成功率作 WMTS WM 评测；用 IsaacGym 平台 |
+| **文献归类** | 形式化四分支 | WMTS = Latent+RL-based+object-centric 混合，写进定位图 |
+| object-centric | 独立分支 | WMTS 物体/接触中心表示有方法论支撑 |
+| 跨域借鉴 | 驾驶/游戏 WM | 借自动驾驶 WM 的长程一致性、游戏 WM 的交互生成技术 |
+| 可信性 | §3.6 | WMTS reliability head 对应"可信 WM"主题 |
 
-### 3.3 Ablation 因果链
-如果评价只看重构/预测指标，可能选择对控制无用的模型；加入 policy improvement 才能检验 world model 是否可行动。
+**核心论证（critical thinking）**：两篇综述对 WMTS 是**互补的双地图**。第一篇（操作）给 WMTS 的是**定位 + 设计自检（七挑战）**；本篇（全 AI）给 WMTS 的是**评测 + 归类 + 跨域**——这恰是 WMTS 写论文时"如何衡量我的 WM 好不好"的答案来源：用综述的通用指标（长程一致性、泛化、保真度）+ 下游任务成功率 + 我自定的灵巧接触指标（触觉预测误差、掉笔率）。其次，本篇把 **object-centric WM 列为独立分支**，给 WMTS/DyWA 一类"物体/接触中心"表示提供方法论靠山——WMTS 的接触中心结构化 WM 不是孤例。**但务必注意**：两篇综述都**广而不深**，且都不深入灵巧高速接触；WMTS 的核心创新（结构化物理 + 触觉 + ensemble-LCB 调度）在综述里只是"未来方向/挑战"，**没有现成方案**——这既是机会也是风险，WMTS 必须原创而非综述里抄。
 
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 6.2 可行动项
+- 建 WMTS 评测套件：长程一致性 + 泛化 + 保真度（综述指标）+ 灵巧专属（触觉预测误差、掉笔率、model-exploitation gap）。
+- 用四分支 + 第一篇三范式做 WMTS 双轴定位图。
+- 扫描综述的驾驶/游戏 WM，挑长程一致性技术试用于转笔 WM。
 
-### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
-
-## 4. 核心洞见
-
-### 4.1 论文真正的 insight
-用建模对象、学习信号、rollout 接口、规划使用方式和泛化能力作为分类轴，可以比较不同 WM 范式。
-
-### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
-
-### 4.3 什么时候会失效
-大规模 generative WM 的语义知识未必包含手内接触动力学；不能以语言/视频常识替代真机动力学数据。
-
-## 5. 替代方案与理论局限
-
-### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
-
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
-
-### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
-
-## 6. 对用户研究的启发
-
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 应把“任务调度器所需 world knowledge”限定为可行动预测：动作后状态、失败概率、可恢复性、执行成本。
-
-### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
-
-### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+### 6.3 不应过度依赖的点
+- 综述广而浅；灵巧接触无现成方案，需原创。
+- 通用评测指标不足以衡量灵巧接触，需定制。
 
 ## 7. 与知识体系的联系
 
 ### 与 [[EmbodiedAI]] 的联系
-world model as embodied intelligence substrate。这篇论文提供的是一个可迁移的结构化 bias：它把 不同社区对 world model 的目标不同，导致“会生成视频”和“能支持控制”被混用。 转化为可建模、可采样或可约束的问题。
-
-### 与 [[RepresentationLearning]] 的联系
-state abstraction and latent structure。这篇论文提供的是一个可迁移的结构化 bias：它把 不同社区对 world model 的目标不同，导致“会生成视频”和“能支持控制”被混用。 转化为可建模、可采样或可约束的问题。
+WM 作为连接感知-认知-控制的通用智能系统，跨机器人/驾驶/游戏等具身与交互域。
 
 ### 与 [[ReinforcementLearning]] 的联系
-planning and policy learning。这篇论文提供的是一个可迁移的结构化 bias：它把 不同社区对 world model 的目标不同，导致“会生成视频”和“能支持控制”被混用。 转化为可建模、可采样或可约束的问题。
+四分支之一 RL-based WM（Dreamer 系）；WM 提样本效率、补 model-free 泛化弱。
+
+### 与 [[StochasticProcess]] 的联系
+observation-level generative（视频扩散）与 latent space 分支是生成式/隐变量序列模型。
+
+### 与 [[Final_WMTS]] 的联系
+WMTS 的评测选型（长程一致性/泛化/保真度 + 灵巧定制）+ 四分支归类（Latent+RL-based+object-centric 混合）+ 跨域借鉴；与操作综述构成 WMTS 双地图。
 
 ## References
-- 原始 PDF：[[Learning to Model the World: A Survey of World.pdf]]
+- 原始 PDF：[[Learning to Model the World: A Survey of World.pdf]]（TechRxiv 2026，MBZUAI/CAS 等）
+- 互补综述：[[A Step Toward World Models- A Survey on Robotic Manipulation|A Step Toward World Models（操作领域）]]
+- 被归位的库内 WM 论文：见 §2 表（四分支）
 - 项目入口：[[Final_WMTS]]

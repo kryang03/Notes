@@ -3,178 +3,211 @@ tags:
   - paper
   - world-model
   - transformer
-  - reinforcement-learning
+  - model-based-rl
+  - sample-efficiency
   - WMTS
 aliases:
   - STORM
+  - Stochastic Transformer-based World Model
 paper-year: 2023
-read-date: 2026-06-14
-venue: NeurIPS/arXiv
+read-date: 2026-06-15
+venue: NeurIPS 2023 (arXiv 2310.09615, BIT / 黄高 Tsinghua)
 paper-pdf: "[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"
-  - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
 
-# STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning
+# STORM: Efficient Stochastic Transformer based World Models for RL
 
 > [!abstract] 核心贡献
-> STORM 用 stochastic transformer world model 提高 RL 中长 horizon latent rollout 的表达和效率，核心是把序列建模能力引入 world model。
+> 把 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/DreamerV3 的"latent imagination 训 actor-critic"骨架保留，**把序列模型从 GRU 换成 GPT 式 Transformer**，并配 **categorical VAE**（单个随机 latent token 表示一帧 + 把动作与 latent 融成一个 token）。这套 Stochastic Transformer 在 Atari 100k 上拿到 **126.7% 平均人类归一化分**（不用 lookahead/MCTS 的新纪录），且 1.85 小时游戏经验只需单卡 RTX 3090 训 **4.3 小时**（V100 上 11.9 FPS，快于 DreamerV3 的 9.3、远快于 IRIS 的 0.7）。**它对 WMTS 不是任务迁移（是 Atari 离散像素游戏、无接触无连续控制），而是 world-model 主干的设计与效率参照：Transformer 注意力显式保留历史、单随机 token 省算力、categorical 随机性抑制 autoregressive 误差累积与"追逐虚拟目标"——后者正对应贯穿 DiWA/World4RL 的 model-exploitation 主题。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — model-based RL / imagination rollout
-> - [[StochasticProcess]] — latent transition and uncertainty
-> - [[EmbodiedAI]] — robot learning loop
-
-> [!note] PDF 摘要摘录
-> Recently, model-based reinforcement learning algorithms have demonstrated re- markable efficacy in visual input environments. These approaches begin by con- structing a parameterized simulation world model of the real environment through self-supervised learning. By leveraging the imagination of the world model, the agent’s policy is enhanced without the constraints of sampling from the real en- vironment. The performance of these algorithms heavily relies on the sequence modeling and generation capabilities of the world model. However, constructing a perfectly accurate model of a complex unknown environment is nearly impossible. Discrepancies between the model and reality may cause the agent to pursue virtual goals, resulting in subpar performance in the real environment. Introducing random noise into model-based reinforcement learning has been proven beneficial. In this work, we introd
+> - [[ReinforcementLearning]] — model-based RL；纯 imagination 内训 actor-critic（沿用 DreamerV3 的 λ-return + reinforce + 百分位归一化 + EMA critic）。
+> - [[StochasticProcess]] — categorical VAE（32×32）+ straight-through 梯度；dyn/rep KL 拆分；随机 latent 序列。
+> - [[Final_WMTS]] — **WMTS ensemble world model 的"主干选型"参照**：序列模型用 Transformer 而非 RNN，单随机 token，随机性抗误差累积。
+>
+> **核心技术**: GPT-like Transformer 序列模型, Categorical VAE (32×32, 单 token), Action-Latent 融合 token, symlog two-hot reward, dyn/rep KL 平衡, λ-return imagination, KV cache
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 若采用 token world model，STORM 提醒要同时保留不确定性和动作条件；否则 token 只是压缩日志。
+STORM 在知识库里是 **WM 主干的"架构 + 效率"参照**，**不是**机器人/接触论文——它跑 Atari 100k（26 个 2D 离散动作像素游戏）。所以读它的正确姿势不是问"能否迁到灵巧手"，而是问"**WMTS 的 world model 序列主干该用什么、为什么**"。
 
-## 1. 问题设定与动机
+它直接坐在 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]→DreamerV3 这条线后面，只改一件事——**把 GRU 换成 Transformer**，并清理了 IRIS（多 token 慢）、TWM（obs/action/reward 三 token、Transformer-XL）、TransDreamer（直接替换但缺基准证据）的设计冗余。它的价值=用一张对照表（Table 1）+ Atari 实测，告诉你"高效的 Transformer WM 该长什么样"。它与库内"Transformer 作为序列/表征引擎"的一族（IS ATTENTION REQUIRED FOR ICL、Transformers as Meta-Learners）互为印证。
+
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-RSSM/RNN world model 对长序列依赖和复杂部分可观测动态表达有限；纯 transformer 又可能计算昂贵。
+model-based RL 靠 world model 想象提样本效率，但**想象是 autoregressive 的、会累积预测误差**，误差大时 agent 会"追逐虚拟目标"。STORM 主张：用 **Transformer**（强序列建模 + 可并行 + 长程依赖）+ **categorical VAE 的随机性**（抑制误差累积、增鲁棒）来造一个又准又快的 WM，从而在极少样本（100k）下刷新非 lookahead 方法的纪录。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+RNN（GRU）像"用一个不断被覆写的小本子记历史"——久了会忘、且只能逐格写（不能并行）；Transformer 像"摊开整段历史用注意力随时回看"——移动物体的速度/方向一望即知，且整段并行训练。再给 latent 加一点"受控随机噪声"（categorical VAE），等于让梦境别太死板地一路推到虚假目标上。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+可证伪含义：Transformer 的优势应集中在"**需要回看历史、有多个/大的运动物体**"的场景（Atari 的 Amidar/MsPacman/Chopper/Gopher 实测最强）；而"单个小运动物体"（Pong/Breakout）上 autoencoder + 采样随机性反而拖累——这条强弱边界论文如实给出。
+
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 序列模型 / 表征 | 关键局限 |
+|---|---|---|
+| SimPLe | LSTM / Binary-VAE | RNN 慢；有限样本下性能低 |
+| DreamerV3 | **GRU** / Categorical-VAE | RNN 递归不可并行 → 训练慢；长程依赖弱 |
+| IRIS | Transformer / VQ-VAE（**4×4=16 token**） | 多 token 时空注意力 → 训练极慢（0.7 FPS） |
+| TWM | Transformer-XL / Categorical | obs/action/reward **三独立 token** → token 多、异质注意力伤性能 |
+| TransDreamer | Transformer 直替 GRU | 缺公认基准/有限样本下的证据 |
+| **STORM** | **GPT-like Transformer / Categorical-VAE（单 token）** | Atari 离散像素；小运动物体弱；像素重构对接触/力不敏感 |
 
 ### 1.4 Delta 分析
-离散/随机 latent token 加 transformer sequence model 可以在效率和表达力之间取得更好平衡。
+精确增量 = **在 DreamerV3 骨架上把 GRU 换成 vanilla GPT-Transformer + 三处极简化**：(1) **单个**随机 latent token 表示一帧（vs IRIS 16 token）；(2) **obs 与 action 融成一个 token**（action mixer，vs TWM 三 token）；(3) **重构不使用历史 hidden state**（vs Dreamer/TransDreamer），降低分布动力学学习难度。结果是又快（11.9 FPS）又准（126.7%）。
 
-## 2. 核心方法与理论
+## 2. 核心方法与理论（原理与理论：Transformer WM 怎么搭）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
 |---|---|---|---|---|---|
-| $o_t$ | observation/image/proprioception | real rollout/replay | observed | partial view of world | not equal to Markov state |
-| $a_t$ | robot action/action chunk | policy or dataset | chosen/condition | intervention applied to world | control interface matters |
-| $z_t,h_t$ | latent stochastic/deterministic state | encoder/RSSM | computed/learned | compact dynamics state | must preserve reward/control info |
-| $p_\theta(z_{t+1}|z_t,a_t)$ | transition model | world model training | learned | imagination dynamics | model bias accumulates |
-| $r_t,c_t$ | reward/cost | environment/model head | observed/predicted | optimization signal | reward accuracy not same as safety |
+| $o_t,\hat o_t$ | 图像 | 环境 / decoder | 观测 / 重构 | Atari 帧 | 像素重构，对接触无感 |
+| $z_t\sim Z_t$ | categorical（32×32） | encoder $q_\phi$ | learned（straight-through） | 单 token 随机 latent | 离散随机，非高斯 |
+| $a_t$ | 离散动作 (≤18) | 策略 | 选择 | Atari 动作 | **离散**：无 analytic value gradient |
+| $e_t=m_\phi(z_t,a_t)$ | 单 token | action mixer | learned | obs+action 融合 token | 一帧一 token（高效关键） |
+| $h_t=f_\phi(e_{1:t})$ | hidden | GPT Transformer | learned | 因果注意力历史摘要 | causal mask；推理用 KV cache |
+| $\hat Z_{t+1}=g_\phi^D(h_t)$ | prior 分布 | dynamics 头 | learned | 预测下一 latent | imagination 时从 **prior** 采，非 posterior |
+| $\hat r_t,\hat c_t$ | 标量 / 布尔 | reward/continuation 头 | learned | symlog two-hot 奖励 / 终止 | 奖励用分类式回归 |
+| $s_t=[z_t,h_t]$ | agent state | 拼接 | — | actor/critic 输入 | latent + 注意力摘要 |
+| $G_t^\lambda,V_\psi,\pi_\theta$ | λ-return / 价值 / 策略 | imagination | learned | DreamerV3 式 AC | 见 §2.3 |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 world model 结构与损失（无跳步，Eq 1-5）
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
-
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
-
-### 2.3 论文核心机制无跳步推导
-- 把观测编码为 latent/token。
-- Transformer 预测 action-conditioned latent dynamics。
-- actor-critic 或 planning 在 stochastic latent rollout 上学习。
-
-从 world model RL 角度看，核心是用 learned transition 在内部 rollout 中近似真实闭环：
+**结构（Eq 1-2）**：
 $$
-\max_\pi \; \mathbb{E}\left[\sum_t r(s_t,a_t) - \lambda c(s_t,a_t)\right],
-\quad s_{t+1} \sim \hat p_\theta(s_{t+1}\mid s_t,a_t)
+\text{encoder: } z_t\sim q_\phi(z_t\mid o_t)=Z_t,\quad \text{decoder: } \hat o_t=p_\phi(z_t),
 $$
-但真正的 insight 在 $\hat p_\theta$、$\pi$、$c$ 或任务分布是否带有正确结构。若结构错了，公式仍然成立，行为会系统性失败。
+$$
+\text{action mixer: } e_t=m_\phi(z_t,a_t),\quad \text{序列: } h_{1:T}=f_\phi(e_{1:T}),
+$$
+$$
+\text{dynamics: } \hat Z_{t+1}=g_\phi^D(h_t),\quad \text{reward: } \hat r_t=g_\phi^R(h_t),\quad \text{continuation: } \hat c_t=g_\phi^C(h_t).
+$$
+$f_\phi$ 是 GPT 式 Transformer（causal mask，$e_t$ 只看 $e_{1..t}$）。categorical $Z_t$ 用 32 类别×32 class，straight-through 保梯度。
+
+**损失（Eq 3-5）**：$\;L(\phi)=\frac1{BT}\sum_{n,t}\big[L^{rec}+L^{rew}+L^{con}+\beta_1 L^{dyn}+\beta_2 L^{rep}\big]$（$\beta_1{=}0.5,\beta_2{=}0.1$）：
+- $L^{rec}=\|\hat o_t-o_t\|^2$（重构）；
+- $L^{rew}=L^{sym}(\hat r_t,r_t)$（**symlog two-hot**，把回归转成分类，跨环境尺度一致——承自 DreamerV3）；
+- $L^{con}$ = continuation 的 BCE；
+- **dyn/rep KL 拆分（关键）**：
+$$
+L^{dyn}=\max\!\big(1,\ \mathrm{KL}[\,\mathrm{sg}(q_\phi(z_{t+1}\mid o_{t+1}))\ \|\ g_\phi^D(\hat z_{t+1}\mid h_t)\,]\big),
+$$
+$$
+L^{rep}=\max\!\big(1,\ \mathrm{KL}[\,q_\phi(z_{t+1}\mid o_{t+1})\ \|\ \mathrm{sg}(g_\phi^D(\hat z_{t+1}\mid h_t))\,]\big).
+$$
+$L^{dyn}$ 让**序列模型去逼近 encoder 的后验**（学预测），$L^{rep}$ 让 encoder 的输出被预测**弱牵引**（别让动力学太难学）；stop-grad + 不同权重 = DreamerV3 的 KL-balancing，free-bits=1。
+
+### 2.3 agent 学习（纯 imagination，Eq 6-10，沿用 DreamerV3）
+从 replay 取短 context → 算后验 $Z_t$ → **想象时从 prior $\hat Z_t$ 采** $z_t$（KV cache 加速）。state $s_t=[z_t,h_t]$；critic $V_\psi(s_t)\approx\mathbb E[\sum_k\gamma^k r_{t+k}]$；actor $a_t\sim\pi_\theta$。
+- **actor（Eq 7a）**：reinforce 式 $-\mathrm{sg}\!\big(\frac{G_t^\lambda-V_\psi}{\max(1,S)}\big)\ln\pi_\theta - \eta H(\pi_\theta)$；
+- **critic（Eq 7b）**：回归 $G_t^\lambda$ + EMA 正则；
+- **λ-return（Eq 8）** $G_t^\lambda=r_t+\gamma c_t[(1-\lambda)V_\psi(s_{t+1})+\lambda G_{t+1}^\lambda]$；
+- **归一化 $S$（Eq 9）** = batch 内 $G_t^\lambda$ 的 95% 与 5% 分位差；**EMA critic（Eq 10）** 稳训练。
+
+> 符号陷阱：Atari 动作**离散**，所以这里是 **reinforce（score-function）梯度**，不是 Dreamer 连续控制的 analytic value gradient——别误以为 STORM 穿 dynamics 反传。
 
 ### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+- STORM 的 "world model" = **像素级 latent imagination**（重构帧 + 预测下一 latent），不是 [[DyWA: Dynamics-adaptive World Action Model|DyWA]] 的一步任务状态回归，也不是 [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]] 的像素扩散——同名不同义。
+- imagination 时从 **prior** 采（不看观测），与 Dreamer 一致。
+- categorical 随机性是论文反复强调的"抗误差累积/抗追逐虚拟目标"机制——**stochasticity 当正则**。
+- 单 token / 不用历史 hidden 重构是**效率与可学性**的取舍，非性能上限。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：离散/随机 latent token 加 transformer sequence model 可以在效率和表达力之间取得更好平衡。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
+## 3. 训练、数据与实验（实验与验证）
 
-## 3. 训练、数据与实验
+### 3.1 实验设置
+Atari 100k：26 游戏、100k 交互步（=400k 帧，4 帧跳，≈1.85h 游戏）。人类归一化分 $\tau=(A-R)/(H-R)$。5 seeds，每 2500 步存 checkpoint，20 episode 评测。**不与 MCTS/lookahead（MuZero/EfficientZero）比**——目标是改进 WM 本身。
 
-### 3.1 PDF 结构线索
-- 1        Introduction
-- 2    Related work
-- 3     Method
-- 3.1    World model learning
-- 1 X Xh rec                               dyn
-- 3.2   Agent learning
-- 4     Experiments
-- 4.1   Benchmark and baselines
+### 3.2 关键结果与因果解释
+- **平均 126.7%（中位 58%）**，非 lookahead 新纪录；优于 DreamerV3、IRIS、TWM、SimPLe（Fig 1）。
+- **效率（V100 FPS）**：STORM **11.9** > DreamerV3 9.3 ≫ TWM 5.6 ≫ IRIS 0.7、SimPLe 0.5。**因果**：单 token + vanilla Transformer + 并行训练，避开 IRIS 多 token、TWM 三 token 的注意力开销与 RNN 的串行。
+- **强弱边界（Table 2 因果）**：大/多运动物体（Amidar 205、Chopper 1888、Gopher 8240）**最强**——`注意力显式保留运动物体历史 → 易推速度/方向`；单个小运动物体（Breakout 16 vs IRIS 84、Pong）**弱**——`autoencoder 难抓小物体 + 采样随机性扰乱注意力权重`。
+- **Freeway w/o traj → 0**：去掉引导轨迹后纯探索学不出（稀疏奖励 + 随机探索难），提示 WM 不解决探索本身。
 
-### 3.2 关键结果与证据
-关注 Atari/DMControl 等任务的 sample efficiency、计算效率和与 Dreamer/RSSM 的对比。
-
-- PDF 线索：autoencoders. STORM achieves a mean human performance of 126.7% on the
-- PDF 线索：hours of real-time interaction experience on a single NVIDIA GeForce RTX 3090
-- PDF 线索：graphics card requires only 4.3 hours, showcasing improved efficiency compared
-- PDF 线索：Deep reinforcement learning (DRL) has exhibited remarkable success across diverse domains. How-
-- PDF 线索：ever, its widespread application in real-world environments is hindered by the substantial number
-- PDF 线索：of interactions with the environment required for achieving such success. This limitation becomes
-
-### 3.3 Ablation 因果链
-去掉 stochastic latent -> 不确定性表达不足；去掉 transformer -> 长依赖和并行建模弱。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 3.3 Ablation / 对照因果链（Table 1 即设计消融）
+- `GRU→Transformer`：并行 + 长程 → 更快更准。
+- `多 token（IRIS）→ 单 token`：去掉时空注意力开销 → FPS 飙升。
+- `三 token（TWM）→ obs+action 融合单 token`：避免异质 token 间注意力互扰。
+- `用历史 hidden 重构（Dreamer）→ 不用`：降低分布动力学学习难度。
+- `去 categorical 随机性 → autoregressive 误差累积、追逐虚拟目标`（论文动机级论证）。
 
 ### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+- Atari 2D 离散像素游戏：**无连续控制、无接触/力、无 sim-to-real**。
+- 像素重构算力非零；小运动物体是已知弱项。
+- 纯 imagination 训 agent，但不解决探索（Freeway 需引导轨迹）。
 
-## 4. 核心洞见
+## 4. 核心洞见（逻辑与价值 + 未来）
 
 ### 4.1 论文真正的 insight
-离散/随机 latent token 加 transformer sequence model 可以在效率和表达力之间取得更好平衡。
+**在 Dreamer 式 latent-imagination 骨架里，用 vanilla GPT-Transformer + 单个 categorical 随机 token 取代 GRU，既显著提速又提分**——证明 WM 的瓶颈很大程度在**序列主干的并行性与历史可回看性**，而随机性（categorical VAE）是抑制 autoregressive 误差累积、防"追逐虚拟目标"的关键正则。
 
 ### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+(1) Transformer 注意力显式保留历史 → 运动物体的速度/方向易推；(2) 可并行 → 训练快；(3) 单 token + 不用历史 hidden → 省算力、降学习难度；(4) categorical 随机性 → 抗误差累积；(5) symlog two-hot + dyn/rep KL 平衡 → 跨环境稳定（DreamerV3 遗产）。
 
 ### 4.3 什么时候会失效
-Transformer world model 对数据量敏感；灵巧手真机数据少，必须加物理结构或预训练。
+- 单个小运动物体：autoencoder 抓不住 + 采样随机扰动注意力。
+- 纯探索难题（稀疏奖励无引导）：WM 不解决探索。
+- 像素重构对**接触/力**不敏感：不能直接服务接触密集任务。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与理论局限（未来与结合）
 
 ### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+STORM 是 latent-imagination model-based RL：性能受 WM 保真度与 autoregressive 误差限；categorical 随机性是经验性正则，非形式化误差界。Atari 离散动作下用 reinforce，不涉及连续控制的 analytic gradient 风险。
 
 ### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+| 方法 | 优点 | 缺点 | 与 STORM 关系 |
+|---|---|---|---|
+| DreamerV3（GRU） | 通用、稳 | RNN 串行慢、长程弱 | STORM 的骨架来源，换主干 |
+| IRIS（Transformer+VQ，多 token） | 高保真 token | 极慢（0.7 FPS） | STORM 用单 token 提速 |
+| TWM（Transformer-XL，三 token） | 长上下文 | token 多、异质注意力 | STORM 融合单 token |
+| MuZero/EfficientZero（MCTS） | lookahead 强 | 算力高 | STORM 不比，可叠加 |
 
 ### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+像素重构算力、小物体弱项、探索不解决、离散动作设定是主要边界；接触/触觉/连续控制全未覆盖。
 
-## 6. 对用户研究的启发
+## 6. 对用户研究的启发（未来与结合：WMTS 的 WM 主干选型）
 
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 若采用 token world model，STORM 提醒要同时保留不确定性和动作条件；否则 token 只是压缩日志。
+### 6.1 对 WMTS / 灵巧手的迁移（架构层，非任务层）
+
+| WMTS 模块 | STORM 对应 | 迁移设计 |
+|---|---|---|
+| **Ensemble world model 主干** | GPT-Transformer 序列模型 | WMTS 的 WM 用 Transformer 而非 RNN：注意力回看**接触事件/触觉序列**历史，推接触建立-断开的时序 |
+| latent 表示 | 单 categorical token | 灵巧手 latent 需编码**接触/力**；可保留单 token 高效性，但表征要含触觉 |
+| 抗误差累积 | categorical 随机性 | WMTS 用 **ensemble disagreement + 随机性**双管抑制 autoregressive 误差与 model-exploitation |
+| 推理效率 | KV cache | 高频灵巧手 WM rollout 需同样的推理加速 |
+
+**核心论证（critical thinking）**：STORM 给 WMTS 的是**主干工程**而非任务证据。三条可直接用：(1) **Transformer > RNN**——WMTS 的 WM 要在长接触序列上回看历史，注意力比 GRU 合适，且可并行训练；(2) **单随机 token 的效率**——但灵巧手的"一帧"必须把**接触/力/本体**编码进去，否则像 STORM 在小物体上失手一样，会在精细接触上失真；(3) **随机性抗误差累积**——STORM 用 categorical 噪声，WMTS 更该用 **ensemble**（多个 WM 的 disagreement 既抗误差累积又给 uncertainty，正是 DiWA/World4RL 单 WM 缺的）。**但必须警惕过度外推**：STORM 是 2D 离散像素游戏、像素重构、reinforce——它**没有**接触、力、连续控制、sim-to-real，其 126.7% 与灵巧手难度不可比。WMTS 取其主干思想，不取其任务结论。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- WM 主干 A/B：在手内任务上对照 **GRU-WM vs Transformer-WM（含触觉序列 token）**，测长接触序列的预测保真与 rollout 误差累积。
+- 随机性 vs ensemble：对照 STORM 式单 WM-categorical 噪声 vs WMTS ensemble，测想象-真实回报 gap 与 model-exploitation。
+- KV cache 加速：测 Transformer-WM 在灵巧手控制频率下的 rollout 推理延迟是否可接受。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- Atari 像素游戏成绩**不能**外推到接触密集连续控制。
+- 单 token 像素 latent 对接触/力不敏感，灵巧手需触觉一等输入。
+- categorical 随机性是正则，不等价于 WMTS 需要的**可量化 uncertainty**（要 ensemble）。
 
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-model-based RL / imagination rollout。这篇论文提供的是一个可迁移的结构化 bias：它把 RSSM/RNN world model 对长序列依赖和复杂部分可观测动态表达有限；纯 transformer 又可能计算昂贵。 转化为可建模、可采样或可约束的问题。
+model-based RL 纯 imagination 训 actor-critic：λ-return（Eq 8）+ reinforce actor（Eq 7a，离散）+ 百分位归一化 + EMA critic——DreamerV3 的算法在 Transformer WM 上的实例。
 
 ### 与 [[StochasticProcess]] 的联系
-latent transition and uncertainty。这篇论文提供的是一个可迁移的结构化 bias：它把 RSSM/RNN world model 对长序列依赖和复杂部分可观测动态表达有限；纯 transformer 又可能计算昂贵。 转化为可建模、可采样或可约束的问题。
+categorical VAE（32×32）+ straight-through 梯度；dyn/rep KL 拆分（Eq 5）是 ELBO/KL-balancing；想象从 prior 采，随机 latent 序列建模。
 
-### 与 [[EmbodiedAI]] 的联系
-robot learning loop。这篇论文提供的是一个可迁移的结构化 bias：它把 RSSM/RNN world model 对长序列依赖和复杂部分可观测动态表达有限；纯 transformer 又可能计算昂贵。 转化为可建模、可采样或可约束的问题。
+### 与 [[Final_WMTS]] 的联系
+WMTS ensemble world model 的"序列主干 + 表征 + 抗误差累积"工程参照：Transformer 回看历史、单随机 token 高效、随机性/ensemble 抑制 autoregressive 误差与 model-exploitation。
 
 ## References
-- 原始 PDF：[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning.pdf]]
+- 原始 PDF：[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning.pdf]]（NeurIPS 2023，arXiv 2310.09615）
+- 骨架来源：[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/DreamerV3（GRU、λ-return、symlog two-hot、KL balancing）
+- 对照 Transformer WM：IRIS（VQ-VAE 多 token）、TWM（Transformer-XL 三 token）、TransDreamer
+- 同主题（Transformer 序列/表征）：库内 "IS ATTENTION REQUIRED FOR ICL?"、[[Transformers as Meta-Learners for Implicit Neural Representations]]
 - 项目入口：[[Final_WMTS]]

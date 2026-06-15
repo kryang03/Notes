@@ -4,175 +4,183 @@ tags:
   - dexterous-manipulation
   - domain-randomization
   - sim-to-real
+  - meta-learning
   - WMTS
 aliases:
   - OpenAI Rubik Hand
+  - Solving Rubik's Cube
 paper-year: 2019
-read-date: 2026-06-14
-venue: arXiv
+read-date: 2026-06-15
+venue: arXiv 1910.07113 (OpenAI)
 paper-pdf: "[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND.pdf]]"
 related:
-  - "[[ContactMechanics]]"
-  - "[[Dynamics]]"
   - "[[ReinforcementLearning]]"
+  - "[[EmbodiedAI]]"
+  - "[[Optimization]]"
   - "[[Final_WMTS]]"
+  - "[[Dynamic Non-Prehensile Manipulation]]"
 ---
 
-# SOLVING RUBIK’S CUBE WITH A ROBOT HAND
+# Solving Rubik's Cube with a Robot Hand (OpenAI)
 
 > [!abstract] 核心贡献
-> OpenAI Rubik hand 的核心是 Automatic Domain Randomization：让仿真分布自动扩大，迫使策略学到能跨大量物理扰动生存的鲁棒操作。
+> OpenAI 用 **Shadow 五指手**、**纯仿真训练**做 Rubik's cube 的手内操作，靠两件东西迁到真机：(1) **自动域随机化 ADR**——一个自动把随机化分布**逐步扩宽（按性能驱动的 curriculum）**的算法，用 ADR entropy $H(P_\phi)$ 量化扩展程度；(2) 为机器学习定制的机器人平台。最深的科学发现：**在 ADR 分布上训练记忆增强（LSTM）策略 = 隐式 meta-learning**——策略在**循环隐状态里于测试时涌现地推断并适应当前真实动力学**（因容量有限不能逐环境死记，只能学会"适应"）。**它是 ADR 的源头（[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]] 继承）、也是 WMTS 适配（LAAA）的关键先例：循环策略 + 多样 DR 可隐式 meta-learn 适应动力学，是显式适配模块（[[DyWA: Dynamics-adaptive World Action Model|DyWA]]/RMA）与 world model 之外的第三条适应路线。但须诚实：cube 的"解法逻辑"由经典 Kociemba 求解器给出，RL 只做手内操作子目标，且依赖 mocap 指尖 + 传感魔方、全解成功率有限。**
 
 > [!tip] 与理论基础的关联
-> - [[ContactMechanics]] — contact mode, friction, grasp stability
-> - [[Dynamics]] — hand-object rigid body dynamics
-> - [[ReinforcementLearning]] — policy learning under contact
+> - [[ReinforcementLearning]] — 循环策略 + RL（PPO 系）在 ADR 分布上训练；POMDP。
+> - [[EmbodiedAI]] — sim-only 训练 + ADR 迁移真机；视觉状态估计 + 控制分离。
+> - [[Optimization]] — ADR 是性能驱动的 curriculum（自动扩 randomization 范围，ADR entropy 度量）。
+> - [[Final_WMTS]] — **WMTS 适配（LAAA）的隐式 meta-learning 先例**；ADR curriculum 入 scheduler；与显式适配/WM 互补。
+> - [[Dynamic Non-Prehensile Manipulation]] — Shadow 手内操作经典，但 cube 偏慢且解法靠经典求解器。
+>
+> **核心技术**: Automatic Domain Randomization (ADR, entropy 度量, 性能驱动 curriculum), 循环 (LSTM) 策略 + RL, 涌现 meta-learning (隐式系统辨识), CNN 视觉位姿/面角估计, Kociemba 经典求解器 (cube 逻辑)
 
 ## 0. 阅读定位与范本价值
-这篇 recap 按 `$paper-recap-insight` 的口径整理：先定位论文真正处理的瓶颈，再追踪变量来源、结构性假设、实验因果链和对 [[Final_WMTS]] 的迁移价值。这里不默认写实现代码；如果实现细节重要，只把它解释成信息流、数值约束或失败模式。
 
-它在当前知识库中的角色是：WMTS 可用 ADR 生成 actuator/contact 参数课程，但应结合主动真机校准，避免随机化过宽导致动作保守。
+这篇在知识库里是 **ADR 的源头 + "涌现 meta-learning" 的原始证据**，对 WMTS 的**适配模块**有独特价值。读它要抓两点并诚实隔离一点：
 
-## 1. 问题设定与动机
+1. **ADR**：[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]] 的 ADR 出处；性能驱动的自动 DR curriculum。
+2. **涌现 meta-learning（最深洞见）**：循环策略在多样 DR 上训练，会在隐状态里**测试时隐式适应当前动力学**——这是 [[DyWA: Dynamics-adaptive World Action Model|DyWA]]/RMA 显式适配、[[Finetuning Offline World Models in the Real World|FOWM]] 不确定性适配之外的**第三条适应路线**（隐式、无需显式模块）。
+3. **诚实隔离**：标题"solving Rubik's cube"部分夸大——cube 的解法序列由 **Kociemba 经典求解器**给出，RL 只执行手内子目标；且需 **mocap 指尖 + Giiker 传感魔方**、全解成功率有限。
+
+它与 [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]（ADR 民主化）、探索/课程簇（[[Prioritized Level Replay]]/[[Paired Open-Ended Trailblazer (POET)|POET]]）相通。
+
+## 1. 问题设定与动机（逻辑与价值）
 
 ### 1.1 一句话核心
-高维灵巧手解魔方几乎不可能靠少量真机数据训练；但固定仿真参数会严重 overfit。
+真机数据贵，全仿真训练有 sim2real gap。手动 DR 需人调范围。OpenAI 问：**能否自动生成"越来越难"的随机化环境分布，让纯仿真训练的策略 + 视觉估计器稳健迁到真机，完成 Rubik's cube 这种空前复杂的手内操作？** 答案是肯定的，且发现循环策略在此过程中涌现出 meta-learning。
 
 ### 1.2 直观隐喻
-可以把这篇论文看成是在回答一个工程化问题：当真实机器人不允许无限试错，而任务又包含接触、长时序或分布偏移时，应该把哪一部分结构显式交给模型/控制器/课程，而不是让策略黑箱硬学。
+ADR 像"自动加码的健身教练"：从轻重量起步，你扛住了就加，扛不住就减——始终在你能力边界训练（curriculum）。在千变万化的环境里练到最后，策略**没法对每个环境死记一套动作**（脑容量有限），只能学会"**进了新环境先摸几下、在脑内（LSTM 隐状态）推断这是什么环境再调整**"——这就是涌现 meta-learning。可证伪含义：这种隐式适应依赖**记忆（循环）+ 足够多样的 DR**；无记忆或 DR 不够多样则不涌现。
 
-### 1.3 现有方法的局限
-- 只做端到端策略：容易把感知、动力学、接触和任务目标纠缠在同一个网络里，失败后很难知道是哪一层错。
-- 只做解析模型：物理结构清晰，但真实摩擦、执行器延迟、视觉误差和高维接触通常无法完全建模。
-- 只做数据扩张或随机化：能提高鲁棒性，但如果没有结构化变量，无法解释哪些扰动真的覆盖了真实失败模式。
+### 1.3 现有方法的局限（注入先验 / 关键局限）
+
+| 方法 | 注入的先验 | 关键局限 |
+|---|---|---|
+| 手动 DR | 人调固定随机范围 | 范围难调；无 curriculum |
+| 真机 RL | 真实交互 | 数据贵、不安全 |
+| 解析规划 | 精确模型 | 高 DoF 接触 + cube 内部状态难建 |
+| 显式系统辨识 | 在线估参数 | 需建模 + 额外模块 |
+| **OpenAI ADR** | **自动 DR curriculum + 循环策略 + 涌现 meta-learning** | 需 mocap 指尖 + 传感魔方；cube 逻辑靠经典求解器；天价算力；全解率有限 |
 
 ### 1.4 Delta 分析
-不断调高随机化难度直到策略仍能成功，可以用仿真多样性逼近真实世界未知扰动。
+精确增量（相对前作 block 重定向 + 手动 DR）：(1) **ADR**——把手动 DR 升级为自动性能驱动 curriculum（ADR entropy 量化）；(2) 系统揭示 **涌现 meta-learning** 是 ADR 迁移好的机理；(3) 平台工程 + 更难任务（cube 含内部旋转状态估计）。
 
-## 2. 核心方法与理论
+## 2. 核心方法与理论（原理与理论：ADR + 涌现 meta-learning）
 
 ### 2.1 变量来源追踪
-| Variable | Domain/shape | Source | Fixed/learned/observed/computed | Meaning | Trap |
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
 |---|---|---|---|---|---|
-| $q,\dot q$ | hand joint state | proprioception/sim | observed | robot configuration | command is not torque |
-| $T_o,R_o$ | object pose/rotation | vision/state estimator | observed/estimated | task state | latency/noise changes contact action |
-| $c_i,f_i$ | contact mode/force | sim/tactile/inferred | hidden/observed | physical interaction | often unobserved in vision-only setup |
-| $a_t$ | joint target/torque/action | policy | chosen | low-level command | controller semantics affect dynamics |
-| $g$ | goal pose/task condition | task sampler | fixed per episode | desired outcome | may be infeasible under contact |
+| $\phi=(\phi^L,\phi^H)$ | $\mathbb R^d$ 边界 | ADR 动态更新 | 自动 | 每个随机参数 $\lambda_i\sim U(\phi_i^L,\phi_i^H)$ 的范围 | **随训练动态变**（非固定） |
+| $H(P_\phi)$ | nats/dim | 计算 | — | ADR entropy（范围越宽越高） | 量化扩展程度 |
+| 循环策略 | LSTM | RL 训练 | learned | 控制策略 | **隐状态承载隐式适应** |
+| 视觉估计器 | CNN | 监督训练 | learned | cube 位姿 + 面角 | 与策略分开训 |
+| cube 解法序列 | 子目标 | **Kociemba 经典求解器** | — | cube 逻辑 | **非 RL**：RL 只执行子目标 |
+| 指尖位置 | 真机 | mocap | observed | 真机状态 | 需 mocap |
+| 面角 | 真机 | 视觉 或 Giiker 传感魔方 | observed | cube 内部状态 | 需传感魔方/视觉 |
 
-### 2.2 前置理论从零推导
-这类方法可以统一写成闭环决策问题：机器人在时刻 $t$ 看到观测 $o_t$，内部构造状态或 belief $s_t$，选择动作 $a_t$，真实世界返回 $o_{t+1}$、reward/cost 或成功信号。关键分歧在于论文把哪一项结构化：
+### 2.2 ADR：性能驱动的自动 DR curriculum（无跳步）
+每个随机参数 $\lambda_i\sim U(\phi_i^L,\phi_i^H)$。手动 DR 中 $\phi$ 固定；**ADR 中 $\phi$ 随训练动态变**：在分布边界采样评估性能，性能好就**扩宽**该维范围（推高 ADR entropy $H(P_\phi)=-\frac1d\int P_\phi(\lambda)\log P_\phi(\lambda)d\lambda$），不好就收。本质是**在能力边界上的 curriculum**。ADR 独立于训练算法（只产数据），故同时用于策略（RL）与视觉估计器（监督）。两大优于手动 DR：自动选范围 + curriculum。
 
-- 若结构化 $p(s_{t+1} \mid s_t, a_t)$，它是在做 world model / dynamics model。
-- 若结构化 $\pi(a_t \mid o_t, g)$，它是在做 policy/action prior。
-- 若结构化任务分布 $p(g)$ 或 level replay，它是在做 curriculum / task scheduler。
-- 若结构化控制接口 $u \rightarrow \tau$ 或 force/position channel，它是在处理 sim-to-real actuator/control gap。
+### 2.3 涌现 meta-learning（核心洞见，无跳步论证）
+**假设**：在最大多样的环境分布上训练 ⟹ 经涌现 meta-learning 迁移。**机理**：若模型有记忆（LSTM），它可在隐状态里"调整"行为以适应当前环境；**因容量有限，不能对每个环境死记专用解，只能学会通用的"适应"机制**。论文系统分析隐状态，找到测试时适应的清晰证据——**"在 ADR 分布上训 LSTM = 隐式 meta-learning"**，即隐式在线系统辨识。
 
-因此读这篇论文时不要只问“用了什么网络”，而要问：论文把哪一个不可控黑箱改造成了可解释、可采样或可约束的对象。
+### 2.4 概念边界与符号陷阱（诚实隔离）
+- **cube 逻辑 ≠ RL**：Kociemba 求解器给解法子目标，RL 只做手内翻转/旋面操作——标题易误导。
+- **需 mocap 指尖 + Giiker 传感魔方**（或视觉面角）——非纯 proprio/tactile。
+- ADR entropy 是分布宽度度量，非性能。
+- 涌现 meta-learning 在**隐状态**（无显式适配模块）——与 DyWA/RMA 显式相对。
+- 天价算力（这是 DeXtreme 要democratize 的对象）。
 
-### 2.3 论文核心机制无跳步推导
-- 在仿真中训练 recurrent policy。
-- ADR 根据策略表现自动扩大/收缩参数范围。
-- 真机部署依赖鲁棒策略处理视觉、摩擦、质量和执行器偏差。
+## 3. 训练、数据与实验（实验与验证）
 
-从手-物动力学角度看，策略真正控制的是带接触约束的混合系统：
-$$
-M(q)\ddot q + C(q,\dot q) = \tau + J_c(q)^\top f_c,
-\quad f_c \in \mathcal{K}_{friction},
-\quad c_t \in \{\text{stick, slip, break}\}
-$$
-论文的结构性贡献通常是在减少 contact mode 搜索、几何泛化或低层执行器偏差。陷阱是很多变量在仿真中可见，在真机上只能被估计。
+### 3.1 实验设置
+Shadow Dexterous Hand（5 指）；纯仿真训练（ADR）；真机用 3 相机 CNN 估 cube 位姿/面角 + mocap 指尖（或 Giiker 魔方）。任务：face rotation + cube flip 子目标（Kociemba 给序列）。
 
-### 2.4 概念边界与符号陷阱
-- `state` 不一定是真实物理状态；很多论文里的 state 是 latent、belief 或 simulator privileged state。
-- `action` 不一定是力矩；可能是关节目标、末端位姿、action chunk、diffusion latent 或 controller condition。
-- `world model` 不等于完整世界重建；对机器人来说，只有能改变决策的预测才有价值。
-- `sim-to-real` 不只是视觉 domain gap；执行器延迟、接触摩擦、控制频率和状态估计延迟通常更致命。
+### 3.2 关键结果与因果解释
+- **ADR 大幅改善 sim2real**：ADR 训的策略/视觉估计器迁移远好于手动 DR。**因果**：curriculum 把策略推到多样性边界，迫使学通用适应而非过拟合窄分布。
+- **涌现 meta-learning 证据**：隐状态分析显示测试时对当前动力学的适应。**因果**：多样 DR + 有限容量记忆 ⟹ 学"适应"而非"死记"。
+- **全解成功率有限**（公认）：最难 scramble 成功率较低、易掉 cube——dexterity 极难。
 
-### 2.5 信息流/算法机制（无代码）
-1. 观测/任务条件进入表示层，形成 $s_t$、latent 或 context。
-2. 方法引入结构性假设：不断调高随机化难度直到策略仍能成功，可以用仿真多样性逼近真实世界未知扰动。
-3. 策略、模型或优化器在这个结构上生成候选动作/预测/任务。
-4. 实验通过成功率、预测误差、回报、约束违规或迁移表现检验结构是否真的减少了原瓶颈。
-
-## 3. 训练、数据与实验
-
-### 3.1 PDF 结构线索
-- 1       Introduction
-- 2         Tasks
-- 2.1        Block Reorientation
-- 3         Physical Setup
-- 3.1        Robot Platform
-- 3.2        Giiker Cube
-- 3.2.1    Design
-- 3.2.2        Data Accuracy and Timing
-
-### 3.2 关键结果与证据
-关注真机解魔方成功、随机化范围、扰动恢复和 recurrent memory 的作用。
-
-- PDF 线索：We demonstrate that models trained only in simulation can be used to solve a manipulation problem
-- PDF 线索：exist [28, 99, 110, 95, 5], using them in the real world for complex tasks remains a daunting challenge. Machine learning
-- PDF 线索：transfer to the real world, we predict the Rubik’s cube’s pose from 3 real camera feeds with the CNN and measure
-- PDF 线索：built a robot platform for solving a Rubik’s cube in the real world in a way that complements our machine learning
-- PDF 线索：We investigate why policies trained with ADR transfer so well from simulation to the real robot. We find clear signs of
-- PDF 线索：The remainder of this manuscript is structured as follows. Section 2 introduces two manipulation tasks we consider
-
-### 3.3 Ablation 因果链
-无 ADR -> sim overfit；无 recurrence -> 无法从历史中估计隐藏物理参数。
-
-更一般地，ablation 应按这条链理解：移除结构性假设 -> 模型/策略需要用黑箱容量补偿 -> 在分布外、长 horizon 或接触切换处误差放大 -> 指标下降。不要只把 ablation 看成“少了一个模块所以差”，要看少掉的是哪一种 inductive bias。
+### 3.3 Ablation / 对照因果链
+- `手动 DR 替 ADR → 迁移变差、无 curriculum`。
+- `去循环记忆（前馈）→ 无隐式适应 → 迁移差`（meta-learning 依赖记忆）。
+- `DR 不够多样 → 不涌现 meta-learning`。
 
 ### 3.4 工程约束与实验边界
-- 真实机器人任务中，评估指标必须同时看成功率、恢复能力、约束违规和执行成本。
-- 若论文只在仿真中验证，迁移到 WMTS 时要额外审查 actuator delay、contact sensing 和 domain randomization 覆盖。
-- 若论文依赖视觉，灵巧手高速接触任务还需要检查遮挡、帧率和 tactile/proprioceptive 补偿。
+- 需 mocap + 传感魔方；天价算力。
+- cube 逻辑靠经典求解器；RL 只操作。
+- Shadow 手昂贵；全解率有限、易掉。
 
-## 4. 核心洞见
+## 4. 核心洞见（逻辑与价值 + 未来）
 
 ### 4.1 论文真正的 insight
-不断调高随机化难度直到策略仍能成功，可以用仿真多样性逼近真实世界未知扰动。
+**自动域随机化（ADR）= 性能驱动的 DR curriculum，配记忆增强策略，会涌现出隐式 meta-learning——循环隐状态在测试时推断并适应当前真实动力学，这是 ADR 迁移好的根本机理。** 一句话：**在足够多样的随机化上训记忆策略，模型会学会"适应"而非"死记"，从而隐式系统辨识、迁移真机。**
 
 ### 4.2 为什么这个设计有效
-它有效的原因不是“模型更大”，而是把原来难以泛化的自由度收缩到更合理的结构里：要么让动力学预测只负责短 horizon，要么让动作生成保留多模态，要么让课程集中在能力边界，要么让控制接口显式反映真实物理限制。
+(1) ADR curriculum 始终在能力边界训练，逼出泛化；(2) 多样 DR + 有限容量记忆 ⟹ 隐式 meta-learning（适应而非记忆）；(3) 视觉估计器与策略分离、各自 ADR。
 
 ### 4.3 什么时候会失效
-ADR 成本极高且可能学到笨重鲁棒性；转笔追求速度和精度，不能只靠粗暴随机化。
+- 无记忆 / DR 不够多样 → 不涌现 meta-learning。
+- 任务逻辑无法外包（这里靠 Kociemba）。
+- 关键真实因素 randomize 不到（同 DeXtreme）。
 
-## 5. 替代方案与理论局限
+## 5. 替代方案与理论局限（未来与结合）
 
 ### 5.1 理论维度
-替代方案是把结构完全交给端到端网络。优点是表达力强、工程接口简单；缺点是变量来源不可解释，遇到真实分布偏移时很难定位失败。本文路线的优势在于引入了可检查的中间结构，但代价是结构假设一旦错，会形成系统性偏差。
+纯 model-free sim-to-real + 隐式 meta-learning：适应发生在隐状态（黑箱），无显式动力学模型/参数。理论上隐式 meta-learning 是"分布上的摊销推断"，但不可解释、不可显式约束。
 
-### 5.2 算法维度
-可以用 model-free RL、behavior cloning、MPC、diffusion action prior、ensemble uncertainty 或 curriculum learning 替代本文方法的一部分。选择哪一种，取决于瓶颈是探索、预测、动作多模态、控制延迟还是任务覆盖。
+### 5.2 算法维度（三条适应路线对比，对 WMTS 关键）
+| 适应路线 | 代表 | 优点 | 缺点 |
+|---|---|---|---|
+| **隐式（循环 + DR）** | 本文 | 无需显式模块 | 黑箱、不可解释、依赖记忆+多样 DR |
+| **显式适配模块** | [[DyWA: Dynamics-adaptive World Action Model|DyWA]]/RMA | 可解释、可监督 | 需额外模块 + 特权蒸馏 |
+| **不确定性/WM 适配** | [[Finetuning Offline World Models in the Real World|FOWM]]/[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]] | 显式 uncertainty、可规划 | 需 WM + ensemble |
 
 ### 5.3 工程/实验维度
-对 WMTS 最重要的不是复现 benchmark，而是做失败边界实验：换笔质量、换摩擦、加视觉延迟、限制电机带宽、制造接触丢失，观察方法是否仍能给出可恢复动作。
+mocap/传感魔方依赖、天价算力、经典求解器外包、全解率有限是主要边界；触觉、纯 proprio、高速接触未覆盖。
 
-## 6. 对用户研究的启发
+## 6. 对用户研究的启发（未来与结合）
 
-### 6.1 对灵巧手/转笔/PPO/DP/Sim-to-Real 的迁移
-WMTS 可用 ADR 生成 actuator/contact 参数课程，但应结合主动真机校准，避免随机化过宽导致动作保守。
+### 6.1 对 WMTS / DNPM 的迁移
+
+| WMTS 模块 | 本文对应 | 迁移设计 |
+|---|---|---|
+| **LAAA / 真机适配** | 涌现 meta-learning（隐式） | WMTS 可让循环 generalist 在多样 DR 上隐式 meta-learn 适应延迟/温漂/笔参——**第三条适应路线** |
+| sim curriculum | ADR（entropy 驱动） | WMTS scheduler 借 ADR 思想自动调任务/随机化难度 |
+| PPO Oracle | 循环策略 + RL | sim Oracle 用循环策略获隐式适应 |
+| 感知 | CNN 视觉 + mocap | WMTS 用触觉/本体减少 mocap/视觉依赖 |
+
+**核心论证（critical thinking）**：本文给 WMTS 的最大启发是**适应的"第三条路线"**——除了显式适配模块（[[DyWA: Dynamics-adaptive World Action Model|DyWA]]/RMA）和 world-model/不确定性适配（[[Finetuning Offline World Models in the Real World|FOWM]]），**还能靠"循环策略 + 多样 DR"让适应在隐状态里涌现**（隐式系统辨识）。WMTS 的 LAAA 可三者结合：循环 generalist 提供隐式快速适应、显式适配模块提供可解释参数估计、WM 提供不确定性与规划。**但要诚实评估其代价与边界**：(1) 隐式 meta-learning 是黑箱、不可解释、不可显式约束安全——灵巧高风险动作下，WMTS 可能更需显式（DyWA/WM）以便安全过滤；(2) 本文"解 Rubik's cube"部分靠 **Kociemba 经典求解器**，提示 WMTS 对**有清晰逻辑的子任务可外包给经典规划**（转笔的相位序列或可经典生成，RL 只做接触控制）；(3) 它依赖 **mocap + 传感魔方 + 天价算力**，WMTS 要用触觉/本体替代 mocap、用 [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]] 式 GPU 仿真降算力。ADR 的性能驱动 curriculum 也可直接融入 WMTS task scheduler。
 
 ### 6.2 可验证实验建议
-- 构造一个最小转笔或手内重定向环境，把方法中的核心结构单独接入，不先追求完整系统。
-- 对比三组：端到端 PPO/DP、加入本文结构的版本、加入结构但打乱关键变量的负对照。
-- 记录 failure mode：掉笔、打滑、过大接触力、动作饱和、视觉估计漂移、world model overconfident。
+- 三路线对照：循环+DR 隐式 vs DyWA 显式 vs WM 不确定性，在转笔注入延迟/温漂下测适应速度与可解释性。
+- ADR curriculum 入 WMTS scheduler：自动扩任务/随机化难度，测样本效率。
+- 经典求解器外包：转笔相位序列经典生成 + RL 接触控制，测分工是否更稳。
 
 ### 6.3 不应过度外推的点
-不要因为论文在 locomotion、视觉操作或仿真 benchmark 上成功，就默认它能处理多指高速接触。迁移前必须确认：状态变量是否包含接触，动作接口是否匹配真实控制器，模型 horizon 是否短到足够可信。
+- "解 Rubik's cube"含经典求解器成分，非纯 RL；勿夸大 RL 能力。
+- 隐式 meta-learning 黑箱，高风险灵巧任务需显式适配/安全过滤。
+- mocap/传感魔方/天价算力依赖，WMTS 需触觉 + 廉价仿真替代。
 
 ## 7. 与知识体系的联系
 
-### 与 [[ContactMechanics]] 的联系
-contact mode, friction, grasp stability。这篇论文提供的是一个可迁移的结构化 bias：它把 高维灵巧手解魔方几乎不可能靠少量真机数据训练；但固定仿真参数会严重 overfit。 转化为可建模、可采样或可约束的问题。
-
-### 与 [[Dynamics]] 的联系
-hand-object rigid body dynamics。这篇论文提供的是一个可迁移的结构化 bias：它把 高维灵巧手解魔方几乎不可能靠少量真机数据训练；但固定仿真参数会严重 overfit。 转化为可建模、可采样或可约束的问题。
-
 ### 与 [[ReinforcementLearning]] 的联系
-policy learning under contact。这篇论文提供的是一个可迁移的结构化 bias：它把 高维灵巧手解魔方几乎不可能靠少量真机数据训练；但固定仿真参数会严重 overfit。 转化为可建模、可采样或可约束的问题。
+循环策略 + RL 在 ADR 分布上训练；POMDP；涌现 meta-learning = 分布上的隐式摊销推断。
+
+### 与 [[EmbodiedAI]] 的联系
+sim-only 训练 + ADR 迁移真机；视觉状态估计与控制分离；灵巧手内操作标杆。
+
+### 与 [[Optimization]] 的联系
+ADR 是性能驱动 curriculum（自动扩 randomization 范围，ADR entropy 度量分布宽度）——与 [[Prioritized Level Replay]]/[[Paired Open-Ended Trailblazer (POET)|POET]] 的课程思想相通。
+
+### 与 [[Final_WMTS]] 的联系
+ADR 源头（DeXtreme 继承）；涌现 meta-learning = WMTS LAAA 的隐式适应路线（与显式 DyWA/WM 互补）；ADR curriculum 可入 scheduler。
 
 ## References
-- 原始 PDF：[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND.pdf]]
-- 项目入口：[[Final_WMTS]]
+- 原始 PDF：[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND.pdf]]（OpenAI，arXiv 1910.07113）
+- 后继（ADR 民主化）：[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]
+- 适应路线对照：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]（显式）、[[Finetuning Offline World Models in the Real World|FOWM]]（WM 不确定性）
+- 课程相关：[[Prioritized Level Replay]]、[[Paired Open-Ended Trailblazer (POET)|POET]]
+- 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

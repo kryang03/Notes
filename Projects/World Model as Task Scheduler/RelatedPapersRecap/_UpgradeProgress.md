@@ -6,7 +6,10 @@
 > 原则源：`.github/skills/paper-recap-insight/SKILL.md` + `references/taste-rubric.md`。
 > 判定标准：四支柱齐全、变量来源表 + 无跳步推导、真实实验表 + 因果解释、3 维 limitation + 具体 WMTS/灵巧手迁移、无 generic filler / 无 LaTeX 损坏。
 
-**最后更新**: 2026-06-15 — 完成 Diffusion Policy、Dreamer、DayDreamer、SafeDreamer、DiWA（均范本级）。已处理 5/47（RelatedPapers）。
+**最后更新**: 2026-06-15 — 完成 23 篇范本级。已处理 23/47（RelatedPapers）。灵巧簇：+DexGen（扩散动作先验 generalist + gradient-guidance 安全投影；teleop 高层↔WMTS WM scheduler；笔工具使用先例）。
+**三种安全机制**（WMTS safety filter 可叠加）：DexGen 动作流形投影 / SafeDreamer cost critic / MoDem-V2·FOWM ensemble-LCB。
+**generalist 路线**：DexGen 扩散动作先验（训于 Oracle primitives）= WMTS DP generalist 强化版。
+**WM-core 论证线**: (1) **ensemble/不确定性线**：PDDM（2019 奠基：ensemble 动力学 + mean reward）→ MoDem-V2（AC-ensemble 显式 LCB, online-from-scratch）→ FOWM（Q-ensemble LCB Eq4, offline→online 微调）+ DiWA/World4RL/RWM/Model-Based Lookahead（单 WM/无 ensemble 的反面）→ WMTS 必须 ensemble+显式 LCB。FOWM+MoDem-V2 覆盖真机两模式。(2) **结构化光谱**：DexSim2Real2（显式刚体孪生）↔ DexWM（神经 latent，"latent 不足需结构化监督"）→ WMTS 取中间。(3) **无梯度规划**：PDDM/Model-Based Lookahead/DexSim2Real2/FOWM(MPPI)。(4) **安全**：SafeDreamer(cost)+MoDem-V2(保守探索)。(5) **降维**：eigengrasp+filtering。(6) **DNPM 经典先例**：PDDM 书写/Baoding。
 **读取方法**: 默认 `pdftotext -layout`（轻量、文本）；仅当抽取乱码或公式/表格不清时回退 Read 工具按页渲染。**每篇流程**: pdftotext 取正文 → Read 旧稿取 frontmatter（Write 前必须 Read）→ Write 重写。
 
 ## A. RelatedPapers（WMTS 项目，47 篇）→ RelatedPapersRecap/
@@ -14,22 +17,22 @@
 优先级：World Model 核心 → 灵巧 Sim-to-Real → Diffusion/IL → 探索/课程 → 表征/理论 → locomotion/control。
 
 ### World Model / Model-Based RL
-- [ ] A Step Toward World Models- A Survey on Robotic Manipulation
+- [x] **A Step Toward World Models- A Survey on Robotic Manipulation** ✅ 2026-06-15 (范本级/导航图)
 - [x] **DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION (Dreamer)** ✅ 2026-06-15 (范本级)
 - [x] **DayDreamer- World Models for Physical Robot Learning** ✅ 2026-06-15 (范本级)
-- [ ] Deep Dynamics Models for Learning Dexterous Manipulation (PDDM)
-- [ ] DexSim2Real2 - Building Explicit World Model ...
+- [x] **Deep Dynamics Models for Learning Dexterous Manipulation (PDDM)** ✅ 2026-06-15 (范本级)
+- [x] **DexSim2Real2 - Building Explicit World Model ...** ✅ 2026-06-15 (范本级)
 - [x] **DiWA- Diffusion Policy Adaptation with World Models** ✅ 2026-06-15 (范本级)
-- [ ] DyWA: Dynamics-adaptive World Action Model
-- [ ] Finetuning Offline World Models in the Real World
-- [ ] Learning to Model the World: A Survey of World
-- [ ] MoDem-V2- Visuo-Motor World Models ...
-- [ ] Model-Based Lookahead Reinforcement Learning for in-hand manipulation
-- [ ] Robotic World Model: A Neural Network Simulator
+- [x] **DyWA: Dynamics-adaptive World Action Model** ✅ 2026-06-15 (范本级)
+- [x] **Finetuning Offline World Models in the Real World (FOWM)** ✅ 2026-06-15 (范本级)
+- [x] **Learning to Model the World: A Survey of World** ✅ 2026-06-15 (范本级/导航图)
+- [x] **MoDem-V2- Visuo-Motor World Models ...** ✅ 2026-06-15 (范本级)
+- [x] **Model-Based Lookahead Reinforcement Learning for in-hand manipulation** ✅ 2026-06-15 (范本级)
+- [x] **Robotic World Model: A Neural Network Simulator** ✅ 2026-06-15 (范本级)
 - [x] **SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL** ✅ 2026-06-15 (范本级)
-- [ ] STORM: Efficient Stochastic Transformer based World Models for RL
-- [ ] World Models Computing the Uncomputable
-- [ ] World4RL- Diffusion World Models for Policy Refinement ...
+- [x] **STORM: Efficient Stochastic Transformer based World Models for RL** ✅ 2026-06-15 (范本级)
+- [x] **World Models Computing the Uncomputable** ✅ 2026-06-15 (范本级/愿景随笔批判)
+- [x] **World4RL- Diffusion World Models for Policy Refinement ...** ✅ 2026-06-15 (范本级)
 
 ### Diffusion / Imitation / VLA
 - [x] **Diffusion Policy: Visuomotor Policy** ✅ 2026-06-15 (范本级)
@@ -37,17 +40,17 @@
 - [ ] HG-DAgger- Interactive Imitation Learning with Human Experts
 
 ### Dexterous Manipulation / Sim-to-Real
-- [ ] DEXTERITYGEN- Foundation Controller for Unprecedented Dexterity
-- [ ] DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality
+- [x] **DEXTERITYGEN- Foundation Controller for Unprecedented Dexterity** ✅ 2026-06-15 (范本级)
+- [x] **DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality** ✅ 2026-06-15 (范本级)
 - [ ] DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning
 - [ ] DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts
-- [ ] From Simple to Complex Skills- The Case of In-Hand Object Reorientation
+- [x] **From Simple to Complex Skills- The Case of In-Hand Object Reorientation** ✅ 2026-06-15 (范本级)
 - [ ] Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning
 - [ ] LIGHTNING GRASP ... PROCEDURAL GRASP SYNTHESIS WITH CONTACT FIELDS
-- [ ] SOLVING RUBIK'S CUBE WITH A ROBOT HAND
+- [x] **SOLVING RUBIK'S CUBE WITH A ROBOT HAND** ✅ 2026-06-15 (范本级)
 - [ ] UniDexGrasp++- ... Geometry-aware Curriculum and Iterative GSL
-- [ ] ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation
-- [ ] World Models for Learning Dexterous Hand-Object Interactions from Human Videos
+- [x] **ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation** ✅ 2026-06-15 (范本级)
+- [x] **World Models for Learning Dexterous Hand-Object Interactions from Human Videos (DexWM)** ✅ 2026-06-15 (范本级)
 
 ### Locomotion / Sim-to-Real / Control
 - [ ] ANYmal parkour Learning agile navigation for quadrupedal robots
