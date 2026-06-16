@@ -138,6 +138,7 @@ Idea-015 (Reset-Free)                  ★★★
 | 日期 | 事件 |
 |------|------|
 | 2026-04-27 | 首批 15 ideas 生成完成，等待远端 Agent 拉取 Stage 0 实验 |
+| 2026-06-16 | 新增 [[Rationale-Planner-Follower-Task-Definition]]——任务定义的 RL 理论依据（为何 goal-conditioning 必致 mode collapse → Planner-Follower），萃取自 ViserDex 对话 Turn 2-3，给 [[auto_taskgen]] 的 receding-horizon 设计补"why"。 |
 
 > [!important] 远端协作
 > 远端服务器 Agent 拉取本目录到 `all_Insights_server/` 后，应优先执行 **Idea-001 / 002 / 008 / 012 / 015** 的 Stage 0 Grid Search，结果写回 [[_ExperimentResultsAll]]。

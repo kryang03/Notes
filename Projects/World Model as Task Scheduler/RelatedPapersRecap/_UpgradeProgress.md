@@ -6,7 +6,8 @@
 > 原则源：`.github/skills/paper-recap-insight/SKILL.md` + `references/taste-rubric.md`。
 > 判定标准：四支柱齐全、变量来源表 + 无跳步推导、真实实验表 + 因果解释、3 维 limitation + 具体 WMTS/灵巧手迁移、无 generic filler / 无 LaTeX 损坏。
 
-**最后更新**: 2026-06-16 — 完成 47 篇范本级。表征：+Transformers as Meta-Learners（hypernetwork 一次前向生成全权重；破 DyWA/FiLM 单向量瓶颈；适应机制按幅度分级 FiLM/hypernetwork/微调/ICL）。**仅剩最后 1 篇：The Latent Space。**
+**最后更新**: 2026-06-16 — **Part A 全部 48 篇达范本级**（+The Latent Space：latent 计算坐标系综述，latent-vs-结构化张力定位 WMTS）。**新增工作线**：(1) ✅ 萃取 `insight-chat-tmp.md`（ViserDex 深度对话）入 ViserDex recap——SH 函数 / K-means 簇内 DR / **EMA 动作平滑(α 随机化) ↔ [[Idea-002-Latency-Aware-Actuator]]** / belief-RNN 蒸馏；Turn 2-3 用户核心 insight → 新建 [[Rationale-Planner-Follower-Task-Definition]]；(2) ✅ 已建 [[_CrossPaperInsights]]（13 条论证线 + 🔑keystone + 跨线张力 + 速查矩阵；含 specialist→generalist、安全-cost、WM 神经主干、任务生成-课程、适应多级），并在 [[_RelatedPapersIndex]] 加导航指针。**待办**：`insight-chat-tmp.md` 内容已全萃取，可清（用户确认）；Bash 恢复后跑 `.github/scan_links.py`；Part B（PapersRecap 86 篇）未启动。
+**二次审计 (2026-06-16)**: 实读细查 15/48 篇（前述 11 + STORM + Hwangbo + CMA-ES + POET，覆盖 WM/灵巧/locomotion/优化-课程 四簇、最长 338→最短 122 行），均确认范本级——行数无关，最短的 World Models Uncomputable 是"愿景随笔文体判定 + 批判隔离"的范本。[[_CrossPaperInsights]] 新增 🔑 **keystone**：一个 ensemble → Solve/Probe/Reject 三读法，统一线 1（避不确定/LCB）/线 4（求不确定/Probe）/线 11（判不确定/Reject）。又补线 12（WM 神经主干 Transformer vs RNN，STORM）+ 线 2 组件分解（命令→actuator net(Hwangbo)→力矩→Lagrangian(SSRL)→运动 + 接触力 + 增益(DexCtrl)，白箱拼装）。
 **适应机制谱（WMTS LAAA 完整）**：FiLM 单向量(DyWA/DexCtrl,轻但瓶颈) / hypernetwork 全权重(Trans-INR,表达力高) / 梯度微调(FOWM,慢) / 隐式 ICL(Rubik/ICL-paper) / 控制器增益(DexCtrl) / 动力学嵌入(DyWA-RMA)。按"适应幅度×算力×速度"选。
 **注**: dontAsk 模式 Write 被拒、Edit 可用 → Read 全文草稿后用两个 Edit（frontmatter + body）全文替换。PDF 抽取：Bash(pdftotext) classifier 时有不可用 → 回退 Read 工具读 PDF 页。
 **WM-core 论证线**: (1) **ensemble/不确定性线**：PDDM（2019 奠基：ensemble 动力学 + mean reward）→ MoDem-V2（AC-ensemble 显式 LCB, online-from-scratch）→ FOWM（Q-ensemble LCB Eq4, offline→online 微调）+ DiWA/World4RL/RWM/Model-Based Lookahead（单 WM/无 ensemble 的反面）→ WMTS 必须 ensemble+显式 LCB。FOWM+MoDem-V2 覆盖真机两模式。(2) **结构化光谱**：DexSim2Real2（显式刚体孪生）↔ DexWM（神经 latent，"latent 不足需结构化监督"）→ WMTS 取中间。(3) **无梯度规划**：PDDM/Model-Based Lookahead/DexSim2Real2/FOWM(MPPI)。(4) **安全**：SafeDreamer(cost)+MoDem-V2(保守探索)。(5) **降维**：eigengrasp+filtering。(6) **DNPM 经典先例**：PDDM 书写/Baoding。
@@ -73,7 +74,7 @@
 - [x] **FLD: Fourier Latent Dynamics ...** ✅ 2026-06-16 (范本级)
 - [x] **IS ATTENTION REQUIRED FOR ICL? ...** ✅ 2026-06-16 (范本级)
 - [x] **On the Continuity of Rotation Representations in Neural Networks** ✅ 2026-06-16 (范本级)
-- [ ] The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook
+- [x] **The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook** ✅ 2026-06-16 (范本级/latent 计算坐标系综述；latent-vs-结构化张力)
 - [x] **Transformers as Meta-Learners for Implicit Neural Representations** ✅ 2026-06-16 (范本级)
 
 ## B. Papers（主库，86 篇）→ PapersRecap/

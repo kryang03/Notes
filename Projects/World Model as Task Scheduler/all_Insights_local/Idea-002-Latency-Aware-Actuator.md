@@ -115,6 +115,7 @@ FiLM 调制等价于在每层学习一个 latency-conditioned linear transform�
 
 ## 5. 知识库关联
 
+- [[ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation|ViserDex]] — **轻量先例**：用"随机化 α 的 EMA 动作平滑" $\bar a_t=(1-\alpha)\bar a_{t-1}+\alpha a_t$ 做**隐式延迟 DR**，验证了"训练期延迟随机化 → 真机鲁棒"。本 Idea 是其**显式升级**：把不可观测的盲目平滑换成**可观测 CAN latency $\delta_t$ 条件化的 FiLM**，并支持 frozen-rigid 在线适应。
 - [[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|§4.A]] — 直接扩展输入定义
 - [[Actuator2RigidDynamicsModel_gap#三、 L25 灵巧手 CAN 协议与可读取量分析|L25 CAN 分析]] — latency 物理来源
 - [[FOC_Control#5.2 电流环带宽|FOC §5.2]] — 电流环带宽与延迟的耦合关系

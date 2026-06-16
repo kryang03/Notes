@@ -93,25 +93,49 @@ vanilla 3DGS 静态且光照-几何纠缠，无法做 DR。ViserDex 的 **pre-ra
 - curriculum+蒸馏替 ADR：省算力，但仍是 model-free（无 WM、无真机学习）。
 - **RGB 在快速遮挡下信息不足**——这是路线的根本边界（作者自陈连续旋转靠触觉/本体）。
 
+### 2.5 机制级补充（自深度精读萃取）
+
+> 以下细节来自对本文的深度精读，补齐 P2 原理深度与 P3 实验数字，并建立一条跨文档关联（EMA↔Idea-002）。
+
+**(1) 球谐(SH)与 pre-rasterization DR 的数学核心**：3DGS 视角相关颜色 $c(d)=\text{Sigmoid}\big(\sum_{l=0}^{L}\sum_{m=-l}^{l}k_l^m Y_l^m(d)\big)$（$L{=}3$）。0 阶 $k_0^0$(SH0)=与视角无关的**朗伯基色**，高阶(SHN)=**镜面高光**。DR 直接扰动 SH 系数即可独立改变光照/材质——这就是"在 Gaussian 空间做 DR"的数学落点（vanilla mesh 渲染改材质要重算光线碰撞，昂贵）。
+
+**(2) K-means 簇内统一扰动（为何不能逐 Gaussian 扰动）**：单个 Gaussian 独立加噪 → 高频图像噪声、失物理意义。故按空间位置或 SH0 用 K-means 聚类，对同簇所有系数施加统一加/乘性噪声 $S'[\mathcal{I}_k]\leftarrow S'[\mathcal{I}_k]\oplus\delta$，模拟局部阴影/光温的**宏观、物理一致**变化。
+
+**(3) 物理深度遮挡掩码**：3DGS 渲染孤立物体，用低保真物理引擎渲染手的深度 $D_{phys}$，当 $D_{phys}<D_{splat}$ 时把该像素置零 → 还原手指对物体的真实遮挡。**避坑**：物理相机内外参须与 3DGS 严格一致，否则掩码像素级漂移，网络把残影当真实特征拟合。
+
+**(4) 位姿表征降维**：不直接回归 $SE(3)$/四元数，而预测物体 8 角点+几何中心的归一化 2.5D 坐标 $(u,v,d)$，再用刚性 Procrustes 解析出 6D 位姿——大幅降低感知网络回归难度。感知 backbone=ResNet-34，推理 ~18Hz。
+
+**(5) Belief-state RNN + 重构监督（POMDP 解药）**：student 用 RNN 把历史含噪观测压成信念态 $z=f_\phi(o^{noisy}_{prop},o^{noisy}_{exte})$；除 BC 损失 $\mathcal{L}_{BC}$，强制信念解码器重构教师特权态 $(\tilde o_{exte},\tilde o_{priv})=h_\psi(z,o^{noisy}_{exte})$，总目标 $\mathcal{L}=\mathcal{L}_{BC}+\lambda\mathcal{L}_{recon}$。蒸馏本质=逼信念态 $z\to$ 教师真实物理态 $s_t$。借鉴 Miki et al. 四足 perceptive locomotion 的 belief encoder-decoder。
+
+**(6) 在线 DAgger**：混合比例从教师主导 90% 起、每轮 ×0.95 衰减，抗 covariate shift。
+
+**(7) EMA 动作平滑（α 随机化）→ 跨文档关联**：$\bar a_t=(1-\alpha)\bar a_{t-1}+\alpha a_t$，训练中**随机化 α** 增强对动作延迟/执行器动态的鲁棒性。**这正是 [[Idea-002-Latency-Aware-Actuator|Idea-002 LAAA]] 的轻量先例**：ViserDex 用"随机 α 的 EMA"做**隐式延迟 DR**；WMTS 的 LAAA 可视为其**显式升级**（CAN 延迟条件化 actuator network）。这条关联此前两份文档互不知晓。
+
 ## 3. 训练、数据与实验（实验与验证）
 
 ### 3.1 实验设置
 16-DoF Allegro 手 + 单目 RGB 相机；5 个复杂几何物体；nominal + 对抗光照。消费级单 GPU。对照传统 mesh 渲染数据训的位姿器、ADR 重方法。
 
-### 3.2 关键结果与因果解释
-- **3DGS 位姿器 > mesh 渲染位姿器**（挑战光照下）。**因果**：Gaussian 空间 DR 生成更逼真多样的训练数据 → 对真实光照鲁棒。
-- **零样本迁真机，5 物体对抗光照稳健重定向**。**因果**：感知（3DGS DR）+ 控制（curriculum 蒸馏）各自迁移好。
-- **单消费级 GPU**：curriculum+蒸馏替 ADR 大幅降算力。
+### 3.2 关键结果与因果解释（真实数字）
+- **感知**：常规光照下 ADD 误差 **10.2mm**、准确率 **65.4%**（自训 ResNet-34，~18Hz）。
+- **控制（连续成功次数 CS）**：常规光照平均 **37.6** 次；cube 上 **35.4 vs DeXtreme 27.8**（超越标杆前作）；**对抗光照（动态色偏/低照度）下仍 ~25 次**。
+  - **因果**：感知（3DGS DR）+ 控制（curriculum 蒸馏）各自迁移好 → 零样本迁真机、5 物体对抗光照稳健重定向。
+- **单消费级 GPU**：curriculum+蒸馏替 ADR 大幅降算力（对比 DeXtreme/Rubik 集群）。
 
-### 3.3 Ablation / 对照因果链
+### 3.3 Ablation / 对照因果链（真实数字）
+- **Global Shift 增强是灵魂**：`移除 Global Shift（模拟色温/曝光宏观变化）→ 对抗光照识别准确率断崖跌到 23.6% → 因宏观光照分布未被覆盖 → 位姿器对真实光照失配`。
+- **Penalty Curriculum 不可去**：`去掉性能自适应惩罚课程 → 策略因惧违反物理约束而极度保守 → 任务完成率≈0`。
+- **感知必须低延迟（单点故障）**：`自训 ResNet-34(~18Hz) 换成通用 FoundationPose(4Hz) → CS 暴跌到 0.4 → 高频灵巧闭环对感知延迟极度敏感`。
 - `mesh 渲染替 3DGS → 视觉保真/多样不足 → 位姿器对抗光照失准`。
 - `ADR 替 curriculum+蒸馏 → 算力暴涨`。
 - `快速运动自遮挡 → RGB 位姿估计退化`（路线边界，作者明述）。
 
 ### 3.4 工程约束与实验边界
 - **vision-centric**：快速运动自遮挡/模糊下 RGB 不足。
+- **纯视觉的接触盲区**：操作"药片瓶"时瓶标表面**未建模的超低摩擦** → 真机成功率大幅下降；纯 RGB 无法感知微观接触打滑 → 再次指向触觉缺位（WMTS 选触觉的又一实证）。
 - 重定向（goal-conditioned），非高速连续转笔。
 - 感知-控制分离；位姿器质量上限决定控制。
+- **真机标定**：Allegro 传动的弹簧/阻尼难仿真，须用系统辨识(SysID)提取准确 Actuator Gains，否则仿真飞天、真机抽搐。
 
 ## 4. 核心洞见（逻辑与价值 + 未来）
 
@@ -151,6 +175,7 @@ RGB 遮挡边界、位姿器单点故障、重定向非高速、感知-控制分
 | **Oracle→generalist 效率** | curriculum + teacher-student 替 ADR | **直接借**：性能 curriculum + 蒸馏训 generalist，省算力（单/少 GPU） |
 | 感知 | 3DGS RGB 位姿器 | **不照搬**：转笔遮挡严重→WMTS 用触觉+本体；RGB 仅作辅助（非遮挡时） |
 | sim 视觉 gap | Gaussian 空间 DR | 若 WMTS 需视觉，3DGS DR 是高效工具 |
+| **actuator 延迟鲁棒** | EMA 动作平滑(α 随机化) | **轻量先例 → [[Idea-002-Latency-Aware-Actuator\|Idea-002 LAAA]]**：随机 α 的 EMA = 隐式延迟 DR；LAAA 升级为 CAN 延迟条件化 actuator network |
 | 课程 | 性能驱动 curriculum | 入 WMTS scheduler |
 
 **核心论证（critical thinking）**：ViserDex 给 WMTS **一正一反**两条明确信号。**正面**：它的 **"curriculum + teacher-student 蒸馏替代 ADR、单消费级 GPU"** 是一条经过验证的高效 sim-to-real 范式，WMTS 的 Oracle→DP generalist 可直接采用，避开 [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]/[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]] 的集群成本。**反面（更重要）**：ViserDex 是 **vision-centric**，而它**自己承认** perception-control gap——快速手内运动→自遮挡+运动模糊→RGB 位姿估计极难，且**连续旋转任务要靠 proprioceptive + tactile 反馈**。**转笔比重定向更快、遮挡更重**，所以 RGB 路线在 DNPM 上必然失守——这正是 WMTS 选 **touch-centric（触觉 5×12×6 + 本体）** 的最强外部实证。换言之，ViserDex 把"视觉 sim-to-real"做到了很好，但也精确标出了视觉的天花板，而 WMTS 的差异化恰是**用触觉绕过这个天花板**。WMTS 可取其效率范式（curriculum+蒸馏）、弃其感知路线（RGB→触觉），3DGS 仅在非遮挡辅助场景备用。

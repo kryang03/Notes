@@ -52,12 +52,12 @@ sim 像"一张略有偏差的地图"。DR 是"在地图上到处加噪练到对�
 
 ### 1.3 现有方法的局限（注入先验 / 关键局限）
 
-| 方法 | 注入的先验 | 关键局限 |
-|---|---|---|
-| SysID | 校准 sim 参数 | 费力；real 超出建模分布时失效 |
-| DR（[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]） | 盲随机化 | 过保守牺牲敏捷；调参多 |
-| full-WM（[[Finetuning Offline World Models in the Real World|FOWM]]/[[Robotic World Model: A Neural Network Simulator|RWM]]） | 学整动力学 | 重；model-exploitation |
-| **ASAP delta-action** | 残差校正现有 sim | 需 sim 大体正确；gap 须可由动作残差吸收；全身（非 in-hand） |
+| 方法                                                                               | 注入的先验                                                    | 关键局限                                   |             |                      |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------- | ----------- | -------------------- |
+| SysID                                                                            | 校准 sim 参数                                                | 费力；real 超出建模分布时失效                      |             |                      |
+| DR（[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality | DeXtreme]]）                                              | 盲随机化                                   | 过保守牺牲敏捷；调参多 |                      |
+| full-WM（[[Finetuning Offline World Models in the Real World                      | FOWM]]/[[Robotic World Model: A Neural Network Simulator | RWM]]）                                 | 学整动力学       | 重；model-exploitation |
+| **ASAP delta-action**                                                            | 残差校正现有 sim                                               | 需 sim 大体正确；gap 须可由动作残差吸收；全身（非 in-hand） |             |                      |
 
 ### 1.4 Delta 分析
 精确增量：**delta (residual) action model**——从真实 rollout 学一个残差动作，使"sim(动作+delta)"的状态轨迹逼近真实，从而**对齐 sim 物理而不重建它**；冻结后嵌 sim 微调策略，部署去除。把"随机化/重建动力学"换成"学最小残差对齐"。

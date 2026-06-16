@@ -10,6 +10,9 @@ tags:
 > 本目录中的正式 recap 必须与 `../RelatedPapers/` 中 PDF basename 完全一致，仅后缀从 `.pdf` 改为 `.md`。
 > 旧短名 recap 已删除，避免同一论文出现双入口。
 
+> [!tip] 跨论文综合（论证网络）
+> 想看"这些论文共同支撑了 WMTS 的哪些设计决策、彼此如何支持/反驳"，见 [[_CrossPaperInsights|跨论文 Insight 综合]]——以 WMTS 决策为节点的 13 条论证线（ensemble-LCB / 结构化光谱 / 无梯度规划 / 探索信号 / 降维 / 感知路线 / 任务定义 / 适应机制 / latent-vs-显式 / specialist→generalist / 安全-cost / WM 神经主干 / 任务生成-课程）+ 🔑keystone（一个 ensemble→Solve/Probe/Reject）+ 跨线张力 + 速查矩阵。
+
 ## World Model / Model-Based RL
 
 | Recap | 入口名 |
