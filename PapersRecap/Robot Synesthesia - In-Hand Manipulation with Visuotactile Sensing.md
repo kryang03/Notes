@@ -20,8 +20,8 @@ related:
 
 # Robot Synesthesia: In-Hand Manipulation with Visuotactile Sensing
 
-> [!abstract] 核心概要
-> 受人类触觉-视觉联觉启发，提出点云形式的触觉表示，将视觉和触觉统一到 3D 空间中，实现更自然的多模态融合用于手内操作。
+> [!abstract] 核心贡献
+> 针对"视触觉多在特征级拼接、异质模态难自然融合，且 RGB/深度的 sim-to-real gap 大"这一瓶颈，提出 Robot Synesthesia：把触觉信号经 FK 投影成 3D **触觉点云**，与视觉点云、机器人增强点云在**同一坐标系输入级合并**后送单一 PointNet。结构性洞见：**把异质模态都抽象为几何点云，既让 PointNet 的置换不变聚合自然融合三种来源（靠 one-hot 区分），又因几何表示不含纹理/光照/力幅值而天然缩小 sim-to-real gap。** 由此实现双球同时旋转等复杂多物体操作。
 
 > [!note] 教科书背景
 > **接触信息的几何本质**：触觉点云实际上是 [[ContactMechanics#2. 接触几何运动学：流形上的演化|Montana 接触运动学方程]] 中“接触点在表面演化”的离散化观测。每个触觉点的 3D 坐标隐式编码了：
@@ -71,6 +71,23 @@ Robot Synesthesia (2024): 点云统一视触觉 ← 本文
 3. **双球旋转任务**: 证明方法能处理更复杂的多物体交互
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+与簇内 teacher-student 工作一致，核心区分在 teacher 的**特权几何**（物体位姿 $x_t,v_t,w_t$ + 预训练 shape feature $f$）与 student 只能用的**点云观测** $P_t$——这是 §5 蒸馏瓶颈的来源。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $q_t,\hat{q}_t$ | $\mathbb{R}^{16}$ | 观测/目标 | 否 | 当前/目标关节位置 | — |
+| $o_t$ | $\{0,1\}^{16}$ | 观测（FSR） | 否 | 二值触觉触发 | 二值，触发后才采点 |
+| $k$ | 轴 | 任务指令 | 否 | 目标旋转轴 | 指令轴 |
+| $x_t,v_t,w_t$ | 位姿/速度 | **特权**（teacher, GT） | 否 | 物体位姿/线速/角速 | student 无，仅 teacher 用 |
+| $f$ | $\mathbb{R}^{32}$ | **特权**预训练 PointNet | 预训练后冻结 | 物体形状紧凑特征 | teacher 更强但**不可部署**（需 GT 几何） |
+| $P_t^{camera}$ | $N_c{\times}3$, $N_c{=}512$ | 观测（相机） | 否 | 视觉点云 | 同一坐标系 |
+| $P_t^{aug}$ | $N_a{\times}3$, $N_a{=}8n_{link}$ | FK 采样（机器人网格） | 否 | 机器人自身几何 | 提供手-物空间关系 |
+| $P_t^{touch}$ | $N_t{\times}3$, $N_t{\le}128$ | FK + 触觉触发采样 | 否 | 触觉点云 | **位置非力**；依赖 FK 标定 |
+| one-hot type | $\{0,1\}^3$ | 构造 | 否 | 区分三类点云来源 | 零成本但关键（§4 消融） |
+| $\Delta q$ | $\mathbb{R}^{16}$ | 网络输出 | 是（策略） | 关节位置增量 | 非力矩 |
 
 ### 3.1 触觉点云表示
 
@@ -144,6 +161,31 @@ $$
 > PointNet 学会将注意力集中在: 1) 指尖, 2) 物体表面, 3) **触发的触觉点**
 
 这表明触觉点云确实帮助网络定位关键交互区域。
+
+### 3.7 前置理论从零推导：触觉点云为何是"对的"统一表示
+
+把"点云统一视触觉"从优雅直觉提升到几何 + 置换不变性。
+
+**(A) 触觉点云 = 接触运动学的笛卡尔离散化。**
+1. 接触点在物体/手指表面演化由 Montana 接触运动学描述（[[ContactMechanics#2. 接触几何运动学：流形上的演化|Montana 方程]]），接触状态含表面局部坐标 $(u_1,u_2)$。
+2. 当传感器 $i$ 触发，其在连杆系的位置 $u_{sensor,i}$ 经 FK 投影到世界系：
+$$p_i = FK(q) + R_{link}(q)\, u_{sensor,i}\ \in\mathbb{R}^3.$$
+3. 这一步把"接触发生在哪个传感器(离散 id)"翻译成"接触发生在世界系哪个 3D 点"——与视觉点云**进入同一坐标系**。关键：触觉与视觉本是异质模态(电压 vs 像素)，但接触的**几何位置**是二者共同的物理底座，FK 投影正是把触觉拉到这个共同底座上。
+
+**(B) 为什么能输入级合并——PointNet 的置换不变性。**
+1. PointNet 用对称函数逼近 $f(\{x_1,\dots,x_n\})\approx g(\max_i h(x_i))$，max-pool 对输入顺序与数量不敏感。
+2. 因此三类点云 $P^{camera}\cup P^{aug}\cup P^{touch}$ 直接拼成一个**变长、混合来源**的集合也无妨——只需给每点附 one-hot 来源标记，置换不变聚合自动融合（§4 消融"去 one-hot→特征混淆"印证标记必要）。
+3. 这与 RotateIt/AnyRotate 的**特征级**融合(各模态独立编码器再拼接)形成对比：本篇是**输入级**融合，把"如何融合"交给几何 + 对称函数，而非手工设计融合结构。
+
+**(C) 为什么点云缩小 sim-to-real gap——几何抽象吸收差异。**
+RGB 的 gap 在纹理/光照/反射，深度的 gap 在传感器噪声；点云只保留几何坐标，sim 与真机的物体几何一致，gap 退化为几何采样噪声(小)。这与 [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]] 的"二值化量化吸收 gap"是**两条不同的 gap 消除路径**：一个抽象掉力幅值、一个抽象掉表观，殊途同归（§8）。
+
+### 3.8 概念边界与符号陷阱
+- **teacher 特权几何 vs student 点云**：teacher 用 GT 物体位姿 $x_t,v_t,w_t$ 和预训练 shape feature $f$，student 只看 $P_t$——蒸馏换来可部署性，代价是 §5 信息瓶颈。
+- **触觉点云是位置、非力**：二值 FSR 触发后采样几何点，不含法向/切向力幅值与滑动——丢的信息与 [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]] 的稠密 $(P,F)$ 互补。
+- **触觉点云依赖 FK 标定**：$p_i=FK(q)+R_{link}u_{sensor,i}$ 的精度受运动学标定影响，标定误差直接污染点云位置。
+- **one-hot 来源标记不可省**：否则 PointNet 无法区分视觉/增强/触觉点（§4 消融）。
+- **动作是关节增量、非力矩**；控制 10 Hz，真机瓶颈在 Kinect 点云预处理。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -272,3 +314,6 @@ $$\mathcal{L}_{DAgger} = \mathbb{E}_{s \sim d^{\pi_S}} \| \pi_S(s) - \pi_T(s) \|
 | AnyRotate | 连续姿态+力 | TCN 特征融合 | 稠密触觉 |
 | **Robot Synesthesia** | **触觉点云** | **输入级点云合并** | **统一 3D 表示** |
 | HATO | FSR 数值 | MLP 特征融合 | 双手系统 |
+
+> [!note] 领域级 insight（与簇内综述互参）
+> Robot Synesthesia 在 [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2 三轴坐标]]里占"⟨有支撑⟩×⟨多轴/双球⟩×⟨视触觉(点云)⟩"格，独特维度是**输入级几何统一 + 多物体(双球)**。把它与簇内其它 gap 消除路径并置最有洞见：[[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 用"在线辨识物体参数"、[[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]] 用"二值量化"、本篇用"几何点云抽象"——三者都在回答"如何让感知跨越 sim-to-real"，分别抽象掉了物体参数、力幅值、表观纹理。由此得一个领域级 **meta-insight**：**in-hand rotation 的 sim-to-real 本质是"找到一个对 gap 不变的观测子空间"，而非"缩小 gap 本身"**——这条思路可直接迁移到 WMTS/转笔的感知设计。

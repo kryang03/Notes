@@ -58,6 +58,20 @@ related:
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
 
+### 3.0 变量来源追踪
+
+TARC 与 [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]] 同属"actor 端到端学连续 $\Delta t(s)$"一类，但 TARC 的关键差异在**折扣按物理时间** $e^{-c\Delta t}$（§3.1、§4.3 消融）。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $s$ | $\mathbb{R}^{d_s}$ | 观测 | 否（输入） | 状态 | — |
+| $a_t$ | $\mathbb{R}^{d_a}$ | actor 输出（tanh） | 是（策略） | 连续关节目标 | — |
+| $\Delta t$ | $[\Delta t_{min},\Delta t_{max}]$ | actor 输出（sigmoid 映射） | 是（策略） | 动作持续时间 | 连续可学、**状态依赖**；区别于 AP-AC 预设 $c^k$、PFQI 离散 $k$ |
+| $t_k=\sum_{i<k}\Delta t_i$ | 时间 | 累积计算 | 否 | 实际物理时间 | episode 按物理时间截断，非步数 |
+| $\gamma(\Delta t)=e^{-c\Delta t}$ | scalar | 计算 | 否 | **时间感知折扣** | **非 $\gamma^k$**——按步数折扣会系统性偏好短动作 |
+| $c$ | scalar | 超参 | 否 | 折扣率 | 套娃超参（但比 VTS-RL 的自适应 $\alpha_m$ 少一层） |
+| $f=1/\Delta t$ | Hz | 导出 | 否 | 控制频率 | 须满足 $f\ge2f_{dynamics}$（§3.4 隐式学习） |
+
 ### 3.1 问题形式化
 
 **标准 RL 公式扩展**：
@@ -138,6 +152,14 @@ def temporal_discount_return(rewards, durations, discount_rate=10.0):
         returns.insert(0, G)
     return torch.stack(returns)
 ```
+
+### 3.6 概念边界与符号陷阱
+
+- **$\Delta t$ 连续可学、状态依赖**：actor 的 duration head 输出，区别于 AP-AC 预设固定 $c^k$、PFQI 离散全局 $k$——这把 TARC 定位到簇的"状态自适应"一极（§9）。
+- **折扣按物理时间 $e^{-c\Delta t}$、非步数 $\gamma^k$**：这是变时间步 RL 的**正确性要件**。若按步数折扣，短 $\Delta t$ 动作在有限 horizon 内积累更多步奖励 → 系统性偏好短动作（§4.3 消融直接验证）。VTS-RL 用 $D_{min}/\tau$ 奖励缩放间接补偿，TARC 用时间感知折扣**直接**消除偏差。
+- **隐式 Nyquist、无显式保证**：策略只隐式学 $f\ge2f_{dynamics}$，关键时刻可能选过低频率（§5 理论局限）——这是它与 PFQI/AP-AC 强保证的差距。
+- **并行仿真批次对齐难**：不同 env 的 $\Delta t$ 不同，GPU 仿真器要求同步步进 → 需量化 $\Delta t$ 或分桶异步（§5 算法局限）。
+- **真机 $\Delta t_{min}$ 受通信延迟约束**：~5ms EtherCAT / ~20ms USB 限制高频端（§5 工程局限）。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -286,5 +308,6 @@ $$
 | Sim-to-Real | 零样本 | 未验证 | 已有大量验证 | 竞赛验证 |
 | 适用场景 | 动态变化任务 (赛车/四足) | 离散决策间隔可接受的任务 | 动力学稳定的任务 | 固定频率即可的任务 |
 
-> [!note] 启示
-> TARC 的连续 $\Delta t$ 是 Action Persistence 的自然推广：后者在离散重复中选择，前者在连续时间域中优化。对灵巧操作，接触模式切换是**连续频率调节**的强需求场景——TARC 比离散方案更适合。
+> [!note] 簇定位与新 insight（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning#6.4 领域级综述：control frequency / time-step 簇（本篇为理论锚点）|PFQI §6.4 簇综述]] 的三维分解互参）
+> 在 control frequency 簇三维坐标 ⟨单一/多变量⟩×⟨固定/自适应⟩×⟨强/弱保证⟩ 中，TARC = ⟨单一·状态自适应·弱保证⟩——**与 [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]] 同格**。同格不等于重复：VTS-RL 侧重能效（$D_{min}/\tau$ 奖励缩放 + MOSEAC 自适应权重 + Lyapunov），TARC 侧重 sim-to-real + 一个被忽略的**正确性要件**。
+> **本篇开启的新 insight——"折扣正确性"是变时间步 RL 的隐藏维度**：当 $\Delta t$ 可变，按步数折扣 $\gamma^k$ 会系统性偏好短动作（§4.3 消融）。必须按**物理时间** $e^{-c\Delta t}$ 折扣，或用奖励缩放补偿。这是 PFQI（固定 $k$ 不涉及）、AP-AC（多变量但各 $c^k$ 固定）都回避了、而任何"可变时间步"方法必须正面处理的问题。于是三维分解多出一条隐含约束：**凡落在"自适应"维度的方法，都须解决折扣正确性**——这是 WMTS 若采用状态依赖调度粒度时必须内建的设计约束。

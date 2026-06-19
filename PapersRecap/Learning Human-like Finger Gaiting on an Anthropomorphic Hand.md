@@ -83,6 +83,22 @@ related:
 
 ## 2. 方法论剖析 (Methodology Dissection)
 
+### 2.0 变量来源追踪
+
+本文同样是"特权训练 → 部署难"的结构：3D 净接触力、物体位姿、点云都是仿真特权，真机不可得（§5 指出需 teacher-student，本文未做）。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $q,\dot{q}$ | $\mathbb{R}^{21}$ | 观测（本体） | 否（输入） | 关节角/角速度（Linker Hand 21 DoF） | 细长指尖形态是 gaiting 前提 |
+| $q_{tgt,prev}$ | $\mathbb{R}^{21}$ | 网络上一步输出 | 否（作输入） | 上一目标关节角 | 动作是其增量 |
+| 指尖位置 | $\mathbb{R}^{15}$ (5×3) | **特权**/FK | 否 | 5 指尖 xyz | 部署需 FK 估计 |
+| $\mathbf{f}_{tip,i}$ | $\mathbb{R}^{3}\times5$ | **特权**（仿真净接触力） | 否（归一化后输入） | 3D 净接触力 | 真机难测；区分支撑/推进/引导力 |
+| 物体位姿/速度 | — | **特权**（仿真 GT） | 否 | 物体 pose/vel | student 部署无 |
+| 物体点云 | — | **特权**（仿真几何） | 否 | 物体形状 | student 部署无 |
+| $\Delta q_{tgt}$ | $\mathbb{R}^{21}$ | 网络输出 | 是（策略） | 增量目标关节角 | **增量、非绝对、非力矩** |
+| $q_{wp}$ | $\mathbb{R}^{21}\times3$ | 人类轨迹提取 | 否 | 3 个路径点 | **必须是过渡态非稳态**（§3 消融） |
+| $F_{min},F_{max}$ | scalar | 迭代优化（训练中） | 否 | 力归一化范围 | **与策略共进化**，固定则退化（§3 消融） |
+
 ### 2.1 强化学习框架
 
 **基本设定**:
@@ -193,6 +209,28 @@ def waypoint_reward(obj_angle, waypoint_angles, threshold=0.1):
 ```
 
 ---
+
+### 2.5 前置理论从零推导：为什么"手部形态决定策略类型"
+
+本文最核心的 insight（细长仿人指尖催生 gaiting、宽指尖只会 balancing）不是经验观察，可从旋转动力学 + 摩擦锥 + 工作空间推出，并与 [[Lessons from Learning to Spin Pens|Spin Pens §2.2]] 的 finger gaiting 推导统一。
+
+**第 1 步——持续旋转的力矩需求。** 笔绕轴 $\hat{z}$ 持续旋转需净力矩长期为正：$\sum_i(r_i\times \mathbf{f}_i)\cdot\hat{z}>0$，且各接触力受摩擦锥约束 $\|\mathbf{f}_{i,t}\|\le\mu f_{i,n},\ f_{i,n}\ge0$（[[ContactMechanics#3. 接触建模演变：从点模型到软体模型|ContactMechanics §3]]）。
+
+**第 2 步——宽指尖/低 DoF 为何只能 balancing。** 宽指尖接触面同质、可调的接触点少，手指工作空间小：它能提供稳定法向支撑（让 $\sum f_{i,n}$ 抵消重力），却无法把接触点"挪动"以持续供矩。于是最优策略退化为**静态平衡**——把物体稳在指尖，旋转靠极小幅度抖动，难以持续（这正是 Spin Pens 低 DoF 手观察到的 fingertip balancing）。
+
+**第 3 步——细长/高 DoF 指尖为何能 gaiting。** 21 DoF 细长指尖给每根手指独立的大工作空间 + 多样接触面，使"接触→推进→脱离→复位"循环可行。多指相位错开 → 任意时刻总有手指在供矩、其余在复位 → 净力矩持续为正。
+
+**第 4 步——形态决定可行的接触模式切换图。** 把接触集记为 $\sigma(t)$，gaiting = 受控的周期模式切换序列。**手部形态决定了 $\sigma(t)$ 切换图的丰富度**：宽指尖的切换图退化（几乎只有"全支撑"一个模式），细长高 DoF 手的切换图连通且丰富，才容得下 gaiting 这条闭环路径。这把"形态决定策略"从图示观察提升为接触运动学的必然。
+
+**第 5 步——与 Spin Pens 的统一与分叉。** 同一旋转动力学下：Spin Pens 用低 DoF 手 → 只能 balancing → 靠 open-loop replay 跨 sim-to-real；本文用高 DoF 手 → 直接涌现 gaiting → 但特权接触力使其卡在仿真（§5）。**形态选择同时决定了"能学到哪类策略"和"sim-to-real 难点在哪"**——这是 in-hand 操作里被低估的设计自由度。
+
+### 2.6 概念边界与符号陷阱
+- **动作 $\Delta q_{tgt}$ 是增量目标关节角**，经 PD 转力矩，非绝对位置、非直接力矩。
+- **3D 净接触力是特权信息**：训练用仿真真值，部署不可得——本文未做 teacher-student，是其 sim-to-real 的最大缺口（§5）。
+- **路径点必须是接触过渡态、非静态平衡态**：静态态是"稳定陷阱"，策略会优先保平衡而非探索 gaiting（§3 消融 1.95→0.21）。
+- **力归一化参数 $F_{min},F_{max}$ 与策略共进化**：固定则随策略施力分布漂移而失效（§3 消融 1.95→0.73）。
+- **二值接触 vs 3D 净力**：本文刻意用后者——gaiting 的核心是"力调制"（区分支撑/推进/引导力），非"接触检测"。
+- **"形态决定策略"不是说低 DoF 手不可能旋转**：而是其最优策略类退化为 balancing，gaiting 不在其可行策略空间内。
 
 ## 3. 实验验证与结果
 
@@ -321,7 +359,7 @@ def waypoint_reward(obj_angle, waypoint_angles, threshold=0.1):
 
 ---
 
-## 5. 相关文献网络
+## 6. 相关文献网络
 
 **上游工作**:
 - [[Lessons from Learning to Spin Pens]]（转笔任务基础）
@@ -337,7 +375,7 @@ def waypoint_reward(obj_angle, waypoint_angles, threshold=0.1):
 
 ---
 
-## 6. 关键概念索引
+## 7. 关键概念索引
 
 ### Finger Gaiting
 
@@ -360,7 +398,7 @@ vs Fingertip Balancing: 静态稳定 vs 动态控制
 
 ---
 
-## 7. 演化脉络 (Evolution Context)
+## 8. 演化脉络 (Evolution Context)
 
 **灵巧操作技能习得演进**:
 ```
@@ -378,7 +416,7 @@ vs Fingertip Balancing: 静态稳定 vs 动态控制
 
 ---
 
-## 6. 与本仓库基础理论联系
+## 9. 与本仓库基础理论联系
 
 ### 与 [[ReinforcementLearning]] 的联系
 
@@ -410,7 +448,7 @@ $$M(q)\ddot{q} + C(q,\dot{q})\dot{q} + g(q) = \tau + J_c^T \mathbf{f}_c$$
 
 ---
 
-## 7. 跨方法对比 (Cross-Method Comparison)
+## 10. 跨方法对比 (Cross-Method Comparison)
 
 | 维度 | [[Lessons from Learning to Spin Pens\|Spin Pens]] | [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]] | [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References\|DexTrack]] | **本文 (FingerGaiting)** |
 |------|-----------|-----------|----------|----------|
@@ -422,6 +460,9 @@ $$M(q)\ddot{q} + C(q,\dot{q})\dot{q} + g(q) = \tau + J_c^T \mathbf{f}_c$$
 | **探索策略** | 奖励塑形 | 课程学习 | 同伦优化+数据飞轮 | 路径点初始化+稀疏奖励 |
 | **关键创新** | 任务定义 | 重力不变性 | 数据飞轮迭代 | 形态-策略涌现关系 |
 | **训练时间** | 较长 | 数小时 | 数小时 | 1.5h |
+
+> [!note] 领域级 insight（in-hand rotation 簇收官）
+> 至此 in-hand rotation 簇 7 篇全部范本级并互链。Finger Gaiting 的独特贡献是给簇加上**形态轴**：在 [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2]] 的三轴（支撑/自由度/感知）之外，本文证明**手部形态本身决定可行策略类**（宽指尖→balancing、细长高 DoF→gaiting，§2.5 推导）。与 [[Lessons from Learning to Spin Pens|Spin Pens]] 对照最有教益：同是转笔，Spin Pens 低 DoF 手只能 balancing + open-loop replay 跨 gap，本文高 DoF 手直接 gaiting 但卡在特权接触力。**合并簇内两条 meta-insight**：(1) sim-to-real 本质是找"对 gap 不变的观测子空间"（见 [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing|Robot Synesthesia]] §8）；(2) 可学策略类由手部形态先验决定。WMTS/转笔选型时，这两条共同框定"形态—感知—sim2real"的设计三角。
 
 ---
 

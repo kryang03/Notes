@@ -20,13 +20,15 @@ related:
 
 # Dynamic Reinforcement Learning for Actors
 
-> [!note] Foundation 关联
-> - **[[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]]**: 探索机制设计
-> - **[[StochasticProcess]]**: 混沌动力系统与随机性
-> - **[[Dynamics]]**: 网络动力学与稳定性
+> [!abstract] 核心贡献
+> 针对"标准 RL 的探索靠外部各向同性噪声 $\epsilon\sim\mathcal{N}(0,\sigma)$、与动作生成割裂、不顾状态结构"这一瓶颈，提出 **Dynamic RL**：把探索**内嵌**进 Actor RNN 的混沌动力学（正 Lyapunov 指数），用 TD error 符号在线调控网络敏感度（局部 Lyapunov 指数）实现状态依赖的定向探索。结构性洞见：**探索不必是外加噪声，而可以是网络自身动力学的内生属性——好动作降敏感度(收敛/利用)、坏区域升敏感度(发散/探索)。**
 
-> [!abstract] 核心概要
-> 提出 **Dynamic RL**：将探索能力内嵌于 Actor 网络的混沌动力学中，而非依赖外部噪声。通过调控网络的 Lyapunov 敏感度，实现状态依赖的自适应探索策略。
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现|ReinforcementLearning §2.8]] — 探索机制：从外部噪声到内生混沌
+> - [[StochasticProcess]] — 混沌（确定性、$\lambda_{max}>0$）vs 真随机过程的区分；混沌自相关衰减更慢 → 探索有时间结构
+> - [[Dynamics]] — RNN 隐状态 $h_{t+1}=\tanh(W_{hh}h_t+W_{ih}x_t+b)$ 作为离散动力系统；SAL 调控 $\|W_{hh}\|_{spectral}$ 维持 edge-of-chaos
+>
+> **核心技术**: Chaos-based Exploration, Sensitivity (局部 Lyapunov), SAL, SRL (TD-controlled)
 
 ## 元信息
 - **作者**: Katsunari Shibata
@@ -50,6 +52,20 @@ related:
 ---
 
 ## 技术方法
+
+### 变量来源追踪
+
+本文的反常识处：混沌是**确定性**的（对初值敏感），不是随机噪声；探索的载体是 RNN 隐状态 $h_t$ 的演化，而非动作分布的方差。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $s$ | $\mathbb{R}^{d_s}$ | 观测 | 否（输入） | 状态 | — |
+| $h_t$ | $\mathbb{R}^{d_h}$ | RNN 递归演化 | 是（前向） | **混沌的载体** | MLP 无递归 → 无混沌 |
+| $a$ | $\mathbb{R}^{d_a}$ | head 输出 | 是 | 动作（确定性但不可预测） | 非 $\mu(s)+\epsilon$，无显式噪声 |
+| Sensitivity | scalar | 微扰计算 | （用于 SRL 目标） | 局部 Lyapunov 指数近似 | $\epsilon$ 选取：过大失局部性、过小被浮点淹没 |
+| $\delta_{TD}$ | scalar | TD 计算 | 否 | TD error | **符号**驱动 SRL：>0 降敏感度、<0 升 |
+| $W_{hh}$ | matrix | 学习（SAL 调谱范数） | 是 | 递归权重 | $\|W_{hh}\|_{spec}>1$ 混沌、$<1$ 收缩 |
+| $\lambda_{max}$ | scalar | 系统性质 | — | 最大 Lyapunov 指数 | **正**=探索（本文）vs **负**=稳定（Stability-Certified RL） |
 
 ### 1. 系统动力学控制
 
@@ -210,7 +226,19 @@ Dynamic RL 需要**正 Lyapunov 指数**（混沌），而 [[Stability-Certified
 
 这揭示了一个有趣的张力：**探索需要不稳定，利用需要稳定**。
 
+> [!note] 领域级 insight：Lyapunov 指数作为"探索↔利用"的统一标尺
+> 把本文与 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Certified RL]]、[[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]] 并置，浮现一个统一视角：**RL 的探索-利用权衡可用最大 Lyapunov 指数 $\lambda_{max}$ 的符号刻画**——$\lambda_{max}>0$（轨迹发散）= 探索，$\lambda_{max}<0$（收敛）= 利用/稳定，$\lambda_{max}\approx0$（edge of chaos）= 临界平衡。三篇分占标尺不同位置：Dynamic RL 主动维持 $\lambda_{max}\gtrsim0$、Stability-Certified RL 强制 $\lambda_{max}<0$、Exploration vs Exploitation 在概率层面用熵正则平衡（与 Lyapunov 视角互补）。**这把"Lyapunov 标尺"是连接探索理论与稳定性理论的桥**，并提示一个方向：用 $\lambda_{max}(s)$ 做**状态依赖的探索-利用调度**——与 control frequency 簇的状态依赖调度异曲同工（那里调时间尺度、这里调稳定性）。这两个簇可能共享同一套"状态依赖元控制"的数学。
+
 ---
+
+## 概念边界与符号陷阱
+
+- **混沌是确定性的**（$x_{t+1}=f(x_t)$，$\lambda_{max}>0$），对初值敏感但**无外部噪声** $\xi$——与随机探索的根本区分。
+- **探索载体是 $h_t$ 而非动作方差**：RNN 递归连接产生混沌，MLP 无内部状态故无混沌（§Ablation）。
+- **SAL vs SRL 分工**：SAL 维持 edge-of-chaos（无方向），SRL 用 TD 符号给方向；去掉任一都退化（仅 SAL→随机游走、仅 SRL→混沌过早消失）。
+- **"不需 BPTT" 的出入**：作者声称免 BPTT，但 SRL 仍需前向传播算 sensitivity 梯度——声称与实现有张力（§工程陷阱）。
+- **正 Lyapunov（探索）vs 负 Lyapunov（利用/稳定）**：本文与 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Certified RL]] 是同一 Lyapunov 框架的两极。
+- **混沌 ≠ 高效探索**：可能在 low-reward 区浪费采样，缺乏对信息增益的定向优化（§理论局限）。
 
 ## 理论局限性深度分析
 

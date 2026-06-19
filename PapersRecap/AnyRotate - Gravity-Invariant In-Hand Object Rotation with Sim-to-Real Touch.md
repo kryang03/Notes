@@ -20,8 +20,8 @@ related:
 
 # AnyRotate: Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch
 
-> [!abstract] 核心概要
-> 提出 AnyRotate 系统，首次实现重力不变的多轴手内物体旋转，使用稠密特征化 sim-to-real 触觉感知实现 zero-shot 迁移。
+> [!abstract] 核心贡献
+> 针对"手内旋转大多只在 palm-up 验证、回避重力破坏抓取稳定，且触觉多为二值/端到端图像迁移 gap 大"两个瓶颈，提出 AnyRotate：用 **Auxiliary Goal Formulation** 把连续多轴旋转转成移动目标重定向（化解角速度奖励的探索困难），用**稠密触觉特征**（接触姿态 $(R_x,R_y)$ + 力幅度 $\|F\|$）替代二值接触并经 CNN 实现 zero-shot sim-to-real，再用**随机化手朝向**学出重力不变策略，实现任意手方向、任意轴的统一旋转。结构性洞见：**sim-to-real 的可迁移单元不是原始触觉图像、而是物理可解释的接触中间表征；连续旋转的可学习形式不是角速度、而是移动子目标。**
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 教师-学生策略蒸馏
@@ -73,6 +73,23 @@ AnyRotate (2024): 稠密触觉 + 重力不变多轴旋转 ← 本文
 4. **Gravity-Invariant Training**: 通过随机初始化手朝向实现重力不变性
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+AnyRotate 同属 in-hand rotation 簇的 Teacher-Student 范式（与 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] / [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]] 同构），核心区分在 teacher 的**特权重力方向**与 student 只能靠触觉/本体隐式推断。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $q_t,\bar{q}_t$ | $\mathbb{R}^{16}$ | 观测/目标 | 否 | 当前/目标关节位置 | $\bar{q}_t$ 由 auxiliary goal 反解 |
+| $ft_p,ft_r$ | $\mathbb{R}^{12},\mathbb{R}^{16}$ | 观测/FK | 否 | 指尖位置/姿态 | 手坐标系 |
+| $c_t$ | $\{0,1\}^4$ | 观测（触觉） | 否 | 二值接触 | 信息量远少于稠密 $P,F$ |
+| $P_t$ | $S^2{\times}4$ | 触觉 CNN 预测 | CNN 带梯度 | 接触姿态(极角+方位) | **球面量非欧氏**；sim 真值监督、真机 CNN |
+| $F_t$ | $\mathbb{R}^4_{\ge 0}$ | 触觉 CNN 预测 | CNN 带梯度 | 接触力幅度 | softplus 保非负；是 $f_n$ 标量近似，丢切向 |
+| $\hat{k}$ | $S^2$ | 任务指令 | 否 | 期望旋转轴 | 指令轴 $\neq$ 实际角速度 |
+| $g_i$ | $SO(3)$ | 计算（沿 $\hat{k}$ 递增 $\delta\theta$） | 否 | 移动子目标 | 达标即刷新；$\delta\theta\approx15°$ |
+| 重力方向 | $S^2$ | **特权**（teacher） | 否 | $R_{hand}^T g$ | student 无此量，靠触觉/本体隐式推断 |
+| $\Delta\theta$ | $[-0.026,0.026]^{16}$ | 网络输出 | 是 | 相对关节位置增量 | **增量、非绝对、非力矩** |
+| $z_t/\bar{z}_t$ | latent | student TCN / teacher 编码 | 是 | 蒸馏对齐的隐表征 | $\bar{z}_t$ detached 作监督 |
 
 ### 3.1 MDP 建模
 
@@ -200,6 +217,29 @@ new_goal_quat = axis_angle_to_quat(k_hat * delta_theta)  # (B, 4)
 current_goal[goal_reached] = quat_mul(new_goal_quat, current_goal)[goal_reached]
 ```
 
+### 3.8 前置理论从零推导
+
+**(A) 为什么 Auxiliary Goal 能化解稀疏奖励——势函数奖励塑形。**
+1. 经典困境：连续旋转的自然奖励 $r=\omega\cdot\hat{k}$（角速度投影）梯度稀疏——策略在学会旋转前几乎拿不到信号，易陷入"稳定抓持不旋转"局部最优（§4 消融"去 Auxiliary Goal→不收敛"）。
+2. 重定向视角：定义沿轴递增的目标序列 $g_i=R(\hat{k},i\cdot\delta\theta)\,q_0$，奖励改为关键点距离 $-\|k_o-k_g\|$，这是**dense** 信号：每步都有梯度指向当前子目标。
+3. 与最优性的关系：达标刷新 $g_i\to g_{i+1}$ 等价于势函数塑形 $F(s,s')=\gamma\Phi(s')-\Phi(s)$，取势 $\Phi=-\text{dist to goal}$。按 Ng et al. (1999) **势函数塑形定理**，这不改变最优策略、只重塑梯度密度——所以 Auxiliary Goal 是"无偏"的 reward shaping，不引入次优解。
+4. $\delta\theta$ 的 sweet spot（§4.5 ~15°）：太小→目标切换过频、塑形项抖动；太大→单步不可达、退化回稀疏。
+
+**(B) 重力不变 = 对重力方向的边际化。**
+1. 物体在手内的动力学含重力项（[[ContactMechanics#3.2 软指接触模型 (Soft Finger Contact)|软指接触]] + 刚体）：
+$$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
+重力在**手坐标系**的投影 $R_{hand}^T g$ 随手朝向 $R_{hand}$ 改变——palm-up 时重力把物体压向指尖（稳），palm-down 时把物体拉离指尖（易掉）。
+2. 暴力枚举 6 朝向 = 对 $R_{hand}$（从而 $R_{hand}^T g$）采样，训练目标变成在重力方向分布上的期望回报 $\mathbb{E}_{R_{hand}}[J(\pi)]$——策略被迫学到**不依赖特定重力方向**的抓取力调度。
+3. 这是"以采样近似对称性"：理论上更优是从 SE(3) 对称性设计 gravity-equivariant 网络（§5 理论局限已指出），AnyRotate 用枚举换实现简单。
+
+### 3.9 概念边界与符号陷阱
+- **动作是相对关节位置增量**（$\pm0.026$ rad/步），非绝对位置、非力矩。
+- **稠密触觉 $P_t\in S^2$ 是球面量**（极角+方位角），不能当欧氏向量直接做差；$\|F\|$ 是法向力标量近似，丢了切向力与力矩。
+- **触觉特征 sim 用真值监督、真机靠 CNN 预测**：可迁移单元是 $(P,F)$ 这层中间表征，不是原始触觉图像。
+- **重力方向是 teacher 特权**，student 部署时无，靠触觉+本体历史隐式推断。
+- **关键点距离用 8 个表面点**作旋转度量，刻意避开四元数（双覆盖）与欧拉角（万向锁）。
+- **Auxiliary Goal 假设旋转可离散为可达子目标**——对转笔 aerial phase（手指脱离）该假设破裂（§8 已指出）。
+
 ## 4. 实验与验证 (Experiments)
 
 ### 实验设置
@@ -325,6 +365,9 @@ current_goal[goal_reached] = quat_mul(new_goal_quat, current_goal)[goal_reached]
 ├── 重力不变多轴旋转
 └── Auxiliary Goal Formulation
 ```
+
+> [!note] 领域级 insight（与簇内综述互参）
+> AnyRotate 是 in-hand rotation 簇里唯一攻下**任意旋转轴**的工作，代价是物体仍需多指稳定支撑（非 [[Lessons from Learning to Spin Pens|Spin Pens]] 的无支撑笔）。放进 [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2 三轴坐标]]，它占据"⟨有支撑⟩×⟨任意轴⟩×⟨稠密触觉⟩"格；与 [[RotateIt - General In-Hand Object Rotation with Vision and Touch#7.2 演进脉络|RotateIt]]（多轴但 x/y/z 分别训练、视触觉）的关键差是"单一策略任意 $\hat{k}$" vs "分轴训练"。沿 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]]→RotateIt→AnyRotate 的感知-自由度阶梯，领域空白仍是"**无支撑 + 任意轴 + 纯本体**"：AnyRotate 贡献"任意轴 + 稠密触觉 sim-to-real"，Spin Pens 贡献"无支撑数据引擎"，合流是 WMTS/转笔的开放问题。其 §3.8(A) 证明的"Auxiliary Goal = 势函数塑形"是该空白可直接复用的无偏奖励工具。
 
 ### 跨方法结构性对比
 

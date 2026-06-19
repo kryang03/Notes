@@ -5,7 +5,145 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-06-14 (Session #40 — Research Insight Critic skill + ViserDex Planner-Tracker 证据链 ✅)
+**最后更新**: 2026-06-17 (Session #41 — PapersRecap 范本级升级 loop：in-hand rotation 簇 Spin Pens/RotateIt/HORA 升级 + 领域综述互链 ✅)
+
+## 🟡 Session #41 进行中 (2026-06-17) — PapersRecap 范本级升级 loop
+
+**触发**：用户 `/loop`（cron 每 30 分钟）要求实时检查 PapersRecap 中尚未达"范本级"的 recap，逐篇升级，强调 critical thinking、领域级总结、梳理文献间联系、开启新 insight。
+
+### 范本级标准（判定依据）
+范本 = `Example/Rodrigues Network for Learning Robot Actions.md`，四支柱（见 `.github/skills/paper-recap-insight/SKILL.md`）：
+- **P1 逻辑与价值**：method+bottleneck+structural insight、per-paradigm 局限表、精确 Delta、可证伪隐喻
+- **P2 原理与理论**：变量来源追踪表（含"是否带梯度"列）+ 前置理论无跳步推导 + 符号陷阱 ← **最常缺**
+- **P3 实验与验证**：真实数字表 + 每表因果解释 + Ablation 因果链
+- **P4 未来与结合**：理论/算法/工程三维局限 + ≥1 具体转笔/WMTS 迁移 + ≥2 带锚点 Foundation 链接
+
+### 🔑 关键领域 insight（指导后续升级）
+**3/29~4/27 批次的 recap 普遍只缺 P2**（变量来源追踪表 / 从零推导 / 符号陷阱），因为它们写于早期"算法颗粒度标准"时代，而 P2 的 provenance/derivation 深度是 6/14 RodriNet 范本才确立。**升级主攻动作 = 补 P2 三件套 + 修结构 bug（重复编号）+ 强化领域互链。** 多数文件 P1/P3/P4 已不错，不必推倒重写，增量 Edit 即可。
+
+### 本 Session 已完成（in-hand rotation 簇）
+| 文件 | 升级内容 |
+|------|---------|
+| `Lessons from Learning to Spin Pens.md` | 全文重写为范本级：变量来源追踪表（特权 vs 本体）、finger gaiting 五步无跳步推导（欧拉方程→摩擦锥→切换系统，把 $r_z$/Canonical Grasp 解释为物理必然）、符号陷阱；§7.2 建 in-hand rotation 领域级综述（三轴坐标 + 指出"无支撑+任意轴+纯本体"领域空白）|
+| `RotateIt - General In-Hand Object Rotation with Vision and Touch.md` | 增量补 P2：变量来源追踪表（特权 vs 预测 extrinsics）、惯性张量+陀螺项推导（证明"形状必须显式编码"）、符号陷阱；修复**两个 §7 重复编号**；§7 加 Spin Pens 列 + 互链 |
+| `In-Hand Object Rotation via Rapid Motor Adaptation (HORA).md` | 增量补 P2：变量来源追踪表、**POMDP 充分统计量 + 摊还推断**从零推导（把 RMA 提升为理论）、符号陷阱；修复**两个 §3.4 重复编号**；§7 加领域簇互链 note |
+
+三篇已三向互链（Spin Pens §7.2 ↔ RotateIt §7.2 ↔ HORA §7），形成可对比的领域谱系。
+
+#### cron 第 2 轮追加（2026-06-17）
+继续升级 in-hand rotation 簇 3 篇，均为增量补 P2（变量来源追踪表 + 从零推导 + 符号陷阱）+ §7 接入领域综述互链：
+| 文件 | 从零推导亮点 |
+|------|------------|
+| `AnyRotate - ...` | Auxiliary Goal = 势函数奖励塑形（Ng 1999，无偏）；重力不变 = 对 $R_{hand}^T g$ 边际化 |
+| `Touch Dexterity - ...` | 二值化"量化吸收"sim-to-real gap（阈值同侧→读数一致）；1-bit×16 的 Sigma-Delta 多路复用 |
+| `Robot Synesthesia - ...` | 触觉点云 = 接触运动学 FK 笛卡尔离散化；PointNet 置换不变性允许输入级融合 |
+
+**🔑 领域级 meta-insight（新开启）**：in-hand rotation 簇 6 篇现已互链成谱。HORA / Touch Dex / Robot Synesthesia 分别用"在线辨识物体参数 / 二值量化 / 几何点云抽象"消 sim-to-real gap——三者本质都是 **"找到对 gap 不变的观测子空间"，而非缩小 gap 本身**。这是可迁移到 WMTS/转笔感知设计的领域级判断。
+
+#### cron 第 3 轮追加（2026-06-17）
+升级 `Learning Human-like Finger Gaiting`（in-hand rotation 簇最后一篇）：补 P2（变量来源追踪表 + **形态-gaiting 五步从零推导** + 符号陷阱）；**修复严重编号 bug**（原有两个 §5/§6/§7，重编号为 §5–§10）；§10 加簇收官 note。
+**🎉 in-hand rotation 簇 7 篇全部范本级 ✅**（Spin Pens / RotateIt / HORA / AnyRotate / Touch Dexterity / Robot Synesthesia / Finger Gaiting，全部互链）。新增**形态轴** insight：手部形态决定可行策略类（宽指尖→balancing、细长高 DoF→gaiting）。簇内两条 meta-insight 合并为"**形态—感知—sim2real 设计三角**"。
+注：cron 已由用户从 30min 改为 20min（job `67d5a563`）。
+
+#### cron 第 4 轮追加（2026-06-17）
+**开启 control frequency / time-step 簇**。升级 `Control Frequency Adaptation via Action Persistence (PFQI)`：补 P2（**核心符号与算子溯源表** + 符号陷阱节，适配理论论文）；Foundation callout 升级带锚点；**§6.4 建立该簇领域综述锚点**（频率固定/自适应 × 机制 两轴表 + WMTS 联系）。
+**簇 insight（新开启）**：控制频率是"Configurable MDP 的旋钮"。PFQI 给出唯一**有理论保证**的离线选 $k$ 但**全局固定**；VTS-RL/TARC 放松为**状态依赖**却丢理论。簇空白 = **状态依赖频率 + 收敛保证**，正是 WMTS task scheduling 可贡献理论之处。
+**该簇剩余**（补 P2 + 互链入 §6.4 综述）：`Elastic Time Step (VTS-RL)`、`TARC`、`RL for Control with Multiple Frequencies`、`EvoControl`、`Dynamic RL for Actors`。
+**累计范本级：8 篇**（in-hand rotation 簇 7 + PFQI 1）。
+
+#### cron 第 5 轮追加（2026-06-17）
+升级 `Elastic Time Step (VTS-RL)`：**发现并修复严重内容损坏**——§3.1–§3.4 的扩展策略 $\pi(a,\tau|s)$、奖励函数 $R=\alpha_m R_{task}R_\tau-\alpha_\epsilon$、Lyapunov $L(\alpha_m)$、状态增广 $\tilde s_t$ 公式全部被吞成空白，依据 §4 伪代码与 §6 数学的完整版本准确重建；整篇重写补 P2（变量来源追踪表 + 符号陷阱）；**修复两个 §6 重复编号**；§7 接入 PFQI §6.4 簇综述。
+**簇内定位**：VTS-RL = 状态依赖频率 $\tau(s)$ 一极（灵活但仅 Lyapunov 弱保证）；PFQI = 全局固定 $k$ 一极（Bellman 强保证但僵）。二者标定簇两端，空白 = 二者合取（状态依赖 + 强保证）。
+**⚠️ 新发现的系统性风险**：早期 recap 可能存在**公式被吞成空白**的损坏（VTS-RL 即如此）。后续升级每篇都要 **render-check 公式完整性**，不只补结构。
+**累计范本级：9 篇**。control frequency 簇 2/6（PFQI, VTS-RL），剩 `TARC`、`RL for Control with Multiple Frequencies`、`EvoControl`、`Dynamic RL for Actors`。
+
+#### cron 第 6 轮追加（2026-06-17）
+升级 `RL for Control with Multiple Frequencies (AP-AC)`：公式完整（render-check ✓），但**删除 76 行孤立 code dump（ActionPersistentActorCritic 完整类）+ "与 Foundation 链接更新" TODO 元注释 + 修编号混乱（§7→§9 跳号、两个 §9）**；整篇重写补 P2（符号溯源表 + 符号陷阱）；接入簇综述。
+**簇 insight 深化为三维分解**：控制频率问题 = ⟨单一 vs 多变量⟩ × ⟨固定 vs 状态自适应⟩ × ⟨有无强保证⟩。PFQI=⟨单一·固定·强⟩、VTS-RL=⟨单一·自适应·弱⟩、AP-AC=⟨多变量·固定·强⟩。**空白 = "多变量 + 状态自适应 + 强保证"三者兼得**（WMTS 机会）。
+**⚠️ 早期 recap 共性缺陷清单（升级时必查）**：① 公式被吞成空白（VTS-RL）；② 孤立 code dump（AP-AC）；③ TODO/元注释残留（AP-AC）；④ 编号重复或跳号（Finger Gaiting/HORA/RotateIt/VTS-RL/AP-AC 均有）。**范本级升级 = 深度补强 + 质量审计双重任务。**
+**累计范本级：10 篇**。control frequency 簇 3/6，剩 `TARC`、`EvoControl`、`Dynamic RL for Actors`。
+
+#### cron 第 7 轮追加（2026-06-17）
+升级 `TARC (Time-Adaptive Robotic Control)`：公式完整、结构较干净（render-check ✓）；补 P2（变量来源追踪表 + 符号陷阱节）；§9 接入簇三维分解。
+**新 insight——"折扣正确性"是变时间步 RL 的隐藏维度**：$\Delta t$ 可变时按步数折扣 $\gamma^k$ 会系统性偏好短动作，必须按物理时间 $e^{-c\Delta t}$ 折扣（或奖励缩放补偿）。TARC 与 VTS-RL 同处 ⟨单一·自适应·弱保证⟩ 格，但贡献了这个被忽略的正确性要件。三维分解新增隐含约束：**凡"自适应"维度方法都须解决折扣正确性** → WMTS 状态依赖调度的内建约束。
+**累计范本级：11 篇**。control frequency 簇 4/6，剩 `EvoControl`、`Dynamic RL for Actors`。
+
+#### cron 第 8 轮追加（2026-06-17）
+升级 `EvoControl`：公式完整（render-check ✓）；**补 `[!abstract]`（原缺）** + `[!tip]` 带锚点；补 P2（变量来源追踪表——突出两层不同学习范式 + 符号陷阱）；接入簇综述。
+**两个新 insight**：① 簇内**两条正交路线**——PFQI/VTS-RL/AP-AC/TARC 走"路线 A：降决策频率回避信用分配 $\gamma^{T-t}\to0$"，EvoControl 走"路线 B：保留高频换无梯度 Neuroevolution"。② **"多频率"两种来源**——AP-AC 动作维度分解 vs EvoControl 时间层级分解，正交可叠加。
+**WMTS 收敛图景**：WMTS = 分层结构(B, EvoControl) + 自适应调度粒度(A, VTS-RL/TARC) + 折扣正确性(TARC) + 多变量(AP-AC)。整个簇向 WMTS 收敛。
+**累计范本级：12 篇**。control frequency 簇 5/6，仅剩 `Dynamic RL for Actors`（下轮收官）。
+
+#### cron 第 9 轮追加（2026-06-17）
+**修正分类错误（critical thinking）**：`Dynamic RL for Actors` 经回读确认是 **Shibata 混沌探索研究**（tags: exploration/chaos-theory），**不属 control frequency 簇**。故 **control frequency 簇实为 5 篇（PFQI/VTS-RL/AP-AC/TARC/EvoControl），第 8 轮 EvoControl 完成时已收官 ✅**。
+升级 `Dynamic RL for Actors`（按真实主题=探索）：补 P2（变量来源追踪表 + 符号陷阱）+ abstract/`[!tip]` 升级；公式完整（render-check ✓）。
+**新 insight——Lyapunov 指数作为"探索↔利用"统一标尺**：$\lambda_{max}>0$=探索（本文）、$<0$=利用/稳定（[[Stability-Certified...]]）、$\approx0$=临界（edge of chaos）。连接 Dynamic RL / Stability-Certified RL / Exploration vs Exploitation，**种下"探索/稳定性"簇**；且与 control frequency 簇的状态依赖调度异曲同工（共享"状态依赖元控制"数学）。
+**累计范本级：13 篇**。✅ in-hand rotation 簇(7) · ✅ control frequency 簇(5) · 🌱 探索/稳定性簇启动(1)。
+
+#### cron 第 10 轮追加（2026-06-17）
+**开启探索/稳定性簇（含 safe-RL 子簇）**。升级 `Stability-Certified RL`（整篇重写）：**修复大面积公式被吞**（偏导数界 $\xi_{ij}$/闭环系统/Lemma1 二次约束/LMI/软硬约束公式）+ **删对话残留**（开头"我是 Paper Analyzer"、结尾"需要我这样做吗"）+ 整理 §6 乱序；补 P2（变量表 + 符号陷阱）。
+**§6.1 安全 RL 子簇综述**：四种"安全证书"（IQC/$\mathcal{L}_2$ vs Lyapunov 吸引域 vs Lipschitz 架构 vs 可达集）。**§6.2 接入 Lyapunov 标尺**：本文 = $\lambda_{max}<0$ 稳定极，与 Dynamic RL（$\lambda_{max}>0$ 探索极）两端。
+**🔑🔑 跨簇 meta-insight（知识库最大横向 insight）**：in-hand rotation（**几何结构**）/ control frequency（**时间结构**）/ safe RL（**灵敏度结构**）**三簇都在"用结构先验放松各向同性保守约束"**——同一方法论母题的三个维度实例。WMTS 设计哲学：凡被各向同性约束卡住性能处，找可利用的结构先验。
+**累计范本级：14 篇**。🌱 探索/稳定性簇(2: Dynamic RL, Stability-Certified RL)。该簇剩余：`Exploration vs Exploitation`、`Reachability Constrained RL`、`Safe Model-based RL`、`On Robust RL Lipschitz`、`LipsNet`、`Off-Policy Interval Estimation Lipschitz`、`How to Train Latent CBF`、`RL for Optimal Primary Frequency Control`。
+
+#### cron 第 11 轮追加（2026-06-17）
+升级 `Reachability Constrained RL (RCRL)`：公式完整（render-check ✓）；**删 §9 TODO 元注释**（"需要添加到 ControlTheory.md…"）；补 P2（变量来源追踪表——突出 **max-非-sum** + 符号陷阱）；接入安全 RL 子簇综述。
+**新 insight——期望型 vs 最坏情况型安全（safe RL 根本约束类型分野）**：CMDP $\mathbb{E}[\sum\gamma^t c]\le\epsilon$（平均、允许偶尔违约）vs RCRL $V_s=\max_t h$（逐点最坏、恒不违约）。灵巧手接触/转笔"一次失误即掉落"必须用最坏情况型。
+**安全强度谱**：可行集(最宽) ⊃ Lyapunov 稳定 ⊃ $\mathcal{L}_2$ 增益有界。RCRL 与 Stability-Cert RL 互补（state 可行性 vs I/O 稳定性，可叠加成完整安全栈）。
+**累计范本级：15 篇**。探索/稳定性簇 3 篇（Dynamic RL, Stability-Certified RL, RCRL；其中 safe-RL 子簇 2 篇）。
+
+#### cron 第 12 轮追加（2026-06-17）— 🎉 Bash 恢复 + 全量扫描完成
+升级 `Safe Model-based RL (Berkenkamp)`：补 P2（变量表 + 符号陷阱）+ Foundation callout 带锚点；公式完整。
+**新 insight**：① **静态安全证书 vs 动态安全探索**——子簇其它三篇是"证明给定安全"（静态），Berkenkamp 用 GP $\sigma$ 单调减"边学边扩大安全域"（动态）。② **"价值函数=Lyapunov"把探索簇与稳定簇焊死**——Dynamic RL 调 Lyapunov 指数做探索、Berkenkamp 用价值函数作 Lyapunov 做安全，同一数学对象两端：探索/稳定是一枚硬币。
+
+**Bash 分类器恢复！全量扫描 + scan_links 跑通：**
+- **scan_links**：163 broken **全部在 `taxonomy.md`**（格式 `[[X\]]` 系统性语法问题），**升级的 16 篇 recap 零断链 ✅**（验证前 11 轮手工核对全部正确）。
+- **全量四支柱扫描**：16 篇 EXEMPLAR（=已升级）+ `RodriNet`（范本副本本身，免升级）+ **~69 篇 TODO**。
+
+**权威 TODO 清单（按簇，供后续轮次）：**
+- **探索/稳定性簇剩余 6**（继续收官）：`Exploration vs Exploitation`(13)、`On Robust RL Lipschitz`(13)、`LipsNet`(12)、`Off-Policy Interval Estimation Lipschitz`(10)、`How to Train Latent CBF`(11)、`RL for Optimal Primary Frequency Control`(11)。其中 **Lipschitz 三元组**(On Robust/LipsNet/Off-Policy Interval)可合为子簇。
+- **最裸小文件 <7.5KB（7）**：`The Sampling Theorem`(5)、`Learning Agile`(5)、`GenDexGrasp`(6)、`Learning Quadrupedal`(6)、`RECAP`(6)、`Unified Policy Evaluation`(6)、`Deep Dynamics Models`(7)。
+- **其它大簇待启**：sim-to-real transfer、diffusion/VLA/world-model、demonstration/imitation/data-gen、impedance/compliance/force、curriculum、locomotion、tactile。
+- ⚠️ **taxonomy.md 163 broken（`[[X\]]` 格式）**：独立于 recap 任务，Bash 已恢复可批量修，待定。
+
+**累计范本级：16 篇**（in-hand rotation 7 + control frequency 5 + 探索/稳定性 4）。
+
+#### cron 第 13 轮追加（2026-06-17）
+注：cron 改为 **15min**（job `65b99f9c`）。
+升级 `On Robust RL with Lipschitz-Bounded Policy`：补 P2（变量表 + 符号陷阱）+ callout 带锚点；公式完整（render-check ✓）。**启动 Lipschitz 子簇**。
+**新 insight**：① **Lipschitz 三元组**（On Robust=鲁棒 / LipsNet=精度 / Off-Policy Interval=估计）。② Lipschitz 约束**两个正交精细化方向**：紧致度（Sandwich vs SN）+ 结构感知（偏导界 vs 全局），可叠加。③ **"松界 = 隐性过约束"**——SN 松界为达 $\gamma$ 必须过约束→崩溃；与 Stability-Cert RL "偏导界扩大 3×" 是同一现象（约束"虚胖"偷走策略空间）。接跨簇 meta-insight：本文放松的是约束的**实现紧致度**（互补于结构感知的约束**形状**）。
+**累计范本级：17 篇**。探索/稳定性簇 5（safe-RL 子簇 3 + Lipschitz 子簇启动 1）。
+
+#### cron 第 14 轮追加（2026-06-17）
+升级 `LipsNet`（整篇重写）：**修复公式被吞**（§3 Lipschitz 定义 / MGN 公式 $f_{MGN}=Kf/(\|\nabla f\|+\epsilon)$ / 自适应 $K(x)$ / 正则）+ **删对话残留**（"我是你的AI学术导师"等）；补 P2；接入 Lipschitz 子簇。
+**🔑🔑 重大跨簇 insight——"状态依赖元控制 $m(s)$"（知识库第二大横向 insight）**：
+① **结构同构**：LipsNet(自适应 $K(x)$) vs On Robust RL(全局 $\gamma$) 与 VTS-RL(自适应 $\tau$) vs PFQI(全局 $k$) **完全同构**——平滑度簇与频率簇共享"全局固定→状态自适应"演进轴。
+② **统一抽象**：LipsNet $K(x)$、TARC $\Delta t(s)$、Stability-Cert 偏导界、Dynamic RL $\lambda_{max}(s)$ **都是状态依赖元控制量 $m(s)$**——策略不只输出动作，还输出"当前该多平滑/多高频/多安全/多探索"。比"结构先验放松保守性"（第一大 insight）更进一步：那些结构先验的**共同形式就是 $m(s)$**。
+**给 WMTS 一阶设计原则**：把调度写成 $m(s)$，让 world model 输出状态依赖的元控制。
+**累计范本级：18 篇**。探索/稳定性簇 6（safe-RL 子簇 3 + Lipschitz 子簇 2/3，剩 Off-Policy Interval）。
+
+#### cron 第 15 轮追加（2026-06-17）
+升级 `Off-Policy Interval Estimation with Lipschitz VI`：补 P2（变量表 + 符号陷阱）+ callout；公式完整（render-check ✓）。**Lipschitz 子簇收官（3 篇）✅**。
+**新 insight——Lipschitz 常数 = "表达力 ↔ 保证"旋钮**：三元组揭示 Lipschitz 的**两个作用对象 × 三种用途**——策略（On Robust 鲁棒 / LipsNet 抗抖）+ 值函数（本文 OPE 估计）。**"松界=过约束"（决策端）与"$\eta$ 小=欠覆盖"（评估端）是同一权衡的镜像。**
+**$m(s)$ 扩展**：连 OPE 的 $\eta$ 都可自适应 $\eta(x)$ → 状态依赖元控制从**决策元参数**扩展到**评估元参数**。
+**累计范本级：19 篇**。探索/稳定性簇 7（safe-RL 子簇 3 + Lipschitz 子簇 3 ✅ + 探索 1）。该簇剩：`Exploration vs Exploitation`、`How to Train Latent CBF`、`RL for Optimal Primary Frequency Control`。
+
+#### cron 第 16 轮追加（2026-06-17）
+升级 `How to Train Latent CBF`：补 P2（变量表 + 符号陷阱）+ callout 带锚点；公式完整（render-check ✓）。**补全 safe-RL 子簇 CBF 格**。
+**新 insight**：① **安全的两种实现位置**——内禀（训练进策略：IQC/Lyapunov/可达集/Lipschitz）vs **外挂**（部署时 CBF 滤波器，加在任意名义策略上、不重训）。② **光滑性焊接 CBF↔Lipschitz**——LatentCBF Theorem（margin 光滑性线性传递到值函数）说明安全过滤可用性取决于证书 Lipschitz 光滑性 → Lipschitz 子簇→safe-RL 子簇桥打通。③ **WMTS world model 多用途**——潜空间可同时承载调度 $m(s)$ + 安全过滤 CBF，是"潜空间元控制器"。
+**累计范本级：20 篇** 🎉。探索/稳定性簇 8（safe-RL 子簇 4 ✅ + Lipschitz 子簇 3 ✅ + 探索 1）。该簇剩 2：`Exploration vs Exploitation`、`RL for Optimal Primary Frequency Control`。
+**下一步建议**：① 建**探索/稳定性簇**（`Stability-Certified RL`、`Exploration versus Exploitation`、`Reachability Constrained RL`、`Safe Model-based RL`、`On Robust RL with Lipschitz-Bounded Policy`、`LipsNet`、`Off-Policy Interval Estimation with Lipschitz` 等——Lyapunov/Lipschitz/safe-RL 主题，很适合领域级综述）；或 ② 最裸小文件（<7.5KB：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation/Deep Dynamics Models）。
+
+### 待办队列（下一轮接续）
+1. ✅ **in-hand rotation 簇已收官**（7 篇全部范本级并互链）。**下一步转新簇**，建议优先：① **control frequency / time-step / action-persistence 簇**（与 WMTS task scheduling 强相关 → 最适合做下一个领域级综述；含 `Control Frequency Adaptation via Action Persistence`、`Elastic Time Step (VTS-RL)`、`RL for Control with Multiple Frequencies`、`EvoControl`、`TARC`、`Dynamic RL for Actors`、`Reinforcement Learning for Optimal Primary Frequency Control`）；或 ② 最裸小文件（见第 2 项）。
+2. **最裸的小文件**（<7.5KB，几乎肯定缺 P2，且 P1/P3/P4 可能也薄）：`The Sampling Theorem`(5.4KB)、`Learning Agile and Dynamic Motor Skills for Legged Robots`(5.9KB)、`GenDexGrasp`(6.2KB)、`Learning Quadrupedal Locomotion`(6.2KB)、`RECAP - A VLA that Learns from Experience`(6.9KB)、`Unified Policy Evaluation and Improvement`(7.1KB)、`Deep Dynamics Models`(7.4KB)。
+3. **全量扫描**（Bash 分类器恢复后）：扫描 86 篇四支柱标志，建完整 EXEMPLAR/TODO 清单；并跑 `.github/scan_links.py` + `.github/scan_sections.py` 校验本 Session 三篇新增链接/锚点。
+4. 其它主题簇（control frequency/time-step、impedance/compliance、curriculum、diffusion/VLA/world model、RL theory）待评估。
+
+### ⚠️ 本 Session 环境注记
+Anthropic API 间歇 429 + **Bash 安全分类器持续不可用**（read/edit/write 正常），故全量扫描与 scan_links 校验未能执行；新增链接已手工核对（Foundation 锚点多来自原文 verified 或 Dynamics.md 直接确认）。**下一轮 Bash 恢复后务必补跑链接校验。**
+
+---
 
 ## 🟢 Session #40 完成 (2026-06-14)
 

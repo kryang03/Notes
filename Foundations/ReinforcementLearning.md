@@ -16,522 +16,434 @@ related:
   - "[[Optimization]]"
   - "[[StochasticProcess]]"
   - "[[RepresentationLearning]]"
+  - "[[InformationTheory]]"
   - "[[EmbodiedAI]]"
 ---
 
-# 灵巧操作中的强化学习：接触动力学、流形几何与算法演进
+# 灵巧操作中的强化学习：从 Bellman 递推到真机闭环
 
-# Reinforcement Learning in Dexterous Manipulation: Contact Dynamics, Manifold Geometry, and Algorithmic Evolution
+# Reinforcement Learning in Dexterous Manipulation: From Bellman Recursion to Real-World Closed-Loop Learning
 
 > [!tip] 相关领域
-> - [[ControlTheory]] - RL 与经典控制的交叉（Safe RL, Stability-Certified RL）
-> - [[Dynamics]] - 动力学模型是 Model-Based RL 的基础
-> - [[Optimization]] - RL 本质上是序贯决策优化
-> - [[StochasticProcess]] - 扩散策略的理论基础
-> - [[RepresentationLearning]] - 状态表征与多模态融合
-> - [[EmbodiedAI]] - VLA 模型将 RL 与 LLM/VLM 结合实现端到端机器人学习
+> - [[ControlTheory]] — RL 与最优控制本是一家：Bellman 方程↔HJB、LQR↔值迭代、SAC 熵↔阻抗柔顺、Safe RL↔稳定性证书
+> - [[Dynamics]] — 动力学模型是 Model-Based RL 的世界模型；接触非光滑性是策略梯度高方差的物理根源
+> - [[Optimization]] — RL 本质是序贯决策优化；策略梯度↔随机优化，信任域↔近端算法
+> - [[StochasticProcess]] — 扩散策略、belief-MDP、MPPI 的理论母体
+> - [[RepresentationLearning]] — 状态表征决定泛化；触觉/视觉 latent 是策略的"感官"
+> - [[InformationTheory]] — 探索的本质是信息获取；熵正则、empowerment、技能发现
+> - [[EmbodiedAI]] — VLA 把 RL 嵌入"视觉-语言-动作"端到端闭环
 >
-> **相关论文**:
-> - [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]] - 稳定性证书方法
-> - [[Elastic Time Step Reinforcement Learning, VTS-RL]] - 弹性时间步
-> - [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] - Lipschitz 约束网络
-> - [[Deep Dynamics Models for Learning Dexterous Manipulation]] - model-based RL 在 Shadow Hand 上的高效真机学习
-> - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - privileged teacher-student + adaptive curriculum 的 sim-to-real RL
+> **贯穿母题（本讲的"主角"）**：**指间转笔 (in-hand pen-spinning / finger-gaiting)**。我们将让这一个任务把整本讲稿的每一个算法、每一条公式都"演"一遍。
 
-## 0. 理论大厦构建路线：从 Bellman 递推到真机闭环学习
+---
 
-强化学习 Foundation 的主线必须从“最大化奖励”细化为“在未知、非平滑、部分可观测的物理系统中构造可更新的反馈策略”。
+## 0. 母题与理论大厦构建路线：从 Bellman 递推到真机闭环学习
 
-| 层级 | 关键问题 | 理论工具 | 灵巧操作映射 |
+> [!abstract] 为什么用"指间转笔"做贯穿母题？
+> 灵巧操作的研究任务很多——拧瓶盖、插 USB、叠衣服——但**指间转笔**有一个独一无二的好处：它**同时**触发了强化学习每一层理论的核心难点。一支笔在手指间翻转一圈，需要：
+> - **指步序列（finger gait）**＝一连串接触模式的离散切换 → 这是**混合动力学与信用分配**问题；
+> - **左转 or 右转**两种同样合法的策略 → 这是**多峰动作分布**问题；
+> - 只有"转满一圈"才算成功、中途无明显奖励 → 这是**稀疏奖励与探索**问题；
+> - 真笔的重心、摩擦、柔软指尖都与仿真不同 → 这是 **sim-to-real** 问题。
+>
+> 全讲中，每当引入一个新算法，我们都回到这支笔：**"它会如何转这支笔？它在转笔的哪个环节比上一个算法更强？"** 这是本讲的记忆主线。
+
+强化学习 Foundation 的主线，必须从"最大化奖励"这句口号，细化为一句工程命题：**如何在未知、非平滑、部分可观测的物理系统中，构造一个可以不断被数据更新的反馈策略。** 围绕这句命题，整座理论大厦分为六层，每一层回答一个更尖锐的问题：
+
+| 层级 | 关键问题 | 理论工具 | 转笔母题的映射 | 讲稿位置 |
+|:--|:--|:--|:--|:--|
+| **MDP/POMDP 层** | 当前观测是否足以预测未来？ | Markov state、belief、history encoder | 触觉迟滞、指尖温漂、CAN 延迟破坏单帧 Markov 性 | §2 |
+| **Bellman 层** | 价值如何递推、如何把末端反馈回传？ | 值函数、TD、SARSA/Q、GAE | 转满一圈的奖励要回传给最初那次"松指" | §2–§3 |
+| **策略梯度层** | 环境不可微时如何更新策略？ | log-derivative、baseline、advantage | 接触求解器不可微，仍可采样估计梯度 | §4 |
+| **稳定更新层** | 策略如何不被一次更新毁掉？ | TRPO/PPO、KL、clipping、熵 | 防止一次大更新破坏已学会的指步时序 | §5 |
+| **样本效率层** | 昂贵的真机数据如何反复利用？ | SAC、replay、MBRL、offline RL | 在硬件磨损与安全约束下榨干每条轨迹 | §5–§6 |
+| **迁移层** | 仿真策略如何安全上真机？ | DR、system ID、RMA、world model、safety filter | 把 action gap / transition gap / reward gap 分开诊断 | §9 |
+
+> [!important] Foundation 级判断标准（任何 RL 算法进入本库都要回答四问）
+> 1. **数据来自哪里**（on-policy 现采 / off-policy replay / offline 静态 / 想象 rollout）？
+> 2. **梯度如何产生**（值的 Bellman 残差 / 策略的 log-derivative / 可微动力学的解析梯度）？
+> 3. **旧数据能否重用**（信任域内的重要性采样 / replay buffer / 保守 Q）？
+> 4. **接触与执行器的不确定性如何进入系统**（进入状态？进入训练分布？进入 belief？）？
+
+> [!note] 本讲在知识图谱中的位置（依赖 / 被依赖）
+> ```
+>      [[Dynamics]] ──模型──┐         ┌──值函数/稳定性证书──> [[ControlTheory]]
+> [[ContactMechanics]] ─非光滑─┤        │
+>   [[StochasticProcess]] ─belief─┼──> 【RL】 ──探索/熵──> [[InformationTheory]]
+>      [[Optimization]] ─序贯优化─┤        │
+>  [[RepresentationLearning]] ─表征─┘        └──端到端动作──> [[EmbodiedAI]]
+> ```
+> 读法：左侧四者是 RL 的"输入"（提供模型、非光滑结构、belief、优化机器、状态表征）；右侧三者消费 RL 的产出（控制证书、信息目标、端到端策略）。本讲会在每个推导拐点用 `[[链接]]` 显式回扣。
+
+---
+
+## 1. 为什么是 RL：从"转笔"看解析方法的失效
+
+> [!tip] 本节四拍
+> **直觉**（转笔到底难在哪）→ **推导**（写出动力学与状态空间，看清非光滑性的两副面孔）→ **对比**（解析控制 vs 模仿学习，各自为何不够）→ **落点**（我们需要一种"能试错、能自我修正、对模型误差不敏感"的方法——这正是 RL）。
+
+### 1.1 母题解剖：转一支笔到底在求解什么？
+
+把一支笔架在 Shadow Hand（24 DoF）的四指之间，要求它绕笔的长轴翻转 360°。一个完整的"指步周期"大致是：
+
+```
+食指松开(脱离接触) → 笔在重力/惯性下微转 → 中指补位(建立新接触) →
+拇指施加切向力(推动旋转) → 无名指防止笔掉落(力闭合) → 循环
+```
+
+请注意这一串动作里**没有任何一步可以单独定义成功**。成功只在"转满一圈且笔没掉"这个终点被定义。于是我们要解的，是一个**序贯决策问题**：在每个时刻 $t$，根据观测 $o_t$（关节角、指尖触觉、（也许）笔的位姿）输出力矩或目标关节角 $a_t$，使得某个滞后的、稀疏的成功信号被最大化。这正是马尔可夫决策过程 (MDP) 的语言——我们在 §2 形式化它。但在写下 MDP 之前，先看清这个物理系统"硬"在哪。
+
+### 1.2 状态空间的第一抉择：广义坐标 vs 最大化坐标
+
+构造状态空间 $\mathcal{S}$ 的第一个决策，是坐标系的选取——这个看似平凡的选择，直接决定了网络要学多少"物理常识"。
+
+**广义坐标 (Generalized Coordinates, $q\in\mathbb{R}^n$)**：描述系统构型所需的**最小独立参数集**。对灵巧手就是各关节角 $q=[\theta_1,\dots,\theta_n]^T$。它**自动满足**关节连杆的完整约束 (holonomic constraints)，维度最小，学习效率高。
+
+**最大化坐标 (Maximal Coordinates)**：用每个刚体在世界系下的位姿 $(x,y,z,\text{quat})$ 描述。维度冗余、且需显式维持连杆约束，但它**直接暴露物体间相对距离与接触几何**，让网络更易"看见"接触特征。
+
+机器人的运动方程是一个二阶 ODE（拉格朗日形式，详见 [[Dynamics#3.1 The Classical Era: Lagrangian Formulation|Dynamics §3.1]]）：
+
+$$
+M(q)\ddot{q} + \underbrace{C(q,\dot q)\dot q}_{\text{科氏/离心}} + \underbrace{g(q)}_{\text{重力}} = \tau + \underbrace{J(q)^T f_{ext}}_{\text{接触力映射}}
+$$
+
+- $M(q)\succ0$：惯性矩阵（对称正定）；$C$：科氏与离心；$g$：重力；$\tau$：关节力矩（控制输入）；$J^T f_{ext}$：外部接触力折算到关节空间的力矩。
+
+> [!note] RL 的 value-add 第一次出现在这里
+> 经典的**计算力矩控制 (Computed Torque)** 试图用逆动力学 $\tau = M(q)\ddot q_{des}+C\dot q+g - J^Tf_{ext}$ 把非线性"抵消"掉。但转笔时 $f_{ext}$（接触力）**未知、非光滑、强非线性**——指尖软垫的刚度 $K$ 极难辨识（见 [[ContactMechanics#3.3 超越Hertz理论：大变形与软体抓取|软指接触]]）。RL 的价值在于：**它不显式求解上式，而是通过交互学一个策略 $\pi_\theta(a\mid s)$ 去隐式地驾驭这些项**，尤其是那个最难建模的 $f_{ext}$。
+
+### 1.3 非光滑性的两副面孔：接触流形与混合动力学
+
+转笔之所以折磨所有方法，根源是**接触带来的非光滑性**。它有两副面孔。
+
+**面孔一：约束流形与切空间（"探索往哪儿走"）。** 当手指压住笔时，系统自由度瞬间下降，状态被钉在一个低维**约束流形**上：
+
+$$
+\mathcal{M}_c=\{(q,\dot q)\mid \phi(q)=0,\ J(q)\dot q=0\}
+$$
+
+其中 $\phi(q)$ 是接触距离函数（即 [[ComputationalGeometry#4. 有向距离场 (SDF)：连续操作优化的基石|SDF]]）。若在全空间 $\mathbb{R}^n$ 上加各向同性高斯噪声去探索，会立刻撞上两种失效：**穿透**（指令把手指压进笔内部，物理引擎产生巨大排斥力、仿真爆炸）与**脱离**（不慎断开接触、笔掉落）。
+
+> [!tip] 几何先验：在切空间上探索（Geometric RL）
+> 一个深刻的修补是让策略在流形的**切空间** $T_q\mathcal M_c$ 上输出动作，再用指数映射拉回流形：
+> $$a_{safe}=\mathrm{Exp}_q(\pi(s)),\qquad \pi(s)\in T_q\mathcal M_c$$
+> 其中 $\mathrm{Log}$ 把流形点映回切空间、$\mathrm{Exp}$ 把切向动作映回流形。这样 RL 不必浪费成千上万样本去学"别穿透笔"这种基本物理事实，而专注于"如何在保持接触的同时转动笔"。这是把 [[ComputationalGeometry]] 的微分几何当作 RL 的归纳偏置——我们在 §7 探索一节会再次回扣这个"安全探索"动机。
+
+**面孔二：模式切换与组合爆炸（"决策有多少种"）。** 从系统论看，转笔是一个**混合动力学系统 (Hybrid System)**，每个接触点都在若干离散模式间跳变：
+
+| 模式 | 物理 | 约束 |
+|:--|:--|:--|
+| Free | 手指悬空 | 动力学光滑 |
+| Impact | 撞上笔 | 速度跳变（动量守恒、能量耗散） |
+| Stick | 摩擦锥内 | 相对速度 $v_{rel}=0$ |
+| Slide | 达摩擦极限 | $\|f_t\|=\mu f_n$（库伦律，见 [[ContactMechanics#3.1 理想点接触与硬指模型 (Hard Finger)|摩擦锥]]）|
+
+五根手指、每指三态（Free/Stick/Slide），瞬时模式数高达 $3^5=243$。解析规划器要在**每一帧**决定处于哪种模式——这是一个**混合整数规划 (MIP)**，一般 NP-hard。这正是 §1.4 解析控制失效的算法根源，也是 §6 接触隐式优化（CITO，见 [[Optimization#3.3 阶段三：接触隐式轨迹优化 (Contact-Implicit Trajectory Optimization, CITO)|Optimization §3.3]]）试图绕开的难题。
+
+### 1.4 对比之一：解析控制为何失效
+
+> [!warning] 解析控制的两道硬墙
+> 1. **模型失配（Sim-to-Real 的物理根源）**：解析控制假设刚体接触，而真实指尖是软的、有变形、迟滞与微观纹理；接触刚度 $K$ 几乎无法精确辨识。误差在长指步序列上累积。
+> 2. **求解器瓶颈**：每帧解线性互补问题 (LCP) 算接触力，复杂度随接触点数近似 $O(N^3)$（见 [[ContactMechanics#4.2 直接求解器与迭代求解器|LCP 求解]]）；叠加 §1.3 的 $3^5$ 模式组合，多指实时规划不可行。
+>
+> **结论**：我们需要一种**对模型误差不敏感 (model-agnostic) 且能实时前向推理**的方法 → 指向"学出来的策略"。
+
+### 1.5 对比之二：纯模仿学习为何不够
+
+既然建模难，能不能直接**模仿人**？这就是行为克隆 (BC)、逆强化学习 (IRL)、GAIL 的思路。它有一个统计学上的致命伤——**分布漂移 (covariate shift)**：
+
+> [!warning] 复合误差：模仿学习的雪崩
+> 训练数据来自专家分布 $p_{data}(s)$，但策略上机后自己产生的状态分布是 $p_\pi(s)$。一旦机器人犯一点小错（笔歪了一点），它进入专家从未演示过的状态；BC 没有纠错信号，误差逐步累积 (compounding errors)，在 $T$ 步上以 $O(\epsilon T^2)$ 的速度发散。再加上采集 24-DoF 高维灵巧演示极其昂贵（动捕受遮挡、VR 遥操作低效），**纯模仿不可持续**。
+
+> [!important] 本节落点：为什么必须是 RL
+> 解析控制**输在模型**，模仿学习**输在没有纠错**。我们需要的方法要能：**(a)** 在"没见过的状态"里通过**试错 (trial-and-error)** 自我修正；**(b)** 不依赖精确接触模型；**(c)** 实时推理。这三条恰好定义了**强化学习**。下一节，我们用 MDP 与 Bellman 方程把"试错学习"变成可计算的数学。
+>
+> （但请记住：模仿不是被抛弃，而是被**收编**——§5 的 RLPD、§9 的 teacher-student、§10 的扩散策略，都是"先模仿、再用 RL 修正"。这条"模仿×强化"的缝合线会贯穿全讲。）
+
+---
+
+## 2. MDP 与 Bellman：价值的语言
+
+> [!tip] 本节四拍
+> **直觉**（试错学习需要一个"记账系统"）→ **推导**（MDP→值函数→Bellman 方程，逐行推）→ **对比**（估计价值的三种范式 DP/MC/TD，偏差-方差谱）→ **联系**（Bellman↔[[ControlTheory|最优控制]] HJB↔[[Optimization|动态规划]]，Markov↔[[StochasticProcess]]）。
+
+### 2.1 MDP 与 POMDP：把"试错"写成数学
+
+一个**马尔可夫决策过程 (MDP)** 是五元组 $(\mathcal S,\mathcal A,P,r,\gamma)$：状态空间 $\mathcal S$、动作空间 $\mathcal A$、转移核 $P(s'\mid s,a)$、奖励 $r(s,a)$、折扣 $\gamma\in[0,1)$。策略 $\pi(a\mid s)$ 给出动作分布。**转笔的 MDP** 大致是：
+
+- $\mathcal S$：关节角 $q$、关节速度 $\dot q$、指尖触觉图、（特权信息下）笔的位姿与角速度；
+- $\mathcal A$：各关节的目标角增量或力矩（连续，$\subset\mathbb R^{24}$）；
+- $r$：转过的角度增量 − 掉笔惩罚 − 能量惩罚（奖励设计的陷阱见 §8）；
+- $\gamma$：把"转满一圈"的远期成功折算到当下。
+
+**Markov 性是一切递推的地基**：$P(s_{t+1}\mid s_t,a_t)$ 不依赖更早历史。它等价说"$s_t$ 已概括了预测未来所需的一切"。
+
+> [!warning] 转笔里 Markov 性是怎么被破坏的（这决定了你要不要 RNN）
+> 单帧观测往往**不是** Markov 状态：
+> - **触觉迟滞**：橡胶指垫的 Prandtl–Ishlinskii 迟滞（见 [[SignalProcessing#2.2 迟滞现象的建模与补偿：Prandtl-Ishlinskii模型|SignalProcessing §2.2]]）让"当前读数"依赖加载历史；
+> - **温漂 / 磨损**：电机常数随时间漂移；
+> - **通信延迟**：CAN 总线让"指令"与"生效"错开几个控制周期。
+>
+> 此时问题退化为 **POMDP**：观测 $o_t\ne s_t$。两条出路——**(a)** 把历史编码进隐状态 $b_t=f(o_{1:t})$（RNN/Transformer，即 belief，见 [[StochasticProcess#7. 高级主题：信念空间规划 (Belief Space Planning)|belief space]]）；**(b)** 用环境编码器从历史推断隐式物理参数（RMA，见 §9）。"要不要上 RNN"这个工程问题，本质是"单帧是否 Markov"这个理论问题。
+
+### 2.2 值函数与 Bellman 方程
+
+定义从 $t$ 起的**折扣回报** $G_t=\sum_{k\ge0}\gamma^k r_{t+k}$。两个值函数：
+
+$$
+V^\pi(s)=\mathbb E_\pi[G_t\mid s_t=s],\qquad
+Q^\pi(s,a)=\mathbb E_\pi[G_t\mid s_t=s,a_t=a].
+$$
+
+**Bellman 期望方程**来自把回报拆成"一步奖励 + 折扣后的未来回报"，再对一步取期望：
+
+$$
+\begin{aligned}
+V^\pi(s)&=\mathbb E_{a\sim\pi}\Big[r(s,a)+\gamma\,\mathbb E_{s'\sim P}\big[V^\pi(s')\big]\Big],\\
+Q^\pi(s,a)&=r(s,a)+\gamma\,\mathbb E_{s'\sim P}\big[\mathbb E_{a'\sim\pi}Q^\pi(s',a')\big].
+\end{aligned}
+$$
+
+最优值满足**Bellman 最优方程**（把"对 $\pi$ 求期望"换成"对 $a$ 取 max"）：
+
+$$
+Q^*(s,a)=r(s,a)+\gamma\,\mathbb E_{s'}\big[\max_{a'}Q^*(s',a')\big].
+$$
+
+> [!note] 跨原理联系：Bellman ↔ HJB ↔ LQR ↔ 动态规划
+> Bellman 最优方程是**离散时间**的最优性原理；其连续时间极限就是控制论的 **Hamilton–Jacobi–Bellman (HJB)** 方程。当动力学线性、奖励二次时，HJB 的解是 **LQR**（[[ControlTheory#11. 线性二次最优控制 (Linear Quadratic Regulator, LQR)|ControlTheory §11]]）——也就是说 **LQR = 能解析求解的 RL**。这条线索极其重要：它意味着"值函数"既是 RL 的核心对象，也是控制论的最优代价函数 (cost-to-go)，更是 [[Optimization|动态规划]] 的子结构。**记住这一个等价，你就同时拿到了三个领域的钥匙。**
+
+> [!tip] 转笔直觉
+> $Q^*(s,a)$ 回答："此刻笔在这个姿态、我做这个'松指'动作，从今往后最好能转多少圈？" 一旦学会 $Q^*$，最优策略就是 $\pi^*(s)=\arg\max_a Q^*(s,a)$——贪婪地挑当下看起来最有前途的指步。难点全在"如何学到这个 $Q^*$"。
+
+### 2.3 估计价值的三种范式：DP → MC → TD（偏差-方差谱）
+
+如何从数据估出 $V^\pi/Q^\pi$？三种范式，构成一条**偏差-方差光谱**：
+
+| 范式 | 更新依据 | 需要模型？ | 需等终止？ | 偏差 | 方差 |
+|:--|:--|:--:|:--:|:--:|:--:|
+| **动态规划 (DP)** | 全期望 Bellman 回填 | 是（已知 $P$） | 否 | 0 | 0 |
+| **蒙特卡洛 (MC)** | 真实整条回报 $G_t$ | 否 | 是 | 0 | 高 |
+| **时序差分 (TD)** | $r+\gamma V(s')$ 自举 | 否 | 否 | 有（自举偏差） | 低 |
+
+**TD(0)** 是现代 RL 的心脏——它把 MC 的"真实采样"与 DP 的"Bellman 自举"缝在一起：
+
+$$
+V(S_t)\leftarrow V(S_t)+\alpha\,\delta_t,\qquad
+\delta_t=\underbrace{R_{t+1}+\gamma V(S_{t+1})}_{\text{TD target}}-V(S_t).
+$$
+
+$\delta_t$ 称 **TD error**。它不需要模型（不像 DP），也不必等 episode 结束（不像 MC）。代价是**自举偏差**：用一个还不准的 $V(S_{t+1})$ 去更新 $V(S_t)$。
+
+> [!important] TD(λ)/GAE：用一个旋钮在偏差与方差间滑动
+> TD(0) 只把误差分给上一个状态，传播慢；MC 方差又太大。**资格迹 (eligibility trace)** $E_t$ 给近期访问过的状态按 $\gamma\lambda$ 衰减地分配 credit：
+> $$E_t(s)=\gamma\lambda E_{t-1}(s)+\mathbf 1\{s=S_t\},\qquad V(s)\leftarrow V(s)+\alpha\,\delta_t E_t(s).$$
+> - $\lambda=0$：退化为单步 TD（低方差、传播慢）；
+> - $\lambda=1$：逼近 MC（高方差、传播快）。
+>
+> 其策略梯度版本就是 **GAE (Generalized Advantage Estimation)**，PPO 的标配（§5）：$\hat A_t=\sum_{l\ge0}(\gamma\lambda)^l\delta_{t+l}$。**$\lambda$ 是一个连续旋钮**，从 §5 的 PPO 一直拧到这里。
+>
+> **转笔落点**：转一圈、换指、接住这类长因果链任务，成功/失败的奖励严重滞后于真正关键的那次接触决策。$\lambda$ 越大，末端反馈越能回传给前序的"松指/补位"动作——这就是 credit assignment 的核心旋钮。把 $\lambda$ 理解为"信用回传的时间窗"，胜过死记公式。
+>
+> （旁注：把 $\delta_t E_t$ 看成"误差信号经一个一阶低通后再分配"，与 [[SignalProcessing]] 的指数滑动平均同形——同一个数学，两处出现。）
+
+---
+
+## 3. 价值方法做控制：从 Q-learning 到"过估计的诅咒"
+
+> [!tip] 本节四拍
+> **直觉**（学会 $Q$ 就能贪婪决策）→ **推导**（SARSA vs Q-learning 的一字之差）→ **对比**（on-policy 保守 vs off-policy 激进；DQN 的两大稳定器）→ **落点**（max 算子必然高估 → 这道"诅咒"催生了 §5 所有算法的 min-Q 解药）。
+
+### 3.1 SARSA vs Q-learning：一字之差，安全两端
+
+控制需要学动作价值 $Q(s,a)$。SARSA 与 Q-learning 只在 TD target 的"下一项"差一个字，却分出了 on/off-policy 与安全倾向：
+
+| 方法 | TD target | 策略属性 | 行为倾向 |
 |:--|:--|:--|:--|
-| MDP/POMDP 层 | 状态是否足以预测未来？ | Markov state、belief、history encoder | 触觉迟滞、温度、CAN 延迟破坏单帧 Markov 性 |
-| Bellman 层 | 价值如何递推？ | TD、SARSA、Q-learning、GAE | 长因果链任务需要把成功/失败回传到早期接触动作 |
-| 策略梯度层 | 不可微环境中如何更新策略？ | log-derivative trick、baseline、advantage | 接触求解器不可微时仍可采样估计梯度 |
-| 稳定更新层 | 策略如何不突然崩溃？ | TRPO/PPO、KL、clipping、entropy | 防止已学会的接触时序被一次大更新破坏 |
-| 样本效率层 | 真机数据如何反复利用？ | SAC、replay、offline RL、conservative Q | 在硬件磨损和安全约束下提高数据价值 |
-| 迁移层 | 仿真策略如何上真机？ | DR、system ID、RMA、world model、safety filter | 将 action gap、transition gap、reward gap 分开诊断 |
+| **SARSA** | $R+\gamma Q(S',A')$，$A'\sim\pi$ | On-policy | 把探索风险算进价值，**偏保守** |
+| **Q-learning** | $R+\gamma\max_{a'}Q(S',a')$ | Off-policy | 学最优贪婪策略，**偏激进** |
 
-> [!important] Foundation 级判断标准
-> 任何 RL 算法进入本知识库时，都要说明四件事：数据来自哪里、梯度如何产生、旧数据能否重用、接触/执行器不确定性如何进入状态或训练分布。
+> [!tip] 从"悬崖行走"到"转笔"：同一个保守/激进之分
+> 经典的悬崖行走里，SARSA 因为 $\epsilon$-greedy 可能失足坠崖，会学到一条**远离崖边**的安全路；Q-learning 假设未来永远走最优，倾向**贴崖**的最短路。把这一刻搬到转笔：**SARSA 式的指步**会留出余量、不让笔逼近"即将脱手"的临界姿态；**Q-learning 式的指步**会榨干每一度旋转、贴着掉笔边界走。真机上磨损与掉落代价高，"偏保守"往往更值——这正是 §3.3 偏好"低估"的物理动机。
 
-## 摘要 (Abstract)
+### 3.2 DQN：深度 RL 的起点与它的"天花板"
 
-本文档作为一份深度研究报告，旨在为Robotics Dexterous Manipulation（机器人灵巧操作）领域的构建Obsidian知识库提供理论基石。作为该领域的首席科学家，我将摒弃百科全书式的浅层描述，转而采用一种严谨、怀疑且深度的视角，剖析强化学习（Reinforcement Learning, RL）如何解决接触丰富（Contact-rich）、难以建模（Hard-to-model）的复杂操作任务。报告全文约15,000字，涵盖了从广义坐标与接触流形的物理本质，到DDPG、TD3、SAC等主流算法的数学推导与演进脉络，再到Sim-to-Real、触觉感知融合及Diffusion Policy等前沿技术的具体实现细节。
+DeepMind 的 **DQN (2013–15)** 首次证明深度网络能稳定逼近 $Q$。两大稳定器值得记住，因为它们贯穿后续所有 off-policy 算法：
 
-本报告的核心论点在于：灵巧操作的本质是混合动力学系统（Hybrid Dynamical System）中的模式切换（Mode Scheduling）与流形约束（Manifold Constraint）问题。传统的解析控制因无法有效处理接触的不连续性和感知噪声而失效，而现代强化学习算法通过熵正则化（Entropy Regularization）、守恒Q学习（Conservative Q-Learning）及世界模型（World Models）等机制，提供了一种隐式的、数据驱动的解决方案。
+1. **经验回放 (Experience Replay)**：把 $(s,a,r,s')$ 存进 buffer 随机抽样，**打破样本时间相关性**、并让昂贵数据被反复使用（这正是 §5 SAC 样本效率高的根）。
+2. **目标网络 (Target Network)**：用一份滞后参数 $\bar\theta$ 算 TD target，缓解"自举追自己尾巴"的不稳定。
 
-------
+> [!warning] 为什么 DQN 不能直接转笔
+> DQN 只能处理**离散动作**（Atari 按键）。灵巧手的关节是**连续**的，无法枚举 $\max_a$。**如何把 DQN 的稳定训练搬到连续动作？** 这道题分出了本讲第 5 章的两条主线：
+> - **Actor-Critic 线**（用一个网络近似 $\arg\max$）→ DDPG → TD3 → SAC；
+> - **策略梯度 / 信任域线**（直接优化策略）→ REINFORCE → TRPO → PPO。
+>
+> §4 先补齐策略梯度的理论根，再在 §5 让两条线在转笔上正面对比。
 
-## 1. Core Concepts: 物理直觉与数学定义
+### 3.3 过估计的诅咒：max 算子的"系统性偏高"
 
-在深入探讨算法之前，我们必须首先建立对灵巧操作物理本质的深刻理解。这不仅是算法设计的边界条件，也是理解为什么通用RL算法需要针对机器人领域进行特定改造的根本原因。
-
-### 1.1 广义坐标与最大化坐标 (Generalized vs. Maximal Coordinates)
-
-在构建强化学习的状态空间（State Space, $S$）时，首要决策是坐标系的选取。
-
-#### 物理直觉
-
-对于一个具有 $N$ 个关节的灵巧手（如Shadow Dexterous Hand, 24 DoF）和被操作物体，物理仿真引擎（如MuJoCo, Isaac Gym）底层虽然使用广义坐标（Generalized Coordinates, $q$）来求解拉格朗日方程，但在RL观测空间的设计中，我们经常面临选择：是直接使用关节角度 $q$，还是使用所有刚体的笛卡尔坐标（Maximal Coordinates）？
-
-**广义坐标 ($q \in \mathbb{R}^n$)**： 广义坐标是一组定义系统构型所需的最小独立参数集 。对于串联机械臂，通常是关节角度。
-
-$$q = [\theta_1, \theta_2,..., \theta_n]^T$$
-
-其优势在于自然地满足了关节连接的几何约束（Holonomic Constraints），减少了状态空间的维度，使得学习效率更高 。
-
-**最大化坐标 (Maximal Coordinates)**： 使用每个刚体（Link）在世界坐标系下的位置 $(x, y, z)$ 和姿态（四元数 $q_w, q_x, q_y, q_z$）来描述。 虽然这增加了维度，但在接触丰富的任务中，最大化坐标能更直接地反映物体间的相对距离和接触几何，有助于神经网络捕捉接触特征 。
-
-#### 数学定义：拉格朗日动力学
-
-机器人的运动方程通常描述为二阶微分方程：
-
-$$M(q)\ddot{q} + C(q, \dot{q})\dot{q} + g(q) = \tau + J(q)^T f_{ext}$$
-
-其中：
-
-- $M(q)$: 惯性矩阵（Inertia Matrix），对称正定。
-- $C(q, \dot{q})$: 科里奥利力与离心力项（Coriolis and Centrifugal terms）。
-- $g(q)$: 重力项。
-- $\tau$: 关节力矩（Control Input）。
-- $J(q)^T f_{ext}$: 外部接触力映射到关节空间的力矩。
-
-**The Value-add of RL**: 传统控制论（如Computed Torque Control）试图通过逆动力学 $M(q)\ddot{q}_{des} +...$ 来消除非线性。然而，在灵巧操作中，$f_{ext}$（接触力）通常是未知、非平滑且高度非线性的 。RL 的价值在于，它不需要显式求解上述方程，而是通过与环境交互，学习一个策略 $\pi_\theta(a|s)$ 来隐式地处理这些动力学项，特别是难以建模的 $f_{ext}$ 。
-
-### 1.2 接触流形与切空间探索 (Contact Manifolds & Tangent Space)
-
-灵巧操作中最棘手的问题是**接触约束（Contact Constraints）**。当手指接触物体时，系统的自由度瞬间降低，状态被限制在一个低维流形上。
-
-#### 几何视角
-
-我们将允许的系统状态集合定义为约束流形（Constraint Manifold） $\mathcal{M}_c$：
-
-$$\mathcal{M}_c = \{ (q, \dot{q}) \in \mathcal{X} \mid \phi(q) = 0, J(q)\dot{q} = 0 \}$$
-
-其中 $\phi(q)$ 是接触距离函数（Signed Distance Function）。
-
-在强化学习的探索阶段（Exploration），如果直接在全空间 $\mathbb{R}^n$ 添加高斯噪声（Gaussian Noise），会导致两种失效模式：
-
-1. **穿透（Penetration）**：生成的指令导致手指穿入物体模型内部（在物理引擎中产生巨大的排斥力，导致仿真崩溃）。
-2. **脱离（Detachment）**：意外断开接触，导致操作失败。
-
-**Geometric Reinforcement Learning (G-RL)**  提出了一种深度的解决方案：策略应当在流形的切空间（Tangent Space, $T_q\mathcal{M}_c$）上学习，而不是在欧氏空间上。
-
-- **Logarithmic Map**: 将流形上的点映射到切空间。
-- **Exponential Map**: 将切空间上的动作映射回流形。
-
-$$a_{safe} = \text{Exp}_q( \pi(s) )$$
-
-这种几何先验（Geometric Prior）的引入，使得RL能够专注于学习“如何在保持接触的同时移动物体”，而不是浪费大量样本去学习“如何不穿透物体”这一基本的物理事实 。
-
-### 1.3 混合动力学与非平滑性 (Hybrid Dynamics & Non-smoothness)
-
-从动力学系统的角度看，灵巧操作是一个混合系统（Hybrid System）。
-
-- **Mode 0 (Free Motion)**: 手指在空间运动，动力学平滑。
-- **Mode 1 (Impact)**: 手指撞击物体，速度发生跳变（Velocity Jump），动量守恒但能量可能耗散。
-- **Mode 2 (Sticking Contact)**: 摩擦锥（Friction Cone）内，相对速度为零 $v_{rel}=0$。
-- **Mode 3 (Sliding Contact)**: 达到摩擦极限，遵循库伦摩擦定律 $f_t = \mu f_n$。
-
-**Analytical Control Failure**: 解析方法（如MPC）在处理这种多模式切换时，面临组合爆炸（Combinatorial Explosion）。如果手有5个手指，每个手指有3种状态（Free, Stick, Slide），总的模式数量是 $3^5 = 243$ 种。规划器需要在每一帧决定处于哪种模式，这是一个混合整数规划（Mixed-Integer Programming）问题，通常是NP-hard的 。
-
-**RL Insight**: 强化学习通过奖励函数（Reward Function）的引导，能够隐式地学习这种模式切换序列（Mode Scheduling）。例如，在旋转笔的任务中，策略网络会自动学习到“食指松开（Mode 0） -> 中指推（Mode 2） -> 拇指滑动（Mode 3）”的序列，而无需显式建模每个切换时刻 。这被认为是RL在灵巧操作中相对于传统控制最大的Value-add。
-
-------
-
-## 2. Evolution & Insights: 技术演进脉络 (Problem-Solution Chain)
-
-该领域的发展并非线性堆叠，而是一系列针对“旧方法失效”的深刻反思与革新。我们将沿着 **Analytic Control -> Imitation Learning -> Model-Free RL -> Model-Based RL -> Offline RL** 的脉络进行解构。
-
-### 2.1 The Failure of Analytic Control: 模型失配与计算瓶颈
-
-**Problem**: 早期的灵巧操作依赖于精确的物理模型和轨迹优化（Trajectory Optimization）。
-
-**Why it failed**:
-
-1. **Sim-to-Real Gap的物理根源**：解析控制假设刚体接触，而在真实世界中，指尖通常是软的（Soft Pads），接触面存在变形、迟滞（Hysteresis）和微观纹理。接触力模型 $f = K \delta$ 中的刚度 $K$ 极其难以辨识 。
-2. **LCP Solver Bottleneck**: 求解线性互补问题（LCP）以计算接触力，其计算复杂度随接触点数量呈立方级增长 $O(N^3)$。对于多指手操作网格物体，实时性无法保证 。
-
-**Insights**: 我们需要一种对模型误差不敏感（Model-agnostic）且能实时推理的方法。这直接指向了 **Learning-based Policies**。
-
-### 2.2 Imitation Learning (IL): 数据饥渴与分布漂移
-
-**Problem**: 既然建模很难，能否直接模仿人类？ **Techniques**: Behavioral Cloning (BC), Inverse RL (IRL), GAIL 。 **Critique**:
-
-- **Distribution Shift (Covariate Shift)**: 这是一个统计学上的致命伤。训练数据来自专家演示 $p_{data}(s)$，而策略执行时产生的状态分布是 $p_\pi(s)$。一旦机器人产生微小误差（例如手滑了一点），它进入了专家从未涉足的状态区域。由于BC没有纠错能力，误差会累积（Compounding Errors），导致系统发散 。
-- **Data Efficiency**: 收集人类操作的高维数据（24 DoF hand + Object pose）极其困难。Mocap方案昂贵且受遮挡影响，VR遥操作效率低 。
-
-**Insights**: 单纯的模仿是不够的，机器人需要一种机制在“未见过的状态”下通过试错（Trial-and-Error）来自我修正。这引入了 **Reinforcement Learning**。
-
-### 2.3 深度强化学习的奠基：从 DQN 到连续控制
-
-在进入机器人控制领域之前，我们需要理解深度 RL 本身的演进，因为这决定了哪些算法适合灵巧操作。
-
-#### Phase 0: Deep Q-Network (DQN) — 深度 RL 的起点 (2013-2015)
-
-**历史背景**: DeepMind 的 DQN 首次证明了深度神经网络可以稳定地学习价值函数。
-
-**核心创新**:
-1. **Experience Replay**: 打破样本相关性，允许样本重用
-2. **Target Network**: 分离当前网络和目标网络，减少 bootstrap 的不稳定性
-
-**为什么不能直接用于机器人**:
-- DQN 只能处理**离散动作空间**（如 Atari 的按键）
-- 灵巧手的关节是**连续**的，无法枚举所有可能动作
-
-> [!note] 从离散到连续的桥梁
-> 如何将 DQN 的稳定训练机制扩展到连续动作空间？这催生了两条演进路线：
-> - **Actor-Critic 路线** → DDPG → TD3 → SAC
-> - **Policy Gradient 路线** → REINFORCE → TRPO → PPO
-
-### 2.3.1 TD 学习家族：从预测到控制
-
-时序差分学习（Temporal-Difference Learning, TD）是 Value-based RL 和 Actor-Critic 的共同根。它的关键思想是 **bootstrap**：不用等整条 episode 结束，而是用“一步真实奖励 + 下一状态当前估计”更新当前价值。
-
-#### TD(0)：策略评估
-
-给定策略 $\pi$，状态价值的单步 TD 更新为：
-
-$$
-V(S_t)\leftarrow V(S_t)+\alpha\delta_t,
-\qquad
-\delta_t=R_{t+1}+\gamma V(S_{t+1})-V(S_t).
-$$
-
-这里 $\delta_t$ 是 TD error。它把 Monte Carlo 的真实采样回报和 Dynamic Programming 的 Bellman 自举结合起来：不需要环境模型，也不需要等待终止。
-
-#### SARSA 与 Q-Learning：On-Policy vs Off-Policy 控制
-
-控制问题需要学习动作价值 $Q(s,a)$。SARSA 与 Q-Learning 的差异只在 TD target 的下一项，但这正是安全性差异的来源：
-
-| 方法 | 更新目标 | 策略属性 | 行为倾向 |
-|:--|:--|:--|:--|
-| SARSA | $R_{t+1}+\gamma Q(S_{t+1},A_{t+1})$ | On-policy | 把探索风险纳入价值，偏保守 |
-| Q-Learning | $R_{t+1}+\gamma\max_a Q(S_{t+1},a)$ | Off-policy | 学最优贪婪策略，偏激进 |
-
-悬崖行走例子说明了这一区别：SARSA 会因为 $\epsilon$-greedy 探索可能掉崖而学到远离悬崖的路径；Q-Learning 假设未来总是选择最优动作，倾向贴边最短路。
-
-#### TD($\lambda$) 与资格迹
-
-TD(0) 只把当前 TD error 分配给上一个状态。TD($\lambda$) 引入资格迹 $E_t(s,a)$，让近期访问过的状态-动作对按 $\gamma\lambda$ 衰减获得 credit：
-
-$$
-E_t(s,a)=\gamma\lambda E_{t-1}(s,a)+\mathbf{1}\{(s,a)=(S_t,A_t)\},
-$$
-
-$$
-Q(s,a)\leftarrow Q(s,a)+\alpha\delta_t E_t(s,a).
-$$
-
-- $\lambda=0$：退化为单步 TD，偏低方差但传播慢。
-- $\lambda=1$：接近 Monte Carlo，传播快但方差高。
-
-> [!tip] 灵巧操作直觉
-> 转笔、换指、接住这类长因果链任务中，成功/失败奖励常常滞后于真正关键动作。TD($\lambda$) 与 GAE 的共同价值就在于用可控的衰减窗口把末端反馈回传给前序接触决策；这也是 PPO 中 GAE($\lambda$) 比纯 TD(0) 更常用的原因。
-
-### 2.3.5 策略梯度定理与 REINFORCE (Policy Gradient Theorem & REINFORCE)
+DQN 与一切含 $\max$ 的更新都背着一道诅咒。先把它讲成定理，再讲成解药。
 
 > [!note] 教科书参考
-> 本节基于 Wang & Xiong **Deep Reinforcement Learning Notes** Chapter 3.1，
-> 以及 Sutton & Barto 策略梯度定理的经典推导。
+> 本节定理基于 Wang & Xiong《Deep Reinforcement Learning Notes》(Tsinghua, 2024) Ch. 2.7。
 
-策略梯度是连续控制的理论根基。在转入 Actor-Critic 和 PPO 之前，必须掌握策略梯度定理的严格推导。
+> [!theorem] 过估计定理（均匀误差情形）
+> 设状态 $s$ 处所有真实动作值相等 $Q^*(s,a)=V^*(s)$，估计误差 $Q_t(s,a)-Q^*(s,a)$ 独立同分布于 $[-1,1]$ 均匀分布。则
+> $$\mathbb E\big[\max_a Q_t(s,a)\big]-V^*(s)=\frac{m-1}{m+1},$$
+> $m$ 为动作数。**即使估计无偏（误差均值为 0），取 max 后必然偏高。**
 
-#### 物理直觉
+> [!theorem] 更一般的过估计下界
+> 若 $\sum_a(Q_t(s,a)-V^*(s))=0$ 且 $\sum_a(Q_t(s,a)-V^*(s))^2=C>0$，则
+> $$\max_a Q_t(s,a)\ge V^*(s)+\sqrt{\tfrac{C}{m-1}}.$$
+> **高估幅度 $\propto$ 估计方差 $\sqrt C$**（估计越抖、高估越狠），$\propto 1/\sqrt{m-1}$（动作越多越摊薄）。
 
-策略梯度的核心问题：如何对一个**随机过程的期望回报**求关于策略参数的梯度？
+**这道诅咒在转笔里有真实后果**：接触瞬态会让某些状态的 $Q$ 估计剧烈波动（$C$ 大），$\max$ 把"一次侥幸的猛甩"误判成高价值动作，策略据此施加**危险的大力矩**——轻则掉笔，重则损伤电机。
 
-目标函数：
+> [!important] 解药的种子（贯穿 §5）
+> **Double Q-learning** 把"选动作"与"评价值"解耦，从机制上消除这种必然高估；其深度版的两个化身——**TD3 的 clipped double-Q（取 $\min$）** 与 **SAC 的双 Q 取 $\min$**——是第 5 章的主角。请记住这条因果：**max 高估（本节）→ 取 min 低估（§5）→ 低估在机器人上更安全（§3.1 的保守倾向）**。三节一线。
 
-$$J(\pi_\theta) = \mathbb{E}_{\tau \sim p_\theta(\tau)} \left[ \sum_{t=1}^{T} r(s_t, a_t) \right] = \int p_\theta(\tau) r(\tau) \, d\tau$$
+---
 
-#### 形式化推导
+## 4. 策略梯度：在不可微世界中更新策略
+
+> [!tip] 本节四拍
+> **直觉**（接触求解器不可微，怎么求"奖励对策略参数的梯度"？）→ **推导**（log-derivative 技巧，看环境模型如何神奇消失）→ **对比**（REINFORCE → baseline → advantage → Actor-Critic 的诞生）→ **落点**（高方差 + 一次性 + 步长敏感，催生 §5 两条主线）。
+
+### 4.1 策略梯度定理：log-derivative 技巧
+
+§3 的价值方法绕不开 $\max_a$，对连续的 24 维动作无法枚举。**策略梯度**改走另一条路：把策略 $\pi_\theta$ 直接参数化，对期望回报求梯度、做梯度上升。目标函数：
+
+$$
+J(\theta)=\mathbb E_{\tau\sim p_\theta(\tau)}\Big[\textstyle\sum_{t} r(s_t,a_t)\Big]=\int p_\theta(\tau)\,r(\tau)\,d\tau.
+$$
+
+难点：$\tau$（轨迹）的分布 $p_\theta$ 含有**不可微的环境转移**（接触 LCP 求解器）。怎么对它求 $\nabla_\theta$？
 
 > [!theorem] 策略梯度定理 (Policy Gradient Theorem)
-> $$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim p_\theta(\tau)} \left[ \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_t \mid s_t) \cdot \left( \sum_{t'=t}^{T} r(s_{t'}, a_{t'}) \right) \right]$$
-> 
-> **证明关键**：利用对数导数恒等式 (log-derivative trick)：
-> $$\nabla_\theta p_\theta(\tau) = p_\theta(\tau) \nabla_\theta \log p_\theta(\tau)$$
-> 
-> 展开 $\log p_\theta(\tau)$：
-> $$\log p_\theta(\tau) = \log p(s_1) + \sum_{t=1}^{T} \left[ \log \pi_\theta(a_t \mid s_t) + \log p(s_{t+1} \mid s_t, a_t) \right]$$
-> 
-> 环境转移概率 $p(s_{t+1} \mid s_t, a_t)$ 与 $\theta$ 无关，对 $\theta$ 求导后消失。这是策略梯度能够在**不知道环境模型**的情况下估计梯度的根本原因。
+> $$\nabla_\theta J(\theta)=\mathbb E_{\tau\sim p_\theta}\Big[\sum_{t}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\cdot\Big(\sum_{t'\ge t} r(s_{t'},a_{t'})\Big)\Big].$$
+>
+> **证明骨架（log-derivative 恒等式）**：$\nabla_\theta p_\theta(\tau)=p_\theta(\tau)\,\nabla_\theta\log p_\theta(\tau)$。展开轨迹对数似然：
+> $$\log p_\theta(\tau)=\log p(s_1)+\sum_t\big[\log\pi_\theta(a_t\mid s_t)+\log p(s_{t+1}\mid s_t,a_t)\big].$$
+> 对 $\theta$ 求导时，**初始分布 $\log p(s_1)$ 与转移 $\log p(s_{t+1}\mid s_t,a_t)$ 都与 $\theta$ 无关，导数为零而消失**。
 
-**因果性修正 (Reward-to-go)**：时刻 $t$ 的策略不影响时刻 $t' < t$ 的奖励。因此用 $\hat{Q}^\pi_{t} = \sum_{t'=t}^{T} r(s_{t'}, a_{t'})$（reward-to-go）替代全轨迹奖励可降低方差而不引入偏差。
+> [!important] 这一步消失，是整个领域得以成立的原因
+> 环境模型 $p(s'\mid s,a)$ 在梯度里**整项蒸发**——这意味着：**哪怕接触动力学完全不可微、完全未知，我们仍能用采样无偏地估计策略梯度。** 这正是 §1.4 解析控制"卡在 LCP 求解器"时，RL 能绕过去的根本数学原因。把这句话刻进脑子：**策略梯度只需要"能采样"，不需要"能微分环境"。**
 
-#### REINFORCE 算法
+**因果性修正 (reward-to-go)**：$t$ 时刻的动作不影响 $t'<t$ 的奖励，故可用 $\hat Q_t=\sum_{t'\ge t}r(s_{t'},a_{t'})$ 替换全轨迹回报——**降方差且不引偏**。
 
-基于策略梯度定理的最简实现：
+### 4.2 REINFORCE：最朴素的实现
 
-1. 用当前策略 $\pi_\theta$ 采样 $N$ 条轨迹
-2. 估计梯度：$\nabla_\theta J \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_{i,t} \mid s_{i,t}) \cdot \hat{Q}^\pi_{i,t}$
-3. 梯度上升更新：$\theta \leftarrow \theta + \alpha \nabla_\theta J$
+1. 用当前 $\pi_\theta$ 采 $N$ 条轨迹；
+2. 估梯度 $\nabla_\theta J\approx\frac1N\sum_i\sum_t\nabla_\theta\log\pi_\theta(a_{i,t}\mid s_{i,t})\,\hat Q_{i,t}$；
+3. 上升 $\theta\leftarrow\theta+\alpha\nabla_\theta J$。
 
-#### 方差控制：基线技巧 (Baseline)
+直觉：**把"高回报轨迹里出现过的动作"的概率推高**。转笔里，一条侥幸转成的轨迹会让其中所有"松指/补位"动作的概率被整体抬升——哪怕其中有几步其实是败笔。这种"一好遮百丑"正是高方差的来源。
 
-> [!tip] 基线不改变期望，但大幅降低方差
+### 4.3 方差控制：从 baseline 到 Advantage，Actor-Critic 的诞生
+
+> [!tip] 基线 (baseline)：不改期望，狂降方差
 > 减去一个与动作无关的基线 $b(s)$：
-> $$\nabla_\theta J = \mathbb{E}\left[\nabla_\theta \log \pi_\theta(a \mid s) \cdot (\hat{Q}^\pi - b(s))\right]$$
-> 
-> **无偏性证明**：$\mathbb{E}[\nabla_\theta \log \pi_\theta(a \mid s) \cdot b(s)] = b(s) \int \nabla_\theta \pi_\theta(a \mid s) \, da = b(s) \nabla_\theta 1 = 0$
-> 
-> 最常用基线：$b(s) = V^\pi(s)$（状态价值函数），此时 $\hat{Q}^\pi - V^\pi = \hat{A}^\pi$（**优势函数**），这正是 Actor-Critic 框架的雏形。
-
-**REINFORCE 的局限性**：
-- **高方差**：即使使用基线，蒙特卡洛估计的方差仍然很大
-- **On-Policy**：采样的数据只能用一次（不能重用），样本效率极低
-- **步长敏感**：步长过大导致策略崩溃，过小导致收敛缓慢
-
-这些局限性直接催生了两条演进路线：
-- Actor-Critic（用 Critic 替代蒙特卡洛回报估计 → DDPG/TD3/SAC）
-- Trust Region（约束策略更新幅度 → TRPO/PPO）
-
-### 2.4 Off-Policy 演进线：从 DDPG 到 SAC
+> $$\nabla_\theta J=\mathbb E\big[\nabla_\theta\log\pi_\theta(a\mid s)\,(\hat Q-b(s))\big].$$
+> **无偏性**：$\mathbb E[\nabla_\theta\log\pi_\theta(a\mid s)\,b(s)]=b(s)\int\nabla_\theta\pi_\theta(a\mid s)\,da=b(s)\nabla_\theta 1=0$。
+> 最优基线取 $b(s)=V^\pi(s)$，于是 $\hat Q-V^\pi=\hat A^\pi$——**优势函数 (Advantage)** 登场。
 
-这是灵巧操作领域最活跃的研究方向。我们见证了算法从不稳定到鲁棒的进化。
+优势函数 $A^\pi(s,a)=Q^\pi(s,a)-V^\pi(s)$ 回答的是相对问题：**"这个动作比该状态下的平均水平好多少？"** 这比绝对回报稳定得多。把"用一个学出来的 Critic $V_\phi$ 当基线"这件事坐实，就得到 **Actor-Critic** 架构：
 
-#### Phase 1: Deep Deterministic Policy Gradient (DDPG) (2015)
+- **Actor** $\pi_\theta$：出动作；
+- **Critic** $V_\phi$（或 $Q_\phi$）：评价值、当基线。
 
-**Mechanism**: Actor-Critic架构，使用确定性策略 $a = \mu(s)$。 **Why it failed in Dexterous Manipulation**: DDPG 存在严重的 **Overestimation Bias（Q值高估）**。在操作任务中，由于接触的不稳定性，偶尔的剧烈碰撞可能导致观测值的异常波动，Critic网络错误地认为这是高价值状态。由于使用的是 $\max Q$ 的更新逻辑，这种误差被快速放大，导致策略崩溃 。
-
-> [!note] 教科书参考：Q值过高估计的数学证明
-> 本节定理基于 Wang & Xiong "Deep Reinforcement Learning Notes" (Tsinghua University, 2024) Chapter 2.7
-
-> [!theorem] Q值过高估计定理 (Theorem 2.1)
-> 考虑状态 $s$，其中所有真实最优动作值相等：$Q^*(s, a) = V^*(s), \forall a$。
-> 假设估计误差 $Q_t(s, a) - Q^*(s, a)$ 独立均匀分布在 $[-1, 1]$。则：
-> $$\mathbb{E}\left[\max_a Q_t(s, a)\right] - V^*(s) = \frac{m-1}{m+1}$$
-> 其中 $m$ 是动作数量。
-> 
-> **物理直觉**：即使估计是无偏的（误差期望为0），对这些估计取 $\max$ 操作后的结果**不再无偏**——它必然偏高。
-
-> [!theorem] 更一般的过高估计界 (Theorem 2.2)
-> 设 $Q^*(s, a) = V^*(s)$，估计满足弱无偏条件 $\sum_a (Q_t(s,a) - V^*(s)) = 0$，
-> 且存在误差 $\sum_a (Q_t(s,a) - V^*(s))^2 = C > 0$。则：
-> $$\max_a Q_t(s, a) \geq V^*(s) + \sqrt{\frac{C}{m-1}}$$
-> 
-> **关键洞见**：
-> - 过高估计的程度与误差方差 $C$ 成正比（估计越不稳定，高估越严重）
-> - 与动作数量 $m$ 成反比（动作越多，单个动作误差的影响被摊薄）
-> - **Double Q-learning 通过解耦"选择最佳动作"与"评估该动作的价值"两个步骤，从机制上避免了这种必然的过高估计**
-
-#### Phase 2: Twin Delayed DDPG (TD3) (2018)
-
-**Value-add**: 针对DDPG的缺陷，引入了三个关键改进，使其在机器人控制中变得可用 。
-
-1. **Clipped Double Q-Learning**: 同时训练两个 Critic $Q_1, Q_2$，计算目标时取 $\min(Q_1, Q_2)$。
-   - *Insight*: 在灵巧操作中，低估（Underestimation）比高估（Overestimation）更安全。低估只会导致学习变慢，而高估会导致策略采取危险动作（如过大的力矩）。
-2. **Target Policy Smoothing**: 在目标动作中加入噪声 $\epsilon \sim \mathcal{N}(0, \sigma)$。
-   - *Physical Intuition*: 这在物理上对应于寻找“宽极小值”（Flat Minima）。如果一个抓取姿态仅在精度为0.1mm时有效，而在0.2mm偏差下就失效，那么这个姿态是不可用的。平滑操作迫使RL学习那些对执行误差鲁棒的动作策略。
-
-#### Phase 3: Soft Actor-Critic (SAC) - The Gold Standard
-
-**Mechanism**: 最大熵强化学习（Maximum Entropy RL）。
-
-目标函数：$J(\pi) = \sum \mathbb{E} [r_t + \alpha H(\pi(\cdot|s_t))]$。
-
-**Why SAC dominates Robotics**:
-
-1. **Stochastic Policy as Compliance**: SAC学习的是随机策略 $\pi(a|s) \sim \mathcal{N}(\mu, \sigma)$。在物理交互中，策略的方差 $\sigma$ 可以被解释为一种**虚拟柔顺性（Virtual Compliance）**。当 $\sigma$ 较大时，意味着该维度不需要精确控制（Soft）；当 $\sigma$ 较小时，意味着需要高刚度控制（Stiff）。这天然契合了阻抗控制（Impedance Control）的思想 。
-2. **Robustness**: 熵项鼓励探索，防止策略过早收敛到局部最优（例如：只是简单地握住物体不动，而不去尝试旋转它）。
-3. **Stability**: 相比于PPO（On-policy），SAC（Off-policy）利用Replay Buffer，样本效率高出一个数量级，这对实机训练至关重要 。
-
-> [!abstract] 策略约束与熵正则化的统一视角
-> SAC 的最大熵目标实际上是一个更一般框架的特例。考虑带正则化的策略优化目标：
-> 
-> $$\max_\pi Q(s,a) - \beta \cdot D_{KL}(\pi(\cdot|s) \| \pi_0(\cdot|s))$$
-> 
-> 其中 $\pi_0$ 是**参考分布（Reference Distribution）**，$\beta$ 是温度参数。通过变分推导，最优策略具有 **Boltzmann 形式**：
-> 
-> $$\pi^*(a|s) = \frac{\pi_0(a|s) \cdot \exp(Q(s,a)/\beta)}{Z(s)}$$
-> 
-> **关键洞见**：当 $\pi_0$ 是**均匀分布**时，KL 散度退化为负熵：
-> $$D_{KL}(\pi \| \text{Uniform}) = -H(\pi) + \text{const}$$
-> 
-> 因此，**SAC 的熵正则化实际上是 KL 约束到均匀先验的特例**。这一统一视角揭示了不同 RL 算法的本质差异仅在于：
-> - **SAC**: $\pi_0 = \text{Uniform}$ （不对动作有先验偏好）
-> - **PPO with KL penalty**: $\pi_0 = \pi_{old}$ （信任旧策略）
-> - **π₀ (Physical Intuition AI)**: $\pi_0$ 来自物理直觉或人类演示
-> 
-> 这为设计新算法提供了清晰的设计空间：**选择什么样的参考分布 + 如何调节温度 $\beta$**。
-
-> [!tip] Gaussian 探索的理论最优性（来自 [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach]]）
-> Wang et al. (2019) 用**连续时间随机控制**框架证明了一个深刻结果：对于 **Linear-Quadratic 问题**，熵正则化下的最优探索分布是 **Gaussian**：
-> $$\pi^*(a|s) = \mathcal{N}(\mu^*(s), (\sigma^*)^2)$$
-> 
-> **分离原则**：
-> - **均值** $\mu^*(s)$：仅依赖状态，与温度 $\lambda$ 无关 → 负责**利用**（exploitation）
-> - **方差** $(\sigma^*)^2 \propto \lambda$：与状态无关，与温度成正比 → 负责**探索**（exploration）
-> 
-> 这意味着 SAC 使用 Gaussian 策略不只是"方便采样"，而是在 LQ 近似下的**理论最优选择**。
-> 
-> **额外洞见**：环境噪声越大，最优探索方差**越小**——因为随机环境本身就提供了"免费"的探索机会。
-
-#### SAC 数学理论推导
-
-> [!note] 教科书参考
-> 本节基于 Haarnoja et al. "Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor" (ICML 2018) 原论文的理论推导。Deep RL 教科书标注 "Add SAC"，此处补充完整理论。
-
-SAC 的理论基础是**软贝尔曼方程 (Soft Bellman Equation)** 和**软策略迭代 (Soft Policy Iteration)**，它将标准 RL 中的所有 max 操作替换为 soft-max（即 log-sum-exp），从而自然地引入熵正则化。
+> [!note] 一张图看清两个 §2 概念在这里合流
+> Critic 用 §2.3 的 **TD/GAE** 来训练（拟合 $V^\pi$）；Actor 用本节的**策略梯度**、以 Critic 给的优势为权重来更新。**GAE 的 $\lambda$ 旋钮（§2.3）此刻就插在 Actor 的优势估计上**——这就是为什么 PPO 既要 GAE 又要策略梯度。前后两章在此咬合。
 
-##### 软值函数定义
+### 4.4 落点：REINFORCE 的三宗罪，催生两条主线
 
-**软状态值函数** $V^\pi_{soft}(s)$ 和**软动作值函数** $Q^\pi_{soft}(s, a)$ 定义为：
+| 罪 | 表现 | 解法 → 章节 |
+|:--|:--|:--|
+| **高方差** | 即便有 baseline，MC 估计仍抖 | Critic 替代 MC 回报 → Actor-Critic / Off-policy（§5.2） |
+| **一次性 (on-policy)** | 采的数据只能用一次，样本效率极低 | replay 重用 → DDPG/TD3/SAC（§5.2）；信任域内重要性采样 → PPO（§5.1）|
+| **步长敏感** | 步子大→崩、小→慢 | 约束更新幅度 → TRPO/PPO（§5.1）|
 
-$$V^\pi_{soft}(s) = \mathbb{E}_{a \sim \pi}\left[Q^\pi_{soft}(s, a) - \alpha \log \pi(a|s)\right]$$
+> [!important] 承上启下
+> 注意"一次性"这宗罪有**两种**修法，正对应 §5 的两条主线：**信任域线**（PPO，老实做 on-policy 但在小信任域内借一点重要性采样）与**off-policy 复用线**（SAC，把数据塞进 replay 反复榨取）。下一章我们先立一个**统一框架**把两条线收编，再让它们在转笔上正面对决。
 
-$$Q^\pi_{soft}(s, a) = r(s, a) + \gamma \mathbb{E}_{s' \sim p}\left[V^\pi_{soft}(s')\right]$$
+---
 
-其中 $\alpha > 0$ 是**温度参数**，控制熵项的权重。
+## 5. 两条主线的分野：On-policy 信任域 vs Off-policy 复用【全讲对比脊柱】
 
-**物理直觉**：$V^\pi_{soft}$ 不仅衡量"预期累积奖励"，还衡量"策略在该状态下的不确定性"。高熵策略在 $V_{soft}$ 意义下更"有价值"。
+> [!tip] 本章四拍（这是全讲最重要的对比章）
+> **直觉**（所有现代策略优化都在做同一件事：在"参考分布"附近改进策略）→ **推导**（先立统一框架，再分别推 TRPO/PPO 与 DDPG/TD3/SAC）→ **对比**（让五个算法在转笔上同台，照出各自灵魂）→ **联系**（熵↔[[ControlTheory|阻抗柔顺]]、信任域↔[[Optimization|近端算法]]、min-Q↔§3.3）。
 
-##### 软贝尔曼方程
+### 5.0 先立统一框架：一切都是"在参考分布附近改进"
 
-> [!theorem] 软贝尔曼方程 (Soft Bellman Equation)
-> 对于任意策略 $\pi$，软 Q 函数满足以下递归关系：
-> $$Q^\pi_{soft}(s, a) = r(s, a) + \gamma \mathbb{E}_{s'}\left[\mathbb{E}_{a' \sim \pi}\left[Q^\pi_{soft}(s', a') - \alpha \log \pi(a'|s')\right]\right]$$
-> 
-> 等价地，对于**最优软 Q 函数** $Q^*_{soft}$：
-> $$Q^*_{soft}(s, a) = r(s, a) + \gamma \mathbb{E}_{s'}\left[\alpha \log \sum_{a'} \exp\left(\frac{Q^*_{soft}(s', a')}{\alpha}\right)\right]$$
-> 
-> **证明思路**：最优软策略具有 Boltzmann 形式 $\pi^*(a|s) \propto \exp(Q^*_{soft}(s,a)/\alpha)$，代入 $V_{soft}$ 定义后化简得到 log-sum-exp 形式。
+> [!abstract] 一个目标，收编四种算法
+> 考虑带正则的策略优化目标——在最大化价值的同时，不要离一个**参考分布 (reference distribution)** $\pi_0$ 太远：
+> $$\max_\pi\ \mathbb E_{a\sim\pi}[Q(s,a)]-\beta\,D_{KL}\big(\pi(\cdot\mid s)\,\|\,\pi_0(\cdot\mid s)\big).$$
+> 用变分法（对 $\pi$ 求变分、令导数为零）解得最优策略具有 **Boltzmann 形式**：
+> $$\boxed{\ \pi^*(a\mid s)=\frac{\pi_0(a\mid s)\,\exp\!\big(Q(s,a)/\beta\big)}{Z(s)}\ }$$
+> **关键洞见：不同 RL 算法的本质差异，只在于"参考分布 $\pi_0$ 选谁"和"温度 $\beta$ 怎么调"。**
+>
+> | 选择 $\pi_0$ | 得到的算法 | 含义 |
+> |:--|:--|:--|
+> | **均匀分布** | **SAC**（§5.2） | 对动作无先验偏好 → $D_{KL}(\pi\|\mathrm{Unif})=-H(\pi)+c$，**KL 退化成熵正则** |
+> | **旧策略 $\pi_{old}$** | **TRPO/PPO**（§5.1） | "信任旧策略" → KL 约束 = 信任域 |
+> | **专家/物理先验** | **π₀ / RLPD / 残差 RL**（§5.2, §9） | 把演示或物理直觉当锚 |
+>
+> 记住这张表，第 5 章后面所有推导都只是它的特例。**这是本讲"用一个框架串起一片算法"的最佳范例。**
 
-##### 软策略迭代收敛性
+> [!note] 跨原理联系
+> 这个"$Q$ − $\beta$·KL-到-参考"的形式，与 [[ControlTheory#10.4 被动性、Passivity-Based Control 与 RL 价值函数|控制论的正则化最优控制]]、[[Optimization#2.4 凸优化基础与对偶性理论 (Convex Optimization Foundations & Duality)|凸优化的近端算子 (proximal operator)]] 完全同构——"目标 − 到锚点的距离惩罚"是近端方法的通用骨架。LLM 后训练里的 RLHF/DPO 也是这个式子（$\pi_0=$ SFT 模型）。**一个变分式，跨越控制、优化、RL、LLM 四个领域。**
 
-> [!theorem] 软策略迭代收敛定理
-> 软策略迭代算法（交替执行软策略评估和软策略改进）收敛到最优软策略 $\pi^*$ 和最优软 Q 函数 $Q^*_{soft}$。
-> 
-> **软策略评估**：固定 $\pi$，通过软贝尔曼方程迭代更新 $Q^\pi_{soft}$。
-> **软策略改进**：给定 $Q^\pi_{soft}$，更新策略为：
-> $$\pi'(a|s) = \frac{\exp(Q^\pi_{soft}(s, a)/\alpha)}{Z(s)}$$
-> 
-> **关键性质**：软策略改进保证 $Q^{\pi'}_{soft}(s, a) \geq Q^\pi_{soft}(s, a)$（单调递增），且收敛到唯一的最优解。
+### 5.1 On-policy 信任域线：TRPO → PPO（$\pi_0=\pi_{old}$）
 
-##### SAC 实用算法：三个关键组件
+#### 5.1.1 TRPO：把"步长敏感"变成"信任域约束"
 
-SAC 将上述理论转化为实用的深度 RL 算法，包含三个可学习组件：
+§4.4 说 REINFORCE 步长敏感。TRPO 的根治办法，是先把策略改进写成**严格的提升量**：
 
-1. **软 Q 网络** $Q_\theta(s, a)$：通过最小化软贝尔曼残差训练
-   $$L_Q(\theta) = \mathbb{E}_{(s,a,s') \sim \mathcal{D}}\left[\left(Q_\theta(s, a) - \left(r + \gamma \left(Q_{\bar\theta}(s', a') - \alpha \log \pi_\phi(a'|s')\right)\right)\right)^2\right]$$
-   其中 $a' \sim \pi_\phi(\cdot|s')$，$\bar\theta$ 是目标网络参数。
+> [!theorem] 性能差分引理 (Performance Difference Lemma)
+> $$J(\pi_{\theta'})-J(\pi_\theta)=\mathbb E_{\tau\sim p_{\theta'}}\Big[\sum_t\gamma^t A^{\pi_\theta}(s_t,a_t)\Big].$$
+> **直觉**：新策略的提升量 = 用**旧策略的价值观** $A^{\pi_\theta}$ 去评判**新策略所走的轨迹**。
 
-2. **策略网络** $\pi_\phi(a|s)$：通过最大化期望软 Q 值训练
-   $$L_\pi(\phi) = \mathbb{E}_{s \sim \mathcal{D}}\left[\mathbb{E}_{a \sim \pi_\phi}\left[\alpha \log \pi_\phi(a|s) - Q_\theta(s, a)\right]\right]$$
-   注意：由于 $a$ 是从 $\pi_\phi$ 采样的，需要使用**重参数化技巧**使梯度可以反向传播。
+可这右边的期望是关于**新策略状态分布** $p_{\theta'}$ 的，而我们只有旧策略的数据 $p_\theta$。用重要性采样换到旧分布后，问题归结为"能否用 $p_\theta(s)$ 近似 $p_{\theta'}(s)$"。答案：
 
-3. **自动温度调整** $\alpha$：通过约束优化动态调节
-   $$L_\alpha(\alpha) = \mathbb{E}_{a \sim \pi_\phi}\left[-\alpha \left(\log \pi_\phi(a|s) + \bar{\mathcal{H}}\right)\right]$$
-   其中 $\bar{\mathcal{H}}$ 是目标熵，通常设为 $-\dim(\mathcal{A})$（动作空间维度的负值）。
+> [!theorem] 分布间隙界 (Distribution Gap Bound)
+> 若 $\max_s D_{KL}(\pi_\theta(\cdot\mid s)\,\|\,\pi_{\theta'}(\cdot\mid s))\le\epsilon$，则状态分布间隙 $|p_{\theta'}(s_t)-p_\theta(s_t)|\le O(\sqrt\epsilon\cdot t)$。
 
-> [!tip] 自动温度调整的物理意义
-> 目标熵 $\bar{\mathcal{H}} = -\dim(\mathcal{A})$ 意味着：在动作空间中，策略应"平均保持每个维度 1 nat 的不确定性"。
-> - 若当前策略熵 $> \bar{\mathcal{H}}$（太随机）→ $\alpha$ 减小 → 减少对熵的奖励
-> - 若当前策略熵 $< \bar{\mathcal{H}}$（太确定）→ $\alpha$ 增大 → 鼓励更多探索
-> 
-> 这在灵巧操作中实现了**自适应刚柔调节**：初期保持"软"以探索不同抓取策略，后期变"刚"以精确执行已学到的最优策略。
+**这就是"信任域"三个字的来历**：只要新旧策略 KL 足够近，用旧数据近似新目标在理论上就是合法的。于是 TRPO 解一个带约束的子问题：
 
-##### SAC 演进脉络：SQL → SAC (v1) → SAC (v2)
+$$
+\max_\theta\ \mathbb E\Big[\tfrac{\pi_\theta(a\mid s)}{\pi_{\theta_{old}}(a\mid s)}A(s,a)\Big]\quad\text{s.t.}\quad D_{KL}(\pi_{\theta_{old}}\|\pi_\theta)\le\delta.
+$$
 
-| 版本 | 核心创新 | 局限性 |
-|-----|---------|--------|
-| **SQL** (2017) | 首次提出软 Q 学习，使用 SVGD 采样 | 采样效率低，难以扩展到高维 |
-| **SAC v1** (2018) | 重参数化技巧 + 双 Q 网络 + 固定 $\alpha$ | 需要手动调节温度 |
-| **SAC v2** (2019) | 自动温度调整 | 目前工业标准 |
+代价：要算 Fisher 信息矩阵的逆（自然梯度），计算重。
 
-**Comparison Table: DDPG vs TD3 vs SAC**
+#### 5.1.2 PPO：用 clip 把硬约束"软化"
 
-| **Feature**           | **DDPG**                 | **TD3**       | **SAC**                | **Relevance to Manipulation**                                |
-| --------------------- | ------------------------ | ------------- | ---------------------- | ------------------------------------------------------------ |
-| **Policy Type**       | Deterministic            | Deterministic | Stochastic             | Stochasticity models sensor noise & actuation errors well.   |
-| **Critic Update**     | Single Q                 | Min(Q1, Q2)   | Min(Q1, Q2)            | Clipped Double Q prevents dangerous over-exertion of force due to Q-bias. |
-| **Exploration**       | Ornstein-Uhlenbeck Noise | Action Noise  | Entropy Regularization | Entropy auto-tuning adapts exploration during delicate contact phases. |
-| **Sample Efficiency** | High                     | High          | Very High              | Critical for reducing robot wear and tear.                   |
-| **Stability**         | Low (Brittle)            | Medium        | High                   | SAC is the robust choice for contact-rich tasks.             |
+PPO 的核心创新，是用一个**截断 (clip)** 替代 TRPO 的硬 KL 约束——工程上简单一个数量级：
 
-> [!tip] 时间一致探索：从白噪声到自回归过程（来自 [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning]]）
-> 标准 Gaussian 探索的一个被忽视的问题是**时间不一致性**：
-> $$a_t = \mu(s_t) + \epsilon_t, \quad \epsilon_t \sim \mathcal{N}(0, \sigma^2)$$
-> 
-> 连续两步的噪声 $\epsilon_t, \epsilon_{t+1}$ 独立同分布，导致：
-> - **高频抖动**：探索轨迹像"原地震动"，无法有效覆盖状态空间
-> - **硬件损伤**：jerky 运动对机械关节造成冲击
-> 
-> **解决方案**：自回归探索（AR-p Process）
-> $$\epsilon_t = \sum_{i=1}^{p} \phi_i \epsilon_{t-i} + \eta_t, \quad \eta_t \sim \mathcal{N}(0, \sigma_\eta^2)$$
-> 
-> 通过选择系数 $\{\phi_i\}$ 满足 Yule-Walker 方程，可以保持：
-> - **边缘分布不变**：仍然是标准正态 → 不影响策略梯度
-> - **可调时间相关性**：$\phi$ 越大 → 轨迹越平滑 → 探索越"坚持方向"
-> 
-> **灵巧操作应用**：高精度位置控制（如精密装配）需要高 $\phi$；快速反应任务（如接球）需要低 $\phi$。
+$$
+L^{CLIP}(\theta)=\mathbb E\Big[\min\big(r_t(\theta)\hat A_t,\ \mathrm{clip}(r_t(\theta),1-\epsilon,1+\epsilon)\hat A_t\big)\Big],\quad r_t(\theta)=\tfrac{\pi_\theta(a_t\mid s_t)}{\pi_{\theta_{old}}(a_t\mid s_t)}.
+$$
 
-### 2.5 On-Policy 演进线：从 TRPO 到 PPO
+> [!tip] PPO clip 的转笔直觉
+> Clip 在说："**新策略别离旧策略太远——离远了，这一步就不奖励你了。**" $\epsilon=0.2$ 即概率比最多变 20%。落到转笔：策略已经学会了一套精妙的指步**时序**（松指→补位→推动的毫秒级配合），一次过大的更新会把这套时序整体打乱、前功尽弃。Clip 就是那条"别一次毁掉已学会的指步"的护栏。
 
-与 Off-Policy 路线并行发展的是 On-Policy 路线，它在某些场景下仍有独特价值。
+PPO 的总损失是三项之和——策略、价值、熵：
 
-#### Phase 1: Trust Region Policy Optimization (TRPO) (2015)
+$$
+L^{CLIP+VF+S}_t(\theta)=\hat{\mathbb E}_t\big[L^{CLIP}_t(\theta)-c_1 L^{VF}_t(\theta)+c_2\,S[\pi_\theta](s_t)\big].
+$$
 
-**核心问题**: Policy Gradient 方法的步长很难调节。步长太大 → 策略崩溃；步长太小 → 学习缓慢。
+| 组成 | 网络 | 拟合目标 | 作用 |
+|:--|:--|:--|:--|
+| **Policy Loss** $L^{CLIP}$ | Actor | 优势 $\hat A_t$ | 抬高高回报动作概率，clip 保稳 |
+| **Value Loss** $L^{VF}$ | Critic | 回报 $G^{target}_t$ | 提供准确基线，降策略梯度方差 |
+| **Entropy Bonus** $S$ | Actor | 最大化随机性 | 维持探索，防过早坍缩 |
 
-**解决方案**: 约束策略更新的 KL 散度在信任域内：
-$$\max_\theta \mathbb{E}\left[\frac{\pi_\theta(a|s)}{\pi_{\theta_{old}}(a|s)} A(s,a)\right] \quad \text{s.t.} \quad D_{KL}(\pi_{\theta_{old}} \| \pi_\theta) \leq \delta$$
-
-**局限性**: 需要计算 Fisher 信息矩阵的逆，计算复杂度高。
-
-#### Phase 2: Proximal Policy Optimization (PPO) (2017)
-
-**核心创新**: 用 Clipping 替代硬性 KL 约束：
-
-$$L^{CLIP}(\theta) = \mathbb{E}\left[\min\left(r_t(\theta)A_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)A_t\right)\right]$$
-
-> [!tip] PPO Clipping 的物理直觉
-> Clipping 意味着：**"如果新策略与旧策略差异过大，就不要再往那个方向更新了"**。
-> - 防止策略突变导致的"手抖"
-> - $\epsilon = 0.2$ 意味着策略概率比最多变化 20%
-
-**PPO vs SAC 选择指南**:
-
-| 场景 | 推荐 | 原因 |
-|------|-----|------|
-| 仿真大规模并行 | PPO | IsaacGym 数千并行环境弥补样本低效 |
-| 真机训练 | SAC | Replay Buffer 允许重用历史数据 |
-| 高维连续动作 | SAC | 最大熵探索更有效 |
-
-##### PPO 完整损失函数分解
-
-PPO 的总损失由三部分组成——策略损失、价值损失、熵正则项：
-
-$$L_{t}^{CLIP+VF+S}(\theta) = \hat{\mathbb{E}}_{t} \left[L_{t}^{CLIP}(\theta) - c_1 L_{t}^{VF}(\theta) + c_2 S[\pi_\theta](s_t)\right]$$
-
-| 组成部分 | 对应网络 | 输出 | 拟合目标 | 核心作用 |
-|---------|---------|------|---------|---------|
-| **Policy Loss** $L^{CLIP}$ | Actor | $\pi_\theta(a\|s)$ | 优势函数 $\hat{A}_t$ | 提升高回报动作概率，Clip 保证训练稳健 |
-| **Value Loss** $L^{VF}$ | Critic | $V_\theta(s_t)$ | 实际回报 $G_t^{target}$ | 提供准确基线，减少策略梯度方差 |
-| **Entropy Bonus** $S$ | Actor | $\pi_\theta(a\|s)$ | 最大化分布随机性 | 维持探索能力，防止陷入局部最优 |
-
-##### PPO 三阶段数据流与梯度属性
-
-> [!warning] 核心洞察
-> 损失函数中的变量产生于**不同时间阶段**，且具有**不同的梯度属性**（detached 常量 vs 可导变量）。理解这一点是正确实现 PPO 的关键。
-
-**阶段 1: Rollout（数据收集）** — 参数固定为 $\theta_{old}$，所有产出为 **detached tensors**：
-- $s_t$: 环境观测（关节角/物体位置/速度）
-- $a_t$: 从 $\mathcal{N}(\mu_{\theta_{old}}(s_t), \sigma)$ 中**采样**
-- $\log \pi_{\theta_{old}}(a_t|s_t)$: 采样时立刻保存（网络更新后无法再获得旧分布值）
-- $V_{\theta_{old}}(s_t)$: Critic 基线评估
-- $r_t, d_t$: 环境反馈的奖励与终止标志
-
-**阶段 2: Advantage 计算（后处理）** — 离线计算，仍为常量：
-- $\hat{A}_t$: 通过 GAE 反向遍历 Rollout Buffer 计算
-- $G_t^{target} = \hat{A}_t + V_{\theta_{old}}(s_t)$: Critic 拟合目标
-
-**阶段 3: Network Update** — 重新激活计算图，参数 $\theta$ 开始更新：
-- $\pi_\theta(a_t|s_t)$: 将缓存的 $s_t$ 输入**更新中的** Actor，计算旧动作 $a_t$ 在新分布下的概率
-- $r_t(\theta) = \exp(\log \pi_\theta - \log \pi_{\theta_{old}})$: 利用 log-exp 技巧避免概率直除的数值不稳定
-- $V_\theta(s_t)$: 更新中的 Critic 输出（带梯度）
-- $S[\pi_\theta]$: 当前分布的信息熵
+> [!warning] 核心洞察：三段数据流与梯度属性（实现 PPO 的命门）
+> PPO 的变量产生于**三个不同阶段**，梯度属性截然不同（detached 常量 vs 可导变量）：
+> - **阶段 1 — Rollout**（参数冻结在 $\theta_{old}$，**全部 detached**）：观测 $s_t$、采样动作 $a_t\sim\mathcal N(\mu_{\theta_{old}}(s_t),\sigma)$、**当场存下** $\log\pi_{\theta_{old}}(a_t\mid s_t)$（网络一更新就再也取不到旧分布值）、基线 $V_{\theta_{old}}(s_t)$、奖励与终止 $r_t,d_t$。
+> - **阶段 2 — Advantage**（离线后处理，仍是常量）：用 GAE 反向遍历 buffer 算 $\hat A_t$，$G^{target}_t=\hat A_t+V_{\theta_{old}}(s_t)$。
+> - **阶段 3 — Update**（重建计算图，$\theta$ 开始动）：把缓存的 $s_t$ 喂进**更新中的** Actor 得 $\pi_\theta(a_t\mid s_t)$，算比率 $r_t(\theta)=\exp(\log\pi_\theta-\log\pi_{\theta_{old}})$（log-exp 技巧防数值不稳）、$V_\theta(s_t)$、熵 $S[\pi_\theta]$。
 
 ```python
 # PPO Update — 核心张量操作 (PyTorch)
@@ -541,1023 +453,620 @@ def compute_ppo_loss(obs, actions, old_log_probs, advantages, returns,
     action_dist, new_values = actor_critic(obs)
     new_log_probs = action_dist.log_prob(actions).sum(dim=-1)  # ⚠️ 多维动作必须在 dim=-1 求和
     entropy = action_dist.entropy().sum(dim=-1).mean()
-    
-    # Policy Loss
-    ratio = torch.exp(new_log_probs - old_log_probs)  # log-exp 技巧
+
+    ratio = torch.exp(new_log_probs - old_log_probs)           # log-exp 技巧
     surr1 = ratio * advantages
     surr2 = torch.clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages
     policy_loss = -torch.min(surr1, surr2).mean()
-    
-    # Value Loss + 组装
+
     value_loss = (returns - new_values.squeeze(-1)).pow(2).mean()
     total_loss = policy_loss + c1 * value_loss - c2 * entropy
     return total_loss
 ```
 
-> [!note] 代码实现对照：PPO 为什么“宏观 on-policy，微观带 off-policy 影子”
-> 在一次 `train_epoch` 中，`play_steps()` 先用固定的 $\theta_{old}$ 采集 rollout；随后多个 mini-epoch 会反复使用同一批 storage。第一轮更新后，当前策略已变成 $\theta$，但数据仍来自 $\theta_{old}$，因此需要重要性采样比率：
-> $$
-> r_t(\theta)=\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{old}}(a_t|s_t)}.
-> $$
-> 若代码缓存的是 negative log-prob，则实现常写成：
-> $$
-> r_t=\exp\left[(-\log\pi_{old})-(-\log\pi_{new})\right].
-> $$
-> PPO 仍是 on-policy，因为 rollout 结束后旧数据会被丢弃，不能像 SAC/DQN 那样长期进入 replay buffer；但它在一个很短的 trust region 内借用了 off-policy 的 importance sampling 来提高样本复用率。
+> [!note] 为什么说 PPO"宏观 on-policy，微观带 off-policy 影子"
+> 一次 `train_epoch` 里，rollout 用固定的 $\theta_{old}$ 采集；随后多个 mini-epoch 反复用同一批 storage。第一轮更新后当前策略已是 $\theta\ne\theta_{old}$，故需重要性比率 $r_t(\theta)$ 校正。PPO 仍属 **on-policy**——rollout 结束旧数据即丢弃，不像 SAC/DQN 长期进 replay；但它在一个很短的信任域内借用了 off-policy 的重要性采样来复用样本。**这正好坐实 §5.0：PPO 就是 $\pi_0=\pi_{old}$ 的那一行。**
 
-> [!warning] 代码级 loss 细节
-> 真实工程实现常比论文三项 loss 多两类保护：
-> - **Value clipping**：$V_{clip}=V_{old}+\operatorname{clip}(V_\theta-V_{old},-\epsilon,\epsilon)$，critic loss 取 unclipped / clipped MSE 的较大值，防止 value 在旧数据上暴走。
-> - **Bounds loss**：对 actor 均值 $\mu$ 超出软边界（如 $[-1.1,1.1]$）的部分加二次惩罚，避免高斯均值长期落在 action clamp 外侧，导致采样大面积饱和。
-> - **KL 自适应学习率**：每个 mini-epoch 估计新旧高斯 $D_{KL}$，若策略漂移过快则降低 LR；这与 clipping 共同构成“软 trust region”。
+> [!warning] 工程实现常比论文多两层保护（灵巧操作避坑）
+> - **Value clipping**：$V_{clip}=V_{old}+\mathrm{clip}(V_\theta-V_{old},-\epsilon,\epsilon)$，critic loss 取 unclipped/clipped MSE 的**较大值**，防 value 在旧数据上暴走。
+> - **Bounds loss**：对 actor 均值 $\mu$ 超出软边界（如 $[-1.1,1.1]$）的部分加二次罚，避免高斯均值长期落在 action clamp 外、采样大面积饱和。
+> - **KL 自适应学习率**：每个 mini-epoch 估新旧 $D_{KL}$，漂移过快就降 LR——与 clip 共同构成"软信任域"。
+> - **三个数值陷阱**：① 24-DoF 的 `log_prob` 必须 `.sum(dim=-1)`（联合概率=各维 log 之和），漏掉会静默学出废策略；② advantage 必须 minibatch 归一化 `(adv-mean)/(std+1e-8)`，否则步长失控、Actor 易崩；③ 熵系数 $c_2$ 过小→手指陷入无效颤动。
 
-> [!warning] 灵巧操作工程避坑
-> 1. **维度陷阱**: 24-DoF 灵巧手的 `log_prob` 必须在动作维度求和（联合概率 = 各维度 log 概率之和）。漏掉 `.sum(dim=-1)` 会导致张量广播错误，网络默默学出无用策略
-> 2. **Advantage 归一化**: Minibatch 级别 `(adv - mean) / (std + 1e-8)` 是必须的，否则策略更新步长不受控，Actor 极易崩溃
-> 3. **$c_2$（熵系数）敏感性**: 灵巧操作中 $c_2$ 过小 → 手部动作迅速陷入无效颤动；$c_1$ 不合适 → 优势估计偏差放大导致 Actor 失效
-
-##### PPO 的单峰高斯局限与多峰分布讨论
-
-PPO 默认输出对角高斯 $\mathcal{N}(\mu(s), \sigma)$，对于多模态动作分布（如"绕左或绕右"）会拟合到均值导致无效动作。替代方案的困难在于：
-
-| 替代方案 | 理论障碍 |
-|---------|---------|
-| **Diffusion Models** | 无法精确计算 $\log p_\theta(a_t\|s_t)$（只能算 ELBO 或用代价高昂的 ODE 求解器），$r_t(\theta)$ 引入巨大偏差 |
-| **GMM** | 高维空间中混合高斯概率密度数值下溢严重，梯度爆炸 |
-| **Normalizing Flows** | 理论上可行（有精确 log-prob），但雅可比行列式计算开销大 |
-
-> [!tip] 实践中的解决路线
-> 灵巧操作领域目前绕开此问题的方式：
-> - **Diffusion Policy**（[[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|扩散策略]]）: 放弃 PPO 框架，直接用条件扩散模型做行为克隆
-> - **Curriculum + Reward Shaping**: 用课程学习引导策略避开多模态区域
-> - **层级策略**: 高层离散选择模态，低层单峰高斯执行
-
-#### 理论基础：Policy Gradient as Policy Iteration
-
-> [!note] 教科书参考
-> 本节基于 Wang & Xiong "Deep Reinforcement Learning Notes" Chapter 3.3-3.4
-
-TRPO 的理论根基在于将策略梯度重新解释为**策略迭代**。这一框架揭示了为什么约束 KL 散度是合理的。
-
-**核心定理**：新策略 $\pi_{\theta'}$ 相对于旧策略 $\pi_\theta$ 的性能提升可以表示为：
-
-$$J(\pi_{\theta'}) - J(\pi_\theta) = \mathbb{E}_{\tau \sim p_{\theta'}(\tau)}\left[\sum_{t=0}^{\infty} \gamma^t A^{\pi_\theta}(s_t, a_t)\right]$$
-
-**物理直觉**：新策略的性能提升量 = 用**旧策略的价值观**评估新策略所执行动作的优势之和。
-
-**重要性采样推导**：
-$$\mathbb{E}_{\tau \sim p_{\theta'}(\tau)}\left[\gamma^t A^{\pi_\theta}(s_t, a_t)\right] = \sum_t \mathbb{E}_{s_t \sim p_{\theta'}(s_t)}\left[\mathbb{E}_{a_t \sim \pi_{\theta}}\left[\frac{\pi_{\theta'}(a_t|s_t)}{\pi_{\theta}(a_t|s_t)} \gamma^t A^{\pi_\theta}(s_t, a_t)\right]\right]$$
-
-**关键问题**：上式期望是关于 $p_{\theta'}(s_t)$ 的，但我们只有来自旧策略 $p_\theta(s_t)$ 的数据。能否用 $p_\theta$ 替代 $p_{\theta'}$？
-
-> [!theorem] 分布间隙边界 (Distribution Gap Bound)
-> 设 $\pi_\theta$ 和 $\pi_{\theta'}$ 两个策略的 KL 散度满足：
-> $$\max_s D_{KL}(\pi_\theta(\cdot|s) \| \pi_{\theta'}(\cdot|s)) \leq \epsilon$$
-> 则状态分布间隙有界：
-> $$|p_{\theta'}(s_t) - p_\theta(s_t)| \leq O(\sqrt{\epsilon} \cdot t)$$
-> 
-> **关键洞见**：只要新旧策略在 KL 散度意义下"足够接近"，就可以安全地用旧策略的状态分布近似新策略。这正是**信任域**名称的来源。
-
-这解释了 TRPO 为什么要约束 KL 散度：**不是任意的正则化，而是保证状态分布替换的理论合法性**。
-
-#### 统一梯度视角：SFT、蒸馏与 RL 的深层联系
-
-> [!abstract] 从梯度角度统一四种训练范式
-> SFT、Off-Policy Distillation、RL、On-Policy Distillation 四种训练目标看似不同，但从策略梯度角度可以统一到同一个框架中。将所有梯度通过重要性采样转换到 On-Policy 分布后：
+> [!important] PPO 的单峰高斯局限（直接通向 §10 扩散策略）
+> PPO 默认输出对角高斯 $\mathcal N(\mu(s),\sigma)$，是**单峰**的。转笔"可左转可右转"是**多峰**——单峰高斯会拟合到两峰之间的均值（"直接撞上去"），学出无效动作。为什么不直接换多峰分布？
 >
-> | 方法 | 梯度形式 | 加权方式 | 稀疏/稠密 |
-> |------|---------|---------|----------|
-> | **SFT** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\frac{\pi_\theta}{\pi_{data}} \cdot \mathbf{1}[a=a^*]$ | 指示函数（one-hot） | 稀疏 |
-> | **Off-Policy Distillation** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\frac{\pi_\theta}{\pi_{data}} \cdot \pi_{teacher}(a\|s)$ | 教师分布 | 稠密 |
-> | **RL (GRPO)** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\hat{A}(s,a)$ | 优势估计（reward） | 稀疏 |
-> | **On-Policy Distillation** | $\nabla_\theta \log \pi_\theta(a\|s)$ 加权 by $\pi_{teacher}(a\|s)$ | 教师分布 | 稠密 |
+> | 替代 | 理论障碍 |
+> |:--|:--|
+> | **Diffusion** | 无法精确算 $\log p_\theta(a\mid s)$（只有 ELBO 或昂贵 ODE），$r_t(\theta)$ 巨偏 |
+> | **GMM** | 高维下混合密度数值下溢、梯度爆炸 |
+> | **Normalizing Flows** | 有精确 log-prob，但雅可比行列式开销大 |
 >
-> **关键洞见**：
-> - **SFT 可视为奖励模型是指示函数的稀疏 RL**（$R(a) = \mathbf{1}[a=a^*]$）
-> - RL 与 On-Policy Distillation 都是 On-Policy 的，区别在于 RL 用 reward 做稀疏加权，蒸馏用教师分布做稠密加权
-> - On-Policy 方法（RL、On-Policy Distillation）比 Off-Policy 方法（SFT、Off-Policy Distillation）更优，因为避免了分布偏移
->
-> **与灵巧操作的关联**：
-> - 在 Sim-to-Real 中，教师策略（仿真中的专家）向学生策略蒸馏时，On-Policy Distillation 的稠密梯度信号比 RL 的稀疏 reward 信号更高效
-> - 对于 [[Dynamic Non-Prehensile Manipulation|DNPM]] 中的长因果链问题，稠密的教师信号可部分缓解 credit assignment 困难
-> - GRPO 算法（用于 LLM-RL）的组内优势估计思想可推广到机器人 RL 中的 episode-level 优势估计
+> 当前灵巧操作的绕法：**放弃 PPO 框架直接用条件扩散做行为克隆**（[[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|扩散策略]]，§10 详述）、课程引导避开多峰区、或**层级策略**（高层离散选模态、低层单峰高斯执行）。**"单峰 vs 多峰"这条线，从 PPO 一直牵到 §10。**
 
-### 2.6 Model-Based RL (MBRL): 样本效率与世界模型
+---
 
-**Problem**: 即使是SAC，也需要百万级的步数才能收敛。在真机上这需要几周时间。 **Evolution**: DreamerV3 。 **Insights**:
+### 5.2 Off-policy 复用线：DDPG → TD3 → SAC（$\pi_0=$ 均匀 / 物理先验）
 
-- **Learning in Imagination**: 在学习到的动力学模型（World Model）中进行规划，大大减少与物理世界的交互。
-- **Handling Occlusion**: 灵巧操作中，手指经常遮挡物体。Dreamer 使用 RNN (Recurrent State-Space Model, RSSM) 来维护隐状态（Latent State），具有记忆功能，能够推断被遮挡物体的状态。相比之下，基于单帧图像的 SAC 经常因为遮挡而丢失目标 。
+这条线的执念只有一个：**昂贵的真机数据，凭什么只用一次？** 它用 replay buffer 反复榨取历史数据，样本效率比 PPO 高一个数量级——对真机训练是生死攸关的。
 
-#### Model-Based RL 算法演进
+#### 5.2.0 先扫雷：Off-policy Actor-Critic 的两个理论谬误
 
 > [!note] 教科书参考
-> 本节基于 Wang & Xiong "Deep Reinforcement Learning Notes" Chapter 5
+> 本节基于 Wang & Xiong《Deep Reinforcement Learning Notes》Ch. 4.4。从 replay 里取数据做 AC，有两个一不小心就踩的坑。
 
-**Version 0.5（朴素方法）**：学习动力学 $f(s, a) = s'$，然后直接规划。
+**谬误一：目标值里的策略不一致。** 朴素写法 $y_i=r_i+\gamma V(s'_i)$ 错在哪？从 buffer 取的 $(s,a,s',r)$ 里，$s'$ 是**旧策略**走出来的，而 $V$ 要的是**当前策略** $\pi_\theta$ 的值。**修正**：改用 $Q$（因为 $Q^\pi(s,a)$ 不要求 $a$ 来自 $\pi$）：
+$$y_i=r_i+\gamma\,\hat Q^\pi(s'_i,a'_i),\qquad a'_i\sim\pi_\theta(\cdot\mid s'_i).$$
+注意 $a'_i$ 是把 $s'_i$ 喂进**最新策略网络**现采的，不是 buffer 里存的历史动作。
 
-**问题**：分布不匹配 (Distribution Mismatch)。模型 $f$ 只在初始策略 $\pi_0$ 访问过的状态-动作空间上准确。当我们用学到的模型规划时，策略会访问模型未见过的区域，导致错误累积。
+**谬误二：策略梯度里的动作不一致。** 策略梯度要求 $a\sim\pi_\theta$，但 buffer 里的动作来自旧策略。**修正**：对每个采样状态 $s_i$，从当前策略**重新采** $a^\pi_i\sim\pi_\theta(\cdot\mid s_i)$，再算 $\nabla_\theta\log\pi_\theta(a^\pi_i\mid s_i)\hat Q^\pi(s_i,a^\pi_i)$。
 
-**Version 1.5（Model Predictive Control, MPC）**：
-```
-while True:
-    学习动力学模型 f(s, a)
-    for N steps:
-        规划得到动作序列 a_1, ..., a_H
-        仅执行第一个动作 a_1  ← MPC 核心
-        观察新状态 s'
-        将 (s, a, s') 加入数据集
-```
+> [!tip] 为什么这里用 $Q$ 而不用优势？
+> 不减 baseline 会增方差，但这里高方差**可接受**——重采 $a^\pi_i$ 只需前向过一次网络、**无需与仿真器交互**，于是可以大量采样压方差，而不增加昂贵的环境交互成本。这正是 off-policy 的红利。
 
-> [!tip] MPC 的核心洞见
-> 重规划频率越高，单次规划的精度要求越低。因为我们可以在下一步修正前一步的错误。这就像开车时频繁看路而非闭眼直行。
+#### 5.2.1 DDPG (2015)：连续动作的 Actor-Critic，但脆
 
-#### 不确定性感知模型 (Uncertainty-Aware Models)
+用确定性策略 $a=\mu_\theta(s)$ 近似 $\arg\max_a Q$，于是把 DQN 搬到了连续动作。**但它在灵巧操作上很脆**——根源正是 §3.3 的**过估计诅咒**：接触瞬态让 $Q$ 估计剧烈波动，$\max$ 式更新把"侥幸猛甩"放大成高价值，Critic 误差正反馈式爆炸、策略崩溃。
 
-**为什么需要不确定性**：规划本质是优化。如果模型因过拟合在某区域产生不切实际的乐观预测，优化器会**主动利用这个漏洞**，导致糟糕的动作。
+#### 5.2.2 TD3 (2018)：三剂解药，让它变得可用
 
-> [!abstract] 两种不确定性
-> - **Aleatoric（偶然）不确定性**：数据本身的噪声，物理世界的内在随机性
-> - **Epistemic（认知）不确定性**：模型的不确定性，在数据稀疏区域缺乏置信度
-> 
-> 输出分布的熵只能捕捉 Aleatoric 不确定性。即使模型严重过拟合，只要所有数据点都符合过拟合模型，熵仍然很低。
+> [!important] TD3 = DDPG + 三个针对性修补（每一个都对应一种灵巧操作病）
+> 1. **Clipped Double-Q**：训两个 Critic，目标取 $\min(Q_1,Q_2)$。
+>    - *为什么*：直接落实 §3.3 的解药。**在灵巧操作里，低估比高估安全**——低估只是学得慢，高估会让策略施加危险大力矩。宁可保守。
+> 2. **Target Policy Smoothing**：目标动作加噪 $\epsilon\sim\mathrm{clip}(\mathcal N(0,\sigma),-c,c)$。
+>    - *为什么*：物理上是在找**宽极小 (flat minima)**。若某指步只在 0.1mm 精度下有效、0.2mm 偏差就失败，它就是不可用的。平滑迫使 RL 学**对执行误差鲁棒**的动作。
+> 3. **Delayed Policy Update**：Critic 更新数次，Actor 才更新一次——让 Critic 先稳，再引导 Actor。
 
-**Bootstrap Ensemble 方法**：训练 $N$ 个独立模型，对新输入 $(s, a)$ 分别预测：
-$$p(\theta|D) \approx \frac{1}{N} \sum_i \delta(\theta_i)$$
-
-预测之间的**方差/分歧**反映认知不确定性。在规划时可以惩罚导致高不确定性的动作。
-
-> **灵巧操作应用**：在接触丰富的操作任务中，模型在接触/非接触边界区域的不确定性最高。Ensemble 方法可以避免策略盲目进入这些高风险区域。
-
-### 2.7 Offline RL 演进：从保守估计到生成式策略
-
-**Problem**: 即使有大量离线数据（Offline Data），标准的 Off-policy RL 也会因为 OOD (Out-of-Distribution) 动作的高估而失败。
-
-#### Phase 1: Conservative Q-Learning (CQL) (2020)
-
-- **Logic**: 显式地压低数据集中未出现动作的Q值。
-- **Insight**: 在灵巧操作中，这是"安全第一"的体现。只在已知安全的动作空间附近微调，严禁盲目探索导致的硬件损坏。
-
-#### Phase 2: Implicit Q-Learning (IQL) (2021)
-
-- **创新**: 避免对 OOD 动作的 Q 值估计，只使用 Expectile 回归。
-
-#### Phase 3: Decision Transformer (2021)
-
-- **范式转变**: 将 RL 重构为序列建模问题。
-
-**Solution 2: Diffusion Policy** 
-
-- **Problem with Gaussian**: 传统的 SAC 假设动作服从单峰高斯分布。但灵巧操作是**多模态（Multimodal）**的。例如，绕过障碍物可以从左绕，也可以从右绕，平均值（中间）是直接撞上去。
-- **Innovation**: 使用去噪扩散概率模型（DDPM）生成动作。它可以精确建模非凸、多模态的动作分布，显著提升了模仿人类复杂操作的能力。
-
-### 2.8 Exploration 理论：从信息论到技能发现
-
-> [!note] 教科书参考
-> 本节基于 Wang & Xiong "Deep Reinforcement Learning Notes" Chapter 6
-
-**Problem**: 在稀疏奖励环境中，如何有效探索？灵巧操作任务中，成功抓取/旋转的奖励极其稀疏，随机探索几乎不可能触发。
-
-#### 信息论基础
-
-探索问题可以用信息论语言精确表述：
-
-$$H(\pi(s)) = \mathbb{E}_{s \sim \pi}[-\log \pi(s)]$$
-
-- **状态边缘熵** $H(\pi(s))$：策略 $\pi$ 对状态空间的**覆盖度**
-- **互信息** $I(s_{t+1}; a_t) = H(s_{t+1}) - H(s_{t+1}|a_t)$：**"赋能度" (Empowerment)**
-
-> [!tip] Empowerment 的物理直觉
-> $I(s_{t+1}; a_t)$ 度量了"**控制力**"——我的动作能多大程度影响未来状态？
-> - 第一项 $H(s_{t+1})$：希望下一状态多样（探索）
-> - 第二项 $H(s_{t+1}|a_t)$：希望给定动作后下一状态确定（控制）
-
-#### 无奖励探索：技能发现 (Skill Discovery)
-
-**核心目标**：在没有外部奖励时，学习**多样化的技能**，以便后续迁移到具体任务。
-
-**形式化目标**：
-$$\max_\pi H(p(G)) - H(p(G|S)) = \max_\pi I(S; G)$$
-
-其中 $G$ 是目标/技能，$S$ 是状态。
-
-- 第一项：希望目标分布**多样**（学到不同的技能）
-- 第二项：希望给定状态后目标**确定**（策略有控制力）
-
-**代表工作**：
-- **DIAYN** (Eysenbach et al., 2018): 学习可区分的技能
-- **Skew-Fit** (Pong et al., 2020): 通过重加权实现状态覆盖
-
-> **灵巧操作应用**：在接触预训练阶段，用技能发现方法让机器人自主探索不同的抓取姿态和接触模式，无需人工设计奖励。这些预训练技能可以加速下游任务的学习。
-
-#### Exploration Bonus：内在动机
-
-另一条路线是添加**内在奖励** (Intrinsic Reward)：
-$$\tilde{r}(s, a) = r(s, a) + \beta \cdot \text{bonus}(s, a)$$
-
-常见 bonus 设计：
-- **Count-based**: $\text{bonus} \propto 1/\sqrt{N(s)}$（访问次数越少，奖励越高）
-- **Prediction Error**: 用动力学模型预测误差作为新颖性度量
-- **Information Gain**: $\text{bonus} = I(s'; s, a)$
-
-#### Hindsight Experience Replay (HER)：从失败中学习
-
-> [!tip] 关键突破
-> [[Hindsight Experience Replay]] 提出了处理稀疏奖励的另一种优雅方案：**重标注目标**。
-
-**核心思想**：人类能从失败中学到几乎和成功一样多的东西。HER 让智能体具备这种能力——将失败轨迹的实际到达状态作为"假装的目标"进行重放学习。
-
-**算法流程**：
-1. 收集轨迹 $\tau = (s_0, a_0, \ldots, s_T)$，目标 $g$
-2. 标准回放：存储 $(s_t, a_t, r_t, s_{t+1}, g)$
-3. **Hindsight 回放**：额外存储 $(s_t, a_t, r'_t, s_{t+1}, g')$
-   - 其中 $g' = s_T$（轨迹末态作为新目标）
-   - $r'_t$ 根据新目标重新计算
-
-**为什么有效**：HER 自动形成从易到难的隐式课程。早期智能体能力弱，末态接近初态，学习短距离操作；能力提升后末态更远，逐渐学习复杂任务。
-
-> **灵巧操作应用**：HER 是接触丰富任务的标准配置。手内旋转、非抓取操作等任务的子目标（如特定抓取姿态）可作为 HER 的重标注目标。
-
-------
-
-## 3. Implementation: 核心算法细节分析
-
-本节将以 **Soft Actor-Critic (SAC)** 和 **TD3** 为例，剖析其在灵巧操作任务中的具体实现细节。代码将聚焦于算法逻辑，剔除所有冗余部分。
-
-### 3.0 Off-Policy Actor-Critic 的理论基础与常见谬误
-
-> [!note] 教科书参考
-> 本节基于 Wang & Xiong "Deep Reinforcement Learning Notes" Chapter 4.4
-
-在使用 Replay Buffer 实现 Off-Policy Actor-Critic 时，存在两个容易被忽视的**理论谬误**：
-
-#### 谬误 1：目标值中的策略不一致
-
-**错误做法**（朴素 Off-Policy）:
-```
-y_i = r_i + γ V̂^π(s'_i)  # 从 Replay Buffer 采样 s'_i
+```python
+def train_critic(self, replay_buffer):
+    state, action, next_state, reward, not_done = replay_buffer.sample()
+    with torch.no_grad():
+        # Target Policy Smoothing: 模拟执行误差。若动作加微扰后 Q 骤降，
+        # 说明它在"尖峰"上、不稳定。TD3 借此平滑 Q 函数。
+        noise = (torch.randn_like(action) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
+        next_action = (self.actor_target(next_state) + noise).clamp(-self.max_action, self.max_action)
+        # Clipped Double-Q: 取 min 抑制高估
+        target_Q = torch.min(self.critic_target_1(next_state, next_action),
+                             self.critic_target_2(next_state, next_action))
+        target_Q = reward + not_done * self.discount * target_Q
+    # ... 用 MSE(critic(state, action), target_Q) 更新两个 Critic ...
 ```
 
-**问题**：当从 Replay Buffer 加载 $(s, a, s', r)$ 时，$s'$ 是由**旧策略**产生的，而非当前策略 $\pi_\theta$。
+> [!tip] 转笔落点
+> 在笔面上滑动指尖时，摩擦力突变会让状态剧烈抖动。Target Smoothing 相当于在 Critic 更新里加了个**低通滤波**（又一次与 [[SignalProcessing]] 同形！），滤掉接触瞬态的高频噪声，让 Critic 学到更本质的物理规律，而非追逐每一次摩擦毛刺。
 
-**修正**：用 Q 函数替代 V 函数，因为 $Q^\pi(s, a)$ 不要求 $a$ 来自 $\pi$：
-$$y_i = r_i + \gamma \hat{Q}^\pi(s'_i, a'_i), \quad a'_i \sim \pi_\theta(\cdot|s'_i)$$
+#### 5.2.3 SAC：黄金标准与"熵即柔顺"
 
-注意：$a'_i$ 是将当前状态 $s'_i$ 输入**最新策略网络**得到的动作，而非 Replay Buffer 中存储的历史动作。
+SAC 是 §5.0 统一框架中 **$\pi_0=$ 均匀分布** 那一行——KL 退化成熵正则，目标变成"最大化回报 + 策略熵"：
 
-#### 谬误 2：策略梯度中的动作不一致
+$$
+J(\pi)=\sum_t\mathbb E\big[r_t+\alpha\,H(\pi(\cdot\mid s_t))\big].
+$$
 
-**错误做法**:
-```
-∇_θ J(θ) ≈ (1/N) Σ_i ∇_θ log π_θ(a_i | s_i) Â^π(s_i, a_i)
-```
-其中 $a_i$ 来自 Replay Buffer。
+**(a) 软值函数与软 Bellman 方程。** 把标准 RL 里所有 $\max$ 换成 soft-max（log-sum-exp），熵就自然长出来：
 
-**问题**：策略梯度要求 $a_i \sim \pi_\theta$，但 Buffer 中的动作来自旧策略。
+$$
+V^\pi_{soft}(s)=\mathbb E_{a\sim\pi}\big[Q^\pi_{soft}(s,a)-\alpha\log\pi(a\mid s)\big],\qquad
+Q^\pi_{soft}(s,a)=r(s,a)+\gamma\,\mathbb E_{s'}\big[V^\pi_{soft}(s')\big].
+$$
 
-**修正**：对每个采样状态 $s_i$，重新从当前策略采样动作 $a^\pi_i \sim \pi_\theta(\cdot|s_i)$：
-$$\nabla_\theta J(\theta) \approx \frac{1}{N} \sum_i \nabla_\theta \log \pi_\theta(a^\pi_i | s_i) \hat{Q}^\pi(s_i, a^\pi_i)$$
+> [!theorem] 软 Bellman 最优方程 + 软策略迭代收敛
+> 最优软策略具 Boltzmann 形式 $\pi^*(a\mid s)\propto\exp(Q^*_{soft}(s,a)/\alpha)$（即 §5.0 框架取 $\pi_0=$ 均匀的特例），代入得
+> $$Q^*_{soft}(s,a)=r(s,a)+\gamma\,\mathbb E_{s'}\Big[\alpha\log\sum_{a'}\exp\big(Q^*_{soft}(s',a')/\alpha\big)\Big].$$
+> **软策略迭代**（交替软策略评估与改进 $\pi'(a\mid s)=\exp(Q^\pi_{soft}/\alpha)/Z$）满足 $Q^{\pi'}_{soft}\ge Q^\pi_{soft}$ 单调，收敛到唯一最优。这把 §2.2 的 Bellman 收敛理论平滑地推广到了带熵的情形。
 
-> [!tip] 关键洞见：为什么用 Q 而不用 Advantage？
-> 使用 $\hat{Q}^\pi$ 而非优势函数 $\hat{A}^\pi$ 虽然会**增加方差**（因为没有 baseline），但这里高方差是可接受的——因为我们不需要与仿真器交互来采样 $a^\pi_i$，只需将 $s_i$ 输入神经网络。因此可以通过**大量采样 $a^\pi_i$** 来降低方差，而不增加环境交互成本。
+**(b) 三个可学组件。** 软 Q 网络（最小化软 Bellman 残差）、策略网络（最大化期望软 Q，需**重参数化**才能反传梯度）、自动温度 $\alpha$（约束优化）。
 
-### 3.1 Soft Actor-Critic (SAC) Core Logic
-
-SAC 的核心实现难点在于 **Reparameterization Trick** 和 **Automatic Entropy Tuning**。
-
-#### 3.1.1 Reparameterization Trick (重参数化技巧)
-
-为了让梯度能够反向传播过采样过程，我们不能直接从分布 $\pi$ 中采样 $a$。我们需要将随机性分离。
-
-对于高斯策略：
-
-$$a_t = \tanh(\mu_\phi(s_t) + \sigma_\phi(s_t) \odot \epsilon_t), \quad \epsilon_t \sim \mathcal{N}(0, I)$$
-
-这里 `tanh` 用于将动作限制在机器人关节极限 $[-1, 1]$ 内。
-
-**Python/PyTorch Implementation**:
-
-Python
-
-```
-import torch
-import torch.nn.functional as F
-from torch.distributions import Normal
-
+```python
 class GaussianPolicy(torch.nn.Module):
-    def __init__(self, state_dim, action_dim, hidden_dim=256):
-        super(GaussianPolicy, self).__init__()
-        self.linear1 = torch.nn.Linear(state_dim, hidden_dim)
-        self.linear2 = torch.nn.Linear(hidden_dim, hidden_dim)
-        
-        self.mean_linear = torch.nn.Linear(hidden_dim, action_dim)
-        self.log_std_linear = torch.nn.Linear(hidden_dim, action_dim)
-        
-        # 物理意义：限制标准差范围。
-        # 在灵巧操作中，LOG_STD_MAX过大导致电机剧烈抖动（高频噪声），
-        # LOG_STD_MIN过小导致策略僵死（无法探索）。
-        # 这是极其实用的工程Trick。
-        self.LOG_STD_MAX = 2
-        self.LOG_STD_MIN = -20
-        self.action_scale = 1.0 # 假设动作已归一化
-        self.action_bias = 0.0
-
-    def forward(self, state):
-        x = F.relu(self.linear1(state))
-        x = F.relu(self.linear2(x))
-        mean = self.mean_linear(x)
-        log_std = self.log_std_linear(x)
-        log_std = torch.clamp(log_std, self.LOG_STD_MIN, self.LOG_STD_MAX)
-        return mean, log_std
-
+    # ... linear1/linear2 → mean_linear, log_std_linear ...
+    # 物理意义：LOG_STD 上限过大→电机高频抖动；下限过小→策略僵死无法探索
+    LOG_STD_MAX, LOG_STD_MIN = 2, -20
     def sample(self, state):
         mean, log_std = self.forward(state)
-        std = log_std.exp()
+        std = log_std.clamp(self.LOG_STD_MIN, self.LOG_STD_MAX).exp()
         normal = Normal(mean, std)
-        
-        # Reparameterization Trick
-        # z ~ N(0, 1)
-        x_t = normal.rsample()  
-        
-        # Enforcing Action Bound (Tanh squashing)
-        y_t = torch.tanh(x_t)
-        action = y_t * self.action_scale + self.action_bias
-        
-        # Log Prob Calculation with Jacobian Adjustment
-        # 当对变量进行变换时，概率密度函数(PDF)会发生变化。
-        # log_prob(a) = log_prob(u) - log |det(da/du)|
-        # tanh的导数是 1 - tanh^2
+        x_t = normal.rsample()                  # ★ Reparameterization: a=μ+σ⊙ε，梯度可穿过采样
+        y_t = torch.tanh(x_t)                   # 压到关节极限 [-1,1]
         log_prob = normal.log_prob(x_t)
-        
-        # 这里的 1e-6 是为了防止 log(0)
-        log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
-        log_prob = log_prob.sum(1, keepdim=True)
-        
-        return action, log_prob, mean
+        log_prob -= torch.log(1 - y_t.pow(2) + 1e-6)   # tanh 变量替换的 Jacobian 修正
+        return y_t, log_prob.sum(1, keepdim=True), mean
 ```
 
-**Analysis**: 在灵巧操作中，`rsample` 的可导性至关重要。它允许策略网络直接“感知”到：如果在某个方向上减小方差 $\sigma$，Q值会如何变化。例如，在把销子插入孔的瞬间（Peg-in-hole），网络会自动学习到急剧减小方差以提高精度 。
+> [!note] 重参数化为什么对灵巧操作至关重要
+> `rsample` 让策略网络能"感知"到：**在某方向减小方差 $\sigma$，Q 会怎么变**。插销入孔 (peg-in-hole) 的瞬间，网络会**自动学会急剧收紧方差**以提精度。这把"随机策略"和"按需变精确"统一了起来。
 
-#### 3.1.2 Automatic Entropy Tuning (自动熵调节)
-
-在训练初期，我们需要高探索（高熵）；在末期，需要高精度（低熵）。固定的 $\alpha$ 很难兼顾。
-
-SAC 将其转化为一个约束优化问题：
-
-$$\min_\alpha \mathbb{E}[-\alpha (\log \pi(a|s) + \bar{\mathcal{H}})]$$
-
-其中 $\bar{\mathcal{H}}$ 是目标熵（Target Entropy），通常设为 `-action_dim`。
-
-**Implementation**:
-
-Python
-
-```
-class SAC_Agent:
-    def __init__(self, action_dim):
-        self.target_entropy = -float(action_dim)
-        # alpha 也是一个可学习的参数，通常取 log 以保证正定性
-        self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
-        self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=3e-4)
-
-    def update_alpha(self, log_prob):
-        # Dual Gradient Descent
-        alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
-        
-        self.alpha_optimizer.zero_grad()
-        alpha_loss.backward()
-        self.alpha_optimizer.step()
-        
-        self.alpha = self.log_alpha.exp()
+```python
+# Automatic Entropy Tuning：把"该多探索"变成对偶梯度下降
+self.target_entropy = -float(action_dim)        # 目标熵，经验值 -dim(A)
+alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
+# log_prob 高（策略自信）→ 推 α 降 → 策略变确定(刚)；log_prob 低(遇扰动)→ α 升 → 恢复探索(柔)
 ```
 
-**Insight**: 这种机制在Sim-to-Real中表现为“自适应刚度”。当且仅当Agent对其策略非常有信心（log_prob高）时，$\alpha$才会下降，允许策略变得确定性（Stiff）。如果遇到未知扰动，预测不准，log_prob下降，$\alpha$上升，恢复探索（Soft），防止机械臂硬抗外力导致损坏 。
+> [!important] SAC 为什么统治机器人领域：熵即虚拟柔顺
+> 1. **随机策略 = 虚拟柔顺 (Virtual Compliance)**：策略方差 $\sigma$ 可解读为该维度的"软硬"——$\sigma$ 大＝不需精确控制（软），$\sigma$ 小＝需高刚度（硬）。这**天然契合 [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系|阻抗控制]]**。自动温度 $\alpha$ 则实现了**自适应刚柔**：初期柔（探索不同抓法）、后期刚（精确执行）。**这是 RL 与控制论最深的一处握手——熵正则在数学上扮演了阻抗的角色。**
+> 2. **鲁棒**：熵项防止过早收敛到"只是握住不动"的偷懒局部最优。
+> 3. **样本效率**：off-policy + replay，比 PPO 高一个数量级——真机生死线。
 
-### 3.2 TD3 Core Logic: Target Policy Smoothing
-
-TD3 的实现相对简单，但其对接触噪声的鲁棒性源于以下逻辑。
-
-Python
-
-```
-def train_critic(self, replay_buffer, iterations=2):
-    #... 从 Replay Buffer 采样...
-    state, action, next_state, reward, not_done = replay_buffer.sample()
-
-    with torch.no_grad():
-        # Target Policy Smoothing
-        # 物理意义：模拟执行误差。如果一个动作在加上微小扰动后Q值剧烈下降，
-        # 说明该动作处于"尖峰"上，是不稳定的。TD3通过这种方式平滑Q函数。
-        noise = (torch.randn_like(action) * self.policy_noise).clamp(
-            -self.noise_clip, self.noise_clip
-        )
-        
-        next_action = (self.actor_target(next_state) + noise).clamp(
-            -self.max_action, self.max_action
-        )
-
-        # Clipped Double Q-Learning
-        target_Q1 = self.critic_target_1(next_state, next_action)
-        target_Q2 = self.critic_target_2(next_state, next_action)
-        
-        # 取最小值，抑制高估
-        target_Q = torch.min(target_Q1, target_Q2)
-        target_Q = reward + (not_done * self.discount * target_Q)
-
-    #... Update Critics...
-```
-
-**Why relevant to Dexterous Manipulation**: 在物体表面滑动手指时，摩擦力的变化会导致状态的剧烈波动。Target Smoothing 相当于在Q函数的更新中引入了一个低通滤波器，滤除了由于接触瞬态（Contact Transients）引起的高频噪声，使得 Critic 学习到的是更本质的物理规律 。
-
-------
-
-## 4. Advanced State Space & Reward Engineering
-
-算法只是引擎，数据（状态和奖励）才是燃料。针对灵巧操作，我们需要特殊的燃料配方。
-
-### 4.1 触觉感知与表征学习 (Tactile Representation)
-
-视觉在近距离操作中往往会被机械手自身遮挡（Self-occlusion）。触觉传感器（如GelSight, BioTac）至关重要。
-
-**Challenge**: 触觉数据不仅是高维的，而且是非欧几里得结构的（Non-Euclidean）。手指表面是一个曲面。
-
-**Approaches**:
-
-1. **Tactile Images (CNNs)**: 将触觉压力分布展开为2D图像 。
-   - *Pros*: 可以直接使用 ResNet 等成熟架构。
-   - *Cons*: 引入了畸变（Distortion），特别是对于指尖球面的展开。
-2. **Graph Neural Networks (GNNs)**: 将触觉单元（Taxels）建模为图的节点 。
-   - *Core Logic*: 邻接矩阵 $A$ 定义了传感器表面的拓扑结构。
-   - *Insight*: GNN 对手指表面的几何变形具有更好的不变性。当软指尖被压扁时，图结构能更好地保持局部特征的关系，而图像投影可能会产生剧烈的像素位移。
-
-### 4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)
-
-**Sparse Reward**: 只有完成任务得+1，否则0。
-
-- *Pros*: 也就是最“纯粹”的奖励，保证学到的策略是最优的。
-- *Cons*: 在灵巧操作这种高维空间中，探索到成功的概率几乎为零。
-
-**Reward Shaping (Dense Reward)**:
-
-$$R = w_1 \cdot \text{dist}(p_{obj}, p_{goal}) + w_2 \cdot \text{quat\_diff}(q_{obj}, q_{goal}) + w_3 \cdot \text{energy}$$
-
-- *Insight & Risk*: 人工设计的奖励往往含有偏见（Bias）。例如，为了最小化距离，机器人可能会学会一种奇怪的抓握姿态，这种姿态虽然距离目标近，但无法进行下一步的旋转操作（Local Optima）。这就是所谓的“Reward Hacking” 。
-
-
-> [!theorem] Potential-Based Reward Shaping (PBRS) — 保策略不变的奖励变换定理
-> **来源**: Ng, Harada & Russell, 1999 — *“Policy Invariance Under Reward Transformations”*
+> [!tip] 高斯探索不是"图方便"，而是理论最优（[[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Wang et al. 2019]]）
+> 用**连续时间随机控制**可证：对 Linear-Quadratic 问题，熵正则下的最优探索分布**恰是高斯** $\mathcal N(\mu^*(s),(\sigma^*)^2)$，且有漂亮的**分离原则**：
+> - **均值** $\mu^*(s)$ 只依赖状态、与温度无关 → 负责**利用**；
+> - **方差** $(\sigma^*)^2\propto\lambda$（温度）、与状态无关 → 负责**探索**。
 >
-> **定理（充要条件）**：对于折扣 MDP（$\gamma < 1$），shaped reward $R' = R + F(s, a, s')$ 保持所有最优策略不变 **当且仅当** 存在势函数 $\Phi: S \to \mathbb{R}$ 使得：
+> 额外洞见：**环境噪声越大，最优探索方差越小**——因为随机环境本身就免费提供了探索。这与 [[StochasticProcess]] 的随机控制视角直接相通。
+
+> [!note] SAC 演进：SQL → SAC v1 → SAC v2
+> SQL (2017, SVGD 采样，效率低) → SAC v1 (2018, 重参数化 + 双 Q + 固定 $\alpha$) → SAC v2 (2019, 自动温度，工业标准)。
+
+---
+
+### 5.3 同台对照：五个算法如何转这一支笔
+
+> [!abstract] 一支笔，照出五种算法的灵魂（本讲对比脊柱的高潮）
+> 给定同一个转笔任务，把 §5 的五个算法请上同一张桌子：
 >
-> $$F(s, a, s') = \gamma \Phi(s') - \Phi(s)$$
+> - **REINFORCE**：一条侥幸转成的轨迹，会把其中所有动作（含败笔）概率整体抬高——"一好遮百丑"，方差极大、常学不动。
+> - **DDPG**：一次"侥幸猛甩"被 $\max$ 式 Critic 高估成高价值（§3.3），策略据此施加危险大力矩，掉笔/损机、训练崩溃。
+> - **TD3**：取 $\min(Q_1,Q_2)$，**宁可低估也不批准危险扭矩**；再用 target smoothing 反问"这套指步在 0.2mm 抖动下还成立吗？"——只保留鲁棒指步。
+> - **SAC**：用熵把"左转/右转"两套指步都留在候选里、不过早押注；把策略方差当**指尖虚拟柔顺**，接触阶段自动变软、精确阶段自动变硬。
+> - **PPO**：用 clip 死守"别用一次大更新毁掉已学会的指步时序"，在 IsaacGym 数千并行环境里稳扎稳打。
 >
-> 其中：
-> - $\Phi(s)$：状态势函数，可理解为“状态 $s$ 距目标还有多远”的估计
-> - $\gamma \Phi(s') - \Phi(s)$：只依赖状态差，不依赖动作 $a$
+> **同一个任务、五种灵魂**：REINFORCE 输在方差，DDPG 输在高估，TD3 赢在保守鲁棒，SAC 赢在柔顺与样本效率，PPO 赢在更新稳健与并行规模。这就是"用一个母题贯穿整条对比线"。
+
+| 特性 | **DDPG** | **TD3** | **SAC** | 与灵巧操作的相关性 |
+|:--|:--|:--|:--|:--|
+| 策略类型 | 确定性 | 确定性 | **随机** | 随机性天然建模传感/执行噪声、并提供虚拟柔顺 |
+| Critic 更新 | 单 Q | $\min(Q_1,Q_2)$ | $\min(Q_1,Q_2)$ | clipped double-Q 防止因 Q-bias 而过度发力 |
+| 探索 | OU 噪声 | 动作噪声 | **熵正则（自动温度）** | 熵自调在精细接触阶段自适应探索强度 |
+| 样本效率 | 高 | 高 | **很高** | 直接决定真机训练的可行性（减少磨损） |
+| 稳定性 | 低（脆） | 中 | **高** | 接触丰富任务的稳健之选 |
+
+> [!important] PPO vs SAC：到底选哪个？（一句话决策）
+> | 场景 | 选 | 原因 |
+> |:--|:--|:--|
+> | **仿真大规模并行**（IsaacGym 数千环境） | **PPO** | 海量并行弥补 on-policy 的样本低效；实现简单、超稳 |
+> | **真机训练**（数据昂贵） | **SAC** | replay 重用历史数据，样本效率高一个数量级 |
+> | **高维连续 + 需柔顺** | **SAC** | 最大熵探索 + 熵即柔顺 |
+> | **多峰动作**（左/右转） | 二者都不理想 | 转向**扩散策略**（§10）或层级策略 |
 >
-> **直觉**：PBRS 是一种“重新定义零点”的操作 — 类似物理学中的势能参考面选择，不改变力的方向（即不改变最优策略）。
+> 这张表把 §5.0 的统一框架落到了工程决策上：选 PPO 还是 SAC，本质是选 $\pi_0=\pi_{old}$（信任旧策略、丢弃旧数据）还是 $\pi_0=$ 均匀（最大熵、长期复用数据）。
+
+### 5.4 两个延伸：让探索更"连贯"，让范式更"统一"
+
+#### 5.4.1 时间一致探索：从白噪声到自回归过程
+
+> [!tip] 标准高斯探索的隐疾（[[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|AR Policies]]）
+> $a_t=\mu(s_t)+\epsilon_t,\ \epsilon_t\sim\mathcal N(0,\sigma^2)$ 的相邻噪声**独立同分布**，导致：**高频抖动**（探索像"原地震动"、覆盖差）+ **硬件损伤**（jerky 运动冲击关节）。
+> **自回归探索 (AR-p)**：$\epsilon_t=\sum_{i=1}^p\phi_i\epsilon_{t-i}+\eta_t$，按 Yule–Walker 选系数，可保持**边缘分布不变**（不影响策略梯度）却**可调时间相关性**——$\phi$ 越大轨迹越平滑、探索越"坚持方向"。
+> **转笔落点**：精密位置控制需高 $\phi$（连贯），快速接住需低 $\phi$（敏捷）。这里 AR 过程与 [[StochasticProcess#2.1 随机微分方程 (SDEs) 的物理图景|有色噪声/OU 过程]] 同源——又一处随机过程↔RL 的连接。
+
+#### 5.4.2 统一梯度视角：SFT、蒸馏与 RL 本是一家
+
+> [!abstract] 把模仿与强化收进同一个梯度（呼应 §1.5 的"模仿×强化"缝合线）
+> 将四种训练范式的梯度都经重要性采样换到 on-policy 分布，它们形如同一式 $\nabla_\theta\log\pi_\theta(a\mid s)\cdot w(s,a)$，只差**权重 $w$** 和**稀疏/稠密**：
 >
-> **为什么非 PBRS 的 shaping 会导致 reward hacking**：
-> - 当 $F$ 不满足 PBRS 条件时，shaping reward **改变了最优策略**
-> - 策略会学习最大化 $F$（shaping 信号）而非 $R$（任务目标）
-> - **每增加一个非 PBRS 的 shaping term，就引入一个新的 hacking 通道**
-> - 多个 shaping term 的叠加使得联合 $F$ 偏离 PBRS 条件的程度**超线性增长**
+> | 方法 | 权重 $w$ | 稀疏/稠密 |
+> |:--|:--|:--|
+> | **SFT (行为克隆)** | 指示函数 $\mathbf 1[a=a^*]$ | 稀疏 |
+> | **Off-policy 蒸馏** | 教师分布 $\pi_{teacher}(a\mid s)$ | 稠密 |
+> | **RL (GRPO)** | 优势 $\hat A(s,a)$ | 稀疏 |
+> | **On-policy 蒸馏** | 教师分布 | 稠密 |
 >
-> **与 DNPM Exp2 的对应**：Heavy 配置的 6 个 shaping term 中，velocity、energy、contact force 等 term 几乎不可能满足 PBRS 的势函数差分形式，因此策略找到了最大化这些 shaping 信号的“捷径”，导致 SR=0。
+> **洞见**：**SFT = 奖励是指示函数的稀疏 RL**；RL 与 on-policy 蒸馏都是 on-policy，区别只在 reward 稀疏加权 vs 教师稠密加权。
+> **灵巧操作含义**：Sim-to-Real 中，仿真专家向真机学生**蒸馏**时，稠密的教师信号比 RL 的稀疏 reward 更高效（直接缓解 §2.3 的 credit assignment）；这为 §9 的 teacher-student 迁移提供了理论依据。
 
-**Solution**:
+---
 
-1. **ARES (Attention-based REward Shaping)** : 利用Transformer自动从演示数据中学习权重。
-2. **Inverse Reinforcement Learning (IRL)**: 从专家演示中反推奖励函数。
-3. **Mediator-Based Surrogate Reward**: 利用因果结构中的中介变量构造低方差替代奖励。
+## 6. 样本效率的前沿：Model-Based 与 Offline
 
-> [!tip] Mediator-Based Reward Design — 利用因果结构降低奖励方差
-> 当原始奖励信号噪声很大时（如接触丰富的操作任务中成功/失败的二值奖励），可以利用因果 DAG 中的**中介变量（Mediator）**构造替代奖励：
+> [!tip] 本节四拍
+> **直觉**（SAC 仍需百万步——真机上是几周；能不能在"脑内"练，或只用历史数据练？）→ **推导**（世界模型 + 不确定性；保守 Q）→ **对比**（Model-Free vs Model-Based vs Offline）→ **联系**（[[Optimization|MPC]]、[[StochasticProcess|不确定性量化]]、[[ControlTheory|安全]]）。
+
+### 6.1 Model-Based RL：在想象中转笔
+
+即便 SAC，也常需百万级交互——真机上意味着数周与可观磨损。MBRL 的思路：**先学一个动力学模型（世界模型），再在模型里规划/想象，省下真实交互。**
+
+> [!important] DreamerV3 / RSSM：解决遮挡的记忆机制
+> 学 $p(s_{t+1}\mid s_t,a_t)$（动力学）与 $p(o_t\mid s_t)$（解码）。最关键的是 **RSSM** 把隐状态拆成**确定性部分**（RNN hidden，充当短期记忆）+ **随机部分**。转笔时手指频繁**遮挡**笔身——RSSM 能凭几帧前的记忆推断被遮挡的笔的状态，而单帧 SAC 一遮挡就丢目标。**这正是 §2.1 POMDP→belief 那条线的兑现**：world model 就是一个学出来的 belief 更新器。
+
+**演进**：Version 0.5（朴素：学 $f$ 后直接规划，但**分布不匹配**——策略会跑到模型没见过的区域，误差累积）→ Version 1.5（**MPC**：学模型→规划 $H$ 步→**只执行第一个动作**→观测→重规划）。
+
+> [!tip] MPC 的核心洞见（与 [[Optimization#5. 实时控制：模型预测控制 (Real-Time Control: MPC)|Optimization §5]] 同一思想）
+> **重规划频率越高，单次规划的精度要求越低**——因为下一步能修正这一步的错误。就像开车频繁看路而非闭眼直行。这把"模型不准"的风险用"高频反馈"摊薄掉。
+
+> [!abstract] 为什么必须建模不确定性（否则优化器会"钻模型的空子"）
+> 规划本质是优化。若模型在数据稀疏区过拟合出**不切实际的乐观预测**，优化器会**主动利用这个漏洞**，给出糟糕动作。两类不确定性必须分清：
+> - **Aleatoric（偶然）**：数据/世界的内在随机；
+> - **Epistemic（认知）**：模型自己的无知，在数据稀疏处缺置信。
 >
-> **因果结构**: $\text{Action} \xrightarrow{a} \text{Mediator} \xrightarrow{b} \text{Reward}$
+> 输出分布的熵只能抓 aleatoric；过拟合时熵仍低却很危险。**Bootstrap Ensemble**（训 $N$ 个独立模型，看预测**分歧**）才能抓 epistemic。转笔的接触/非接触**边界**正是 epistemic 最高处——ensemble 让策略别盲目闯进这些高风险区。（这与 [[StochasticProcess#3.2 结构不确定性 (Structural / Non-parametric Uncertainty)|结构不确定性]] 和 [[InformationTheory]] 的信息增益探索同源。）
+
+### 6.2 Offline RL：只用历史数据，不在真机上冒险
+
+很多时候我们不愿在真机上做危险探索，只想吃现成的历史数据。但标准 off-policy RL 会因 **OOD（分布外）动作的高估**而失败（又是 §3.3 高估诅咒的变体）。
+
+| 算法 | 机制 | 转笔/灵巧操作含义 |
+|:--|:--|:--|
+| **CQL (2020)** | 显式**压低**数据集中没出现过的动作的 Q | "安全第一"：只在已知安全动作附近微调，严禁盲目探索损坏硬件 |
+| **IQL (2021)** | 用 expectile 回归，**完全回避**对 OOD 动作的 Q 估计 | 更稳的离线训练 |
+| **Decision Transformer (2021)** | 把 RL 重构成**序列建模**（given 目标回报，预测动作） | 通往 §10 生成式策略与 VLA 的桥 |
+
+> [!note] CQL 的一行数学直觉
+> $\min_Q\ \alpha\big(\mathbb E_{a\sim\pi}[Q(s,a)]-\mathbb E_{a\sim\mathcal D}[Q(s,a)]\big)+\text{(标准 Bellman 误差)}$：**压低当前策略想尝试的动作、抬高数据里真实出现的动作**。在灵巧操作里，这防止机器人去试那些"看起来很美但从未试过"的危险动作。
+
+---
+
+## 7. 探索：稀疏奖励下，如何"撞见"转笔成功
+
+> [!tip] 本节四拍
+> **直觉**（随机抖动几乎不可能凑巧转满一圈，怎么办？）→ **推导**（用信息论精确刻画"探索"）→ **对比**（技能发现 vs 内在奖励 vs HER）→ **联系**（[[InformationTheory]] 的熵/互信息、§1.3 的流形安全探索）。
+
+### 7.1 用信息论刻画探索
+
+转笔成功的奖励极其稀疏，纯随机探索几乎触发不了。把探索写成信息论语言，问题就清晰了：
+
+- **状态边缘熵** $H(\pi(s))=\mathbb E_{s\sim\pi}[-\log\pi(s)]$：策略对状态空间的**覆盖度**；
+- **互信息 / 赋能 (Empowerment)** $I(s_{t+1};a_t)=H(s_{t+1})-H(s_{t+1}\mid a_t)$：**控制力**——我的动作能多大程度改变未来？
+
+> [!tip] Empowerment 直觉（与 [[InformationTheory#6.1 赋能 (Empowerment)：最大化信道容量|InfoTheory §6.1]] 同一对象）
+> 第一项 $H(s_{t+1})$ 要"下一状态多样"（探索）；第二项 $-H(s_{t+1}\mid a_t)$ 要"给定动作后结果确定"（控制）。**高 empowerment 的状态 = 我能可靠地把笔转去很多不同姿态的状态**——这本身就是个绝佳的无奖励学习目标。
+
+### 7.2 三条探索路线
+
+**(a) 技能发现 (Skill Discovery)**：无外部奖励时，学一组**可区分的多样技能** $\max_\pi I(S;G)=H(p(G))-H(p(G\mid S))$（$G$ 为技能、$S$ 为状态）——技能要多样、且从状态能认出是哪个技能。代表：**DIAYN**、**Skew-Fit**。*用途*：接触预训练阶段让手自主探索不同抓姿与接触模式，预训练技能加速下游转笔。
+
+**(b) 内在奖励 (Intrinsic Motivation)**：$\tilde r=r+\beta\cdot\text{bonus}$。常见 bonus：count-based $1/\sqrt{N(s)}$、动力学预测误差（新颖性）、信息增益 $I(s';s,a)$。
+
+**(c) 事后经验回放 (HER)**：
+
+> [!important] HER：把失败"假装"成成功，自动生成课程
+> [[Hindsight Experience Replay|HER]] 的核心：**人能从失败里学到几乎和成功一样多**。把一条没达成目标 $g$ 的轨迹，额外以其**实际到达的末态 $g'=s_T$** 作为"假目标"重放、重算奖励。于是早期能力弱时末态接近初态、学短距离操作；能力强后末态更远、逐步学复杂任务——**自动从易到难的隐式课程**。转笔的子目标（某个特定抓姿）天然适合做 HER 的重标注目标。
+
+> [!note] 回扣 §1.3：探索的"安全"与"高效"是两个问题
+> §1.3 的流形切空间探索（Geometric RL）解决的是**安全**（别穿透/脱离）；本节的信息论探索解决的是**高效**（别瞎撞）。二者正交、可叠加：**在切空间上做信息论驱动的探索** = 既安全又高效。这是把 [[ComputationalGeometry|几何]] 与 [[InformationTheory|信息论]] 同时当作 RL 归纳偏置的范例。
+
+---
+
+## 8. 燃料：状态表征与奖励工程
+
+> [!tip] 本节四拍
+> **直觉**（算法是引擎，状态与奖励才是燃料；燃料配错，再好的引擎也跑偏）→ **推导**（触觉的非欧结构；PBRS 的保策略不变定理）→ **对比**（CNN vs GNN 触觉；稀疏/稠密/塑形奖励）→ **联系**（[[RepresentationLearning]]、[[Optimization|非凸景观]]、[[InformationTheory|因果中介]]）。
+
+### 8.1 状态表征：触觉是灵巧操作的"暗感官"
+
+近距离操作中视觉常被手指**自遮挡**，触觉（GelSight、BioTac）至关重要。但触觉数据是**非欧几里得**的——指尖是曲面。两种表征路线：
+
+| 路线 | 做法 | 优点 | 缺点 |
+|:--|:--|:--|:--|
+| **Tactile Images + CNN** | 把压力分布摊成 2D 图，套 ResNet | 复用成熟架构 | 指尖球面展开引入畸变 |
+| **GNN** | taxel 建为图节点、邻接矩阵=传感器拓扑 | 对软指变形更**不变**（压扁时图结构仍保局部关系） | 实现复杂 |
+
+> [!note] 跨域联系
+> 触觉表征的"该学什么、怎么学"属于 [[RepresentationLearning|表征学习]]（多模态融合与触觉智能一节）；触觉信号的"怎么滤波、怎么估状态"属于 [[SignalProcessing|信号处理]]（触觉转导与状态估计）。RL 只是这些表征的**消费者**——好状态让 §2.1 的 Markov 性更易满足。
+
+### 8.2 奖励工程：最危险的自由度
+
+| 类型 | 形式 | 优点 | 风险 |
+|:--|:--|:--|:--|
+| **稀疏** | 成功 +1，否则 0 | 最"纯粹"，保证最优 | 高维下探索到成功概率近 0 |
+| **稠密 (shaping)** | $R=w_1\,\text{dist}+w_2\,\text{quat\_diff}+w_3\,\text{energy}+\dots$ | 引导探索 | **reward hacking**：学会钻奖励空子而非完成任务 |
+
+稠密奖励是把双刃剑。它什么时候**安全**？有一个漂亮的充要条件：
+
+> [!theorem] 势函数奖励塑形 (PBRS) — 保最优策略不变（Ng, Harada & Russell, 1999）
+> 折扣 MDP（$\gamma<1$）中，塑形 $R'=R+F(s,a,s')$ 保持**所有最优策略不变**，**当且仅当**存在势函数 $\Phi:S\to\mathbb R$ 使
+> $$F(s,a,s')=\gamma\Phi(s')-\Phi(s).$$
+> **直觉**：PBRS 像物理学里"重设势能零点"——不改变力的方向（即不改变最优策略）。$\Phi(s)$ 可理解为"距目标还有多远"的估计。
 >
-> **替代奖励定义**: $\tilde{R}(m, s) = \mathbb{E}[R_t \mid M_t = m, S_t = s]$
+> **为什么非 PBRS 的塑形会引发 hacking**：当 $F$ 不是势差形式，它**改变了最优策略**——策略转而最大化 $F$（塑形信号）而非 $R$（真任务）。**每加一个非 PBRS 项，就开一个新的 hacking 通道**，多项叠加使偏离**超线性**增长。
+
+> [!warning] 实证：塑形项数量与 reward hacking 的"剂量-反应"关系（[[Dynamic Non-Prehensile Manipulation|DNPM]] Exp2, 2026-02）
+> 转笔任务的系统性奖励搜索发现：
 >
-> **核心定理（无偏性 + 方差降低）**: 在 surrogacy 假设（$R_t \perp A_t \mid M_t, S_t$）下：
-> - $\mathbb{E}[\tilde{R}(M_t, S_t) \mid A_t, S_t] = \mathbb{E}[R_t \mid A_t, S_t]$（无偏）
-> - $\text{Var}(\tilde{R}) \leq \text{Var}(R)$（严格更低方差），源于全方差公式
+> | 配置 | 塑形项数 | TA 成功率 | TP 成功率 |
+> |:--|:--|:--|:--|
+> | **Heavy** | 6 (dist+rot+vel+energy+contact+bonus) | **0.00** | **0.00** |
+> | **Medium** | 4 (dist+rot+vel+energy) | 0.31–0.72 | **0.86** |
+> | **Light** | 3 (dist+rot+bonus) | **0.83** | 0.66–0.81 |
+> | **Reduced** | 2 (dist+rot) | 0.17–0.75 | 0.21–0.74 |
 >
-> **与灵巧操作的关联**：
-> - 在 [[Dynamic Non-Prehensile Manipulation|DNPM]] 的长因果链（发力→惯性→接触力→摩擦力→抗重力）中，中间状态（如接触力大小、物体角速度）可作为 mediator
-> - 用 mediator 构造的替代奖励可显著降低 credit assignment 的方差
-> - 在线学习 mediator-reward 映射时，奖励的非平稳性可通过对抗性 bandit oracle 处理
-> - 即使 surrogacy 假设不完全成立（如 mediator 只捕获 56% 的因果效应），仍可观察到性能提升
+> **洞见**：① Heavy 配置 **100% 失败**（强证据：过多塑形项=找到 hacking 捷径）；② 最简洁的 Light 在 TA 上最优（"少即是多"）；③ 塑形项**边际效用递减甚至为负**；④ **任务特异性**：TA 偏好 3 项、TP 偏好 4 项。理论上，多塑形项的联合景观里梯度被塑形信号主导，与 [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸景观]] 的"塑形 reward 制造更深局部极小"一致。
+
+**更优的奖励来源**（绕开手工塑形）：
+
+> [!tip] Mediator-Based 替代奖励——用因果结构降方差
+> 当原始奖励噪声大（如接触任务的二值成功/失败），可借因果 DAG 的**中介变量 (Mediator)** 构造替代奖励。因果链 $\text{Action}\to\text{Mediator}\to\text{Reward}$，定义 $\tilde R(m,s)=\mathbb E[R\mid M=m,S=s]$。在 surrogacy 假设（$R\perp A\mid M,S$）下：**无偏** $\mathbb E[\tilde R\mid A,S]=\mathbb E[R\mid A,S]$ 且 **方差严格更低** $\mathrm{Var}(\tilde R)\le\mathrm{Var}(R)$。
+> **转笔含义**：长因果链（发力→惯性→接触力→摩擦→抗重力）中，中间状态（接触力大小、笔角速度）可作 mediator，显著降低 §2.3 credit assignment 的方差。这把 [[InformationTheory|信息论/因果]] 直接接到了奖励设计上。其他路线：**ARES**（Transformer 从演示学权重）、**IRL**（从演示反推奖励）、**EUREKA**（LLM 自动写奖励）。
+
+---
+
+## 9. Sim-to-Real：把转笔策略搬上真机
+
+> [!tip] 本节四拍
+> **直觉**（仿真里转得飞起，真机一上手就掉笔——gap 到底在哪？）→ **推导**（按 MDP 四要素把 gap 拆开诊断）→ **对比**（System ID 减偏差 vs DR 增覆盖 vs 在线自适应）→ **联系**（[[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|自适应控制]]、[[Dynamics]]、[[ContactMechanics]]）。
+
+### 9.1 先分类，再治疗：MDP 四要素 gap 诊断
+
+> [!abstract] 把"sim-to-real gap"拆成四个可定位的源（[[A Survey of Sim-to-Real Methods in RL|MDP 四要素框架]]）
+> | MDP 元素 | gap 来源 | 转笔里的典型表现 | 主要手段 |
+> |:--|:--|:--|:--|
+> | **State $S$** | 感知差异 | 渲染逼真度、触觉噪声 | 视觉域适应、随机纹理 |
+> | **Action $A$** | 执行差异 | 电机延迟、齿槽、减速器背隙 | action smoothing、[[sim2real|硬件建模]] |
+> | **Transition $T$** | 动力学差异 | 笔的质量分布、指垫摩擦、弹性 | DR、系统辨识、残差模型 |
+> | **Reward $R$** | 奖励差异 | 仿真 GT 位姿 vs 真机传感 | learned reward、人类反馈 |
 >
-> **实践启发**：对于 EUREKA 等自动奖励设计方法，可将因果中介变量自动识别纳入奖励搜索空间，构造"因果感知"的奖励函数。
+> **对灵巧操作，$T$ 与 $A$ 是主瓶颈**——接触非线性（[[ContactMechanics]]）+ 执行器非理想（[[Dynamics#8. 腱驱动动力学 (Tendon-Driven Dynamics)|腱驱动]]/减速器）共同构成 gap 核心。**先分清是哪一类 gap，再选药**，否则乱投医。
 
-> [!warning] 实验证据：Reward Shaping Term 数量与 Reward Hacking 的定量关系（DNPM Exp2, 2026-02）
-> 在 [[Dynamic Non-Prehensile Manipulation|DNPM]] 转笔任务的系统性奖励搜索实验中，发现了 shaping term 数量与 reward hacking 严重程度之间的**剂量-反应关系**：
+### 9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）
+
+**离线系统辨识**：用真机诊断实验估物理参数 $\xi^*=\arg\min_\xi\|f_{sim}(s,a;\xi)-f_{real}(s,a)\|^2$——刚体参数（质量/惯量/质心，激励轨迹+最小二乘，见 [[Dynamics]]）、接触参数（摩擦/恢复系数，碰撞实验，见 [[ContactMechanics]]）、执行器参数（$K_t$、减速器效率 $\eta$、Stribeck 摩擦）。**局限**：静态辨识抓不住温漂、磨损等时变效应。
+
+**在线自适应**：运行时持续校正。
+
+| 方法 | 机制 | 代表 |
+|:--|:--|:--|
+| **RMA** | 环境编码器从历史观测推断隐式物理参数 $z=f(h_t)$ | [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] |
+| **Neural Dynamics** | 关节级残差网络补偿 sim-real 动力学差 | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] |
+| **Online Correction** | 人类在线修正→学修正模型 $\Delta a=g(s,a_{sim})$ | [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction\|TRANSIC]] |
+| **Grounded Action Transform** | 学 $a_{real}=h(s,a_{sim})$ 修正仿真动作 | [[Grounded Action Transformation\|GAT]] |
+
+> [!important] DR 与 System ID 是互补，不是二选一
+> - **System ID** 减小 $\mathbb E\|T_{sim}-T_{real}\|$（**中心偏差**）；
+> - **Domain Randomization** 增大 $\mathrm{Var}[T_{sim}]$（**覆盖范围**），$\xi\sim U[\xi_{low},\xi_{high}]$，学 $\max_\theta\mathbb E_{\xi}[J(\pi_\theta,\xi)]$；
+> - **最佳实践**：先 System ID 缩中心偏差，再 DR 覆盖残余不确定性。灵巧手里，执行器参数（$K_t,\eta,$ 背隙）宜 System ID，接触摩擦宜 DR。
+> - **Adaptive DR (ADR)**：像课程一样动态调随机范围（性能达标就加难），在参数空间找**可行性边界**——OpenAI 魔方项目靠它让手适应戴橡胶手套等极端扰动。
+
+> [!important] 跨原理联系：RMA/DexNDM/GAT 都是"学出来的确定性等价控制器"
+> 它们本质上都用隐变量 $z$ 替代经典自适应控制里的参数估计 $\hat\theta$——其稳定性、收敛性与**持续激励 (PE)** 条件的严格分析，见 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|ControlTheory §12]]。这条桥解释了"小数据真机适配为何可行"（NTK lazy regime + PE → 参数收敛）。**经典自适应控制不是被 RL 取代，而是给了 RL 一个稳定性分析的语言。**
+
+### 9.3 真机高效 RL：把"模仿×强化"缝合线收口
+
+回到 §1.5/§5.4.2 的伏笔——真机上最实用的不是纯 RL，而是**模仿打底 + RL 修正**。
+
+- **RLPD**：每个训练步从**演示**与**在线**数据各采 50%——演示给初始方向、在线超越演示，50% 经验最优。
+- **HIL-SERL（人在回路）**：关键区分 **校正 ≠ 演示**——演示是"成功轨迹（正样本模仿）"，校正是"失败边缘的挽救（从错误学）"。人观察到将失败→SpaceMouse 接管→$(s_t,a_{human},r,s_{t+1})$ 入 buffer→策略学"此处该做 $a_{human}$ 而非 $a_{policy}$"。结果：1–2.5 小时训练、相比 BC 提升约 101%、首次实现双臂动态抽叠等任务。系统要点：算法用 RLPD（高 update-to-data）、奖励用二值分类器、重置用前向-后向策略、控制器用阻抗（接触安全）。
+- **RLT（VLA 在线精细化，Physical Intelligence 2026）**：不微调大 VLA，而是把其 embedding 压成单个 RL token（信息瓶颈），仅对 token 训极小 actor-critic，学**残差动作** $a=a_{VLA}+\Delta a_\theta$（reference-action dropout 防退化为恒等）。15 分钟真实数据→精密操作 3× 加速。转笔的关键接触切换点可用此架构做部署时在线精细化。
+
+> [!note] 一条反直觉的实证：课程比触觉更重要（[[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation|Curriculum > Haptic]]）
+> 三指手抓+转球实验里，**不同课程策略带来的性能差异 >> 有无触觉的差异**；某些课程下仅凭本体感知也能成功。**启示**：先设计好课程（课程即 inductive bias、即 [[Optimization|continuation method]] 的连续化），再谈堆传感器。但课程有**任务特异性**——DNPM 实验中同一课程（TWC）帮了 TP（成功率 0.66→0.86、方差降 19×）却伤了 TA（0.83→0.72），印证"物理难度课程"与"状态空间课程"是正交维度，通用课程不存在。
+
+---
+
+## 10. 前沿融合：当 RL 遇见生成模型与世界模型
+
+> [!tip] 本节四拍
+> **直觉**（§5.1.2 留下的"单峰高斯转不了多峰的笔"如何根治？真机交互太贵又如何免除？）→ **推导**（扩散把多峰建模做到极致；世界模型把交互搬进想象）→ **对比**（隐空间 vs 像素空间世界模型；PPO vs GRPO）→ **联系**（[[RepresentationLearning|扩散策略]]、[[EmbodiedAI|VLA]]、[[StochasticProcess|score matching]]）。
+
+### 10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）
+
+转笔"可左转可右转"是多峰的，单峰高斯会拟合到无效的中间均值。**扩散策略**把策略建成条件去噪过程：
+
+$$
+a_k\leftarrow a_{k-1}-\alpha\,\nabla\log p(a_{k-1}\mid s)+\mathcal N(0,\sigma),
+$$
+
+它能精确建模非凸、多峰的动作分布，标志从"**拟合均值**"到"**拟合分布**"的范式转移（理论详见 [[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|扩散策略]]，其 score 与 [[StochasticProcess|SDE]] 同源）。
+
+> [!tip] 扩散策略如何接受 RL 微调：Denoising Sub-MDP（[[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]）
+> 矛盾：去噪多步推理与 RL 的单步 MDP 不兼容。RL-100 把**每一步去噪视作一个 sub-MDP 步**（状态含 $(s_{env},a_k,k)$），并用**一致性蒸馏**把 $K$ 步 DDPM 压成 1 步（100ms→10ms），让 RL 梯度可直接穿过单步 denoiser；再走 **IL→Offline RL→Online RL 三阶段**。7 个真实任务 900/900（100%）成功。**这给了"扩散模仿打底 + RL 修正"一条完整迁移路径**——又一次"模仿×强化"缝合。
+
+### 10.2 世界模型 RL：隐空间 vs 像素空间
+
+§6.1 的 **DreamerV3** 在**隐空间**做 imagination 规划（RSSM 记忆解遮挡）。新一代把世界模型搬到**像素空间**以对齐 VLA 的视觉特征：
+
+> [!abstract] WMPO：像素空间世界模型 + GRPO 对 VLA 做 RL 后训练（[[WMPO - World Model-based Policy Optimization for VLA|WMPO]]）
+> | 维度 | WMPO | 传统 | 优势 |
+> |:--|:--|:--|:--|
+> | 世界模型空间 | 像素空间视频生成 | 隐空间 (Dreamer) | 对齐 VLA 预训练视觉特征 |
+> | RL 算法 | **GRPO** | PPO/REINFORCE | 无需 value 网络，组内比较更稳 |
+> | 奖励 | VLM-as-Judge | 手工设计 | 可扩展到开放任务 |
+> | 数据 | WM 内 on-policy rollout | 真机交互 | 零真实交互成本 |
 >
-> | 奖励配置 | Shaping Terms | TA Success Rate | TP Success Rate |
-> |---------|--------------|-----------------|------------------|
-> | **Heavy** | 6 (dist + rot + vel + energy + contact + bonus) | **0.00** | **0.00** |
-> | **Medium** | 4 (dist + rot + vel + energy) | 0.31~0.72 | **0.86** |
-> | **Light** | 3 (dist + rot + bonus) | **0.83** | 0.66~0.81 |
-> | **Reduced** | 2 (dist + rot) | 0.17~0.75 | 0.21~0.74 |
+> **GRPO**（组相对策略优化）：$\hat A_i=\frac{R_i-\mathrm{mean}(R_{1:G})}{\mathrm{std}(R_{1:G})}$ 用**组内归一化**替代 value 网络，是 §4.3 优势函数的"无 Critic 廉价版"。
+
+### 10.3 RL Scaling Laws：把算力花在刀刃上
+
+> [!abstract] IsoCompute Playbook：固定采样预算 $C=n\times B_{problem}\times M$ 如何最优分配？
+> - **最优并行采样数 $n^*(C)$ 随预算 sigmoid 增长**（预算足时多开并行环境，如 IsaacGym）；
+> - **Easy/Hard 机制不同**：Easy 任务靠大 $n$ **锐化**策略（改善 worst@k）；Hard 任务靠大 $n$ **扩展覆盖**（改善 best@k）；
+> - **熵控制因难度而异**：Easy 需 KL/熵约束防过早坍缩，Hard 去正则反而更好；
+> - **学习率随 batch size 平方根缩放** $\mathrm{lr}\propto\sqrt B$。
 >
-> **关键洞见**：
-> 1. Heavy 配置 **100% 失败**（SR=0），强证据表明过多 shaping term 导致策略找到 reward hacking 捷径
-> 2. **最简洁的 Light 配置在 TA 上最优**（SR=0.83），说明"少即是多"
-> 3. Shaping term 的边际效用**严格递减且可能为负** — 每增加一个 term 都引入新的 hacking 通道
-> 4. **任务特异性**：TA 偏好 Light（3 terms），TP 偏好 Medium（4 terms），说明最优 shaping 复杂度取决于任务动力学
+> 与转笔的关联：quasi-static（easy）vs dynamic（hard）任务需不同采样与熵策略；课程从 easy→hard 迁移时应**动态调熵正则**——这把 §5 SAC 的温度 $\alpha$ 与课程难度直接挂钩。
+
+### 10.4 Test-Time RL：部署时继续学这一支特定的笔
+
+> [!abstract] TTT-Discover：测试时对单个问题继续 RL
+> 与标准 RL 优化**期望**奖励、需跨环境泛化不同，TTT 只需为**当前**问题找到**单个**最优解（max 而非 E）。其 **entropic objective** $J_\beta(\theta)=\mathbb E_s[\log\mathbb E_{a\sim\pi_\theta}e^{\beta R(s,a)}]$ 的策略梯度是 softmax 加权：$\beta\to\infty$ 退化为贪婪 argmax，$\beta\to0$ 退化为标准策略梯度。**转笔关联**：把策略部署到新笔（新摩擦/重心）时，测试时对该笔做 TTT 发现针对性指步——可视为"带学习的 [[Optimization#5.3 基于采样的 MPC (Sampling-based MPC)|MPPI]]"。$\beta$ 控探索-利用，类比 §5.2.3 SAC 的温度 $\alpha$。
+
+### 10.5 统一分类：PPO/SAC/BRAC 差异仅在"更新时序"
+
+> [!abstract] On/Off-Policy 的统一视角（[[Unified Policy Evaluation and Improvement - On Off-Policy Classification|Unified Policy]]）
+> 用**评估** $\pi_E$ 与**改进** $\pi_I$ 两个维度看，所有算法都在解 $\pi_I=\arg\max_\pi\mathbb E_{a\sim\pi}[Q^{\pi_E}]-\alpha D_{KL}(\pi\|\pi_{ref})$（**正是 §5.0 的统一框架！**），差异只在 update schedule：
+> | 状态 | $\pi_E$ | $\pi_I$ | 代表 |
+> |:--|:--|:--|:--|
+> | Pure On-Policy | 最新 | 最新 | **PPO** |
+> | Pure Off-Policy | 旧 | 最新 | BRAC |
+> | Cross-Policy | 连续更新 | 最新 | **SAC** |
 >
-> **理论解释**：多 shaping term 的联合优化景观中，梯度方向被 shaping reward 主导，策略学会最大化 shaping 信号而非完成任务。这与 [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观]] 中的鞍点逃逸失败一致 — shaping reward 创造了更深的局部极小值。
-
-------
-
-## 5. Bridging the Gap: Sim-to-Real & Offline RL
-
-在仿真中训练好的策略，往往在真机上直接失败。这是因为仿真无法完美模拟真实的物理世界（摩擦、软体形变、传感器噪声）。
-
-> [!abstract] Sim-to-Real 失败分类学（基于 [[A Survey of Sim-to-Real Methods in RL|MDP 四要素分类框架]]）
-> 从 MDP 四元素 $(S, A, T, R)$ 的视角，Sim-to-Real Gap 来源可分为：
->
-> | MDP 元素 | Gap 来源 | 典型例子 | 主要解决手段 |
-> |---------|---------|---------|------------|
-> | **State $S$** | 感知差异 | 渲染逼真度、传感器噪声 | 视觉域适应、随机纹理 |
-> | **Action $A$** | 执行差异 | 电机延迟、齿槽效应、减速器背隙 | Action smoothing、[[sim2real\|硬件建模]] |
-> | **Transition $T$** | 动力学差异 | 摩擦、弹性、质量分布 | DR、系统辨识、残差模型 |
-> | **Reward $R$** | 奖励差异 | 仿真观测 vs 真机传感器 | Learned reward、人类反馈 |
->
-> 对于灵巧操作，**$T$ (Transition) 和 $A$ (Action) 是主要瓶颈**——接触力学非线性 + 执行器非理想性共同构成 Gap 的核心。
-
-### 5.0 系统辨识与在线参数学习 (System Identification & Online Adaptation)
-
-在 DR 之前，系统辨识 (System ID) 是弥合 Sim-to-Real Gap 的传统方法。两种范式互补：
-
-#### 离线系统辨识（Offline System ID）
-
-通过真机上的诊断实验，估计物理参数 $\xi^* = \arg\min_\xi \|f_{sim}(s,a;\xi) - f_{real}(s,a)\|^2$：
-
-- **刚体参数**：质量、惯性矩、质心 → 激励轨迹 + 最小二乘 ([[Dynamics]])
-- **接触参数**：摩擦系数、恢复系数 → 碰撞实验 ([[ContactMechanics]])
-- **执行器参数**：电机常数 $K_t$、减速器效率 $\eta$、Stribeck 摩擦 → 力矩-速度特性曲线 ([[sim2real|硬件Gap分析]])
-
-**局限**：静态辨识无法捕捉温度漂移、磨损等时变效应。
-
-#### 在线自适应（Online Adaptation）
-
-运行时持续校正 Sim-Real 差异：
-
-| 方法 | 机制 | 代表工作 |
-|-----|------|---------|
-| **Rapid Motor Adaptation (RMA)** | 环境编码器 $z = f(h_t)$ 从历史观测序列推断隐式物理参数 | [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] |
-| **Neural Dynamics Model** | 关节级残差神经网络补偿 Sim-Real 动力学差异 | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] |
-| **Online Correction** | 人类在线修正 → 学习修正模型 $\Delta a = g(s, a_{sim})$ | [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction\|TRANSIC]] |
-| **Grounded Action Transform** | 学习 $a_{real} = h(s, a_{sim})$ 映射修正仿真动作 | [[Grounded Action Transformation\|GAT]] |
-
-> [!tip] DR vs. System ID 的互补关系
-> - **System ID**：减小 $\mathbb{E}[\|T_{sim} - T_{real}\|]$（减小均值偏差）
-> - **Domain Randomization**：增大 $\text{Var}[T_{sim}]$（增大覆盖范围）
-> - **最佳实践**：先做 System ID 缩小中心偏差，再用 DR 覆盖残余不确定性
-> - **灵巧手场景**：关节执行器参数（$K_t$, $\eta$, 背隙角度）适合 System ID；接触摩擦适合 DR
-
-> [!important] 经典自适应控制视角
-> RMA / DexNDM / GAT 本质上都是**学习版的确定性等价控制器**——隐变量 $z$ 替代经典自适应控制中的参数估计 $\hat\theta$。其稳定性、收敛性与持续激励 (PE) 条件的严格分析见 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|ControlTheory §12]]。
-> 这一桥梁解释了为何"小数据真机适配"可行（NTK lazy regime + PE → 参数收敛）。
-
-### 5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)
-
-**Standard DR**: 在训练时，随机扰动物理参数 $\xi$（质量、摩擦系数、电机阻尼）。
-
-$$\xi \sim U[\xi_{low}, \xi_{high}]$$
-
-目标是学习一个策略 $\pi$，使其在所有这些参数下都能工作：$\max_\theta \mathbb{E}_{\xi \sim p(\xi)} [J(\pi_\theta, \xi)]$ 。
-
-**Adaptive Domain Randomization (ADR)**:
-
-- *Problem*: 如果随机范围太大，问题可能无解；如果太小，无法覆盖真实世界。
-- *Algorithm*: 像课程学习一样动态调整随机范围。
-  - 如果策略性能 > 阈值，扩大范围（增加难度）。
-  - 如果策略性能 < 阈值，缩小范围。
-- *Insight*: ADR 实际上是在高维参数空间中寻找**可行性边界（Feasibility Boundary）**。OpenAI 的 Rubik's Cube 项目证明，这种方法可以让机器人适应极其恶劣的环境变化（例如给手戴上橡胶手套）。
-
-**Sim-to-Real Comparison Table**
-
-| **Method**                | **Mechanism**                           | **Pros**                                | **Cons**                               | **Use Case**                                 |
-| ------------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------- | -------------------------------------------- |
-| **System Identification** | Fit simulation parameters to real data  | Accurate model                          | Requires precise measurements; static  | Well-structured environments                 |
-| **Domain Randomization**  | Train across random physics parameters  | Robustness to unmodeled dynamics        | Conservative policies; harder to train | General robotic manipulation                 |
-| **Adaptive DR (ADR)**     | Curriculum learning on parameter ranges | Finds feasible boundaries automatically | Computationally expensive              | Complex dexterous tasks (e.g., Rubik's Cube) |
-
-> [!abstract] 课程学习比触觉更重要？（来自 [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation]]）
-> 一个反直觉的发现：**课程设计对灵巧操作学习的影响大于触觉传感器的有无**。
-> 
-> **实验设置**：三指手向下抓取 + 旋转球体（对抗重力）
-> - 变量 1：课程策略（先 Lift → 后 Rotate、先 Rotate → 后 Lift、同时学习等）
-> - 变量 2：触觉信息（无触觉 vs 3D 力向量）
-> 
-> **关键发现**：
-> 1. 不同课程策略导致的性能差异 **>>** 有无触觉的差异
-> 2. **无触觉也能学会**：某些课程下，仅凭本体感知即可成功
-> 3. 课程像"Waddington Landscape"——引导学习向特定技能组合发展
-> 
-> **启示**：
-> - 在设计 RL 训练时，**优先设计好课程**，而不是堆传感器
-> - 课程隐含了对任务的先验知识——**课程即 inductive bias**
-> - 触觉可能是"锦上添花"而非"必需品"（至少对某些任务）
-
-> [!warning] 实验证据：课程学习的任务特异性 — TWC 对不同任务效果不对称（DNPM Exp2, 2026-02）
-> 在 [[Dynamic Non-Prehensile Manipulation|DNPM]] 的 Time-Warped Curriculum (TWC, α-scaling) 实验中：
->
-> | 任务 | BASE SR | TWC SR | TWC 效果 | TWC 方差变化 |
-> |------|---------|--------|----------|-------------|
-> | **TA (Thumbaround)** | **0.83** | 0.72 | ❌ **负效果** | 方差更大 |
-> | **TP (Triangle Pass)** | 0.66 | **0.86** | ✅ **决定性正效果** | 降 19× |
->
-> **关键洞见**：
-> 1. **同一课程策略对不同任务效果可以完全相反** — TWC 帮助 TP 但伤害 TA
-> 2. TWC 的物理轴课程（重力 ×α²、速度 ×α）对 TP 有效，可能因为 TP 的核心挑战是克服重力势垒，而 TWC 提供渐进的重力适应
-> 3. TA 的核心挑战可能是**探索空间**而非物理难度 — TA 需要的是状态空间课程（δ轴），而非物理参数课程（α轴）
-> 4. 这支持了 [[Idea-007-Dual Orthogonal Curriculum|DOC]] 的核心假设：物理难度和状态难度是**正交维度**，不同任务需要不同维度的课程
->
-> **与课程学习理论的联系**：Continuation Method 保证了沿单一参数轴的连续性，但**多任务场景中不同任务对参数轴的响应面（response surface）不同**。这意味着通用课程不存在，需要任务感知的课程设计。
-
-> [!abstract] 数据飞轮：从演示到策略的闭环迭代（来自 [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]）
-> **核心问题**：人类手部演示数据通常有噪声且不完美，直接模仿效果差。
-> 
-> **数据飞轮（Data Flywheel）框架**：
-> ```
-> 人类运动捕捉 → 重定向到机器人 → 挖掘可跟踪演示
->      ↑                                    ↓
->      ←←← 用改进的策略挖掘更难的演示 ←←←←←
-> ```
-> 
-> **关键机制**：
-> 1. **同伦优化（Homotopy）**：从简化任务（如无重力）逐步过渡到完整任务
-> 2. **RL + IL 协同**：高质量演示指导探索，RL 处理未覆盖状态
-> 3. **迭代改进**：更好的策略 → 能跟踪更难的演示 → 更多训练数据 → 更好的策略
-> 
-> **技术细节**：
-> - 运动重定向：$\hat{s}^{robot}_n = \mathcal{R}(s^{human}_n; \phi)$
-> - 演示质量评估：跟踪误差低于阈值才保留
-> - 课程权重：随训练进度逐步提升 IL 损失权重
-> 
-> **灵巧操作启发**：解决了"人类演示有噪声→策略学不好→需要更好演示"的鸡蛋问题。
-
-> [!tip] 观测空间课程适应（来自 [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|CSR]]）
-> **Sim2Real 矛盾**：仿真可获取"上帝视角"信息（精确物体位姿、完整触觉），真实世界难以复现。
-> 
-> **标准 Asymmetric Actor-Critic (AAC) 的问题**：
-> - Critic 用完整观测，Actor 用受限观测
-> - **一步裁剪**：训练不稳定，性能下降严重
-> 
-> **CSR 课程式解决方案**：
-> 1. **特征重要性排序**：$I_i = \mathbb{E}[|\partial \pi / \partial o_i|]$
-> 2. **渐进移除**：从最不重要的特征开始
-> 3. **Deep Random Generator**：用随机网络输出替代被移除特征（防止策略学会"零=某状态"）
-> 
-> **课程设计**：
-> ```
-> Stage 0: 全部特征（精确物体位姿 + 触觉力 + 关节状态）
-> Stage 1: 移除物体姿态（最不重要）
-> Stage 2: 移除触觉力
-> Stage 3: 仅保留关节本体感知
-> ```
-> 
-> **启示**：
-> - **渐进优于突变**：策略有时间适应每次缩减
-> - **随机替代优于置零**：防止新的虚假依赖
-> - **特征重要性可自动发现**：无需人工猜测
-
-### 5.2 真实世界高效 RL: SERL 与 Human-in-the-Loop
-
-> [!tip] 论文参考
-> - [[SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning]] - 真实世界 RL 系统
-> - [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning]] - 人在回路校正
-
-#### RLPD: 演示增强的 Off-Policy RL
-
-**核心创新**: 在每个训练步，从**演示数据**和**在线数据**各采样 50%
-
-$$\mathcal{B}_{\text{train}} = \text{sample}(\mathcal{B}_{\text{demo}}, 50\%) \cup \text{sample}(\mathcal{B}_{\text{online}}, 50\%)$$
-
-**为什么有效**:
-- 演示提供初始探索方向
-- 在线数据允许超越演示
-- 50% 比例经验证最优
-
-#### Human-in-the-Loop 校正机制
-
-**关键洞察**: 人类校正 ≠ 人类演示
-
-| 类型 | 数据内容 | 学习信号 |
-|-----|---------|---------|
-| 演示 | 成功轨迹 | 正样本模仿 |
-| **校正** | **失败边缘的挽救** | **从错误中学习** |
-
-**校正机制**:
-```
-策略执行中...
-    ↓
-人类观察到即将失败
-    ↓
-人类通过 SpaceMouse 接管
-    ↓
-(s_t, a_human, r, s_{t+1}) → Buffer
-    ↓
-策略学习: "在 s_t, 应该做 a_human, 不是 a_policy"
-```
-
-**实验结果** (HIL-SERL):
-- 训练时间: 1-2.5 小时
-- 成功率: 相比 BC 提升 **101%**
-- 任务: 首次实现双臂 RL + 动态 Jenga 抽取 + 时序带装配
-
-#### 真实世界 RL 系统设计要点
-
-| 组件 | SERL 方案 | 原因 |
-|-----|----------|------|
-| 算法 | RLPD (SAC 变体) | 高 update-to-data ratio |
-| 奖励 | 二值分类器 | 避免手工设计 |
-| 重置 | 前向-后向策略 | 自动化训练 |
-| 控制器 | 阻抗控制 | 接触安全 |
-
-#### VLA 在线精细化: RL Tokens
-
-> [!tip] 论文参考
-> [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT (Physical Intelligence, 2026)]]
-
-**核心思想**: 大型 VLA 模型在部署时难以端到端微调，但精密操作阶段（如螺丝对准、插线）仍需在线改进。RLT 的解决方案是**不微调 VLA**，而是：
-
-1. **RL Token 提取**: 在 VLA 中训练一个编码器-解码器 Transformer，将 VLA 内部 embedding 压缩为单个紧凑 token（信息瓶颈）
-2. **轻量级 Actor-Critic**: 仅对 RL token 训练极小的 actor-critic 网络，在机器人本地以每秒数百次更新的速度训练
-3. **残差动作编辑**: Actor 接收 VLA 预测动作作为输入，学习 $\Delta a$ 修正（而非替代），正则化约束不远离 VLA 先验
-
-$$a = \pi_\theta(z_{\text{RL\_token}}, a_{\text{VLA}}) = a_{\text{VLA}} + \Delta a_\theta$$
-
-**关键工程技巧**: Reference-action dropout 防止 actor 退化为恒等映射；Action chunk 结构与 VLA 对齐保持时序一致性。
-
-**实验结果**: 仅 15 分钟真实数据 → 精密操作 3× 加速，执行速度超越人类遥操作。
-
-**与灵巧操作的关联**: 灵巧手的精密接触阶段（转笔关键接触切换点）可用 RLT 架构实现部署时在线精细化，避免重训全 VLA。与 [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation|残差学习]] 形成呼应。
-
-### 5.3 Offline RL: 从静态数据中学习
-
-很多时候我们不希望在真机上进行危险的探索，而是利用现有的历史数据。
-
-**CQL (Conservative Q-Learning)** 的核心数学修正：
-
-$$\min_Q \alpha \left( \mathbb{E}_{s \sim \mathcal{D}, a \sim \mu(a|s)} [Q(s, a)] - \mathbb{E}_{s \sim \mathcal{D}, a \sim \pi(a|s)} [Q(s, a)] \right) + \frac{1}{2} \mathbb{E}$$
-
-- *Logic*: 第一项显式地压低当前策略 $\pi$ 产生的动作（可能由于高估而错误地被认为高价值）的Q值，同时拉高数据集中实际动作 $\mu$ 的Q值。
-- *Significance*: 在灵巧操作中，这防止了机器人尝试那些“看起来很美但从未尝试过”的危险动作 。
-
-------
-
-## 6. Future Frontiers: Model-Based & Diffusion
-
-### 6.1 DreamerV3: World Models for Manipulation
-
-DreamerV3 通过学习 $p(s_{t+1}|s_t, a_t)$ (Dynamics) 和 $p(o_t|s_t)$ (Decoder) 来构建世界模型。 **Impact**: 对于操作任务，最重要的贡献是其 **RSSM (Recurrent State-Space Model)** 结构。它将状态分解为确定性部分（RNN hidden state）和随机部分（Stochastic state）。确定性部分充当了短期记忆（Short-term Memory），能够记住几帧前看到的物体位置，从而在当前帧物体被手指完全遮挡时，依然能准确预测物体状态。这解决了 Model-Free 方法在部分可观测性（Partial Observability）下的根本缺陷 。
-
-### 6.2 Diffusion Policies: 多模态分布的终极解
-
-**Diffusion Policy** 将策略建模为条件去噪过程：
-
-$$a_k \leftarrow a_{k+1} - \alpha \nabla \log p(a_{k+1}|s) + \mathcal{N}(0, \sigma)$$
-
-它不仅是模仿学习的SOTA，现在正逐渐与RL结合（RL-guided Diffusion）。 **Value-add**: 在复杂操作（如双手解绳结）中，动作空间是高度多模态的。Diffusion Policy 是目前唯一能有效捕捉并复现这种多模态分布的架构，标志着从“拟合均值”向“拟合分布”的范式转变 。
-
-
-> [!tip] Denoising Sub-MDP: 扩散策略的 RL 微调框架 ([[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]])
-> 扩散策略的 RL 微调面临核心矛盾：去噪过程的多步推理与 RL 的 MDP 框架不兼容。RL-100 提出将**每一步去噪**视为一个独立的 sub-MDP 步骤：
->
-> 1. **Denoising Sub-MDP**: 将 $K$ 步去噪展开为 $K$ 步 MDP，每步状态包含 $(s_\text{env}, a_k, k)$，策略在去噪步 $k$ 的输出即为 denoiser 的预测
-> 2. **Consistency Distillation**: 通过一致性蒸馏将 $K$-step DDPM 压缩为 1-step 生成，消除推理延迟（100ms → 10ms），使 RL 梯度可直接通过单步 denoiser 传播
-> 3. **IL→Offline RL→Online RL 三阶段流水线**: BC 预训练 → 离线 RL（CRR loss）消除非最优行为 → 在线 RL 细化
->
-> **与灵巧操作的关联**: 若采用扩散策略架构，denoising sub-MDP 提供了从模仿到强化学习的完整迁移路径。RL-100 在 7 个真实任务上实现 900/900（100%）成功率。
-
-------
-
-### 6.3 RL Scaling Laws: 计算最优的训练资源分配
-
-> [!abstract] IsoCompute Playbook — RL 训练中的采样计算最优分配
-> 在 On-Policy RL（如 GRPO）训练中，给定固定的采样计算预算 $C = n \times B_{problem} \times M$（并行采样数 × 问题数 × 迭代次数），如何最优地分配这三个维度？
->
-> **核心发现**：
->
-> | 发现 | 描述 | 与灵巧操作的关联 |
-> |------|------|-----------------|
-> | **最优并行采样数随预算增长** | $n^*(C)$ 呈 sigmoid 增长 | 训练预算充足时应增大并行环境数（如 IsaacGym） |
-> | **Easy/Hard 问题：相似趋势，不同机制** | Easy: 大 $n$ 锐化策略（改善 worst@k）；Hard: 大 $n$ 扩展覆盖（改善 best@k） | DNPM 中 quasi-static（easy）vs dynamic（hard）任务需不同策略 |
-> | **熵控制策略因难度而异** | Easy 任务需 KL/熵约束防止过早坍缩；Hard 任务去除正则化反而更优 | HDC 课程从 easy（$\alpha$ 小）到 hard（$\alpha=1$）的迁移过程中应动态调整熵正则 |
-> | **学习率应随 batch size 平方根缩放** | $\text{lr} \propto \sqrt{B}$，而非固定 | 大规模并行仿真训练的超参数指导 |
->
-> **"健康" RL 配方的特征**：
-> - 稳定的熵动态（避免 entropy collapse 或 divergence）
-> - 严格 on-policy（避免 staleness），限制 off-policy 重用
-> - 根据问题难度分布调整正则化策略
->
-> **与 [[Dynamic Non-Prehensile Manipulation|DNPM]] HDC 的直接关联**：
-> - HDC 的 $\alpha$ 课程从 easy（慢速空间）渐进到 hard（真实速度），正好对应 scaling law 中 easy→hard 的不同机制转换
-> - HDC 课程迁移判据（success rate 阈值）可参考 IsoCompute 中 easy 问题饱和点的定义来优化
-> - 并行环境数 $n$ 的选择应根据当前 $\alpha$ 值动态调整——低 $\alpha$（easy）时可用更大 $B_{problem}$，高 $\alpha$（hard）时增大 $n$ 以扩展覆盖
-
-### 6.4 Test-Time RL: 部署时在线学习新发现
-
-> [!abstract] TTT-Discover — 测试时通过 RL 持续训练发现新方案
-> **核心思想**：在部署/测试阶段对单个问题继续执行 RL 训练，让模型从特定问题的经验中持续改进，而非仅依赖训练阶段的泛化能力。
->
-> **与标准 RL 的关键区别**：
-> - 标准 RL: 优化**期望**奖励，策略需在多个环境中泛化
-> - TTT-Discover: 只需找到**单个**最优解（最大而非期望），且只需解决**当前**问题
->
-> **Entropic Objective** — 偏好最大奖励动作的学习目标：
-> $$J_\beta(\theta) = \mathbb{E}_{s \sim \text{reuse}(H)} \left[ \log \mathbb{E}_{a \sim \pi_\theta(\cdot|s)} \left[ e^{\beta(s) R(s,a)} \right] \right]$$
->
-> 其策略梯度为 softmax 加权形式：
-> $$w_{\beta(s)}(a) = \frac{e^{\beta(s) R(s,a)}}{\mathbb{E}_{\pi_\theta}[e^{\beta(s) R(s,a)}]}$$
->
-> 当 $\beta \to \infty$ 时退化为 argmax（纯贪婪）；$\beta \to 0$ 时退化为标准策略梯度（均匀加权）。
->
-> **State Reuse 机制**：维护历史解的缓冲区 $H_i$，通过启发式采样复用高奖励解作为初始状态，有效延长搜索视野。
->
-> **与灵巧操作的潜在关联**：
-> - **在线适应**: 将操作策略部署到新环境（新物体、新摩擦系数）时，可在测试时对该特定物体执行 TTT-Discover，发现针对性的操作策略
-> - **与 [[Optimization#5.3 基于采样的 MPC (Sampling-based MPC)|Sampling-based MPC]] 的对比**: TTT-Discover 的 state reuse + entropic objective 可视为"带学习的 MPC"——MPPI 在每步重新采样，TTT 则通过参数更新积累经验
-> - **探索-利用权衡**: Entropic objective 的 $\beta$ 参数控制探索-利用权衡，类似 [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC|SAC]] 中的温度参数 $\alpha$
-
-------
-### 6.5 World Model-Based Policy Optimization for VLA (WMPO)
-
-> [!abstract] 像素空间世界模型 + GRPO 对 VLA 的 RL Post-Training
-> [[WMPO - World Model-based Policy Optimization for VLA|WMPO]] 提出在 VLA 上执行 RL post-training，核心创新在于**像素空间**世界模型与分组相对策略优化的结合。
-
-**关键设计选择**：
-
-| 维度 | WMPO 选择 | 传统方法 | 优势 |
-|------|----------|---------|------|
-| **世界模型空间** | 像素空间视频生成 | 隐空间 (DreamerV3) | 与 VLA 预训练视觉特征对齐 |
-| **RL 算法** | GRPO (Group Relative PO) | PPO / REINFORCE | 无需 value network，组内比较更稳定 |
-| **奖励来源** | VLM-as-Judge | 手工设计 | 可扩展到开放任务 |
-| **数据来源** | On-policy rollout in WM | Real-world interaction | 零真实交互成本 |
-
-**GRPO 数学形式**：
-$$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{i=1}^{G} \min\left(r_i(\theta) \hat{A}_i, \text{clip}(r_i(\theta), 1\pm\epsilon)\hat{A}_i\right)$$
-
-其中优势函数通过组内归一化计算：$\hat{A}_i = \frac{R_i - \text{mean}(R_{1:G})}{\text{std}(R_{1:G})}$
-
-**与灵巧操作的关联**：
-- **Dynamic Sampling Strategy**: WMPO 的动态采样策略（筛除"全失败"或"全成功"的 prompt 组）对 [[Dynamic Non-Prehensile Manipulation|DNPM]] 的稀疏奖励问题有直接借鉴——可在课程学习中动态调整 $\alpha$ 分布
-- **VLM-as-Judge**: 为复杂操作任务提供了超越手工奖励的评估路径
-- **与 §6.1 DreamerV3 的对比**: DreamerV3 在隐空间 imagination-based planning；WMPO 在像素空间生成完整视频并用 VLM 评分——后者更适合 VLA 架构
-
-
-### 6.6 RL 算法统一分类框架
-
-> [!abstract] On/Off-Policy 的统一视角
-> [[Unified Policy Evaluation and Improvement - On Off-Policy Classification|Unified Policy]] 提出通过 **evaluation** 和 **improvement** 两个维度对 RL 算法进行统一分类，揭示 PPO、SAC、BRAC 等算法的本质差异仅在于 update schedule 的选择。
-
-**统一策略评估公式**：
-$$Q^{\pi_E}(s,a) = r(s,a) + \gamma \mathbb{E}_{s' \sim P}\left[V^{\pi_E}(s')\right]$$
-
-**统一策略改进公式**：
-$$\pi_I(a|s) = \arg\max_\pi \mathbb{E}_{a \sim \pi}\left[Q^{\pi_E}(s,a)\right] - \alpha D_{KL}(\pi \| \pi_{ref})$$
-
-**Update Schedule 三状态分类**：
-
-| 状态 | $\pi_E$ (评估) | $\pi_I$ (改进) | 代表算法 |
-|:---:|:---:|:---:|:---:|
-| Pure On-Policy | $\pi_I$ (最新) | $\pi_I$ (最新) | PPO |
-| Pure Off-Policy | $\pi_E$ (旧) | $\pi_I$ (最新) | BRAC |
-| Cross-Policy | $\pi_E$ (连续更新) | $\pi_I$ (最新) | SAC |
-
-**与灵巧操作的关联**：该框架为用户的 PPO 转笔策略选择提供理论支撑——PPO 的 Pure On-Policy 特性意味着 rollout 数据即时使用，天然适合 IsaacGym 大规模并行；而转向 SAC 时需要 replay buffer 的 staleness 管理。详见 [[Unified Policy Evaluation and Improvement - On Off-Policy Classification|完整论文笔记]]。
-
-## 7. Conclusion: 走向物理感知的智能
-
-综上所述，强化学习在灵巧操作领域的成功，并非单纯依赖于算力的堆砌，而是源于对物理问题的深刻抽象与算法适配：
-
-1. **SAC** 通过熵正则化，巧妙地将物理柔顺性（Compliance）编码进控制策略，解决了接触刚性问题。
-2. **Geometric RL** 通过流形约束，解决了高维空间探索效率低下的问题。
-3. **Sim-to-Real (ADR)** 通过在参数空间的主动扩张，弥合了理想模型与真实世界的鸿沟。
-4. **World Models** 通过隐空间的记忆机制，解决了操作过程中的遮挡与部分可观测性问题。
-
-未来的研究方向将是 **Physics-Informed RL** 与 **Generative Models** 的深度融合。我们不再是将机器人视为一个黑盒MDP，而是利用接触力学和几何学的先验知识，去引导Diffusion Policy的生成过程，最终实现具备人类级别灵巧度与适应性的机器人系统。
-
-这是从“计算”回归“物理”的必经之路。
-
-------
-
-## 8. Learning Resources
-
-> **Source**: From [[Books/lumina-eai-guide.pdf|Lumina Embodied AI Guide]]
-
-### Courses
-
-| Level | Resource | Link | Notes |
-|-------|----------|------|-------|
-| **Math Foundation** | Shiyu Zhao (Westlake): RL Math | [bilibili](https://www.bilibili.com/video/BV1sd4y167NS) | Systematic derivations |
-| **DRL Overview** | Pieter Abbeel 6 Lectures | - | Quick framework |
-| **DRL Systematic** | Berkeley CS285 (Levine) | [website](https://rail.eecs.berkeley.edu/deeprlcourse/) | Industry standard |
-| **DRL Chinese** | Hung-yi Lee RL | - | Practice-friendly |
-| **Hands-on** | EasyRL (Mushroom Book) | [GitHub](https://github.com/datawhalechina/easy-rl) | Practical |
-
-### Policy Baselines
-
-| Method | Code | Features |
-|--------|------|----------|
-| ACT | [GitHub](https://github.com/tonyzhaozh/act) | Classic IL baseline |
-| Diffusion Policy | [GitHub](https://github.com/real-stanford/diffusion_policy) | Robust diffusion-based |
-| DP3 | [GitHub](https://github.com/YanjieZe/3D-Diffusion-Policy) | 3D representation |
-
-### Simulators
-
-| Platform | Link | Use Case |
-|----------|------|----------|
-| Isaac Lab | [GitHub](https://github.com/NVIDIA-Omniverse/IsaacLab) | GPU parallel training |
-| legged-gym | [GitHub](https://github.com/leggedrobotics/legged_gym) | Legged robots |
-| SAPIEN/ManiSkill | [Website](https://sapien.ucsd.edu/) | Manipulation |
-| Genesis | [Website](https://genesis-world.readthedocs.io/) | New GPU simulator |
-
-------
-
-## 9. 相关论文 (PapersRecap)
-
-以下论文涉及本 Foundation 中的强化学习理论与方法：
-
-### SAC与最大熵RL
-- [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]: SAC用于触觉灵巧操作
-- [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]]: 纯触觉RL策略
-- [[Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture|Dextrous Tactile]]: 模块化RL架构
+> 这给"转笔该用 PPO 还是 SAC"再次提供理论判据：PPO 的 pure on-policy 适合 IsaacGym 大规模并行；转 SAC 则要管理 replay 的 staleness。**第 5 章开篇立的框架，在这里完成闭环。**
+
+---
+
+## 11. 知识回扣与记忆图：一支笔串起整本讲稿
+
+> [!abstract] 用一条故事线把全讲复述一遍（这是刻意的复述，为了记忆）
+> 我们要让一支笔在指间转一圈。**(§1)** 解析控制卡在 $3^5$ 模式组合与不可辨识的接触刚度，纯模仿又会因分布漂移雪崩——于是请出 RL。**(§2)** 我们用 MDP 描述它，用 Bellman 方程定义"转满一圈值多少"，并发现 Bellman=离散 HJB=LQR 的近亲；用 TD(λ) 的 $\lambda$ 旋钮把滞后的成功反馈回传给最初那次松指。**(§3)** 想直接学 $Q$ 做贪婪决策，却撞上 max 高估的诅咒——它会把侥幸猛甩误判成高价值。**(§4)** 改用策略梯度，靠 log-derivative 让不可微的接触求解器神奇消失，再用 baseline→优势→Actor-Critic 压住方差。**(§5)** 两条主线在统一的"$Q-\beta\,$KL-到-参考"框架下分叉：PPO 用 clip 守住已学会的指步时序，TD3 用 min-Q 拒绝危险扭矩，SAC 用熵把"左转/右转"都留着、把方差当指尖柔顺。**(§6)** 嫌交互太贵，就在世界模型里"想象转笔"（RSSM 还能记住被手指遮住的笔）。**(§7)** 成功太稀疏，就用 empowerment/HER 把失败也变成可学的课程。**(§8)** 给它喂好燃料：触觉表征当感官、PBRS 守住奖励不被 hack。**(§9)** 搬上真机时按 MDP 四要素诊断 gap，先 System ID 再 DR，用 RLPD/人在回路把模仿与强化缝在一起。**(§10)** 最后用扩散策略根治多峰、用 GRPO+世界模型零真机成本后训练 VLA。**一支笔，转完了整座理论大厦。**
+
+> [!important] 一张表记住全篇（层级 → 问题 → 工具 → 转笔角色）
+> | 层 | 核心问题 | 关键工具 | 代表算法 | 笔的哪一环 |
+> |:--|:--|:--|:--|:--|
+> | §2 MDP/Bellman | 价值如何递推 | TD、GAE、$\lambda$ 旋钮 | — | 成功反馈回传到松指 |
+> | §3 价值方法 | max 为何高估 | Double-Q | DQN | 别把猛甩当高价值 |
+> | §4 策略梯度 | 不可微怎么更新 | log-derivative、优势 | REINFORCE/A2C | 绕开接触求解器 |
+> | §5 稳定更新 | 别毁掉已学策略 | KL-到-参考、clip、min-Q、熵 | TRPO/PPO/TD3/SAC | 守指步时序 / 拒危险扭矩 / 留多峰 |
+> | §6 样本效率 | 数据如何省 | 世界模型、保守 Q | Dreamer/CQL | 想象转笔、安全微调 |
+> | §7 探索 | 稀疏奖励怎么撞见 | 熵、empowerment、HER | DIAYN/HER | 把失败变课程 |
+> | §8 燃料 | 状态/奖励配方 | 触觉表征、PBRS | — | 别被奖励 hack |
+> | §9 Sim2Real | 仿真→真机 | MDP-4 gap、SysID/DR、RLPD | RMA/HIL-SERL | 诊断掉笔的 gap |
+> | §10 前沿 | 多峰/零成本 | 扩散、GRPO、世界模型 | RL-100/WMPO | 左右转、后训练 |
+
+> [!tip] 五条贯穿全讲的"暗线"（抓住这五条，细节自来）
+> 1. **高估→低估→保守**：max 必然高估（§3.3）→ 取 min 低估（§5.2）→ 低估在真机更安全（§3.1）。
+> 2. **一个框架收编一片算法**：$\max_\pi Q-\beta\,D_{KL}(\pi\|\pi_0)$，选 $\pi_0$=均匀得 SAC、=旧策略得 PPO、=专家得 RLPD（§5.0，§10.5 闭环）。
+> 3. **模仿×强化的缝合线**：纯模仿会漂移（§1.5）→ SFT=稀疏 RL（§5.4.2）→ RLPD/teacher-student/扩散+RL（§9、§10）。
+> 4. **信息=探索=柔顺**：熵既是探索目标（§7）又是 SAC 的虚拟阻抗柔顺（§5.2.3）——一个量，两副面孔，连起 [[InformationTheory]] 与 [[ControlTheory]]。
+> 5. **低通滤波到处都是**：GAE 的资格迹（§2.3）、TD3 的目标平滑（§5.2.2）本质都是对噪声信号做一阶低通，与 [[SignalProcessing]] 同形。
+
+> [!note] 跨领域链接（双向、点对点）
+> - **→ [[ControlTheory]]**：Bellman↔HJB↔LQR（§2.2）；SAC 熵↔阻抗柔顺（§5.2.3）；RMA↔确定性等价自适应控制（§9.2）；Safe RL↔稳定性证书。
+> - **→ [[Optimization]]**：策略优化↔随机优化；KL-到-参考↔近端算子（§5.0）；MBRL↔MPC（§6.1）；奖励塑形↔非凸景观（§8.2）。
+> - **→ [[StochasticProcess]]**：belief-MDP↔粒子滤波（§2.1）；扩散策略↔SDE/score（§10.1）；AR 探索↔OU 过程（§5.4.1）；MPPI↔test-time RL（§10.4）。
+> - **→ [[InformationTheory]]**：探索↔熵/互信息/empowerment（§7）；mediator 奖励↔因果（§8.2）；信息瓶颈↔RLT token（§9.3）。
+> - **→ [[RepresentationLearning]]**：触觉表征（§8.1）；扩散策略理论（§10.1）；状态表征决定泛化。
+> - **→ [[Dynamics]] / [[ContactMechanics]]**：非光滑接触是策略梯度高方差之源（§1.3）；动力学模型即世界模型（§6.1）；System ID 的物理参数（§9.2）。
+> - **→ [[EmbodiedAI]]**：VLA 后训练（§10.2）；RL token 在线精细化（§9.3）；GRPO（§10.2/§10.5）。
+
+---
+
+## 12. 结论：走向物理感知的智能
+
+强化学习在灵巧操作的成功，不是算力的堆砌，而是**对物理问题的深刻抽象 + 算法适配**：
+
+1. **SAC** 用熵正则把物理柔顺编码进策略，化解接触刚性（§5.2.3）。
+2. **Geometric RL** 用流形约束，把探索从"别穿透"中解放出来（§1.3、§7）。
+3. **Sim-to-Real（System ID + ADR）** 在参数空间一减偏差、一增覆盖，弥合理想模型与真实世界（§9）。
+4. **World Models** 用隐空间记忆解决遮挡与部分可观测（§6.1）。
+
+未来在于 **Physics-Informed RL 与生成模型的深度融合**：不再把机器人当黑盒 MDP，而是用接触力学与几何先验去引导扩散/世界模型的生成。这是从"计算"回归"物理"的必经之路。
+
+---
+
+## 13. 学习资源
+
+> Source: [[Books/lumina-eai-guide.pdf|Lumina Embodied AI Guide]]
+
+| 类别 | 资源 | 链接 | 备注 |
+|:--|:--|:--|:--|
+| 数学基础 | Shiyu Zhao (Westlake): RL Math | [bilibili](https://www.bilibili.com/video/BV1sd4y167NS) | 系统推导 |
+| DRL 概览 | Pieter Abbeel 6 Lectures | - | 快速框架 |
+| DRL 系统 | Berkeley CS285 (Levine) | [website](https://rail.eecs.berkeley.edu/deeprlcourse/) | 工业标准 |
+| 中文 DRL | 李宏毅 RL | - | 实践友好 |
+| 上手 | EasyRL（蘑菇书） | [GitHub](https://github.com/datawhalechina/easy-rl) | 实操 |
+
+| Baseline | 代码 | 特点 |
+|:--|:--|:--|
+| ACT | [GitHub](https://github.com/tonyzhaozh/act) | 经典 IL baseline |
+| Diffusion Policy | [GitHub](https://github.com/real-stanford/diffusion_policy) | 鲁棒扩散 |
+| DP3 | [GitHub](https://github.com/YanjieZe/3D-Diffusion-Policy) | 3D 表征 |
+
+| 仿真器 | 链接 | 用途 |
+|:--|:--|:--|
+| Isaac Lab | [GitHub](https://github.com/NVIDIA-Omniverse/IsaacLab) | GPU 并行训练 |
+| legged-gym | [GitHub](https://github.com/leggedrobotics/legged_gym) | 足式 |
+| SAPIEN/ManiSkill | [Website](https://sapien.ucsd.edu/) | 操作 |
+| Genesis | [Website](https://genesis-world.readthedocs.io/) | 新一代 GPU 仿真器 |
+
+---
+
+## 14. 相关论文 (PapersRecap)
+
+> [!abstract] 知识图谱反向链接
+> 以下论文涉及本 Foundation 的强化学习理论与方法。
+
+### SAC 与最大熵 RL
+- [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]：SAC 用于触觉灵巧操作
+- [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]]：纯触觉 RL 策略
+- [[Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture|Dextrous Tactile]]：模块化 RL 架构
+- [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]：高斯探索最优性的随机控制证明
+- [[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|AR Policies]]：时间一致探索
 
 ### 课程学习与渐进训练
-- [[Curriculum Learning|Curriculum Learning]]: 课程学习的理论基础
-- [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation|Curriculum vs Haptic]]: 课程设计对操作学习的影响
-- [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|Curriculum Sensing Reduction]]: 传感课程与Sim-to-Real
+- [[Curriculum Learning]]：课程学习的理论基础
+- [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation|Curriculum vs Haptic]]：课程设计 > 触觉传感
+- [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|CSR]]：传感课程与 Sim-to-Real
+- [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart]]：示范引导自动课程
+- [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]：熵引导演示加速
 
-### Sim-to-Real迁移
-- [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction|TRANSIC]]: 在线修正的策略迁移
-- [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation|RialTo]]: 真实演示辅助的迁移
-- [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation|CyberDemo]]: 仿真演示增强
+### Sim-to-Real 迁移
+- [[A Survey of Sim-to-Real Methods in RL]]：MDP 四要素分类框架（State/Action/Transition/Reward）
+- [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer|Tiwari et al. Survey]]：执行器级建模视角
+- [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]]：RMA 隐式物理参数推断
+- [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]：关节级残差神经动力学
+- [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction|TRANSIC]]：在线修正的策略迁移
+- [[Grounded Action Transformation|GAT]]：仿真器 grounding 经典方法（AAAI 2017）
+- [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation|RialTo]]：真实演示辅助迁移
+- [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation|CyberDemo]]：仿真演示增强
+- [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]：3D 部件引导跨铰接物体 Sim2Real
 
 ### 模仿学习与行为克隆
-- [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills|DeepMimic]]: 参考动作引导的深度RL
-- [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]: 人类参考的神经跟踪控制
-- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]: 规划引导的扩散策略
+- [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills|DeepMimic]]：参考动作引导深度 RL
+- [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]：人类参考的神经跟踪控制 + 数据飞轮
+- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]：规划引导扩散策略
 
 ### 奖励设计与探索
-- [[EUREKA: Human-Level Reward Design via Coding Large Language Models|EUREKA]]: LLM自动奖励设计
-- [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]: 探索-利用的随机控制视角
-- [[Hindsight Experience Replay]]: **稀疏奖励探索基石**，目标重标注的隐式课程
+- [[EUREKA: Human-Level Reward Design via Coding Large Language Models|EUREKA]]：LLM 自动奖励设计
+- [[Hindsight Experience Replay]]：稀疏奖励基石，目标重标注的隐式课程
 
 ### 控制频率与时间抽象
-- [[TARC - Time-Adaptive Robotic Control]]: **时间自适应控制**，策略输出动作+持续时间
-- [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|Control Frequency Adaptation]]: 动作持续性与频率适应
-- [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]]: 弹性时间步RL
-- [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]]: 演化高频控制
+- [[TARC - Time-Adaptive Robotic Control]]：策略输出动作 + 持续时间
+- [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|Control Frequency Adaptation]]：动作持续性与频率适应
+- [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]]：弹性时间步 RL
+- [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]]：演化高频控制
+
+### 稳定性与平滑策略（RL × Control）
+- [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]]：稳定性证书方法
+- [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]]：自适应 Lipschitz 约束网络
 
 ### 长时程与接触丰富任务
-- [[Learning Long-Horizon Robot Manipulation Skills via Privileged Action]]: **特权动作**简化长时程探索
-- [[Dexterous Robotic Manipulation using Deep RL and Knowledge Transfer]]: 知识迁移框架
-- [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力融合课程
+- [[Learning Long-Horizon Robot Manipulation Skills via Privileged Action]]：特权动作简化长时程探索
+- [[Dexterous Robotic Manipulation using Deep RL and Knowledge Transfer]]：知识迁移框架
+- [[Vision-force-fused Curriculum Learning for Robotic Assembly]]：视觉-力融合课程
+- [[Deep Dynamics Models for Learning Dexterous Manipulation]]：model-based RL 在 Shadow Hand 上的高效真机学习
+- [[Learning Quadrupedal Locomotion over Challenging Terrain]]：privileged teacher-student + adaptive curriculum 的 sim-to-real
 
 ### 扩散策略的 RL 微调与 World Model RL
-- [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]: **Denoising Sub-MDP** 框架，IL→Offline RL→Online RL 三阶段流水线，consistency distillation 加速推理
-- [[WMPO - World Model-based Policy Optimization for VLA|WMPO]]: **像素空间世界模型 + GRPO** 对 VLA 进行 RL post-training，VLM-as-Judge 奖励
-- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]: **Flow Matching 预训练 + 残差 RL 后训练**，actuation-aware 动力学建模
+- [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]：Denoising Sub-MDP，IL→Offline→Online 三阶段，consistency distillation
+- [[WMPO - World Model-based Policy Optimization for VLA|WMPO]]：像素空间世界模型 + GRPO，VLM-as-Judge
+- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]：Flow Matching 预训练 + 残差 RL 后训练
 
 ### 物理感知预训练与几何表征
-- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]: **Dynamics-lifted 几何预训练**，transport equation 统一粒子动力学范式
-
-### Sim-to-Real 综述与经典方法
-- [[A Survey of Sim-to-Real Methods in RL]]: **MDP 四要素分类框架** (State/Action/Transition/Reward)，首个覆盖 Foundation Model 时代的 sim-to-real 综述
-- [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer|Tiwari et al. Survey]]: 执行器级建模视角的 sim-to-real 综述
-
-### 项目级真机 RL Idea（WMTS）
-- [[Projects/World Model as Task Scheduler/all_Insights_local/_InsightsIndex|WMTS Insights Index]]：15 个真机 RL 角度的 idea，覆盖 reward / sim-to-real / autonomy 三大主线
-- 重点 idea：[[Projects/World Model as Task Scheduler/all_Insights_local/Idea-001-Tactile-Anchored-Reward|TAR (无 GT pose reward)]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-008-Physics-Aware-PER|PA-PER]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-011-WM-Importance-Weighted-Diffusion|WMID off-policy diffusion RL]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-015-Reset-Free-Autonomy|Reset-Free Autonomy]]
-- [[Grounded Action Transformation|GAT]]: **仿真器 grounding 经典方法**，学习动作映射函数修正 sim-real 差异 (AAAI 2017)
+- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]：Dynamics-lifted 几何预训练
 
 ### 非紧握操作与外在灵巧性
-- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]]: **动力学感知策略学习**，世界模型条件化 RL 实现杂乱场景外在灵巧性
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]]：动力学感知策略学习，世界模型条件化 RL
 
 ### 触觉与多模态推理
-- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|SToLa]]: MoE 触觉-语言融合框架
+- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|SToLa]]：MoE 触觉-语言融合
 
 ### 数据生成与双臂操作
-- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]]: MLLM 驱动的双臂数据自动生成 + 5 轴域随机化
-
-### 课程学习进阶
-- [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart]]: **示范引导自动课程** — ZVF+手动初始化 state curriculum，LEAP Hand 旋转物体 Sim2Real
-- [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]: **熵引导演示加速** — 倍速专家演示 + H(π) 控制
-- [[Vision-force-fused Curriculum Learning for Robotic Assembly]]: 视觉-力多模态课程的阶梯式训练
-
-### 长时程操作与特权学习
-- [[Learning Long-Horizon Robot Manipulation Skills via Privileged Action]]: **特权动作**简化长时程任务的探索
-- [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]: 3D 部件引导 RL 跨铰接物体 Sim2Real
-
-### 灵巧手 Sim-to-Real 专项
-- [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]]: 首个 arm-hand VLA 人在回路 post-training
-- [[sim2real|硬件 Sim-to-Real Gap 分析]]: 电机/减速器/传动方案对 RL 策略迁移的系统影响
+- [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]]：MLLM 驱动双臂数据生成 + 5 轴域随机化
 
 ### VLA 在线精细化与人形运动
-- [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]]: **RL Token 信息瓶颈** — 冻结 VLA + 轻量级 actor-critic 在线精细化，15 分钟真实数据实现 3× 加速
-- [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]]: **Physics-prefix 引导的运动生成** — 课程 MoE + 262D 机器人原生扩散 + PPO 闭环微调，解决长尾敏捷运动
+- [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]]：RL Token 信息瓶颈，冻结 VLA + 轻量级 actor-critic
+- [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]]：首个 arm-hand VLA 人在回路 post-training
+- [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]]：Physics-prefix 引导运动生成
+- [[Unified Policy Evaluation and Improvement - On Off-Policy Classification|Unified Policy]]：On/Off-Policy 统一分类（evaluation × improvement schedule）
+
+### 真机 RL 系统
+- [[SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning|SERL]]：真实世界 RL 系统
+- [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]：人在回路校正
+- [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation|残差学习]]：接触丰富任务的残差 DMP
+
+### 项目级真机 RL Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/_InsightsIndex|WMTS Insights Index]]：15 个真机 RL 角度的 idea（reward / sim-to-real / autonomy 三主线）
+- 重点：[[Projects/World Model as Task Scheduler/all_Insights_local/Idea-001-Tactile-Anchored-Reward|TAR（无 GT pose reward）]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-008-Physics-Aware-PER|PA-PER]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-011-WM-Importance-Weighted-Diffusion|WMID off-policy diffusion RL]] · [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-015-Reset-Free-Autonomy|Reset-Free Autonomy]]
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---

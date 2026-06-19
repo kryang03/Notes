@@ -21,8 +21,8 @@ related:
 
 # Touch Dexterity: Rotating without Seeing - Towards In-hand Dexterity through Touch
 
-> [!abstract] 核心概要
-> 提出 Touch Dexterity 系统，使用**密集二值力传感器阵列**（16 个 FSR）实现**纯触觉**的手内物体旋转，无需视觉输入即可泛化到训练中未见过的物体。
+> [!abstract] 核心贡献
+> 针对"高精度触觉(GelSight)局部、昂贵、且连续力值仿真难对齐 → sim-to-real gap 大"这一瓶颈，提出 Touch Dexterity：用 16 个廉价**二值**力传感器(FSR)覆盖 palm+指节+指尖，纯触觉(无视觉)学手内旋转。结构性洞见：**把触觉降到 1-bit 反而消除了 sim-to-real gap——只要仿真力与真机力落在阈值同侧，二值读数就完全一致；信息损失靠"全手 16 空间通道 + 时间过采样"补回（类 Sigma-Delta）。** 训练于简单几何体，零样本泛化到 10+ 未见物体。
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] - PPO 策略学习
@@ -65,6 +65,20 @@ Touch Dexterity (纯触觉, 二值信号)
 3. **零样本泛化**: 训练于简单物体，测试于 10+ 复杂未见物体
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+本篇的"特权/部署"鸿沟比同簇 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] / [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]] 小——因为二值化让 sim 与真机的触觉**天然对齐**，无需 teacher-student 蒸馏特权 extrinsics（这正是它最省的地方，也是 §3.6 推导的核心）。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $q_t,\dot{q}_t$ | $\mathbb{R}^{16}$ | 观测（本体） | 否（输入） | 关节角/角速度 | — |
+| $b_t$ | $\{0,1\}^{16}$ | 观测（FSR 阈值化） | 否（输入） | 二值接触（全手 16 点） | **丢力幅值**；阈值同侧才对齐 |
+| $a_{t-1}$ | $\mathbb{R}^{16}$ | 网络上一步输出 | 否（作输入） | 上一动作 | PD 位置增量目标 |
+| $F_i$ | scalar | 传感器/仿真接触力 | 否 | 第 $i$ 点接触力 | 仿真 $\neq$ 真机，但被阈值吸收 |
+| $\theta_{th}$ | ~0.01 N | 超参/逐传感器校准 | 否 | 二值化阈值 | **必须 $\gg$ 噪声 RMS**；sim 做 ±20% DR |
+| $\Delta q$ | $\mathbb{R}^{16}$ | 网络输出 | 是（策略） | 关节位置增量 | **非力矩** |
+| $\hat{k}$ | $S^2$/轴 | 任务指令 | 否 | 目标旋转轴 | 指令轴 $\neq$ 实际角速度 |
 
 ### 3.1 二值触觉表征
 
@@ -151,6 +165,31 @@ def compute_reward(obj_rot_diff, is_alive, joint_torques, target_axis):
 |---------|------|------|
 | **位置信息** | 物体在手中的位置 | 只有掌心传感器触发 → 物体在中央 |
 | **交互信息** | 关键接触点状态 | 拇指触发 → 可以开始推动旋转 |
+
+### 3.6 前置理论从零推导：二值化为何同时"够用"与"零 gap"
+
+把"二值触觉够用"和"消除 sim-to-real gap"两个论断从直觉提升到量化 + 信息论。
+
+**(A) 二值化消除 sim-to-real gap——量化吸收误差。**
+1. 仿真接触力 $F^{sim}$ 与真机 $F^{real}$ 因接触模型(spring-damper vs 真实摩擦)必然不同：$|F^{sim}-F^{real}|=\epsilon>0$。这是连续触觉 gap 的根源。
+2. 阈值化后观测是 $b_i=\mathbb{1}[F_i>\theta_{th}]$。只要 $F^{sim},F^{real}$ **落在阈值同侧**（$\epsilon$ 不跨越 $\theta_{th}$），则 $b_i^{sim}=b_i^{real}$——gap 被量化"吸收"为零。
+3. 因此 gap 只在 $F\approx\theta_{th}$ 的边界带残留；对 $\theta_{th}$ 做 ±20% DR 正是覆盖这条边界带（§4.5）。这解释 §4 消融"连续力值 → Real 掉到 ~40%、二值 → Real ~70%"的因果：连续值把 $\epsilon$ 直接喂进策略，二值值把 $\epsilon$ 截断。
+
+**(B) 16 个 1-bit 为何够用——空间+时间多路复用（Sigma-Delta 视角）。**
+1. 单个 1-bit 传感器信息极少（[[SignalProcessing]] 量化噪声理论：1-bit SNR ≈ 1.9 dB）。
+2. 瞬时观测有 $2^{16}$ 种组合，**空间多路复用**：哪些点接触 → 物体粗位姿 + 接触模式 $\mathcal{M}_t$。
+3. 20 Hz rollout 提供**时间多路复用**：接触模式的时序变化编码物体运动趋势。空间×时间过采样恢复出足以驱动旋转的状态——与 Sigma-Delta 调制"过采样 + 1-bit 换高精度低速采样"同构。
+4. 退化边界：若任务需**精确接触力控制**（易碎物体、精细力调制），1-bit 的力幅值缺失不可补，多路复用救不回来（§5 理论局限）。
+
+**(C) 接触模式即切换系统——与 finger gaiting 的统一。**
+二值向量 $b_t$ 就是接触模式 $\mathcal{M}_t=\{(i,c_i)\}$ 的指示器。每个模式对应一组接触约束（[[ContactMechanics]]），策略在模式间切换以推动旋转——这与 [[Lessons from Learning to Spin Pens|Spin Pens §2.2]] 的 finger gaiting 切换系统推导是**同一数学对象**：$b_t$ 显式观测了 Spin Pens 里隐式的接触模式序列 $\sigma(t)$。
+
+### 3.7 概念边界与符号陷阱
+- **$b_t$ 二值、丢力幅值**：能感知"接触有无/在哪"，不能感知"接触多重"——易碎物体/精细力控不适用。
+- **动作是关节位置增量、非力矩**：底层 PD 跟踪。
+- **$\theta_{th}$ 必须远离传感器噪声带**（阈值 $\gg$ 噪声 RMS），否则二值翻转、量化吸收失效。
+- **纯 MLP 无显式记忆**：状态估计隐含在 rollout 的 $b_t$ 时序里，不像 HORA/AnyRotate 用 TCN 显式编码历史——这是它最简、也是 §5"无时序状态估计"局限的来源。
+- **"零样本泛化"指未见物体、同一手/传感器布局**：换手或布局需重训。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -267,6 +306,9 @@ $$
 ├── Robot Synesthesia: 视触觉联合学习
 └── 更复杂任务: 装配、工具使用
 ```
+
+> [!note] 领域级 insight（与簇内综述互参）
+> Touch Dexterity 是 in-hand rotation 簇里"**最便宜感知**"的极点：放进 [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2 三轴坐标]]，它占"⟨有支撑⟩×⟨单轴⟩×⟨纯触觉(1-bit)⟩"格。与 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]]（同为单轴有支撑、但纯本体+RMA）的对比最有教益：两者都不用昂贵感知，HORA 靠"在线辨识物体参数(extrinsics)"、Touch Dex 靠"二值触觉直接观测接触模式"——前者把 gap 留给适应模块、后者用量化把 gap 截断在源头（§3.6A）。沿感知模态轴 HORA(本体)→Touch Dex(二值触觉)→[[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]](视触觉)→[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]](稠密触觉)，可清楚看到"加感知带来的自由度增益 vs sim-to-real 成本"的权衡谱。
 
 ### 跨方法结构化对比
 

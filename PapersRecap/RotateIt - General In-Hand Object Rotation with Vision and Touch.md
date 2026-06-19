@@ -16,12 +16,14 @@ related:
   - "[[RepresentationLearning]]"
   - "[[SignalProcessing]]"
   - "[[ComputationalGeometry]]"
+  - "[[ContactMechanics]]"
+  - "[[Dynamics]]"
 ---
 
 # RotateIt: General In-Hand Object Rotation with Vision and Touch
 
-> [!abstract] 核心概要
-> 首次将视觉和触觉传感融合用于通用手内物体多轴旋转，提出 Visuotactile Transformer 实现对物体形状和物理属性的在线推断。
+> [!abstract] 核心贡献
+> 针对"纯本体策略只能绕阻力最小的 z 轴旋转、无法处理多轴与复杂形状"这一瓶颈，提出 **Visuotactile Transformer**：把视觉(深度)+触觉(接触位置)+本体的历史序列融合，在线推断物体形状 $z^{shape}$ 与物理属性 $z^{phys}$ 这组 extrinsics，用单一策略实现 x/y/z 多轴手内旋转。结构性洞见：**多轴旋转的真正瓶颈是"几何可观测性"——非 z 轴旋转强依赖物体形状，必须显式编码而非寄望隐式适应。**
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 从特权信息到 extrinsics 编码
@@ -64,6 +66,22 @@ Robot Synesthesia (2024): 点云触觉统一表示
 3. **统一框架**: 一个策略处理多种物体的多轴旋转
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+理解全文的钥匙：Oracle 用**特权真值** $z_t$ 训练，Student 部署时只能用 Visuotactile Transformer 的**预测** $\hat{z}_t$ 代替——这一对区分是整个 Teacher-Student 框架存在的理由（与 [[Lessons from Learning to Spin Pens|Spin Pens]] 的"特权 vs 本体"同构，但 RotateIt 走"预测 extrinsics"、Spin Pens 走"开环回放"，见 §7）。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $q_t$ | $\mathbb{R}^{16}$，取 $q_{t-2:t}$ | 观测（本体） | 否（输入） | 关节角历史 | 是位置非速度；与动作历史拼成 $\mathbb{R}^{96}$ |
+| $a_{t-1}$ | $\mathbb{R}^{16}$，取 $a_{t-3:t-1}$ | 网络上一步输出 | 否（作输入） | PD 位置目标 | 动作是 target pose，**非力矩** |
+| $o_t^{depth}$ | 深度图 | 观测（视觉） | 经 ConvNet 带梯度 | 物体前景深度 | 归一化到**手掌参考系**消相机外参；用深度非 RGB 减 gap |
+| $o_t^{touch}$ | $\mathbb{R}^{N_c\times9}$ | 观测（触觉） | 经 MLP 带梯度 | 接触位置(8 维 one-hot)+手指索引 | **one-hot 离散**非连续坐标——换噪声鲁棒 |
+| $z_t^{phys}$ | $\mathbb{R}^8$ | **特权**（仿真真值） | 否 | 质量/质心/摩擦/尺度/恢复系数+位姿 | 真机不可观测 |
+| $z_t^{shape}$ | $\mathbb{R}^{c_p}$ | **特权**几何→PointNet | PointNet 参数带梯度 | 物体形状编码 | 部署靠 $\hat{z}_t$ 预测代偿 |
+| $\hat{z}_t$ | $\mathbb{R}^{\dim z}$ | Visuotactile Transformer 输出 | 是 | 预测的 extrinsics $[z^{phys},z^{shape}]$ | **部署用 $\hat{z}_t$ 代替特权 $z_t$**——T-S 信息瓶颈 |
+| $k$ | $\mathbb{R}^3$ unit | 任务指令 | 否 | 期望旋转轴 | $k$ 是指令轴，$\neq$ 实际角速度 $\omega$ |
+| $\omega$ | $\mathbb{R}^3$ | **特权**（仿真真值） | 否 | 物体角速度 | 进入奖励 $r_{rotr},r_{rotp}$，真机不可直接测 |
 
 ### 3.1 Oracle Policy Training
 
@@ -133,6 +151,33 @@ $$
 1. 深度是物体形状的良好抽象
 2. RGB 的 sim-to-real gap 更大
 3. 通过 Segment Anything 分割前景物体减小 gap
+
+### 3.5 前置理论从零推导：为什么非 z 轴旋转更难、形状为何必须显式编码
+
+范本要求把"形状编码有效"从经验观察推到物理必然。根在刚体旋转的惯性张量与陀螺项。
+
+**第 1 步——刚体旋转的欧拉方程。** 物体角动量 $L=I\omega$（$I$ 为惯性张量，依赖物体几何与质量分布）。欧拉方程：
+$$I\dot{\omega} + \omega\times(I\omega) = \tau,$$
+$\tau$ 是各手指接触力矩之和。
+
+**第 2 步——绕主轴 vs 非主轴。** 当 $\omega$ 平行于惯性主轴时 $I\omega\parallel\omega$，陀螺项 $\omega\times(I\omega)=0$，旋转"自然稳定"、所需力矩小。当 $\omega$ 偏离主轴，$\omega\times(I\omega)\neq 0$ 产生进动力矩，必须由手指额外补偿才能维持定轴旋转。
+
+**第 3 步——主轴方向由形状决定 ⇒ 形状不可省。** 惯性张量 $I$ 完全由物体几何决定。对细长/不规则物体，绕 x/y 轴旋转就是绕**非主轴**旋转，所需补偿力矩依赖 $I$，而 $I$ 只能从**形状**推出。这正是 PointNet 显式编码 $z^{shape}$ 的物理必然——它给策略提供推算陀螺项所需的几何先验（直接解释 §4 消融"去形状→x/y 轴 RotR 掉 ~30%、z 轴几乎不受影响"）。
+
+**第 4 步——$r_{\text{rotp}}$ 的物理含义。** $r_{\text{rotp}}=-\|\omega\times k\|_1$ 惩罚角速度对指令轴 $k$ 的偏离，本质是**抑制陀螺进动导致的轴漂移**；没有它策略会滑向阻力最小的主轴（通常 z 轴），即 §4 消融"去 $r_{\text{rotp}}$→非目标轴严重偏离"。
+
+**第 5 步——extrinsics 即隐式系统辨识。** $z^{phys}$（质量/摩擦/质心）真机不可观测，Visuotactile Transformer 从历史 $(q,a,o^{depth},o^{touch})$ 序列回归出 $\hat{z}_t$，等价于在线 system ID。这与 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 的 RMA 同源（[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|RL §5]] 特权学习），差别是 RotateIt 加了视触觉输入、用 Transformer 做时序辨识。
+
+**退化情形（解释 HORA 为何 z 轴够用）。** 球/立方体惯性张量近各向同性、主轴退化，无显著形状依赖——故 HORA 纯本体在 z 轴 RotR 99.83 已够好，但一到 x/y 轴（79–82）就被 RotateIt（118–125）拉开。
+
+### 3.6 概念边界与符号陷阱
+
+- **特权 $z_t$ vs 预测 $\hat{z}_t$**：性能上界由 Oracle（用真值 $z_t$）决定，sim-to-real gap 由 $\hat{z}_t$ 预测质量决定——Teacher-Student 的根本切分。
+- **$k$（指令轴）vs $\omega$（实际角速度）**：奖励 $r_{\text{rotr}},r_{\text{rotp}}$ 的作用就是把 $\omega$ 对齐到 $k$。
+- **触觉 one-hot 离散 vs 连续坐标**：刻意的信息瓶颈，牺牲定位分辨率换 sim-to-real 鲁棒。
+- **深度图归一化到手掌参考系**：消除相机外参偏差，否则视觉 sim-to-real gap 不可控。
+- **策略 ~10 Hz vs PD 1 kHz**：动作是低频位置目标，由高频 PD 跟踪，避免在力矩空间直接迁移。
+- **每轴独立策略**：x/y/z 分别训练而非单一任意轴策略——这是与 [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]（真正任意轴）的关键区别，也是 §5 算法局限的来源。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -209,32 +254,28 @@ $$
 ### 与 [[ContactMechanics]] 的联系
 - 触觉传感器捕获的接触位置直接编码了接触点几何信息
 
-## 7. 跨方法结构性对比
+## 7. 跨方法对比与 in-hand rotation 领域定位
 
-| 维度 | RotateIt | HORA | AnyRotate | Touch Dexterity |
-|------|----------|------|-----------|----------------|
-| **感知模态** | 视觉+触觉+本体 | 仅本体 | 触觉+本体 | 触觉+本体 |
-| **旋转轴** | x/y/z（分别训练） | 仅 z | z（任意重力） | z |
-| **物体编码** | PointNet 显式 | 隐式适应 | 隐式+子目标 | 无 |
-| **时序模型** | Transformer | MLP+适应 | TCN | LSTM |
-| **Sim-to-Real** | SAM+DR | DR | DR+触觉蒸馏 | 二值化触觉 |
-| **PPO适用性** | Teacher-Student可迁移 | RMA范式最近 | 子目标课程有借鉴 | 二值触觉最易复现 |
+### 7.1 跨方法结构性对比
 
-## 7. 演进脉络定位 (Evolution Context)
+| 维度 | RotateIt | HORA | AnyRotate | Touch Dexterity | [[Lessons from Learning to Spin Pens\|Spin Pens]] |
+|------|----------|------|-----------|----------------|-----------|
+| **感知模态(部署)** | 视觉+触觉+本体 | 仅本体 | 稠密触觉+本体 | 纯触觉+本体 | 纯本体 |
+| **旋转轴** | x/y/z（分别训练） | 仅 z | 任意轴(重力不变) | z | z(多圈) |
+| **物体/支撑** | 多形状(有支撑) | 多形状(有支撑) | 多形状(任意朝向) | 多形状 | **笔(无支撑)** |
+| **物体编码** | PointNet 显式 | 隐式适应 | 隐式+子目标 | 无 | 点云(特权) |
+| **时序模型** | Transformer | MLP+RMA | TCN | LSTM | Temporal Transformer |
+| **Sim-to-Real 路线** | SAM+蒸馏 $\hat{z}_t$ | 在线适应 RMA | DR+触觉蒸馏 | 二值化触觉 | **Open-loop Replay** |
+
+### 7.2 演进脉络
 
 ```
-前置工作:
-├── OpenAI (2019): 视觉 + Domain Randomization
-├── HORA (2023): 本体感觉 + RMA
-└── Chen et al. (2023): 视觉 + 任意姿态重定向
-
-本论文: RotateIt
-├── Visuotactile Transformer
-├── 显式形状编码
-└── 多轴旋转
-
-后续影响:
-├── AnyRotate: 重力不变 + 稠密触觉
-├── Robot Synesthesia: 点云触觉统一
-└── 视触觉通用操作策略
+前置: OpenAI Dactyl(2019) 视觉+DR  →  HORA(2023) 本体+RMA
+                                          ↓
+本文 RotateIt(2023): Visuotactile Transformer + 显式形状编码 + 多轴
+                                          ↓
+后续: AnyRotate 任意轴+稠密触觉 · Robot Synesthesia 点云触觉统一 · Touch Dexterity 纯触觉
 ```
+
+> [!note] 领域级 insight（与 [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2 领域综述]] 互参）
+> RotateIt 在领域里的独特贡献是回答了"**多轴**旋转缺什么"——答案是 §3.5 论证的**几何可观测性**：用惯性张量把"显式形状编码"确立为非 z 轴旋转的必要条件，这是 HORA 隐式适应路线触及不到的维度。把本篇放进 Spin Pens §7.2 的三轴坐标系：RotateIt 占据"⟨有支撑⟩×⟨多轴⟩×⟨视触觉可观测⟩"格，它与 AnyRotate 的差距正是"分别训练 x/y/z" vs "单一任意轴"。沿这条线，领域空白仍是"**无支撑+任意轴+纯本体**"——RotateIt 的形状编码 + Spin Pens 的无支撑数据引擎，是攻这格的两块拼图。

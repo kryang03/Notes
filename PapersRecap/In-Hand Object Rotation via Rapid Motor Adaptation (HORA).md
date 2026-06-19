@@ -22,8 +22,8 @@ related:
 
 # In-Hand Object Rotation via Rapid Motor Adaptation (HORA)
 
-> [!abstract] 核心概要
-> 提出 **快速电机适应 (Rapid Motor Adaptation)** 框架，通过学习物体物理属性的压缩表征 (extrinsics)，实现**仅用本体感觉**在真实世界中旋转 30+ 种不同大小、形状、质量的物体，无需视觉或触觉。
+> [!abstract] 核心贡献
+> 针对"手内操作要么依赖易受遮挡/光照影响的外部视觉、要么靠域随机化牺牲性能换鲁棒"这一瓶颈，把腿足机器人的 **快速电机适应 (Rapid Motor Adaptation, RMA)** 迁移到手内：两阶段训练一个以物体属性压缩表征 $z$ (extrinsics) 为条件的策略，再用本体感觉历史在线估计 $\hat{z}$，实现**仅用本体感觉**零样本旋转 30+ 种未见物体，无需视觉或触觉。结构性洞见：**物体物理属性无需显式传感，可作为动力学参数的低维充分统计量从交互历史中隐式辨识——"域随机化解决鲁棒性，适应解决最优性"。**
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - PPO 策略学习
@@ -78,6 +78,22 @@ HORA (仅本体感觉 + 快速适应)
 3. **稳定指尖抓持**: 自动涌现的自然手指步态 (finger gaits)
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+RMA 的全部精妙都压在 $z_t$（Stage 1 编码器真值）与 $\hat{z}_t$（Stage 2 估计、部署用）这一对区分上——这与 [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]] 的特权/预测 extrinsics 同构（§7 综述）。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $o_t$ | $\mathbb{R}^{48}$ | 观测（本体） | 否（输入） | 关节角/角速度/上一动作 | **不含物体位姿**——actor 看不到 |
+| $a_t$ | $\mathbb{R}^{16}$ | 网络输出 | 是（策略） | PD 位置目标 | **非力矩**；部署经 EMA 平滑 |
+| 物体属性 | $\mathbb{R}^{prop}$ | **特权**（仿真参数） | 否 | mass/scale/friction/CoM | 真机不可观测——RMA 要隐式辨识的对象 |
+| $z_t$ | $\mathbb{R}^8$ | 编码器 $\mu$ 输出（特权） | Stage 1 是 / Stage 2 detach | extrinsics 真值 | base policy 的条件，Stage 2 须 frozen |
+| $\hat{z}_t$ | $\mathbb{R}^8$ | 适应模块 $\phi$ (TCN) 输出 | 是（Stage 2 监督） | 估计的 extrinsics | **部署用 $\hat{z}$ 代 $z$**；可辨识性无保证 |
+| $\mu$ | params | 网络（Stage 1） | 是 | 属性→extrinsics 编码器 | Stage 2 必须冻结，否则表征漂移 |
+| $\phi$ | params | 网络（Stage 2, TCN） | 是 | 历史→extrinsics 估计器 | TCN 无隐状态，部署比 RNN 稳 |
+| $H$ | =50 步 | 超参 | — | 历史窗口 | 太短估计方差大（§4 消融）；按旋转周期调 |
+| $\tau$ | $\mathbb{R}^{16}$ | PD 计算 | — | $K_p(a-q)+K_d\dot{q}$ | extrinsics 正是从 $\tau$/$q$ 历史反推 |
 
 ### 3.1 两阶段训练框架
 
@@ -196,12 +212,38 @@ $$
 - $r_{\text{torque}}$: 关节扭矩惩罚
 - $r_{\text{work}}$: 能量惩罚
 
-### 3.4 Extrinsics 的可解释性
+### 3.5 Extrinsics 的可解释性
 
 训练后分析发现 extrinsics 空间具有语义结构：
 - 某些维度与**质量**高度相关
 - 某些维度与**尺寸**高度相关
 - 低维流形结构确实存在
+
+### 3.6 前置理论从零推导：为什么 extrinsics 是"充分统计量"
+
+把 RMA 从工程 trick 提升到理论：它是 POMDP 下用**低维充分统计量 + 摊还推断**替代显式 belief 滤波。
+
+**第 1 步——完全可观 MDP 的最优策略。** 若物体参数 $\psi$（质量/摩擦/CoM/尺寸）已知，问题是标准 MDP，最优策略 $\pi^*(a\mid o,\psi)$。
+
+**第 2 步——真机里 $\psi$ 不可观 ⇒ POMDP。** 仅本体观测 $o_t$ 不含 $\psi$，系统是 POMDP，最优策略依赖 belief $b_t=p(\psi\mid o_{1:t},a_{1:t-1})$。直接维护高维 belief 在灵巧手上不现实。
+
+**第 3 步——低维充分统计量假设。** 对"旋转"任务，$\psi$ 只通过物体动力学影响轨迹（[[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)|Dynamics §5]]）：
+$$M_o(q_o)\ddot{q}_o + C_o(q_o,\dot{q}_o)\dot{q}_o + g_o(q_o) = J_c^T f_c.$$
+$(M_o,C_o,g_o)$ 中的物体参数可被一个低维 $z=\mu(\psi)\in\mathbb{R}^d$ 概括，使 $\pi^*(a\mid o,b)\approx\pi(a\mid o,z)$。**$z$ 就是 $\psi$ 对该任务的充分统计量**——这是 extrinsics 的数学定义，而非"压缩表征"这种含糊说法。
+
+**第 4 步——摊还推断替代贝叶斯滤波。** Stage 2 的 $\phi$ 用历史 $(o,a)_{t-H:t}$ 直接回归 $\hat{z}\approx z$，监督来自冻结的 $\mu$：$\min_\phi\|\mu(\psi)-\phi(\text{hist})\|^2$。这把"在线 belief 更新"换成一次**前馈估计 (amortized inference)**；为什么能行：力矩历史 $\tau=K_p(a-q)+K_d\dot{q}$ 编码了 $\psi$ 对运动的影响，$H=50$ 步足以让这个反问题良置。
+
+**第 5 步——退化与失败边界（对应 §5 理论局限）。**
+- **不可辨识**：若 $\psi\mapsto$ (力矩历史) 非单射（不同质量+摩擦给相同 $\tau$ 历史），则 $z$ 不可辨识、$\hat{z}$ 收敛到混淆解——正是 §5"无可辨识性保证"的数学根。
+- **充分性失效**：若任务需精确位姿控制（装配），$\psi$ 不再只通过低维 $z$ 影响最优动作，充分统计量假设破裂，RMA 范式失效。
+
+### 3.7 概念边界与符号陷阱
+
+- **$z_t$（Stage 1 真值）vs $\hat{z}_t$（Stage 2 估计、部署用）**：性能上界由用真值 $z$ 的 Oracle 决定，真机 gap 由 $\hat{z}$ 估计质量决定。
+- **动作是 PD 位置目标、非力矩**：$\tau=K_p(a-q)+K_d\dot{q}$；部署再经 EMA 平滑 $a^{smooth}=\alpha a_t+(1-\alpha)a_{t-1}$。
+- **extrinsics 可辨识性无保证**：见 §3.6 第 5 步。
+- **Asymmetric Actor-Critic**：critic 可看特权物体位姿、actor 只用本体——critic 的特权 $\neq$ 部署可用信息，只为降 value 方差、加速 PPO。
+- **$H=50$ 是"属性辨识窗口"非控制 horizon**：长度由物体参数可辨识所需激励时长决定，不是任务时长。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -383,6 +425,9 @@ HORA 的成功间接验证了 [[ContactMechanics#6. 仿真到现实 (Sim2Real) �
 ├── DexTrack (2024): 人类参考 + 同伦优化
 └── General In-Hand Rotation (2024): 视触觉联合
 ```
+
+> [!note] 领域级 insight（in-hand rotation 簇的理论中心）
+> HORA 是这条线的**原点**：它把"物体属性隐式辨识"确立为范式，后续 [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]（加视触觉、多轴）、[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]（任意轴+稠密触觉）、[[Lessons from Learning to Spin Pens|Spin Pens]]（无支撑笔）都在补 HORA 没覆盖的维度。沿 [[RotateIt - General In-Hand Object Rotation with Vision and Touch#7.2 演进脉络|RotateIt §7.2]] / [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2]] 的三轴坐标，HORA 占据"⟨有支撑⟩×⟨z 轴⟩×⟨纯本体⟩"的原点格——它最简，也因此成为衡量"多加一种模态/换一个任务带来多少增益"的基线。其 §6 insight"DR 解决鲁棒性、适应解决最优性"是整个簇评估实验的共同尺子。
 
 ---
 

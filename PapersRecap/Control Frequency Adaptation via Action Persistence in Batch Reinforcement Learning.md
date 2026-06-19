@@ -29,10 +29,12 @@ related:
 
 # Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning
 
-> [!note] Foundation 关联
-> - **[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]]**: Batch RL / FQI 算法基础
-> - **[[ControlTheory]]**: 控制频率与采样定理
-> - **[[SignalProcessing]]**: 信号采样与 Nyquist 频率
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|ReinforcementLearning §5]] — Batch RL / FQI 算法基础；persistence $k$ 等价于 $\gamma\to\gamma^k$ 的有效视野改变
+> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制|ControlTheory §3]] — $k$-persistent 转移核 = 零阶保持器(ZOH)离散化，采样周期 $T_s=k\Delta t_0$
+> - [[SignalProcessing]] — 动作持续 = 截止频率 $f_c=f_s/2k$ 的低通滤波；性能损失界对应 Shannon 采样定理
+>
+> **核心技术**: Action Persistence, Persistent Bellman Operator, PFQI (Persistent Fitted Q-Iteration), Configurable MDP
 
 > [!abstract] 核心贡献
 > 提出 **Action Persistence**（动作持续）的形式化框架：在 $k$ 个决策步内重复同一动作，等价于修改控制频率。证明了持续算子的收缩性质，导出最优性能损失界，并提出 **PFQI** (Persistent Fitted Q-Iteration) 算法。
@@ -71,6 +73,23 @@ related:
 ---
 
 ## 2. 数学框架
+
+### 2.0 核心符号与算子溯源
+
+理论论文的"变量来源追踪"= 把每个数学对象的来源(假设/构造/推导/学习)与陷阱讲清。本文全部精妙都在 $T^\delta$（动作不变算子）与 $\gamma^k$（缩短的视野）这两处。
+
+| 符号/算子 | 类型 | 来源 | 物理/算法意义 | 符号陷阱 |
+|------|------|------|----------------|----------|
+| $k$ | 正整数 | 超参（可配置） | persistence / 动作重复步数 | 等价于降频；是 environment 旋钮，不是网络参数 |
+| $\Delta t_0$ | 时间 | 物理（基础步长） | 原始控制周期 | 性能损失界 $O(k\Delta t_0)$ 的标度 |
+| $T^\delta$ | 算子 | **构造** | 动作不变转移（强制保持上一动作） | 区别于 $T^\pi$（重新决策）——本文核心构造 |
+| $T_k^\pi=T^\pi(T^\delta)^{k-1}$ | 算子 | 推导 | $k$-persistent 期望算子 | 复合顺序：先 $k{-}1$ 次保持、再决策一次 |
+| $T_k^*=T^*(T^\delta)^{k-1}$ | 算子 | 推导 | $k$-persistent 最优算子 | $\gamma^k$-收缩（定理） |
+| $P_k=(P^\delta)^{k-1}P$ | 转移核 | 推导 | $k$ 步复合转移 | = ZOH 离散化，$T_s=k\Delta t_0$（§10） |
+| $R_k=\sum_{i=0}^{k-1}\gamma^i(P^\delta)^iR$ | 奖励 | 推导 | $k$ 步累积折扣奖励 | 沿"保持动作"的轨迹累积，非任意轨迹 |
+| $M_k=(S,A,P_k,R_k,\gamma^k)$ | MDP | 推导 | $k$-persistent MDP | **折扣是 $\gamma^k$ 非 $\gamma$**——有效视野缩短 |
+| $Q_k^*$ | 值函数 | 学习（PFQI） | $M_k$ 的最优 Q | 与 $Q_1^*$ 差 $O(k\Delta t_0)$ |
+| $(L_P,L_r)$ | Lipschitz 常数 | **假设** | 动力学/奖励光滑度 | 接触不连续任务不满足（§8 局限） |
 
 ### 2.1 Action Persistence 定义
 
@@ -113,6 +132,15 @@ $$T_k^* f = T^* (T^\delta)^{k-1} f$$
 > $T_k^\pi$ 和 $T_k^*$ 在 $L_\infty$ 范数下是 $\gamma^k$-收缩的，因此存在唯一不动点。
 
 ---
+
+### 2.4 概念边界与符号陷阱
+
+- **$T^\delta$（保持）vs $T^\pi$（决策）**：persistent 算子是"$k{-}1$ 次保持 + 1 次决策"的复合 $T_k^\pi=T^\pi(T^\delta)^{k-1}$，顺序不可反。
+- **折扣是 $\gamma^k$ 非 $\gamma$**：persistence 缩短有效视野 $\frac{1}{1-\gamma^k}<\frac{1}{1-\gamma}$ → 大 $k$ 策略近视（§8）。
+- **$k$ 全局固定、非状态依赖**：PFQI 的 $k$ 对整个 MDP 固定；状态依赖 $k(s)$ 是 VTS-RL/TARC 的方向（§6.4）。
+- **数据复用的隐含假设**：用 $k{=}1$ 数据估计任意 $k$，依赖 $(P^\delta)^{k-1}$ 的 bootstrap 精度——大 $k$ + 非线性动力学时误差累积（§4.5）。
+- **性能损失界 $O(k\Delta t_0)$ 的来源**：Lipschitz 假设下每步动力学/奖励变化有界，$k$ 步保持的累积偏差线性于 $k\Delta t_0$；**falsifier**：接触不连续（非 Lipschitz）任务里该界失效（§8）——这恰是它不能直接用于灵巧手接触操作的原因。
+- **persistence 改变采样分布的熵**：影响探索质量，不只是改变控制时间尺度。
 
 ## 3. 性能损失分析
 
@@ -262,6 +290,23 @@ def pfqi_train(q_net, dataset, k_candidates, gamma, n_iters=100):
 - **折扣因子调整**：persistence $k$ 等价于 $\gamma \to \gamma^k$
 - **有效视野缩短**：$\frac{1}{1-\gamma^k} < \frac{1}{1-\gamma}$
 - **样本效率**：低频 → 高样本效率，但受限策略空间
+
+### 6.4 领域级综述：control frequency / time-step 簇（本篇为理论锚点）
+
+这个簇围绕一个长期被当成固定超参、实则可学/可配置的维度——**何时重新决策（控制频率 / 时间分辨率）**。把成员放到"频率固定还是自适应 × 用什么机制调"两轴：
+
+| 论文 | 频率机制 | 固定/自适应 | 理论保证 |
+|------|---------|------------|---------|
+| **本文 PFQI** | action persistence（重复 $k$ 步） | 全局固定 $k$，离线选 | ✅ 收缩性 + 性能损失界 |
+| [[Elastic Time Step Reinforcement Learning, VTS-RL\|VTS-RL]] | 弹性时间步长 $\Delta t$ | **状态依赖** | 弱 |
+| [[TARC - Time-Adaptive Robotic Control\|TARC]] | 时间自适应控制 | 状态依赖 | 弱 |
+| [[Reinforcement Learning for Control with Multiple Frequencies\|Multiple Frequencies]] | 多频率分量并存 | 多尺度 | 中 |
+| [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks\|EvoControl]] | 进化高频底层控制 | 双层(高频底层+低频上层) | 弱 |
+| [[Dynamic Reinforcement Learning for Actors\|Dynamic RL for Actors]] | 连续时间 actor | 连续 | 中 |
+
+> [!note] 领域 insight（新开启）
+> PFQI 把控制频率形式化为 **Configurable MDP 的旋钮**，并给出唯一**有理论保证**的离线选 $k$ 方法，但代价是**全局固定 $k$**；后续工作（VTS-RL/TARC）把它放松为**状态依赖 $k(s)/\Delta t(s)$**，却普遍**丢失了 PFQI 的理论保证**。于是这个簇的真正空白是"**状态依赖频率 + 收敛/性能保证**"——既要 VTS-RL 的灵活、又要 PFQI 的界。
+> **与 WMTS 的联系**：WMTS task scheduling 本质是"在什么时间粒度上重新规划/决策"，正是本簇核心问题。PFQI 的状态依赖 $k^*(s)$ 思想（§9：接触瞬间 $k{=}1$、空中段 $k{=}4\sim8$）可直接作为 WMTS 调度粒度的设计原则；而本簇空白（状态依赖 + 保证）正是 WMTS 可贡献理论的切入点。
 
 ---
 

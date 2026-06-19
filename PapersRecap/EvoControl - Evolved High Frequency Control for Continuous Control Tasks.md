@@ -20,10 +20,15 @@ related:
 
 # EvoControl: Evolved High Frequency Control for Continuous Control Tasks
 
-> [!note] Foundation 关联
-> - **[[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]]**: PPO 高层策略
-> - **[[ControlTheory]]**: 高低频分层控制架构
-> - **[[SignalProcessing]]**: 500Hz 高频控制信号处理
+> [!abstract] 核心贡献
+> 针对"高频控制要么用 direct torque RL（长 horizon → 信用分配指数衰减、难学）、要么用固定 PD（需手调、不灵活）"这一两难，提出 EvoControl 双层框架：高层 PPO 低频(30Hz)给目标、低层 **Neuroevolution** 高频(500Hz)学力矩控制器。结构性洞见：**高频控制的难点是信用分配 $\gamma^{T-t}\to0$；与其降低频率来回避它（簇内其它工作的路线），不如保留高频、改用无梯度的进化搜索学低层——绕开 BPTT 穿越长轨迹的梯度消失。**
+
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|ReinforcementLearning §2.5]] — 高层 PPO 策略；高频长 horizon 的信用分配 $\gamma^{T-t}$ 指数衰减是核心困难
+> - [[ControlTheory]] — 双层 = 级联控制，内/外环带宽比 $\approx16.7\ge5$ 满足稳定性条件
+> - [[SignalProcessing]] — 500Hz 对接触瞬态(~100Hz)提供 2.5× Nyquist 采样裕度
+>
+> **核心技术**: Hierarchical Control, Neuroevolution (低层), PPO (高层), High-Frequency Control
 
 ## 元信息
 - **作者**: Samuel Holt, Atil Iscen, Todor Davchev, et al.
@@ -56,6 +61,21 @@ Low-Level Policy β (Neuroevolution, 500Hz)
         ↓ uk (力矩)
     Environment
 ```
+
+### 变量来源追踪
+
+EvoControl 最反常识处：**两层用不同的学习范式**——高层 $\rho$ 走 PPO（梯度），低层 $\beta$ 走 Neuroevolution（无梯度）。这正是为绕开高频长 horizon 的梯度消失。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $o_t$ | 完整观测 | 观测（含外部感知） | 否（输入） | 高层观测 | 高层用完整观测 |
+| $a_k$ | 目标位置/速度 | 高层 $\rho$ 输出 | 是（PPO 梯度） | 高层给低层的目标 | **是目标非力矩** |
+| $s_t$ | 本体感知 | 观测 | 否（输入） | 低层观测 | 低层仅本体（不含外部） |
+| $u_k$ | 力矩 | 低层 $\beta$ 输出 | **否（Neuroevolution 无梯度）** | 实际力矩 | 低层不回传梯度 |
+| $\rho$ | params | PPO 学习（30Hz） | 是 | 高层策略 | 梯度法 |
+| $\beta$ | params | **Neuroevolution**（500Hz） | **否（population 扰动）** | 低层控制器 | 无梯度，避 BPTT |
+| 频率比 | 1:16 | 超参（固定） | 否 | 高:低 = 30:500Hz | 固定、非自适应 |
+| fitness | scalar | 进化评估 | 否 | 个体适应度 | 每个体需完整 rollout |
 
 ### 关键创新：Neuroevolution 学习低层控制器
 
@@ -224,6 +244,11 @@ def neuroevolution_step(population, fitness_fn, elite_frac=0.1, sigma=0.02):
 | 高低层都用 RL | 低层用 Neuroevolution |
 | 注意力机制选择频率 | 固定频率比 (30Hz/500Hz) |
 
+> [!note] 簇定位与新 insight（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning#6.4 领域级综述：control frequency / time-step 簇（本篇为理论锚点）|PFQI §6.4 簇综述]] 的三维分解互参）
+> **① EvoControl 揭示簇内两条正交路线。** 簇里 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI]] / [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]] / [[Reinforcement Learning for Control with Multiple Frequencies|AP-AC]] / [[TARC - Time-Adaptive Robotic Control|TARC]] 都走**路线 A：降低决策频率**（persistence/弹性步/多频/自适应步，本质都是"少决策"以回避高频长 horizon 的信用分配 $\gamma^{T-t}\to0$）；EvoControl 走**路线 B：保留高频、换无梯度学习**（Neuroevolution 学低层，绕开 BPTT 梯度消失）。前 4 篇回避高频，EvoControl 正面攻克——这是被忽略的正交维度。
+> **② "多频率"有两种正交来源**：AP-AC 的多频率来自**动作维度分解**（不同动作变量不同 $c^k$），EvoControl 的多频率来自**时间层级分解**（高层慢规划 + 低层快执行）。二者正交、可叠加（多变量 × 多层级）。
+> **与 WMTS**：WMTS 的 world-model-as-scheduler 天然分层（慢调度 + 快执行），结构上接近 EvoControl 的路线 B；但 WMTS 想要可学的调度粒度（路线 A 的自适应）。**WMTS 的独特性可能正在于合并两条路线**——分层结构(B) + 自适应调度粒度(A) + 折扣正确性(TARC) + 多变量(AP-AC)，这是整个簇向 WMTS 收敛的图景。
+
 ---
 
 ## 核心洞见
@@ -237,6 +262,15 @@ def neuroevolution_step(population, fitness_fn, elite_frac=0.1, sigma=0.02):
 > 这种分工符合人类神经系统的层次结构。
 
 ---
+
+## 概念边界与符号陷阱
+
+- **两层学习范式不同**（核心反常识）：高层 $\rho$ 用 PPO（梯度），低层 $\beta$ 用 Neuroevolution（无梯度）——刻意为之，绕开高频长 horizon 的 BPTT 梯度消失。
+- **$a_k$ 是目标（位置/速度）、$u_k$ 才是力矩**：高层不直接出力矩，由低层把目标翻译成高频力矩。
+- **频率比 1:16 固定、非自适应**：EvoControl 不"调频率"（与 PFQI/VTS-RL/TARC 正交），而是分层 + 换低层学法。
+- **bi-level 优化无全局最优保证**：高层最优依赖低层、反之亦然，论文用交替优化。
+- **低层仅本体感知**：降复杂度，但低层"看不到"外部世界，只跟踪高层目标 + 本体反应。
+- **Neuroevolution 样本量 = population × episode_length**：每个体需完整 rollout，24-DoF 系统可能数千 GPU-hours（§工程局限）。
 
 ## 理论局限性深度分析
 

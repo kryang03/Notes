@@ -30,11 +30,13 @@ related:
 
 # How to Train Your Latent Control Barrier Function
 
-> [!note] Foundation 关联
-> - **[[ControlTheory#7. 鲁棒控制：对抗模型不确定性]]**: CBF 形式化定义（安全集、Lie 导数、CBF-QP）
-> - **[[ReinforcementLearning#2.6 Model-Based RL (MBRL): 样本效率与世界模型]]**: World Model 预测
-> - **[[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]]**: 视觉运动策略的潜空间
-> - **[[StochasticProcess]]**: Hamilton-Jacobi 可达性与值函数
+> [!tip] 与理论基础的关联
+> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性|ControlTheory §7]] — CBF 形式化（安全集、Lie 导数、CBF-QP）；HJ 可达性构造 CBF
+> - [[ReinforcementLearning#2.6 Model-Based RL (MBRL): 样本效率与世界模型|ReinforcementLearning §2.6]] — World Model (DINO-WM) 预测 + Actor-Critic 求 HJ 值
+> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)|RepresentationLearning §5]] — 视觉运动策略的潜空间
+> - [[StochasticProcess]] — Hamilton-Jacobi 可达性与值函数
+>
+> **核心技术**: Latent-space CBF, WGAN-GP 光滑 Margin, 混合策略采样, 采样优化安全过滤
 
 > [!abstract] 核心贡献
 > 提出 **LatentCBF**，解决了在隐空间中进行基于优化的安全过滤（CBF-style filtering）的两个关键挑战：(1) 分类器生成的 margin function 梯度饱和；(2) 安全策略与任务策略的分布失配导致值函数估计不准。
@@ -70,6 +72,21 @@ $$a^* = \argmin_{a \in \mathcal{A}} \|a - \pi^{\text{nom}}(s)\|, \quad \text{s.t
 
 ---
 
+### 1.3 变量来源追踪
+
+枢纽：**CBF 是部署时外挂滤波器（非训练约束）**、在 **DINO-WM 潜空间** $z$ 上做，且 **margin 光滑性线性传递到值函数光滑性**（§2.1 Theorem）。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $z$ | $\mathbb{R}^{64}$ | DINO-WM 编码（frozen） | 否（输入） | 隐状态 | CBF 在**潜空间**做，非显式状态 |
+| $\ell(z)$ | scalar | WGAN 判别器（学习） | 是 | margin function | **无 sigmoid**（Wasserstein 实值）；硬分类器梯度饱和→失效 |
+| $V^\diamond(z)$ | scalar | critic（HJ 值） | 是 | 安全值函数 = CBF $B$ | 光滑性线性继承 $\ell$（Thm） |
+| $\pi^{nom}$ | 策略 | **给定**（如 Diffusion Policy） | — | 名义/任务策略 | 不重训，外挂过滤 |
+| $\pi^\diamond$ | 策略 | 学习 | — | 安全策略 | 提供 fallback + 部分 buffer |
+| $f(z,a)$ | 动力学 | DINO-WM（frozen） | 否 | 潜空间预测 | 安全保证受限于其精度 |
+| $\beta$ | scalar | 超参 | 否 | 目标 Lipschitz（GP） | $\in[0.5,2]$；过大不光滑、过小无区分 |
+| $\alpha,\gamma$ | scalar | 超参 | 否 | CBF/折扣系数 | 约束 $B(f(s,a))\ge\alpha B(s)$ |
+
 ## 2. 理论分析：为什么现有方法失效
 
 ### 2.1 Challenge 1: 光滑值函数需要光滑 Margin Function
@@ -96,6 +113,16 @@ $$a^* = \argmin_{a \in \mathcal{A}} \|a - \pi^{\text{nom}}(s)\|, \quad \text{s.t
 **结果**：Critic 对任务相关动作的值估计不准确——恰恰是 CBF 过滤最需要的地方！
 
 ---
+
+### 2.3 概念边界与符号陷阱
+
+- **CBF 是部署时滤波器、非训练约束**：最小修正名义动作 $a^*=\arg\min_a\|a-\pi^{nom}(s)\|\ \text{s.t.}\ B(f(s,a))\ge\alpha B(s)$——安全的"外挂"实现（vs 其它 safe-RL 训练出内禀安全策略，见 §5 子簇综述）。
+- **隐空间 CBF（DINO-WM frozen）**：在潜空间过滤，适配视觉/Diffusion 策略；安全保证受 world model 预测精度限。
+- **margin 用 WGAN 无 sigmoid**：硬分类器在安全边界梯度饱和 → CBF 无区分度 → 退化为离散切换（§3.6 消融 NoGP ↓35%）。
+- **Margin 光滑性线性传递到值函数**（核心 Theorem）：$L_{V^\diamond}\le L_\ell\cdot\max\{1,\tfrac{1-\gamma}{1-\gamma L_f}\}$——**光滑性是 CBF 可用的前提**，把 CBF 与 Lipschitz 子簇连接。
+- **混合 buffer 50:50**：解分布失配（critic 须在任务动作区域也准）。
+- **采样优化（零阶）非凸**：7.6k 样本 / 10ms@7-DoF；**24-DoF 灵巧手指数增长不可行**（§6 局限）。
+- **无形式化安全保证**：采样概率性，有限样本不覆盖全动作空间。
 
 ## 3. LatentCBF 方法
 
@@ -243,6 +270,12 @@ def cbf_filter(nom_action, safe_actions, world_model, margin_fn, critic, z, gamm
 - 使用 **Actor-Critic RL** 在隐空间求解 HJ 值函数
 - **World Model**（DINO-WM）提供隐状态表示和动力学
 - 分布失配问题是 **Offline RL** 的核心挑战，本文给出了特定场景的解决方案
+
+> [!note] safe-RL 子簇综述：四证书 + 正交维度（训练时 vs 部署时安全）
+> LatentCBF 补全安全 RL 子簇的 **CBF 格**，但它带出一个**正交维度**——之前四篇（[[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] IQC、[[Safe Model-based Reinforcement Learning with Stability Guarantees|Berkenkamp]] Lyapunov、[[Reachability Constrained Reinforcement Learning|RCRL]] 可达集、[[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks|Lipschitz]] 架构）都把安全**训练进策略**（内禀）；LatentCBF 把 CBF 做成**部署时外挂滤波器**——给任意名义策略（含预训练 Diffusion Policy）加安全层、不重训。
+> **① 安全的两种实现位置**：内禀（训练进策略，有形式化保证、但需重训）vs 外挂（部署时过滤，可加在任意策略上、但采样概率性无严格保证、高维不可行）。这是 safe-RL 被忽略的工程维度。
+> **② 光滑性把 CBF 焊到 Lipschitz 子簇**：LatentCBF 的核心 Theorem（margin 光滑性线性传递到值函数）说明——**安全过滤的可用性取决于安全证书的 Lipschitz 光滑性**。于是 [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks|On Robust RL]]/[[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]] 的 Lipschitz 工具不只用于鲁棒/精度，还是 CBF 区分动作的前提——Lipschitz 子簇 → safe-RL 子簇的桥就此打通。
+> **③ WMTS 联系**：LatentCBF 在 world model 潜空间做安全过滤 → WMTS 的 world model 可同时承载**调度**（$m(s)$ 元控制）+ **安全过滤**（CBF）。这暗示 WMTS 的 world model 是一个多用途的"潜空间元控制器"。
 
 ---
 

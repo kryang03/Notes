@@ -26,10 +26,12 @@ related:
 
 # On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks
 
-> [!note] Foundation 关联
-> - **[[ReinforcementLearning]]**: 策略网络架构
-> - **[[RepresentationLearning]]**: 神经网络正则化与泛化
-> - **[[Optimization]]**: Lipschitz 约束与谱归一化
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning]] — 策略网络架构；Lipschitz 策略对观测扰动/对抗攻击的鲁棒性
+> - [[Optimization]] — Lipschitz 约束；谱归一化(投影) vs Cayley(无约束参数化)
+> - [[ControlTheory]] — 小增益定理：策略全局 Lipschitz $\gamma$ 对应 $\|\Delta\|_\infty$，约束它 = 约束闭环增益
+>
+> **核心技术**: Lipschitz-Bounded Policy, Sandwich Layer (IQC), Cayley 参数化, 性能-鲁棒性 Pareto
 
 > [!abstract] 核心贡献
 > 系统研究了 **Lipschitz-bounded policy networks** 在深度 RL 中的鲁棒性优势。发现小 Lipschitz 界的策略网络对扰动、噪声和对抗攻击显著更鲁棒，且 **Sandwich Layer** 比谱归一化更具表达力，能更好地控制性能-鲁棒性权衡。
@@ -61,6 +63,21 @@ related:
 ---
 
 ## 2. Lipschitz 约束的数学基础
+
+### 2.0 变量来源追踪
+
+枢纽：**全局 $\gamma$ 是各向同性约束**（与 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 的逐分量偏导数界对照），以及反直觉的"**松界 = 隐性过约束**"。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $s$ | $\mathbb{R}^{n}$ | 观测 | 否（输入） | 状态/输入 | — |
+| $\kappa(s;\theta)$ | NN | 学习 | 是 | 策略网络 | 视为反馈回路非线性算子 |
+| $\gamma$ | scalar | **约束/超参** | 否 | 全局 Lipschitz 上界 | **各向同性**：不分状态区域/维度；调它定 Pareto 点 |
+| $v_t$ | $\|v_t\|\le\epsilon$ | 对抗攻击 | 否 | 输入扰动 | 攻击=局部 Lip 计算 |
+| $[A\ B]$ | 半正交矩阵 | **Cayley 参数化** | 是 | Sandwich 权重 | Cayley $(I{-}A)(I{+}A)^{-1}$ 是 $O(n^3)$ |
+| $\Psi$ | 正对角矩阵 | 学习 | 是 | Sandwich 缩放 | 允许单层谱范数>1（表达力来源） |
+| $\sigma$ | 激活 | 固定 | — | 斜率受限 $\sigma'\in[0,1]$ | **Tanh 不行**（$\sigma'$ 可>1）；ReLU/GroupSort 可 |
+| $\rho(W)$ | scalar | 计算（SN） | — | 谱半径 | SN 投影 $W/\rho(W)$ 信息损失 |
 
 ### 2.1 Lipschitz 界定义
 
@@ -159,6 +176,14 @@ class LipschitzBoundedPolicy(nn.Module):
 ```
 
 ---
+
+### 2.6 概念边界与符号陷阱
+
+- **全局 $\gamma$ 各向同性**：不区分状态空间各区域/各维度需求——[[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 的逐分量偏导数界是其结构感知升级。
+- **松界 vs 紧界（反直觉：松 = 更保守）**：SN 松界为达目标 $\gamma$ 必须把每层压过紧（真实 Lip $\ll\gamma$）→ 等价极度过约束 → 性能崩溃；Sandwich 紧界才能精确控制（§3 消融 Pong 19.6 vs SN 0.8）。
+- **激活须斜率受限** $\sigma'\in[0,1]$：ReLU/GroupSort 可，**Tanh 不行**（$\sigma'$ 可>1）。
+- **先训 1-Lipschitz 再乘 $\gamma$**：避免训练中数值不稳。
+- **Cayley $(I+A)^{-1}$ 是 $O(n^3)$**：高维慢，可 Woodbury + 低秩近似。
 
 ## 3. 实验结果
 
@@ -276,6 +301,12 @@ class LipschitzBoundedPolicy(nn.Module):
 | 计算开销 | 训练慢 2–3× | SDP 离线求解 | GP $O(n^3)$ | 额外 Q 网络 |
 | 约束粒度 | 全局 $\gamma$ | 每维偏导数界 | Lyapunov 下降 | 可行集边界 |
 | 应用场景 | 对抗攻击/噪声 | 控制系统稳定性 | 安全探索 | 状态约束满足 |
+
+> [!note] Lipschitz 子簇定位与新 insight
+> **① Lipschitz 三元组**：本文（全局 $\gamma$ + Sandwich 架构，重对抗鲁棒）、[[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]]（自适应 $L(x)$，重控制精度）、[[Off-Policy Interval Estimation with Lipschitz Value Iteration|Off-Policy Interval]]（Lipschitz 值迭代，重 OPE）——同一 Lipschitz 工具用于鲁棒性/精度/估计三件事。
+> **② Lipschitz 约束有两个正交精细化方向**：本文走**紧致度**（同样全局 $\gamma$，Sandwich 紧界 vs SN 松界），[[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 走**结构感知**（全局 $\gamma$ → 逐分量偏导界）。二者正交、可叠加（结构感知 + 紧致）。
+> **③ 反直觉核心 insight——"松界 = 隐性过约束"**：SN 松界为达目标 $\gamma$ 必须把每层压过紧（真实 Lip $\ll\gamma$）→ 性能崩溃；只有紧界（Sandwich）精确可控。**这与 Stability-Cert RL §6.1 的"全局 Lip → 偏导界扩大 3×"是同一现象的两面**：约束的"虚胖"（松界 / 各向同性）都会偷走可用策略空间。
+> **接跨簇 meta-insight**：本文是"用结构先验放松保守约束"母题的又一实例——但它放松的不是约束的**形状**（结构感知），而是约束的**实现紧致度**。紧致度 + 结构感知共同构成"如何让安全约束不虚胖"的完整答案。
 
 ### 与 [[ReinforcementLearning]] 的联系
 

@@ -28,10 +28,12 @@ related:
 
 # Safe Model-based Reinforcement Learning with Stability Guarantees
 
-> [!note] Foundation 关联
-> - **[[ReinforcementLearning#2.6 Model-Based RL (MBRL): 样本效率与世界模型]]**: 基于模型的 RL 框架
-> - **[[ControlTheory#7. 鲁棒控制：对抗模型不确定性]]**: CBF/Lyapunov 安全约束（CLF-CBF 对偶表）
-> - **[[StochasticProcess]]**: GP 不确定性建模
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#2.6 Model-Based RL (MBRL): 样本效率与世界模型|ReinforcementLearning §2.6]] — Model-based RL + GP 动力学；**价值函数天然是 Lyapunov 函数**（正定代价下 $V^\pi$）
+> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性|ControlTheory §7]] — Lyapunov 稳定性、吸引域 (RoA)、把长期收敛化为单步下降条件
+> - [[StochasticProcess]] — GP 后验不确定性 $\sigma_n$ 随数据单调减 → RoA 单调扩大
+>
+> **核心技术**: Lyapunov RoA, Gaussian Process 动力学, Safe Exploration, 概率稳定性保证
 
 > [!abstract] 核心贡献
 > 首次提出具有**可证明稳定性保证**的安全 RL 算法。利用 **Lyapunov 函数** 定义安全区域，结合 **Gaussian Process** 建模动力学不确定性，实现在不离开吸引域的前提下安全学习和策略优化。
@@ -80,6 +82,23 @@ $$x_{t+1} = f(x_t, u_t) = \underbrace{h(x_t, u_t)}_{\text{已知先验模型}} +
 - **统计模型**：使用 GP 建模 $g$，提供校准的不确定性估计
 
 ---
+
+### 1.3 变量来源追踪
+
+本文枢纽：**Lyapunov 函数 $v$ 既可以是物理能量、也可以是 RL 价值函数**（连接 RL 与控制理论），以及 **GP 不确定性 $\sigma_n$ 单调减 → RoA 单调扩大**（安全探索的根据）。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $x$ | $\mathbb{R}^{d_x}$ | 状态 | 否（输入） | 系统状态 | 假设完全可观 |
+| $u=\pi(x)$ | $\mathbb{R}^{d_u}$ | 策略输出 | 是（策略） | 控制动作 | $\pi$ 须 Lipschitz |
+| $f=h+g$ | 动力学 | $h$ 已知先验 + $g$ 未知 | — | 真实动力学 | 误差 $g$ 才是 GP 要学的 |
+| $g$ | 模型误差 | **GP 建模** | GP 超参 | 未知部分 | 校准不确定性是安全前提 |
+| $v(x)$ | $\mathbb{R}_{\ge0}$ | **设计/学习** | 否 | Lyapunov 函数 | **能量 or 价值函数**；$v(0)=0,v>0$ |
+| $\mathcal{V}(c)=\{x:v(x)\le c\}$ | level set | 导出 | — | 吸引域 (RoA) | 前向不变 + 渐近收敛 |
+| $\mu_n,\sigma_n$ | GP 后验 | 学习 | — | 均值/标准差 | $\sigma_n$ 随数据**单调减** |
+| $\beta_n$ | scalar | 超参 | 否 | 置信缩放 | 实践 $\beta_n{=}2$ 比理论值激进 |
+| $L_v$ | scalar | 估计 | 否 | $v$ 的 Lipschitz 常数 | 离散网格→连续外推 (Thm 2) 靠它 |
+| $c_n$ | scalar | 优化 | 否 | 最大安全等值线 | 不得缩小（适应约束） |
 
 ## 2. 理论框架
 
@@ -130,6 +149,15 @@ $$(x_n, u_n) = \argmax_{(x,u) \in \mathcal{S}_n} u_n(x, u) - l_n(x, u)$$
 选择**不确定性最大**的安全状态-动作对
 
 ---
+
+### 2.5 概念边界与符号陷阱
+
+- **$v$ 可以是物理能量 or 价值函数**：正定代价下 RL 价值函数 $V^\pi$ 天然是 Lyapunov（§6 Insight 3）——连接 RL 与控制理论的关键。
+- **安全 = 吸引域前向不变（Lyapunov 下降 $v(f(x,\pi(x)))<v(x)$）**：区别于 [[Reachability Constrained Reinforcement Learning|RCRL]] 的可行集、[[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 的 $\mathcal{L}_2$ 增益。
+- **GP $\sigma_n$ 单调减 → RoA 单调扩大**：这是"安全探索扩展安全域"的数学根据，也是本篇区别于子簇其它（静态证书）的核心。
+- **$\beta_n=2$ 是实践激进值**：比理论保证 $(1-\delta)$ 所需更乐观；过小→不安全探索、过大→RoA 不扩展（§4.5 消融）。
+- **离散网格 $\mathcal{X}_\tau$ + Lipschitz 外推**：Theorem 2 只在网格验证下降条件，靠 $L_v,L_{\Delta v}$ 外推到连续——$\tau$ 太粗则保证失效。
+- **model-based（需 GP）**：区别于子簇其它 model-free 方法；GP $O(n^3)$ 限制高维扩展。
 
 ## 3. 理论保证
 
@@ -320,6 +348,11 @@ GP 后验方差 $\sigma_n^2(x) = k(x,x) - k_x^T (K + \sigma^2 I)^{-1} k_x$ 随�
 | 探索能力 | 安全探索扩展 RoA | 无显式探索 | 无显式探索 | 无显式探索 |
 | 模型依赖 | GP 动力学 | LTI 标称模型 | 无 | 无 |
 | 可扩展性 | GP $O(n^3)$ 限制 | SDP 维度限制 | 良好 | 良好 |
+
+> [!note] 安全 RL 子簇定位与新 insight
+> Berkenkamp 在安全 RL 子簇占"**Lyapunov 吸引域**"格（与 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 的 $\mathcal{L}_2$、[[Reachability Constrained Reinforcement Learning|RCRL]] 的可行集、Lipschitz 架构并列；在 RCRL 的"安全强度谱"中：可行集 ⊃ **Lyapunov 稳定** ⊃ $\mathcal{L}_2$）。本篇带出两个新 insight：
+> **① 静态安全证书 vs 动态安全探索**：子簇其它三篇都是"给定模型/约束，证明安全"（静态证书、不显式探索）；唯独 Berkenkamp 用 GP 不确定性单调减实现"**边学边安全地扩大安全域**"。这是 safe RL 一个被忽略的时间维度——安全不只是被验证，还可以是被主动扩张的可学习对象。
+> **② "价值函数 = Lyapunov 函数"把探索簇与稳定簇焊死**：正定代价下 RL 价值函数天然是 Lyapunov 证书。这把本簇与 [[Dynamic Reinforcement Learning for Actors|Dynamic RL]] 的"Lyapunov 标尺"直接连通——Dynamic RL 调网络 Lyapunov 指数做**探索**（$\lambda_{max}>0$）、Berkenkamp 用价值函数作 Lyapunov 做**安全**（吸引域）。二者操作的是**同一个数学对象的两端**：探索与稳定其实是一枚硬币，都在调控系统的 Lyapunov 性质，只是符号相反。
 
 ---
 

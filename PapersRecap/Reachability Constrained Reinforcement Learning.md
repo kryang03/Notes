@@ -20,8 +20,8 @@ related:
 
 # Reachability Constrained Reinforcement Learning
 
-> [!abstract] 核心概要
-> 提出 **RCRL (Reachability Constrained RL)**：用可达性分析定义**最大可行集**，作为持续安全的约束。不同于 CBF 等保守估计，RCRL 学习理论最优的可行集边界，实现最小性能牺牲的安全 RL。ICML 2022。
+> [!abstract] 核心贡献
+> 针对"CMDP 的期望累积约束 $\mathbb{E}[\sum\gamma^t c]\le\epsilon$ 只保证**平均**安全、掩盖单步危险，而 CBF/SI 又过度保守"这一瓶颈，提出 **RCRL**：用可达性分析定义**最大可行集** $\mathcal{F}^*=\{s:V_s^*(s)\le0\}$，其中 safety value function $V_s^*=\min_\pi\max_t h(s_t)$ 取**最坏时刻**（max 非 sum）。结构性洞见：**持续安全 ≠ 平均安全——安全约束应是逐点(pointwise)的最坏情况量，而非期望累积量；由此学到的可行集是理论最大的"还有救"集合，性能牺牲最小。**
 
 > [!tip] 与理论基础的关联
 > - [[ControlTheory]] - CBF 形式化定义（安全集、Lie 导数、HJ 可达性联系）
@@ -112,6 +112,22 @@ $$\mathcal{F}^* = \{s_0 : \exists \pi, \forall t, h(s_t^\pi) \leq 0\}$$
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
 
+### 3.0 变量来源追踪
+
+全文枢纽是 **$V_s=\max_t h$ 的 max（非 sum）**——它把"安全"从期望累积量变成逐点最坏情况量，这是与 CMDP 路线的根本分野。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $s$ | $\mathbb{R}^{d_s}$ | 观测 | 否（输入） | 状态 | — |
+| $h(s)$ | scalar | **设计**（约束函数） | 否 | 状态约束（如负的障碍距离），$\le0$ 安全 | 设计 $h$ 是把任务安全需求形式化的关键 |
+| $c(s)=\mathbf{1}_{h>0}$ | $\{0,1\}$ | 计算 | 否 | 二值违约代价 | 二值，非连续代价 |
+| $V_s^\pi(s)=\max_t h(s_t^\pi)$ | scalar | 学习（safety critic） | 否（评估） | 沿 $\pi$ 的**最坏**约束违反 | **max 非 sum**——捕捉最坏时刻 |
+| $V_s^*=\min_\pi V_s^\pi$ | scalar | 学习 | 否 | 最优 safety value | 最大可行集的判据 |
+| $\mathcal{F}^*=\{s:V_s^*\le0\}$ | 集合 | 导出 | — | **最大可行集** | 集外状态"注定失败"（无论何策略都违约），非仅"危险" |
+| $Q_s^\pi(s,a)$ | scalar | 学习（max-Bellman） | 是 | safety Q | Bellman 用 $\max\{h,\gamma Q_s'\}$ 非 $+$ |
+| $\lambda$ | scalar | **慢**时间尺度 | 否 | 拉格朗日乘子 | 截断 $[0,\lambda_{max}]$ 防淹没 reward |
+| $\pi$ | 策略 | **中**时间尺度 | 是 | 策略 | 三尺度 $\alpha_c\gg\alpha_\pi\gg\alpha_\lambda$ |
+
 ### 3.1 问题设定
 
 **状态约束**：$h(s) \leq 0$（例如：与障碍物的距离）
@@ -196,6 +212,16 @@ $$Q_s(s, a) \leftarrow \max\{h(s), \gamma Q_s(s', \pi(s'))\}$$
 注意使用 $\max$ 而非 $+$！
 
 ---
+
+### 3.6 概念边界与符号陷阱
+
+- **$V_s=\max_t h$ 用 max 非 sum**：最坏时刻 vs 平均（CMDP）——持续安全的数学本体；§4.5 消融"max→sum 安全大幅下降"直接验证。
+- **safety Q Bellman 用 max 非 $+$**：$Q_s=\max\{h(s),\gamma Q_s(s',a')\}$，递推最坏违反、不累加。
+- **三时间尺度 $\alpha_c\gg\alpha_\pi\gg\alpha_\lambda$**：critic 快、actor 中、乘子慢；同速→乘子振荡训练不稳（§4.5）。
+- **可行集外 = "注定失败"**：不是"危险"，而是无论何策略都会违约（不可救）——可达性视角的独特语义。
+- **max 不可微**：实践用 smooth-max（softmax，温度 $\tau{=}0.1$）近似。
+- **KKT 互补松弛** $\lambda^*\cdot\mathbb{E}[V_s^{\pi^*}]=0$：最优策略要么在可行集边界（$\lambda^*>0$）、要么约束不活跃（$\lambda^*=0$）。
+- **确定性动力学假设**：随机系统需概率可达性扩展（§5 局限）。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -461,13 +487,7 @@ def get_feasible_set(safety_critic, actor, state_space):
 
 ---
 
-## 9. 与 Foundation 的链接更新
-
-### 需要添加到 ControlTheory.md
-在"安全控制"部分添加"可达性分析"作为定义可行集的严格方法。
-
-### 需要添加到 ReinforcementLearning.md
-在"约束 RL"部分添加"可达性约束"作为比期望代价更严格的安全定义。
+## 9. 与知识体系的联系
 
 ### 与 Foundation 的数学联系
 
@@ -488,3 +508,9 @@ RCRL 的约束优化 $\max_\pi J(\pi) \;\text{s.t.}\; \mathbb{E}[V_s^\pi] \leq 0
 | 最优可行集 | ✅ | N/A | 保守 (GP) | N/A |
 | 多约束 | 可扩展 | N/A | 困难 | N/A |
 | 计算额外开销 | Safety Q 网络 | SDP 离线 | GP $O(n^3)$ | Cayley $O(n^3)$/层 |
+
+> [!note] 安全 RL 子簇定位与新 insight（与 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL §6.1 四证书表]] 互参）
+> RCRL 在安全 RL 子簇占"**可行集/可达性**"格（其余三格：IQC/$\mathcal{L}_2$=Stability-Cert RL、Lyapunov 吸引域=[[Safe Model-based Reinforcement Learning with Stability Guarantees|Berkenkamp]]、Lipschitz 架构=[[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks|Lipschitz RL]]）。把四者按"安全的数学对象"排开，RCRL 揭示一个更根本的二分：
+> **① 期望型 vs 最坏情况型安全**：CMDP-Lagrangian 用 $\mathbb{E}[\sum\gamma^t c]\le\epsilon$（期望累积，允许偶尔违约）；RCRL 用 $V_s=\max_t h$（逐点最坏，要求恒不违约）。**这是 safe RL 最根本的约束类型分野**，决定"安全"是统计保证还是逐点保证——对灵巧手接触/转笔这类"一次失误即掉落"的任务，必须用最坏情况型。
+> **② 与 Stability-Cert RL 互补**：RCRL 管"状态可行性"（state 不进不可救集）、Stability-Cert RL 管"输入-输出稳定性"（扰动→增益有界）——一个约束 state、一个约束 I/O map，可叠加成更完整安全栈。
+> **③ 接 Lyapunov 标尺**：$V_s$ 是 HJ 可达性的 RL 版，与 Stability-Cert RL 同属"安全"半轴，但 RCRL 只要求"可达安全集"、不要求全局稳定——是比 Lyapunov 稳定更**宽松**的安全概念（允许在可行集内自由运动）。这提示安全的强度也有谱：可行集(最宽) ⊃ Lyapunov 稳定 ⊃ $\mathcal{L}_2$ 增益有界。

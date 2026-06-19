@@ -4,6 +4,7 @@ tags:
   - neural-network
   - lipschitz
   - smooth-control
+  - control-frequency
 aliases:
   - LipsNet
   - MGN
@@ -20,265 +21,141 @@ related:
 
 # LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control
 
-> [!abstract] 核心概要
-> 通过多维梯度归一化 (MGN) 结构约束 Actor 网络的 Lipschitz 常数，从数学原理上消除控制动作的高频抖动。
+> [!abstract] 核心贡献
+> 针对"DRL Actor 对状态微小扰动过敏 → 控制动作高频抖动（磨损硬件、放大噪声）"这一落地痛点，提出 **LipsNet**：用**多维梯度归一化 (MGN)** 从网络结构层面约束 Actor 的 Lipschitz 常数，并用副网络自适应学出"哪里该平滑、哪里该剧烈"的局部常数 $K(x)$。结构性洞见：**抖动的根源是 Lipschitz 常数失控；与其用 reward penalty 惩罚抖动（畏手畏脚、损失精度），不如直接在架构上约束 Lipschitz——且约束强度本身应是状态依赖的可学量 $K(x)$，而非全局固定。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] - TD3/SAC 的 Actor 网络改进
-> - [[ControlTheory]] - 平滑控制与报动抑制
-> - [[RepresentationLearning#1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)]] - 雅可比正则化与 Lipschitz 连续性
+> - [[ReinforcementLearning]] — 即插即用替换 TD3/SAC/TRPO 的 Actor MLP，不改算法逻辑
+> - [[ControlTheory]] — 平滑控制与抖动抑制；Lipschitz 常数 = 控制信号对状态的最大变化率
+> - [[RepresentationLearning#1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)|RepresentationLearning §1]] — 雅可比正则化与 Lipschitz 连续性
 >
-> **核心技术**: Multi-dimensional Gradient Normalization, Adaptive Lipschitz Constraint, Spectral Norm
+> **核心技术**: Multi-dimensional Gradient Normalization (MGN), Adaptive Local Lipschitz $K(x)$, Jacobian Spectral Norm
 
-你好！我是你的AI学术导师。很高兴能为你深度剖析这篇来自ICML 2023的论文 **"LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control"**。
+## 1. 问题设定与动机 ← 逻辑与价值
 
-这篇论文针对深度强化学习（DRL）落地应用中一个极其痛点的问题——**动作抖动（Action Fluctuation）**，提出了一种从网络结构底层进行改进的优雅方案。
+### 1.1 一句话核心
+用 MGN 结构强制约束 Actor 的 Lipschitz 常数、并自适应学出局部 $K(x)$，在不牺牲控制精度的前提下从数学原理上消除动作高频抖动。
 
-以下是详细的深度解析报告：
+### 1.2 直观隐喻
+教机器人开车：普通 MLP Actor 像喝多了咖啡的司机，路面小坑（状态微扰）就猛打方向盘（动作剧变）；Reward Penalty 像副驾教练每次猛打就扣钱，司机变得畏手畏脚、为省钱不避障；**LipsNet 直接改造转向助力系统**——物理上限制方向盘转速（Lipschitz 约束），且智能可调（高速巡航极平滑、紧急避险允许急转）。
 
----
+### 1.3 领域定位与现有方法局限
+Safe RL / Smooth Control × 网络架构的交叉；属"网络增强"方法，相比 Spectral Normalization 对每层死板约束，LipsNet 实现整网级 (network-wise) 灵活约束。
 
-## 1. 核心直觉与宏观定位 (The Big Picture)
+| 方法 | 抑抖手段 | 关键局限 |
+|------|---------|----------|
+| Reward Penalty (CAPS/L2C2) | 奖励惩罚动作差分 | 畏手畏脚、损失控制精度 |
+| Spectral Normalization (SN) | 逐层 $\rho(W)=1$ | 死板、过保守、性能下降 |
+| 对抗训练 | 数据增强 | 只覆盖见过的扰动 |
+| **LipsNet** | **MGN 架构 + 自适应 $K(x)$** | 推理慢 ~7×（算 Jacobian） |
 
-* **一句话核心**：
-LipsNet通过设计一种特殊的神经网络结构（**Multi-dimensional Gradient Normalization, MGN**），强制约束Actor网络的**Lipschitz常数**，并利用辅助网络自适应地学习“哪里该平滑，哪里该剧烈”，从而在不牺牲控制精度的前提下，从数学原理上消除了控制动作的高频抖动 。
+### 1.4 Delta
+不靠 Loss 设计/对抗训练，回归网络**数学性质**：① 把 GAN 的 Gradient Normalization 推广到多维输入输出（MGN，附 Lipschitz 严格证明）；② **LipsNet-L 自适应局部 $K(x)$**（最大亮点，解平滑-性能矛盾）；③ 即插即用 Module。
 
+## 2. 核心方法与理论 ← 原理与理论
 
-* **直观隐喻**：
-想象你在教一个机器人（Actor）开车。
-* 
-**普通MLP Actor**：像一个喝了太多咖啡的司机，路面的一点小坑洼（状态微小变化）都会导致他猛打方向盘（动作剧烈波动），这不仅乘客晕车，还会磨损轮胎（机械损耗）。
+### 2.1 变量来源追踪
 
+枢纽：**$K(x)$ 是状态依赖的可学常数**（LipsNet-L 核心，区别于全局固定的 LipsNet-G 与 [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks|On Robust RL]] 的全局 $\gamma$），以及 MGN 需在前向中算 $\nabla f$（推理慢 7× 的来源）。
 
-* 
-**Reward Penalty（传统方法）**：像坐在副驾的教练，每次司机猛打方向盘就扣他钱。这会让司机变得畏手畏脚，甚至为了省钱而不去避让障碍物 。
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $x$ | $\mathbb{R}^{d_s}$ | 观测 | requires_grad（算 $\nabla f$） | 状态/输入 | 须开启输入梯度 |
+| $f(x)$ | $\mathbb{R}^{d_a}$ | 主网络 MLP | 是 | 原始（未归一化）输出 | — |
+| $\nabla f(x)$ | Jacobian | autograd（create_graph） | 是（二阶图） | Jacobian 谱范数 | 精确算贵，实现用梯度 2-范数**近似** |
+| $K(x)$ | $\mathbb{R}_{>0}$ | 副网络 + Softplus | 是（学习） | 局部 Lipschitz 常数 | **状态依赖**；bias 初始化大正数否则探索坍塌 |
+| $f_{MGN}$ | $\mathbb{R}^{d_a}$ | 计算 | 是 | $K(x)\,f(x)/(\|\nabla f(x)\|+\epsilon)$ | 最终动作输出 |
+| $\epsilon$ | scalar | 超参 | 否 | 防除零 | — |
+| $\lambda$ | scalar | 超参 | 否 | $K$ 正则系数 | 鼓励小 $K$（平滑） |
 
+### 2.2 问题的数学本质：Lipschitz 连续性
+动作抖动 = Actor $f$ 对状态微扰过敏。限制 Lipschitz 常数 $K$：
+$$\|f(x_1)-f(x_2)\|_2\le K\,\|x_1-x_2\|_2.$$
+$K$ 越小函数越平滑、抗噪越强。
 
-* 
-**LipsNet（本文方法）**：相当于直接改造了汽车的**转向助力系统**。系统内部通过物理机制限制了方向盘在单位时间内的最大转速（Lipschitz约束）。同时，这个系统是智能的（Adaptive），在高速公路巡航时它极其平滑（低  值），但在紧急避险时它允许瞬间的急转弯（高  值）。
+### 2.3 从 GN 到 MGN（核心推导 + Theorem 3.1）
+此前 Gradient Normalization 只处理标量输出，本文推广到向量输出。**MGN 公式**：
+$$f_{MGN}(x) = K\cdot\frac{f(x)}{\|\nabla f(x)\|_2+\epsilon},$$
+- $f(x)$：原始 MLP 输出；
+- $\|\nabla f(x)\|_2$：$f$ 关于 $x$ 的 **Jacobian 谱范数**；
+- $\epsilon$：防除零。
 
+**为何有效（直觉）**：忽略 $\epsilon$，对 $f_{MGN}$ 求关于 $x$ 的梯度（链式法则），归一化后梯度模长被限制在 $K$ 附近。**Theorem 3.1**：若激活分段线性（ReLU），则 $\|\nabla f\|$ 分段常数、其梯度为 0，从而严格保证 $f_{MGN}$ 是 $K$-Lipschitz。
 
+### 2.4 自适应 Lipschitz：LipsNet-L
+全局固定 $K$（LipsNet-G）有问题：直道需小 $K$（平滑）、避障需大 $K$。故把 $K$ 变成状态函数：
+$$K(x) = \text{Softplus}(\text{MLP}_K(x))\ >0.$$
+**训练正则**（鼓励平滑）：
+$$\mathcal{L}_{reg} = \lambda\,\mathbb{E}_x\big[K(x)^2\big],$$
+迫使网络在不需急变处自动把 $K$ 压低。LipsNet-G 在 Humanoid/Cheetah 等复杂任务回报显著降低——证明自适应 $K(x)$ 是关键（§4 消融）。
 
+### 2.5 概念边界与符号陷阱
+- **$K(x)$ 自适应（状态依赖）vs On Robust RL 全局 $\gamma$**：LipsNet-L 核心；LipsNet-G（全局固定）性能差——见 §6 与 control frequency 簇的同构。
+- **MGN 需在前向算 $\nabla f$（create_graph=True）**：推理慢 ~7×（0.1→0.75ms）、显存增——1kHz 力控不可行（§5 工程局限）。
+- **Jacobian 谱范数精确算贵**：实现用梯度 2-范数近似 → 理论-实现微小偏差。
+- **Theorem 依赖分段线性激活（ReLU）**：但 Tanh 实验也 work、甚至更平滑（理论-实践 gap）；动作有界时输出后接 Tanh，Thm 3.2 证明仍保持 Lipschitz。
+- **$K$ 网络 bias 初始化大正数（~5.0）**：否则初期 $K$ 太小、策略被限死、RL 探索坍塌。
+- **学习率分离 $\alpha_K\ll\alpha_f$**：$K$（平滑度属性）应比策略变化慢。
 
-* **领域定位**：
-* 本文属于 **Safe RL / Smooth Control** 与 **Neural Network Architecture** 的交叉领域。
-* 它是对 **网络增强（Network Enhancement）** 方法类别的重大改进 。相比于之前的 **Spectral Normalization (SN)**  对每一层进行死板的约束，LipsNet 实现了更灵活的 Network-wise（整网级）约束。
+## 3. 算法实现（principle-level）
 
-
-
-
-
----
-
-## 2. 核心创新与贡献 (Contributions & Novelty)
-
-相比于 SOTA 方法（如 MLP-SN, CAPS, L2C2），本文的 **Delta** 在于它不再依赖复杂的 Loss 设计或对抗训练，而是回归到神经网络的**数学性质**本身。
-
-1. **提出多维梯度归一化 (MGN)**：
-将生成对抗网络（GAN）中的梯度归一化（Gradient Normalization）理论，成功推广到了多维输入、多维输出的 Actor 网络，并给出了严格的 Lipschitz 连续性数学证明 。
-
-
-2. **LipsNet-L：自适应的局部 Lipschitz 约束（最大亮点）**：
-作者发现全局约束（LipsNet-G）会导致性能下降（过于平滑，无法响应剧烈变动）。因此，设计了 **LipsNet-L**，引入一个副网络  来动态输出当前状态下允许的 Lipschitz 常数 。**这是本文解决“平滑性”与“高性能”矛盾的关键。**
-
-
-3. **通用性极强**：
-LipsNet 是一个独立的 PyTorch `Module`，可以无缝替换 TD3, TRPO, SAC 等任何 RL 算法中的 Actor MLP，无需修改算法逻辑 。
-
-
-
----
-
-## 3. 理论原理深度解析 (Theoretical Deep Dive)
-
-作为你的导师，我要带你拆解这篇论文最硬核的数学部分。
-
-### 3.1 问题的数学本质：Lipschitz 连续性
-
-动作抖动的本质是 Actor 网络  对输入状态  的微小扰动过于敏感。数学上，我们要限制函数的**Lipschitz 常数 **：
-
-这意味着输出的变化率被  限制住了。 越小，函数越平滑，抗噪性越强 。
-
-### 3.2 核心推导：从 GN 到 MGN
-
-之前的 Gradient Normalization (GN) 只能处理标量输出（）。本文提出了 **MGN** 处理向量输出（）。
-
-**核心公式** ：
-
-* ****：原始的 MLP 网络输出。
-* ****：这是  关于输入  的 **Jacobian 矩阵的 2-范数（谱范数）**。
-* ****：防止除零的小常数。
-
-**为什么这个公式有效？（直觉证明）**
-假设我们忽略 ，对  求梯度（链式法则）：
-
-显然，归一化后的梯度模长被限制在  附近。
-论文在 **Theorem 3.1** 中给出了严谨证明，假设激活函数是分段线性（如 ReLU），则  是分段常数，其梯度的梯度为 0，从而严格保证了  是 -Lipschitz 连续的 。
-
-### 3.3 自适应 Lipschitz (LipsNet-L)
-
-全局固定  (LipsNet-G) 是有问题的。在车辆控制中，直道行驶需要  很小（平滑），但紧急避障需要  很大。
-因此，作者将  变成了一个关于状态  的函数 ：
-
-* 
-****：由另一个简单的 MLP 生成（后接 Softplus 保证为正）。
-
-
-* **训练 Loss**：为了鼓励平滑，我们在 RL 的 Loss 中加入正则化项：
-
-
-这一项迫使网络在不需要急剧变化的地方，自动将  压得很低 。
-
-
-
----
-
-## 4. 算法实现与逻辑 (Methodology & Implementation)
-
-这部分展示如何将数学转化为代码。
-
-### 4.1 整体架构
-
-(此图应展示双流网络结构：一路计算原始特征  及其梯度，另一路计算 ，最后融合)
-
-### 4.2 核心伪代码 (Core Logic)
-
-在 PyTorch 中，LipsNet 的前向传播比普通 MLP 复杂，因为它需要计算**对输入的梯度**。
+LipsNet 前向比普通 MLP 复杂——需算对输入的梯度：
 
 ```python
 def forward(self, x):
-    # 1. 开启对输入的梯度记录
     x.requires_grad_(True)
-    
-    # 2. 通过主网络计算 f(x)
-    f_out = self.f_net(x)
-    
-    # 3. 计算 Jacobian 的 2-范数 ||nabla f(x)||
-    # 注意：为了高效，通常使用近似或特定 trick 计算 Jacobian norm
-    # 论文中使用的是精确计算，依赖 autograd.grad
-    grad_outputs = torch.ones_like(f_out)
-    gradients = torch.autograd.grad(
-        outputs=f_out, 
-        inputs=x, 
-        grad_outputs=grad_outputs,
-        create_graph=True, # 必须保留图以进行后续反向传播
-        retain_graph=True
-    )[0]
-    
-    # 计算梯度的 2-norm (近似为 Jacobian norm 的一种替代)
-    grad_norm = torch.norm(gradients, p=2, dim=1, keepdim=True)
-    
-    # 4. 通过辅助网络计算 K(x)
-    k_out = self.softplus(self.k_net(x))
-    
-    # 5. MGN 公式组合
-    # f_mgn = k * (f / (grad_norm + epsilon))
-    out = k_out * (f_out / (grad_norm + self.epsilon))
-    
-    return out
-
+    f_out = self.f_net(x)                                  # 主网络 f(x)
+    grad = torch.autograd.grad(f_out, x, torch.ones_like(f_out),
+                               create_graph=True, retain_graph=True)[0]
+    grad_norm = grad.norm(p=2, dim=1, keepdim=True)        # ||∇f|| (谱范数的近似)
+    k = self.softplus(self.k_net(x))                       # 自适应 K(x) > 0
+    return k * f_out / (grad_norm + self.epsilon)          # MGN 公式
 ```
 
-*导师注：* 实际实现中，直接计算完整的 Jacobian 谱范数非常昂贵。论文代码中使用了梯度的 2-范数作为近似，或者针对特定层结构的各种优化。这是一个计算瓶颈。
+## 4. 实验与验证 ← 实验与验证
 
-### 4.3 关键 Engineering Tricks
+| 指标 | 结果 | 印证 |
+|------|------|------|
+| 动作波动率 (车辆轨迹跟踪, 噪声下) | LipsNet-L = MLP 的 **9.8%** | 抑抖碾压 |
+| DMControl 回报 | LipsNet-L ≈ 或略高于 MLP；MLP-SN **显著下降** | 平滑**无损**性能（vs SN 有损） |
+| 抗噪 | MLP 动作波动随噪声指数上升，LipsNet-L 低增长 | Lipschitz 约束抑制噪声放大 |
+| 推理时间 (bs=1) | 0.1ms → **0.75ms（慢 7×）** | 主要短板（§5） |
 
-1. 
-**学习率分离**： 代表局部的平滑度属性，应该比策略本身变化得慢。因此，论文建议 （例如  取 ,  取 ）。
+**消融**：LipsNet-G（全局固定 $K$）在 Humanoid/Cheetah 回报显著低于 LipsNet-L → **自适应局部 $K(x)$ 是成功关键**。
 
+## 5. 替代方案与理论局限 ← 未来与结合
 
-2. 
-**激活函数选择**：虽然理论证明依赖分段线性（ReLU），但实验发现 **Tanh** 也能工作得很好，甚至更平滑 。
+| 维度 | 局限 | 替代/缓解 |
+|------|------|----------|
+| **理论** | Theorem 依赖分段线性激活，Tanh 等的保证不严格 | 对一般激活的 Lipschitz 上界分析 |
+| **算法** | 全局 vs 局部之外，$K(x)$ 副网络本身可能过拟合 | $K(x)$ 加正则 / 共享主干特征 |
+| **工程** | 前向算 $\nabla f$ → 慢 7×、显存增，1kHz 力控不可行 | 分层控制：仅高层用 LipsNet；或 Jacobian 近似加速 |
 
+## 6. 簇定位与跨簇 insight ← 未来与结合
 
-3. 
-**Tanh 后处理**：如果动作有边界（如 ），LipsNet 输出后接一个 Tanh，定理 3.2 证明了这仍然保持 Lipschitz 连续性 。
+### 6.1 Lipschitz 子簇内对照
 
+| 维度 | LipsNet（本文） | [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|On Robust RL]] | [[Off-Policy Interval Estimation with Lipschitz Value Iteration\|Off-Policy Interval]] |
+|------|------|------|------|
+| Lipschitz 约束 | **自适应 $K(x)$**（状态依赖） | 全局 $\gamma$（固定） | 值函数 Lipschitz |
+| 实现 | MGN 梯度归一化 | Sandwich 架构 (IQC) | Lipschitz 值迭代 |
+| 重点 | 控制精度 / 抗抖 | 对抗鲁棒 | 离策略估计 (OPE) |
 
+### 6.2 跨簇结构同构与新 insight
 
----
+> [!note] 领域级 insight：Lipschitz 与 control frequency 共享"全局固定 vs 状态自适应"轴；统一为"状态依赖元控制"
+> **① 结构同构**：LipsNet（自适应 $K(x)$）vs On Robust RL（全局 $\gamma$）的分野，与 control frequency 簇的 [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]]（自适应 $\tau(s)$）vs [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI]]（全局固定 $k$）**完全同构**——两个看似无关的簇（平滑度 vs 控制频率）共享同一条"全局固定 → 状态自适应"的设计演进轴。
+> **② 统一抽象——"状态依赖元控制 (state-dependent meta-control)"**：LipsNet 的 $K(x)$（该多平滑）、TARC 的 $\Delta t(s)$（该多高频）、[[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 的偏导界（哪维该多紧）、[[Dynamic Reinforcement Learning for Actors|Dynamic RL]] 的 $\lambda_{max}(s)$（该多探索）——**都是状态依赖的元控制量 $m(s)$**：策略不只输出动作 $a$，还（隐式/显式）输出"当前状态下，平滑度/频率/安全裕度/探索强度该是多少"。这是比"用结构先验放松保守约束"更进一步的统一：**那些结构先验的共同形式，就是状态依赖的元参数 $m(s)$**。这给 WMTS 一个一阶设计原则——**把调度也写成 $m(s)$，让 world model 输出状态依赖的元控制**。
 
-## 5. 实验与局限性分析 (Experiments & Discussion)
+## 7. 对用户研究的启发（灵巧手转笔 / Sim-to-Real）
 
-### 5.1 核心结论
+1. **转笔抑抖**：手指高频抖动直接致笔掉落，用 LipsNet 替换 Actor MLP 从架构消抖，无需 reward penalty 损精度。
+2. **Sim-to-Real 抗噪**：观测噪声是 sim-to-real 痛点，Lipschitz 约束确保传感器噪声不被放大为动作抖动——与 [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|Sensing Reduction Curriculum]] 互补。
+3. **自适应 $K(s)$ 匹配接触相位**：稳定持笔需低 $K$（极平滑）、发动旋转需高 $K$（快响应）——LipsNet-L 天然匹配；这正是 §6.2"状态依赖元控制"在转笔上的落点。
+4. **计算开销**：0.75ms 对 ~30Hz 高层可接受，对 1kHz 低层力控不可行 → 分层控制只在高层用。
 
-* 
-**平滑度碾压**：在 Vehicle Trajectory Tracking 任务中，LipsNet-L 的动作波动率（Action Fluctuation Ratio）仅为 MLP 的 **9.8%**（在噪声环境下）。
-
-
-* 
-**性能无损**：在 DMControl 基准测试中，LipsNet-L 的总回报（Return）与 MLP 持平甚至略高，而 MLP-SN（全局谱归一化）则会导致严重的性能下降 。
-
-
-* 
-**抗噪性**：随着观测噪声增加，MLP 的动作波动指数级上升，而 LipsNet-L 保持低增长，表现出极强的鲁棒性 。
-
-
-
-### 5.2 消融实验 (Ablation Study)
-
-* 
-**LipsNet-G vs. LipsNet-L**：对比显示 LipsNet-G（全局常数）在复杂任务（如 Humanoid, Cheetah）中回报显著降低。证明了 **自适应局部 Lipschitz ()** 是成功的关键 。
-
-
-
-### 5.3 局限性与批判 (Critical Analysis)
-
-1. **计算开销（主要短板）**：
-由于在前向传播中需要计算 `grad(f, x)`，LipsNet 的推理时间比 MLP 慢。论文数据显示，Batch size=1时，前向传播时间从 0.1ms 增加到 0.75ms，**慢了约 7 倍** 。这在极高频控制（如 1kHz 的电机控制）中可能是个问题。
-
-
-2. **Jacobian 计算的近似**：论文中的证明依赖于对 Jacobian 范数的精确计算，但在高维输出时，通过 autograd 计算完全的 Jacobian 范数极其昂贵。代码实现通常是基于 vector-Jacobian product 的近似，这可能导致理论与实现的微小偏差。
-
----
-
-## 6. 知识图谱与延伸思考 (Knowledge Graph & Future)
-
-### 6.1 前置知识
-
-* **Lipschitz Continuity**：理解函数平滑度的数学定义。
-* 
-**Spectral Normalization (SN)**： 了解之前是如何通过限制权重矩阵的奇异值来限制 Lipschitz 常数的。
-
-
-* **Jacobian Matrix & Norm**：理解多维函数的导数形式。
-
-### 6.2 推荐阅读
-
-1. 
-**Spectral Normalization for GANs (Miyato et al., ICLR 2018)** ：了解 SN 的起源，LipsNet 是对其的非线性推广。
-
-
-2. 
-**Gradient Normalization for GANs (Wu et al., ICCV 2021)** ：LipsNet 的 MGN 直接灵感来源，本文将其从 scalar output 推广到了 vector output。
-
-
-3. 
-**CAPS (Mysore et al., ICRA 2021)** ：代表了 Action Penalty 方法的 SOTA，适合用来做 Baseline 对比。
-
-
-
-### 6.3 导师的复现建议
-
-如果你要复现这篇论文：
-
-1. **关注 Autograd**：PyTorch 的 `create_graph=True` 是必须的，否则  的梯度无法回传到输入 。这会显著增加显存占用。
-2. 
-** 的初始化**： 网络的最后一层 bias 建议初始化为一个较大的正数（如 5.0）。如果初始  太小，策略被限制得太死，RL 早期根本无法探索，导致训练直接坍塌 。
-
-
-3. **调试**：先在简单的 **Double Integrator** 环境调试。如果那里都不 work，通常是梯度计算图断了。
----
-
-## 7. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
-
-1. **转笔动作抑抖**: 灵巧手转笔中手指的高频抖动直接导致笔掉落，用 LipsNet 替换 Actor MLP 可从网络结构层面消除抖动，无需额外 reward penalty 牺牲控制精度
-2. **Sim-to-Real 鲁棒性**: 观测噪声是 Sim-to-Real 的核心痛点，LipsNet 的 Lipschitz 约束确保传感器噪声不会被放大为动作抖动——这是对 [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation|Sensing Reduction Curriculum]] 的绝佳补充
-3. **自适应 $K(s)$ 与接触状态**: 转笔的不同阶段对平滑度要求不同：稳定持笔时需低 $K$（极度平滑），发动旋转时需高 $K$（快速响应）——LipsNet-L 的自适应机制天然匹配
-4. **计算开销考量**: 0.75ms 推理延迟对 ~30Hz 的灵巧手控制可接受，但对 1kHz 低层力控循环不可行，需结合分层控制架构仅在高层使用
----
-
-**What's Next?**
-这就好比给你的 RL Agent 装上了一套高级的“电子稳定程序（ESP）”。如果你现在的项目正受困于机器人的剧烈抖动，或者 Sim-to-Real 迁移效果差，我强烈建议你尝试将 Actor 网络替换为 LipsNet。
-
-**是否需要我为你解释 MGN 数学证明中关于“分段线性激活函数”的那个 tricky 的假设？**
+## References
+- [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks]] — Lipschitz 全局 $\gamma$ 极（本文为自适应极）
+- [[Off-Policy Interval Estimation with Lipschitz Value Iteration]] — Lipschitz 三元组之估计极
+- [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective]] — 结构感知 Lipschitz（偏导界）
+- Spectral Normalization (Miyato 2018) / Gradient Normalization for GANs (Wu 2021, MGN 灵感) / CAPS (Mysore 2021, baseline)

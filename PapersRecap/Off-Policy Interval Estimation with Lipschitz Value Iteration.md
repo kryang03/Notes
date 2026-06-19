@@ -27,9 +27,11 @@ related:
 
 # Off-Policy Interval Estimation with Lipschitz Value Iteration
 
-> [!note] Foundation 关联
-> - **[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]]**: Off-Policy 评估问题
-> - **[[Optimization]]**: Lipschitz 函数空间约束优化
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|ReinforcementLearning §5]] — Off-Policy Evaluation (OPE)；与 CQL 的值函数下界思想相通
+> - [[Optimization]] — Lipschitz 函数空间上的约束优化；Bellman **不等式**约束 + 上下包络线
+>
+> **核心技术**: Lipschitz Value Iteration, OPE 区间估计, 上下包络线, 可证明上下界
 
 > [!abstract] 核心贡献
 > 提出 **Lipschitz Value Iteration** 算法，为 Off-Policy Evaluation (OPE) 提供**可证明正确的上下界区间估计**。在 Lipschitz 函数空间中搜索与观测一致的 Q 函数的最大最小值，算法具有闭式更新、单调收敛、线性收敛率。
@@ -59,6 +61,21 @@ related:
 | PAC-RL | 主要针对 tabular/linear MDP |
 
 ---
+
+### 1.3 变量来源追踪
+
+枢纽：**$\eta$ 是先验给定的 Lipschitz 常数**（控制函数空间大小 → 界的紧致度，错则界失效），以及 **Bellman 不等式约束**（非等式，更灵活）。
+
+| 变量 | 类型/空间 | 来源阶段 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|----------------|----------|
+| $x_i$ | 状态-动作 | 离线数据 | 数据点 | 行为策略可演化（无 i.i.d. 假设）|
+| $\mathcal{B}^\pi$ | 算子 | 固定 | Bellman 算子 | 约束用 $\le/\ge$（**不等式**，§8） |
+| $\eta$ | scalar | **先验/超参** | Lipschitz 常数 | **错则界无意义**：太小欠覆盖(不含真值)、太大界宽 |
+| $d(x,x')$ | 度量 | 设计 | 状态距离 | 须先归一化各维，否则 $\eta$ 难设 |
+| $F_\eta=\{f:\|f\|_{Lip}\le\eta\}$ | 函数空间 | 导出 | Lipschitz Q 空间 | $F_1\subset F_2\Rightarrow I_{F_1}\subset I_{F_2}$ |
+| $Q^t(x)$ | Lipschitz 函数 | 迭代（包络线） | 上/下包络 | $\min/\max$ over 数据点：无限维→有限点 |
+| $q^{t,i}$ | scalar | VI 迭代 | 数据点 Q 值 | 闭式 $O(n)$/步 |
+| $\bar R,\underline R$ | scalar | sup/inf 优化 | 上/下界 | 真 $Q^\pi\in F$ 时 $R^\pi\in[\underline R,\bar R]$ |
 
 ## 2. 核心思想
 
@@ -95,6 +112,15 @@ $$F_\eta = \{f : \|f\|_{d,\text{Lip}} \leq \eta\}$$
 - **允许高效闭式求解**
 
 ---
+
+### 2.3 概念边界与符号陷阱
+
+- **$\eta$ 是先验知识**：错则界无意义——太小则真 $Q^\pi\notin F_\eta$（欠覆盖、不含真值）、太大则界过宽无用（§4.4 消融）。
+- **Bellman 不等式约束（$\le/\ge$，非等式）**：不损紧致性且更灵活（§8 Insight 1）。
+- **上下包络线**：$\min/\max$ over 数据点，把无限维函数优化转为有限数据点操作（§8 Insight 3）。
+- **函数空间大小控制界紧致度**：$F_1\subset F_2\Rightarrow I_{F_1}\subset I_{F_2}$；$\eta$ 越小界越紧、但欠覆盖风险越高。
+- **无 i.i.d. 假设**：区别于 IS/Bootstrap，自然支持演化行为策略。
+- **$O(n^2)$ 距离计算**：大规模数据需 mini-batch 近似或 KD-tree。
 
 ## 3. Lipschitz Value Iteration 算法
 
@@ -254,6 +280,18 @@ def lipschitz_value_iteration(
 - Bellman 不等式约束优化
 - Lipschitz 空间上的函数优化
 - 上下包络线构造
+
+> [!note] Lipschitz 子簇收官综述（三元组完整）
+> 至此 Lipschitz 子簇 3 篇全部范本级。三篇揭示 Lipschitz 约束的**两个作用对象 × 三种用途**：
+>
+> | 论文 | 约束对象 | 用途 | Lipschitz 形式 |
+> |------|---------|------|--------------|
+> | [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|On Robust RL]] | **策略** $\pi$ | 对抗鲁棒 | 全局 $\gamma$ (Sandwich) |
+> | [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control\|LipsNet]] | **策略** $\pi$ | 抗抖/精度 | 自适应 $K(x)$ (MGN) |
+> | 本文 | **值函数** $Q$ | OPE 区间估计 | 空间 $F_\eta$ + 包络线 |
+>
+> **统一 insight——Lipschitz 常数是"表达力 ↔ 保证"的旋钮**：三篇都在调这个旋钮，代价各异——策略侧 $\gamma/K$ 太小=过平滑损性能、值函数侧 $\eta$ 太小=界紧但欠覆盖。**"松界=过约束"（On Robust，决策端）与"$\eta$ 小=欠覆盖"（本文，评估端）是同一权衡的镜像。**
+> **接 $m(s)$ 框架**：本文 §7 已指出"学习自适应 $\eta(x)$（cf [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]]）"——连 OPE 的 Lipschitz 常数都可是状态依赖元控制 $m(s)$。这把"状态依赖元控制"从**决策元参数**扩展到**评估元参数**：$m(s)$ 不只调控制行为，还调估计/保证的紧致度。
 
 ---
 
