@@ -15,1227 +15,571 @@ related:
   - "[[ContactMechanics]]"
   - "[[Optimization]]"
   - "[[StochasticProcess]]"
+  - "[[ReinforcementLearning]]"
 ---
 
-# 灵巧操作动力学权威指南：从多体算法到接触物理
+# 灵巧操作动力学：从能量原理到实时多体与接触求解
 
-# The Authoritative Guide to Dexterous Manipulation Dynamics: From Multibody Algorithms to Contact Physics
+# Dexterous Manipulation Dynamics: From Energy Principles to Real-Time Multibody & Contact Solving
 
 > [!tip] 相关领域
-> - [[ControlTheory]] - 动力学方程是控制律设计的基础
-> - [[ContactMechanics]] - 接触动力学是灵巧操作的核心难点
-> - [[Optimization]] - iLQR/DDP 依赖高效的动力学求解
-> - [[StochasticProcess]] - GP dynamics learning 补偿模型误差
+> - [[ControlTheory]] — 动力学方程是控制律的设计对象；操作空间动力学是阻抗控制的根
+> - [[ContactMechanics]] — 接触动力学（LCP）是动力学与接触力学的交汇；Delassus 矩阵两处共用
+> - [[Optimization]] — iLQR/DDP/MPC 依赖高效动力学求解；变分积分器与最优控制同源
+> - [[StochasticProcess]] — GP/ensemble 动力学学习补偿模型残差
+> - [[ReinforcementLearning]] — 动力学模型即 Model-Based RL 的世界模型；ABA 是仿真器内核
 >
-> **相关论文**:
-> - [[Deep Dynamics Models for Learning Dexterous Manipulation]] - Ensemble dynamics + MPC 在灵巧手上的样本高效模型学习
-> - [[Learning Agile and Dynamic Motor Skills for Legged Robots]] - 解析刚体动力学 + 学习型 Actuator Network 的结构化 Sim-to-Real
-> - [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]] - 灵巧手 joint-wise neural dynamics model
+> **贯穿母题**：**灵巧手握持并挥转一支偏心（配重偏心）螺丝刀，最后让刀头精确停在螺钉上**。这一个动作把动力学六层大厦全部点亮：挥动→多体递推与科氏力；握持→闭链有效惯量与内力；对准→操作空间控制；触到螺钉→接触动力学；腱驱动的手→腱网络动力学；真机偏差→可微物理。
 
-## 0. 理论大厦构建路线：从能量原理到实时多体求解
+## 0. 母题与理论大厦构建路线：从能量原理到实时多体求解
 
-动力学 Foundation 的主线应从“力等于质量乘加速度”逐步升级为“约束流形上的能量、动量、接触冲量和可计算递推算法”。完整链条如下：
+> [!abstract] 为什么用"挥转偏心螺丝刀"做母题？
+> 一支配重偏心的螺丝刀是动力学最好的"教具"：
+> - 偏心质量让**科氏力/离心力**在快速挥动时显著到肉眼可见（刀头会"甩偏"）；
+> - 它的位姿活在 **SE(3)** 上，挥动轨迹是构型流形上的曲线；
+> - 要 1kHz 算出"该给每个关节多大力矩"，必须用 **RNEA**；要在仿真里挥它，必须用 **ABA**；
+> - 手一握紧，系统从开链变**闭链**，物体的**有效惯量**突变、还要控**内力**别让它脱手；
+> - 刀头触到螺钉，进入**接触动力学**（LCP）；
+> - 想让仿真里的螺丝刀和真机一样甩，需要**可微物理 / 神经动力学**辨识它的真实惯量。
+>
+> 全讲每引入一个概念，都回到这支螺丝刀：**"挥它时哪一项力在作怪？握它时惯量变了多少？仿真为什么甩得不对？"**
 
-| 层级 | 关键问题 | 理论对象 | 灵巧操作含义 |
-|:--|:--|:--|:--|
-| 几何层 | 构型如何表示？ | SE(3)、广义坐标、指数坐标 | 多指手和物体组成高维构型流形 |
-| 能量层 | 方程从哪里来？ | Lagrangian、Hamilton 原理、质量矩阵 | 解释惯量、势能、约束力为何以当前形式出现 |
-| 约束层 | 接触/闭链如何进入动力学？ | Lagrange 乘子、Pfaffian 约束、KKT 系统 | 接触力不是外加补丁，而是约束反力 |
-| 算法层 | 如何实时计算？ | RNEA、ABA、spatial vector algebra | 让高 DoF 灵巧手能在 kHz 级闭环中求解 |
-| 仿真层 | 接触如何数值稳定？ | LCP、PGS、soft constraint、implicit integrator | 决定策略学到真实物理还是仿真伪影 |
-| 适配层 | 真机差异如何补偿？ | actuator model、GP residual、system ID | 将刚体理论与 L25/CAN/传动非理想分开建模 |
+动力学 Foundation 的主线，要从"$F=ma$"逐级升级为"**约束流形上的能量、动量、接触冲量，以及让它们能实时计算的递推算法**"。六层大厦，每层回答一个更尖锐的问题：
+
+| 层级 | 关键问题 | 理论对象 | 螺丝刀母题的映射 | 讲稿位置 |
+|:--|:--|:--|:--|:--|
+| **几何层** | 构型如何表示？ | SE(3)、广义坐标、指数坐标 | 螺丝刀位姿、手的构型流形 | §2 |
+| **能量层** | 方程从哪来？ | Lagrangian、Hamilton 原理、质量矩阵 | 惯量、科氏力、重力为何长这样 | §3 |
+| **约束层** | 接触/闭链如何进入？ | Lagrange 乘子、Pfaffian、KKT | 接触力不是补丁，是约束反力 | §4 |
+| **算法层** | 如何实时计算？ | RNEA、ABA、空间向量代数 | 让高 DoF 手在 kHz 闭环求解 | §5 |
+| **仿真层** | 接触如何数值稳定？ | LCP、PGS、soft constraint、隐式积分 | 决定策略学到真物理还是仿真伪影 | §6 |
+| **适配层** | 真机差异如何补偿？ | actuator model、神经动力学、system ID | 把刚体理论与传动/CAN/温漂分开建模 | §7–§9 |
 
 > [!important] 阅读标准
-> 本文件中每个动力学概念都应能回答三件事：它从哪条物理原理推出来、在数值算法中如何计算、在灵巧操作失败模式中对应什么现象。
+> 本文每个动力学概念都要能回答三件事：**它从哪条物理原理推出来、在数值算法中如何计算、在灵巧操作失败模式里对应什么现象**。
 
-## 1. 序言：动力学——灵巧操作的“暗物质” (Introduction: Dynamics as the "Dark Matter")
+> [!note] 本讲在知识图谱中的位置
+> ```
+> 【几何层 SE(3)】──指数坐标──> [[ControlTheory|手雅可比]] / [[ContactMechanics|Montana]]
+>        │
+> 【能量层 Lagrangian】──线性参数化──> [[ControlTheory|自适应控制]]；──Hamilton──> [[Optimization|最优控制/Pontryagin]]
+>        │
+> 【约束层 Lagrange 乘子】──Delassus──> [[ContactMechanics|LCP]]
+>        │
+> 【算法层 ABA】──仿真内核──> [[ReinforcementLearning|世界模型/Sim-to-Real]] / [[EmbodiedAI|仿真器]]
+>        │
+> 【适配层 可微物理】──解析梯度──> [[Optimization|System ID]] / [[StochasticProcess|GP 残差]]
+> ```
 
-在 Robotics Dexterous Manipulation（机器人灵巧操作）的宏大叙事中，Perception（感知）赋予了系统“看见”的能力，Planning（规划）提供了“决策”的智慧，但唯有 **Dynamics（动力学）** 才是连接数字世界与物理实体的终极桥梁。对于一只拥有 20 个以上 Degrees of Freedom (DoF) 的灵巧手（如 Shadow Hand 或 Allegro Hand）而言，动力学不仅是描述运动的方程，更是限制其性能的“暗物质”。它是看不见的，却主宰着从指尖微调（In-hand Manipulation）到强力抓取（Power Grasping）的一切物理交互。
+## 1. 序言：动力学——灵巧操作的"暗物质"
 
-当我们谈论灵巧操作时，我们实际上是在谈论 **高维接触丰富系统（High-Dimensional Contact-Rich Systems）**。与传统的机械臂 Pick-and-Place 任务不同，灵巧操作涉及指尖与物体之间复杂的 Rolling（滚动）、Sliding（滑动）以及 Torsional Friction（扭转摩擦）。在这些交互中，微牛（mN）级别的力控误差、毫秒级的接触延迟，都可能导致物体滑落或损坏。
+> [!tip] 本节四拍
+> **直觉**（动力学看不见，却主宰一切物理交互）→ **推导**（FD 与 ID 两个核心映射）→ **对比**（把物理引擎当黑盒为何危险）→ **落点**（六层大厦的任务）。
 
-作为该领域的首席科学家，我必须指出当前学术界与工业界的一个普遍误区：许多从业者倾向于将动力学视为一个“已解决”的黑盒问题，直接调用物理引擎（如 PyBullet 或 MuJoCo）的 API。然而，这种“黑盒思维”在灵巧操作中是极其危险的。标准的物理引擎为了通用性往往在 Contact Solver（接触解算器）中做出了大量妥协（如 Soft constraints, Friction cone linearization），这些数学上的妥协在 Simulation 中可能表现为“穿透”或“漂移”，但在 Real World 中对应的就是“抓取失败”或“电机过热”。
+感知让系统"看见"、规划给出"决策"，但唯有**动力学**才是连接数字世界与物理实体的桥。对一只 20+ DoF 的灵巧手（Shadow/Allegro），动力学是限制性能的"暗物质"——看不见，却主宰从指尖微调到强力抓取的一切。我们要的两个核心映射：
 
-本报告将剥离掉教科书式的冗余定义，直击动力学引擎的核心。我们将从经典的 Lagrangian 力学出发，通过计算复杂度的演进之路（Problem-Solution Chain），深入到 Recursive Newton-Euler Algorithm (RNEA) 和 Articulated Body Algorithm (ABA) 的算法骨架，最终剖析现代物理引擎如何处理最棘手的 Contact Dynamics（接触动力学）问题，特别是 Linear Complementarity Problem (LCP) 与 Convex Optimization（凸优化）方法的对决。
+1. **正向动力学 (FD)**：$\tau\to\ddot q$，给定力矩算加速度——**仿真**的基础（挥动螺丝刀时它怎么动）。
+2. **逆向动力学 (ID)**：$q,\dot q,\ddot q\to\tau$，给定运动算力矩——**基于模型的控制**的基础（要让刀头走这条轨迹，每个关节该出多大力）。
 
-------
+> [!warning] 把物理引擎当黑盒，为何在灵巧操作中危险
+> 通用物理引擎为通用性在接触求解器里做了大量妥协（soft constraint、摩擦锥线性化）。这些数学妥协在仿真里表现为"穿透/漂移"，在真机上对应的就是"**抓取失败/电机过热**"。灵巧操作的 mN 级力控误差、ms 级接触延迟都可能让螺丝刀脱手——所以必须打开黑盒，理解六层大厦每一层的取舍。
 
-## 2. Core Concepts: 物理直觉与数学形式的对偶 (The Duality of Intuition and Formalism)
+---
 
-在深入算法之前，必须建立正确的物理直觉。在灵巧操作中，我们关注两个核心映射：
+## 2. 几何层：构型流形与刚体变换
 
-1. **Forward Dynamics (FD)**: $\tau \rightarrow \ddot{q}$。给定关节力矩，计算关节加速度。这是 Simulation（仿真）的基础。
-2. **Inverse Dynamics (ID)**: $q, \dot{q}, \ddot{q} \rightarrow \tau$。给定运动状态，计算所需力矩。这是 Model-Based Control（基于模型的控制）的基础，如 Computed Torque Control。
+> [!tip] 本节四拍
+> **直觉**（螺丝刀的位姿、手的构型都活在弯曲的流形上）→ **推导**（SO(3)/SE(3) 李群、Rodrigues、指数坐标）→ **对比**（指数坐标 PoE vs DH 参数）→ **联系**（twist↔[[ContactMechanics|Montana 旋量]]、空间向量↔§5 RNEA）。
 
-### 2.1 Configuration Space Manifold (构型空间流形)
+### 2.1 构型空间流形与"质量矩阵即度量"
 
-对于一个灵巧手，其 Configuration Space（C-Space）是一个黎曼流形（Riemannian Manifold）。
+灵巧手的构型空间 (C-space) 是黎曼流形。**广义坐标** $q\in\mathbb R^n$ 是描述状态的最小变量集。**质量矩阵 $M(q)$ 定义了这个流形上的度量 (metric)**——它不只是"质量"，更是"系统在当前构型下沿不同方向运动的惯性阻力"。
 
-- **Generalized Coordinates ($q$)**: 描述系统状态的最小变量集。对于一个 $n$ 关节的手，$q \in \mathbb{R}^n$。
-- **Mass Matrix ($M(q)$)**: 定义了该流形上的度量（Metric）。它不仅代表质量，更代表了系统在当前构型下沿不同方向运动的“惯性阻力”。
-  - *Physics Insight*: 在灵巧手抓取物体时，整个系统（手+物体）的 Effective Mass Matrix 会发生突变。当手指接触物体的瞬间，系统的拓扑结构从 Open Chain 变为 Closed Chain，惯量矩阵的秩和特征值分布会发生剧烈变化。理解这一点对于理解 Impact（冲击）动力学至关重要。
+> [!important] 母题里的惯量突变（贯穿 §7）
+> 手指接触并握紧螺丝刀的**瞬间**，系统拓扑从**开链**变**闭链**，整个手+刀的有效质量矩阵的秩与特征值剧烈变化。理解这一点，是理解冲击 (impact) 动力学与 §7 有效惯量的钥匙——同一支螺丝刀，握前握后"挥起来的手感"完全不同。
 
-### 2.2 Coriolis & Centrifugal Forces (科里奥利力与离心力)
+### 2.2 旋转群 SO(3)、李代数 so(3) 与 Rodrigues 公式
 
-$$C(q, \dot{q})\dot{q}$$
-
-这一项在传统的工业机器人低速操作中常被视为干扰项，但在灵巧手的快速重构型（In-hand Manipulation）中不可或缺。
-
-- **物理意义**: 它是能量守恒在非惯性系下的体现。当手指快速收缩（改变转动惯量）时，角动量守恒导致旋转速度加快，这种“虚力”必须由电机补偿。
-- **数学本质**: 它是 Mass Matrix 对时间的导数与 Christoffel Symbols 的缩并。在多指协同操作中，手指的高速运动会产生显著的非线性力，如果控制器忽略此项，指尖将无法精确跟踪期望轨迹，导致接触点滑移。
-
-### 2.3 Contact Constraints (接触约束)
-
-这是灵巧操作最困难的部分，也是区分"动画"与"物理仿真"的分水岭。详细的接触建模理论参见 [[ContactMechanics]]。
-
-- **Holonomic Constraints**: $f(q) = 0$。例如手指关节的机械连接。它们降低了系统的自由度维数。
-- **Non-holonomic Constraints**: $f(q, \dot{q}) = 0$。例如指尖在物体表面的 Rolling without slipping（纯滚动）。它限制了瞬时速度方向，但不降低 C-Space 的维数。
-  - *Dexterity Insight*: 纯滚动约束导致了路径规划的复杂性——就像平行泊车一样，你不能直接侧向移动手指接触点，必须通过一系列复杂的滚动机动来实现接触点的重定位（Finger Gaiting）。这种几何约束与动力学的耦合，使得 Friction Force 的计算变得异常敏感。
-
-#### 2.3.1 Pfaffian 约束与约束动力学 (详见 Murray Ch.6)
-
-> [!note] 教科书参考
-> 本节基于 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Chapter 6, Section 6.1
-
-**Pfaffian 约束的形式化定义**：
-
-一般的速度约束具有形式：
-$$A(q) \dot{q} = 0, \quad A(q) \in \mathbb{R}^{k \times n}$$
-
-这种形式称为 **Pfaffian 约束**。对于多指灵巧手，约束矩阵具有特殊结构：
-$$A(q) = \begin{bmatrix} J_h(q) & -G^T(q) \end{bmatrix}$$
-
-其中 $J_h$ 是手的雅可比，$G$ 是抓取矩阵。
-
-**可积性与完整/非完整分类**：
-
-> [!definition] 可积 Pfaffian 约束
-> Pfaffian 约束 $A(q)\dot{q} = 0$ 称为**可积的 (integrable)**，如果存在函数 $h: Q \to \mathbb{R}^k$ 使得：
-> $$A(q)\dot{q} = 0 \iff \frac{\partial h}{\partial q} \dot{q} = 0$$
-> 
-> 可积约束等价于完整约束 $h(q) = 0$。不可积的 Pfaffian 约束是**非完整约束**的典型例子。
-
-**约束动力学的 Lagrange-d'Alembert 方程**：
-
-对于受 Pfaffian 约束的机械系统，运动方程为：
-$$M(q) \ddot{q} + C(q, \dot{q}) \dot{q} + N(q, \dot{q}) + A^T(q) \lambda = F$$
-
-其中 $\lambda \in \mathbb{R}^k$ 是 **Lagrange 乘子**（约束力的相对大小）。
-
-**Lagrange 乘子的显式解**：
-
-对约束方程求时间导数并代入运动方程：
-$$\lambda = (A M^{-1} A^T)^{-1} \left[ A M^{-1}(F - C\dot{q} - N) + \dot{A} \dot{q} \right]$$
-
-> [!important] 灵巧操作解读
-> - **矩阵 $AM^{-1}A^T$**：约束空间中的有效质量矩阵
-> - **$\lambda$ 的物理意义**：接触力（或内力）的大小
-> - **d'Alembert 原则**：约束力不做功，即 $\lambda^T A \dot{q} = 0$
->
-> 在抓取控制中，我们通常需要**同时控制位置和力**——沿约束表面移动（位置控制）的同时调节法向力（力控制）。这正是**混合位置/力控制 (Hybrid Position/Force Control)** 的数学基础。
-
-### 2.4 刚体变换与指数坐标 (Rigid Body Transformations & Exponential Coordinates)
-
-> [!note] 教科书参考
-> 本节基于 Murray, Li & Sastry "A Mathematical Introduction to Robotic Manipulation" Chapter 2
-
-刚体运动的数学表示是动力学建模的几何基础。指数坐标提供了一种优雅的方式来统一表示旋转与平移，为机器人运动学和动力学提供了现代数学框架。
-
-#### 2.4.1 旋转群 $SO(3)$ 与李代数 $so(3)$
-
-**物理直觉**: 旋转矩阵 $R \in SO(3)$ 描述了刚体方向的改变。$SO(3)$ 是一个 **李群（Lie Group）**——它既是群（旋转可以复合），又是光滑流形。
-
-**形式化定义**:
-
-$$SO(3) = \{R \in \mathbb{R}^{3\times 3} : R^T R = I, \det(R) = +1\}$$
-
-对应的 **李代数** $so(3)$ 是所有 $3 \times 3$ 反对称矩阵的集合：
-
-$$so(3) = \{S \in \mathbb{R}^{3 \times 3} : S^T = -S\}$$
-
-**关键洞见**: $so(3)$ 可以与 $\mathbb{R}^3$ 一一对应——任何向量 $\omega = (\omega_1, \omega_2, \omega_3)^T$ 都对应一个反对称矩阵 $\hat{\omega}$（skew-symmetric）：
-
-$$\hat{\omega} = \begin{bmatrix} 0 & -\omega_3 & \omega_2 \\ \omega_3 & 0 & -\omega_1 \\ -\omega_2 & \omega_1 & 0 \end{bmatrix} \quad \text{满足} \quad \hat{\omega} v = \omega \times v$$
-
-#### 2.4.2 Rodrigues 公式：从旋转轴到旋转矩阵
+旋转矩阵 $R\in SO(3)=\{R\in\mathbb R^{3\times3}:R^TR=I,\det R=+1\}$ 既是群又是光滑流形（李群）。其李代数 $so(3)=\{S:S^T=-S\}$ 是反对称矩阵集，与 $\mathbb R^3$ 一一对应：$\hat\omega v=\omega\times v$。
 
 > [!theorem] Rodrigues 旋转公式
-> 设 $\omega \in \mathbb{R}^3$ 为单位旋转轴 ($\|\omega\|=1$)，$\theta \in \mathbb{R}$ 为旋转角度，则绕 $\omega$ 旋转 $\theta$ 的旋转矩阵为：
-> $$R = e^{\hat{\omega}\theta} = I + \hat{\omega} \sin\theta + \hat{\omega}^2 (1 - \cos\theta)$$
-> 
-> **证明思路**: 从微分方程 $\dot{q}(t) = \omega \times q(t)$ 出发，利用 $\hat{\omega}^3 = -\|\omega\|^2 \hat{\omega}$ 的代数性质展开 Taylor 级数。
+> 单位轴 $\omega$（$\|\omega\|=1$）转 $\theta$ 的旋转矩阵：
+> $$R=e^{\hat\omega\theta}=I+\hat\omega\sin\theta+\hat\omega^2(1-\cos\theta).$$
+> **证明思路**：从 $\dot q(t)=\omega\times q(t)$ 出发，用 $\hat\omega^3=-\|\omega\|^2\hat\omega$ 展开 Taylor 级数。
 
-**物理意义**: 指数映射 $\exp: so(3) \to SO(3)$ 将"旋转轴 × 角度"这一直观参数化转换为旋转矩阵。这是 **等轴角表示（Axis-Angle Representation）** 的数学基础。
+逆映射（对数）：$\theta=\cos^{-1}\frac{\mathrm{tr}(R)-1}{2}$，$\omega=\frac{1}{2\sin\theta}(r_{32}-r_{23},r_{13}-r_{31},r_{21}-r_{12})^T$。指数映射 $\exp:so(3)\to SO(3)$ 把"轴×角"直观参数化转成旋转矩阵，是轴角表示的数学根。
 
 > [!abstract] 前沿应用：Neural Rodrigues Operator
-> [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] 将本节 Rodrigues 公式中的 $1,\sin\theta,\cos\theta$ 基底保留下来，把由机器人结构决定的固定系数放宽为可学习权重，从而把经典正运动学递推改造成动作网络中的结构化 message passing 算子。
+> [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] 保留 Rodrigues 的 $1,\sin\theta,\cos\theta$ 基底，把机器人结构决定的固定系数放宽为可学习权重，将经典正运动学递推改造成动作网络中的结构化 message passing。
 
-**逆映射（对数）**: 给定旋转矩阵 $R$，可以恢复旋转轴和角度：
+### 2.3 SE(3)、twist 与指数积公式 (PoE)
 
-$$\theta = \cos^{-1}\left(\frac{\text{trace}(R) - 1}{2}\right), \quad \omega = \frac{1}{2\sin\theta}\begin{bmatrix} r_{32} - r_{23} \\ r_{13} - r_{31} \\ r_{21} - r_{12} \end{bmatrix}$$
+刚体运动 = 旋转 + 平移，由**特殊欧氏群** $SE(3)=\{g=\begin{bmatrix}R&p\\0&1\end{bmatrix}\}$ 统一描述。其李代数 $se(3)$ 由 **twist（旋量）** 组成：$\xi=(v,\omega)\in\mathbb R^6$。
 
-#### 2.4.3 齐次变换与 $SE(3)$
+为什么指数坐标对灵巧操作至关重要（四条）：
+1. **运动学建模**：**指数积公式 (PoE)** $g_{st}(\theta)=e^{\hat\xi_1\theta_1}\cdots e^{\hat\xi_n\theta_n}g_{st}(0)$ 比 DH 参数更简洁、几何意义更清晰；
+2. **雅可比计算**：空间/物体雅可比可直接由 twist 导出（见 [[ControlTheory#2.2 手雅可比矩阵：从关节到接触 (Hand Jacobian: From Joints to Contacts)|手雅可比]]）；
+3. **接触约束建模**：[[ContactMechanics#2.2 Montana 接触运动学方程|Montana 方程]]用相对旋量描述接触点演化——挥转螺丝刀时刀头在螺钉面上的接触演化正用这套语言；
+4. **轨迹插值**：$SE(3)$ 上的测地线插值（SLERP 的 6D 推广）保证刚体运动的物理合理性。
 
-刚体运动 = 旋转 + 平移。**特殊欧几里得群** $SE(3)$ 统一描述了两者：
+> [!tip] 与空间向量代数的关系（伏笔 §5）
+> Featherstone 的空间向量代数（§5.1）就是 $se(3)$ 的工程实现：空间速度 $\nu=(\omega,v)$ 对应 twist，空间惯量张量对应李代数上的度量。**记住这条对应，§5 的 6D 递推就不再神秘。**
 
-$$SE(3) = \left\{ g = \begin{bmatrix} R & p \\ 0 & 1 \end{bmatrix} : R \in SO(3), p \in \mathbb{R}^3 \right\}$$
+---
 
-对应的李代数 $se(3)$ 由 **twist（旋量/螺旋）** 组成：
+## 3. 能量层：从 Hamilton 原理到操作器方程
 
-$$\hat{\xi} = \begin{bmatrix} \hat{\omega} & v \\ 0 & 0 \end{bmatrix} \in se(3), \quad \xi = \begin{bmatrix} v \\ \omega \end{bmatrix} \in \mathbb{R}^6$$
+> [!tip] 本节四拍
+> **直觉**（挥动偏心螺丝刀时那股"甩偏"的力从哪来？）→ **推导**（Hamilton 最小作用量→Euler-Lagrange→操作器方程）→ **对比**（Lagrangian / Hamiltonian / Newton-Euler 三种等价形式）→ **联系**（线性参数化→[[ControlTheory|自适应控制]]，变分→[[Optimization|最优控制]]）。
 
-**指数映射** $\exp: se(3) \to SE(3)$ 给出：
+### 3.1 操作器方程：$M(q)\ddot q+C(q,\dot q)\dot q+N(q)=\tau$
 
-$$e^{\hat{\xi}\theta} = \begin{bmatrix} e^{\hat{\omega}\theta} & (I - e^{\hat{\omega}\theta})(\omega \times v) + \omega \omega^T v \theta \\ 0 & 1 \end{bmatrix}$$
+对 $n$ 连杆开链，总动能 $T=\frac12\dot\theta^TM(\theta)\dot\theta$（$M=\sum_iJ_i^TM_iJ_i$），势能 $V=\sum_im_igh_i$，Lagrangian $L=T-V$。代入 Lagrange 方程得**操作器方程**：
 
-#### 2.4.4 为什么指数坐标对灵巧操作至关重要
+$$M(\theta)\ddot\theta+\underbrace{C(\theta,\dot\theta)\dot\theta}_{\text{科氏/离心}}+\underbrace{N(\theta)}_{\text{重力}}=\tau.$$
 
-1. **运动学建模**: 指积公式（Product of Exponentials, PoE）用 twist 参数化机器人运动学，比 DH 参数更简洁：
-   $$g_{st}(\theta) = e^{\hat{\xi}_1 \theta_1} e^{\hat{\xi}_2 \theta_2} \cdots e^{\hat{\xi}_n \theta_n} g_{st}(0)$$
+> [!theorem] Christoffel 符号：科氏项的来历
+> $$C_{ij}=\sum_k\Gamma_{ijk}\dot\theta_k,\quad \Gamma_{ijk}=\tfrac12\Big(\tfrac{\partial M_{ij}}{\partial\theta_k}+\tfrac{\partial M_{ik}}{\partial\theta_j}-\tfrac{\partial M_{kj}}{\partial\theta_i}\Big).$$
+> $\Gamma_{ijk}\dot\theta_j\dot\theta_k$ 中 $j=k$ 为**离心力**、$j\ne k$ 为**科氏力**。
 
-2. **雅可比计算**: 空间雅可比和物体雅可比可以直接从 twist 导出，见 [[ControlTheory#2.2 手雅可比矩阵：从关节到接触 (Hand Jacobian: From Joints to Contacts)|手雅可比矩阵]]
+> [!tip] 母题直觉：偏心螺丝刀为什么"甩偏"
+> 偏心配重让 $M(\theta)$ **强烈依赖构型**——快速挥动时 $\dot M$ 大，科氏/离心项 $C\dot\theta$ 随之显著。若控制器（如计算力矩控制）忽略此项，刀头就跟不上期望轨迹、"甩偏"撞不上螺钉。工业机械臂低速时这项常被当干扰忽略，但灵巧手的**快速重构型 (in-hand)** 中它不可或缺。
 
-3. **接触约束建模**: Montana 接触运动学方程（见 [[ContactMechanics#2.2 Montana接触运动学方程]]）使用相对旋量描述接触点演化
+### 3.2 变分起源：Hamilton 原理（为什么是 $L=T-V$）
 
-4. **轨迹插值**: 在 $SE(3)$ 上进行测地线插值（SLERP 的 6D 推广）保证了刚体运动的物理合理性
+操作器方程不是凭空写出，而是 **Hamilton 最小作用量原理**的推论。定义作用量 $S=\int_{t_0}^{t_1}L\,dt$。Hamilton 原理断言：端点固定下，真实轨迹使 $S$ 取驻值 $\delta S=0$。对 $\delta q$ 变分、分部积分，端点项消失，由 $\delta q$ 任意性即得 **Euler–Lagrange 方程** $\frac{d}{dt}\frac{\partial L}{\partial\dot q_i}-\frac{\partial L}{\partial q_i}=\Upsilon_i$。
 
-> [!tip] 与空间向量代数的关系
-> Featherstone 的空间向量代数（见 [[#4.1 空间向量代数 (Spatial Vector Algebra) 基础]]）是 $se(3)$ 李代数的工程实现。
-> 空间速度 $\nu = [\omega^T, v^T]^T$ 对应于 twist，空间惯量张量 $I$ 对应于李代数上的度量。
+> [!tip] 为什么变分形式重要（三条跨领域射线）
+> 1. **统一框架**：同一个 Hamilton 原理推出场论、广义相对论、乃至 RL 的 path-integral；
+> 2. **数值保结构**：变分积分器 (DMOC/RATTLE) 在离散积分中保辛结构、近似守恒能量，远优于 Forward Euler——MuJoCo 的隐式积分器即属此族（伏笔 §6）；
+> 3. **最优控制桥梁**：Pontryagin 极小值原理本质是 Hamilton 原理在控制变分 $\delta u$ 上的推广，与 [[Optimization#4.1 核心算法：iLQR / DDP|iLQR/DDP]] 共享变分根基。**力学与最优控制，同一个变分母体。**
 
-------
+### 3.3 反对称性与无源性：$\dot M-2C$ 的礼物
 
-## 3. Evolution & Insights: 动力学算法的演进脉络 (The Evolutionary Chain of Algorithms)
+> [!important] $\dot M(\theta)-2C(\theta,\dot\theta)$ 是反对称的
+> 这是 **Passivity-based Control** 的数学基础：取 Lyapunov 函数 $V=\frac12\dot\theta^TM\dot\theta$，有 $\dot V=\dot\theta^T(\tau-N)$（能量守恒结构）。它直接连到 [[ControlTheory#10.4 被动性、Passivity-Based Control 与 RL 价值函数|无源性控制]]——挥转螺丝刀的能量注入/耗散可被精确记账，保证人-机-环境闭环稳定。
 
-为什么我们不能只用一个公式解决所有问题？因为 **Computational Complexity（计算复杂度）** 是实时控制的死敌。对于一个 $N$ 自由度的系统，算法的效率决定了控制频率能否达到 1kHz（灵巧操作的黄金标准）。技术演进的本质，就是在于如何在保持物理精度的前提下，压榨计算效率。
+### 3.4 惯量参数线性性：通往自适应控制的桥
 
-### 3.1 The Classical Era: Lagrangian Formulation
+> [!important] 操作器方程对惯量参数 $\pi$ 线性（Slotine–Li 1987）
+> $$M(\theta)\ddot\theta+C\dot\theta+N=\mathbf Y(\theta,\dot\theta,\ddot\theta)\,\pi=\tau,$$
+> 其中 regressor 矩阵 $\mathbf Y$ **只依赖运动学量、与参数 $\pi$ 无关**。原因：$T,V$ 对每个连杆的 10 个标准惯量参数仿射，Lagrange 是线性算子。
 
-**方程形式**:
+直接后果——**Slotine–Li 自适应律**：设误差 $e=\theta-\theta_d$、参考速度 $\dot\theta_r=\dot\theta_d-\Lambda e$、滑动变量 $s=\dot\theta-\dot\theta_r$，则
+$$\tau=\mathbf Y\hat\pi-K_Ds,\qquad \dot{\hat\pi}=-\Gamma\,\mathbf Y^Ts.$$
+用 $\dot M-2C$ 反对称 + Lyapunov $V=\frac12s^TMs+\frac12\tilde\pi^T\Gamma^{-1}\tilde\pi$ 可证 $s\to0$（详见 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|ControlTheory §12]]）。
 
-$$\frac{d}{dt} \left( \frac{\partial L}{\partial \dot{q}} \right) - \frac{\partial L}{\partial q} = \tau$$
+> [!tip] 母题里的 System ID
+> 把 1 秒挥动螺丝刀的真机轨迹送入最小二乘 $\hat\pi=(\mathbf Y^T\mathbf Y)^{-1}\mathbf Y^T\tau_{meas}$，就能在线辨识这支偏心螺丝刀（连同手）的全部惯量参数（前提：轨迹满足**持续激励 PE** 条件）。这也给 [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|域随机化]]提供了理论替代——不必盲目随机化所有惯量，只需保证 $\mathbf Y$ 在训练分布上行满秩。
 
-- **直觉**: 基于能量（Energy-based）。$L = T - V$（动能 - 势能）。极其优雅，不需要考虑关节间的内力（Internal Constraint Forces）。
-- **Problem (为什么旧方法失效)**:
-  - 计算 Mass Matrix $M(q)$ 需要 $O(N^2)$ 或 $O(N^3)$ 的复杂度。
-  - 计算 Coriolis 项更是灾难性的，涉及大量的三角函数求导。
-  - 对于像 Shadow Hand 这样有 24 个 DoF 的系统，如果使用纯 Lagrangian 形式展开，符号方程项数将以指数级爆炸。在 80 年代以前，这意味着实时解算（<1ms）是不可能的。
-- **Value-add**: 尽管计算效率低，Lagrangian 形式提供了最严谨的结构分析视角，适用于推导理论性质（如 Passivity-based Control 中的无源性证明），但在实时工程实现上，它已被递归算法取代。
+### 3.5 Hamiltonian 形式与三种等价视角
 
-#### 3.1.1 开链机器人的 Lagrangian 推导 (详见 Murray Ch.4)
+Legendre 变换给出广义动量 $p=M\dot q$ 与 Hamiltonian $H=\frac12p^TM^{-1}p+V=T+V$，正则方程 $\dot q=M^{-1}p,\ \dot p=-\partial H/\partial q+\tau$。换到 Hamiltonian 的三个理由：相空间辛几何（symplectic integrator 长期保能量）、Pontryagin（最优控制 Hamiltonian 同构、LQR 的 Riccati 由 $\partial H^*/\partial u=0$ 推出，见 [[ControlTheory#11. 线性二次最优控制 (Linear Quadratic Regulator, LQR)|LQR]]）、energy-shaping（IDA-PBC 保无源）。
 
-> [!note] 教科书参考
-> 本节基于 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Chapter 4, Theorem 4.1
-
-**动能的组成**：对于 $n$ 连杆的开链机械手，总动能为每个连杆动能之和。设第 $i$ 连杆的 body-frame Jacobian 为 $J_i(\theta)$，惯性矩阵为 $M_i$：
-
-$$T = \frac{1}{2} \dot{\theta}^T M(\theta) \dot{\theta}, \quad M(\theta) = \sum_{i=1}^{n} J_i^T(\theta) M_i J_i(\theta)$$
-
-**势能**：设第 $i$ 连杆质心高度为 $h_i(\theta)$（沿重力反方向）：
-
-$$V(\theta) = \sum_{i=1}^{n} m_i g h_i(\theta)$$
-
-**Lagrangian**：
-
-$$L(\theta, \dot{\theta}) = \frac{1}{2} \dot{\theta}^T M(\theta) \dot{\theta} - V(\theta)$$
-
-**代入 Lagrange 方程**得到**操作器方程 (Manipulator Equation)**：
-
-$$M(\theta) \ddot{\theta} + C(\theta, \dot{\theta}) \dot{\theta} + N(\theta) = \tau$$
-
-其中：
-- $M(\theta) \in \mathbb{R}^{n \times n}$：**惯性矩阵**（对称正定）
-- $C(\theta, \dot{\theta}) \dot{\theta}$：**科里奥利与离心项**（源自 $\dot{M}$）
-- $N(\theta) = \frac{\partial V}{\partial \theta}$：**重力项**
-- $\tau \in \mathbb{R}^n$：关节力矩
-
-> [!theorem] Christoffel 符号形式
-> 科里奥利矩阵 $C$ 可通过 Christoffel 符号表示：
-> $$C_{ij} = \sum_{k=1}^{n} \Gamma_{ijk} \dot{\theta}_k, \quad \Gamma_{ijk} = \frac{1}{2} \left( \frac{\partial M_{ij}}{\partial \theta_k} + \frac{\partial M_{ik}}{\partial \theta_j} - \frac{\partial M_{kj}}{\partial \theta_i} \right)$$
-> 
-> **物理意义**：$\Gamma_{ijk} \dot{\theta}_j \dot{\theta}_k$ 项中，$j = k$ 时为离心力，$j \neq k$ 时为科里奥利力。
-
-> [!important] 反对称性质 ($\dot{M} - 2C$)
-> 对于适当选取的 $C(\theta, \dot{\theta})$，矩阵 $\dot{M}(\theta) - 2C(\theta, \dot{\theta})$ 是**反对称的**（skew-symmetric）。
-> 
-> 这是 **Passivity-based Control** 的数学基础：对于 Lyapunov 函数 $V = \frac{1}{2} \dot{\theta}^T M \dot{\theta}$，有：
-> $$\dot{V} = \dot{\theta}^T (\tau - N) \quad \text{（能量守恒结构）}$$
-
-#### 3.1.2 变分起源：从 Hamilton 原理到 Lagrange 方程 (Murray Theorem 4.1)
-
-> [!note] 教科书参考
-> Murray Ch.4, Theorem 4.1, Eq. (4.4)–(4.5)
-
-操作器方程并非凭空写出，而是 **Hamilton 最小作用量原理** 的直接推论。这一变分起源是理解"为什么 $L = T - V$ 这样选取"的关键，也是后续 Hamiltonian 形式与最优控制 Pontryagin 极小值原理的共同根基。
-
-**Step 1 — 广义坐标降维**：对于 $n$ 个粒子受 $k$ 个约束的系统，引入 $m = 3n - k$ 个广义坐标 $q \in \mathbb{R}^m$ 与光滑映射 $r_i = f_i(q)$，使得约束 $g_j(r_1, \dots, r_n) = 0$ 自动成立（不再需要 Lagrange 乘子）。对机械臂，$q$ 通常取**关节角**。
-
-**Step 2 — 广义力**：物理世界中的力 $F_i \in \mathbb{R}^3$ 通过 Jacobian 映射为广义力分量：
-$$\Upsilon_i = \sum_j F_j \cdot \frac{\partial r_j}{\partial q_i}$$
-对机械臂，关节力矩 $\tau_i$ 即第 $i$ 个广义坐标上的广义力。
-
-**Step 3 — 作用量极值**：定义作用量 $S = \int_{t_0}^{t_1} L(q, \dot q, t)\, dt$（$L = T - V$）。**Hamilton 原理**断言：在 $q(t_0), q(t_1)$ 固定的端点条件下，真实轨迹使 $S$ 取**驻值**（$\delta S = 0$）。对 $\delta q$ 做变分并分部积分，得：
-$$\delta S = \int_{t_0}^{t_1} \left( \frac{\partial L}{\partial q} - \frac{d}{dt}\frac{\partial L}{\partial \dot q} \right) \delta q \, dt + \underbrace{\left[ \frac{\partial L}{\partial \dot q} \delta q \right]_{t_0}^{t_1}}_{=0} = 0$$
-
-由 $\delta q$ 任意性即得 **Lagrange 方程**：
-$$\frac{d}{dt}\frac{\partial L}{\partial \dot q_i} - \frac{\partial L}{\partial q_i} = \Upsilon_i, \quad i = 1, \dots, m$$
-
-**Step 4 — 展开为操作器方程**：将 $L = \tfrac{1}{2}\dot\theta^T M(\theta) \dot\theta - V(\theta)$ 代入：
-- $\partial L / \partial \dot\theta_i = \sum_j M_{ij}(\theta)\dot\theta_j$
-- $\frac{d}{dt}(\partial L / \partial \dot\theta_i) = \sum_j M_{ij}\ddot\theta_j + \sum_{j,k} \frac{\partial M_{ij}}{\partial \theta_k}\dot\theta_j \dot\theta_k$
-- $\partial L / \partial \theta_i = \tfrac{1}{2}\sum_{j,k} \frac{\partial M_{jk}}{\partial \theta_i}\dot\theta_j \dot\theta_k - \frac{\partial V}{\partial \theta_i}$
-
-合并即得 $M(\theta)\ddot\theta + C(\theta, \dot\theta)\dot\theta + N(\theta) = \tau$，其中 $C$ 的 Christoffel 系数形式正是 Step 3 中两组导数之差。
-
-> [!tip] 为什么变分形式重要
-> 1. **统一框架**：同样的 Hamilton 原理推出场论（Klein-Gordon, Maxwell）、广义相对论与 RL 中的 path integral 公式
-> 2. **数值离散保结构**：Variational integrator（DMOC, RATTLE）在数值积分中保持辛结构与能量近似守恒，远优于 Forward Euler——MuJoCo 的 implicit integrator 即基于此族
-> 3. **最优控制桥梁**：Pontryagin 极小值原理本质上是 Hamilton 原理在控制变分 $\delta u$ 上的推广，与 [[Optimization#4.1 核心算法：iLQR / DDP|Optimization §4.1 iLQR/DDP]] 共享变分根基
-
-#### 3.1.3 惯量参数线性性 (Linearity-in-Parameters) — 自适应控制的桥梁
-
-> [!important] 关键性质（Murray Lemma 4.2 之后的工程推论；Slotine-Li 1987）
-> 操作器方程对**惯量参数** $\pi \in \mathbb{R}^p$（每个连杆的质量、质心、惯性张量 6 个独立分量等）是**线性的**：
-> $$M(\theta)\ddot\theta + C(\theta,\dot\theta)\dot\theta + N(\theta) = \mathbf{Y}(\theta, \dot\theta, \ddot\theta)\, \pi = \tau$$
-> 其中 $\mathbf{Y} \in \mathbb{R}^{n \times p}$ 称为 **regressor 矩阵**，**只依赖于运动学量**（$\theta, \dot\theta, \ddot\theta$）而**与参数 $\pi$ 无关**。
-
-**为什么线性**：动能 $T = \tfrac12 \dot\theta^T M \dot\theta$ 与势能 $V$ 都对每个连杆的 10 个标准惯量参数 $(m_i, m_i c_i, \bar I_i)$ 是仿射函数；Lagrange 方程对 $L$ 是线性算子，故对 $\pi$ 也线性。
-
-**直接后果 — Slotine-Li 自适应控制律**（与 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|ControlTheory §12 自适应控制]] 直连）：
-设跟踪误差 $e = \theta - \theta_d$，参考速度 $\dot\theta_r = \dot\theta_d - \Lambda e$，滑动变量 $s = \dot\theta - \dot\theta_r$。利用线性性：
-$$\hat M \ddot\theta_r + \hat C \dot\theta_r + \hat N = \mathbf{Y}(\theta, \dot\theta, \dot\theta_r, \ddot\theta_r)\, \hat\pi$$
-
-控制律与适应律：
-$$\tau = \mathbf{Y}\hat\pi - K_D s, \qquad \dot{\hat\pi} = -\Gamma\, \mathbf{Y}^T s$$
-
-利用 $\dot M - 2C$ 反对称性 + Lyapunov 函数 $V = \tfrac12 s^T M s + \tfrac12 \tilde\pi^T \Gamma^{-1} \tilde\pi$ 可证全局收敛 $s \to 0$（详见 [[ControlTheory#12.2 模型参考自适应控制 (MRAC) 框架|ControlTheory §12.2 MRAC]]）。
-
-> [!tip] 灵巧操作 / Sim-to-Real 应用
-> - **System Identification**：将 1 秒的真机轨迹送入最小二乘 $\hat\pi = (\mathbf{Y}^T\mathbf{Y})^{-1}\mathbf{Y}^T \tau_{\text{measured}}$，即可在线辨识灵巧手 24 个关节的全部惯量参数（前提：轨迹满足 PE 条件）
-> - **Domain Randomization 的理论替代**：参数线性性意味着我们不必盲目随机化所有惯量；只需保证 $\mathbf{Y}$ 在训练分布上行满秩，即可让策略隐式拟合参数子空间
-> - **WMTS 关联**：[[Projects/World Model as Task Scheduler/all_Insights_local/Idea-002-Latency-Aware-Actuator|LAAA]] 中 frozen-rigid + actuator 适配本质上利用了"刚体动力学对惯量参数线性"这一性质——只有 actuator 非线性失配需要神经网络补偿
-
-#### 3.1.4 约束 Lagrangian：闭链与接触的统一处理
-
-当存在 $k$ 个**holonomic 约束** $\phi(q) = 0$（如平行连杆、双指捏合形成的闭链、或抓取中的固定接触点），有两条等价处理路径：
-
-**路径 A — 坐标降维 (Embedding)**：求 $m - k$ 个独立坐标 $q'$ 使 $\phi$ 自动成立。代价：实时重定义坐标对接触位置变化的灵巧操作不友好。
-
-**路径 B — Lagrange 乘子 (DAE 形式)**：保留全部 $m$ 个坐标，引入乘子 $\lambda \in \mathbb{R}^k$：
-$$M(q)\ddot q + C(q,\dot q)\dot q + N(q) = \tau + \mathbf{A}^T(q)\, \lambda, \qquad \mathbf{A}(q)\ddot q + \dot{\mathbf{A}}(q)\dot q = 0$$
-其中 $\mathbf{A}(q) = \partial \phi / \partial q$ 为约束 Jacobian。这是一个 **DAE (Differential-Algebraic Equation) of index 3**，对其二次微分约束方程后可与动力学合并：
-$$\begin{bmatrix} M & -\mathbf{A}^T \\ \mathbf{A} & 0 \end{bmatrix} \begin{bmatrix} \ddot q \\ \lambda \end{bmatrix} = \begin{bmatrix} \tau - C\dot q - N \\ -\dot{\mathbf{A}}\dot q \end{bmatrix}$$
-
-**乘子 $\lambda$ 的物理意义**：约束反力 $f_c = \mathbf{A}^T \lambda$。对接触约束，$\lambda$ 即接触法向力大小；与 [[ContactMechanics#4.1 线性互补问题 (LCP) 的构建|ContactMechanics §4.1 LCP]] 的互补条件 $\lambda \ge 0, \phi(q) \ge 0, \lambda \cdot \phi = 0$ 联立即得完整接触动力学。
-
-> [!tip] 与 §5 接触求解器的关系
-> 路径 B 的 KKT 矩阵正是 §5.1 LCP 求解器要分解的 **Delassus 算子** $\mathbf{A} M^{-1} \mathbf{A}^T$ 的来源。Convex-MuJoCo 用 soft constraint 代替硬 KKT，本质上是把 $\lambda$ 替换为 $\lambda = -k\phi - d\dot\phi$ 的弹簧-阻尼实现。
-
-#### 3.1.5 Hamiltonian 形式：相空间视角与最优控制
-
-Lagrangian $L(q, \dot q)$ 的 **Legendre 变换** 给出 Hamiltonian：
-$$p = \frac{\partial L}{\partial \dot q} = M(q)\dot q \quad (\text{广义动量}), \qquad H(q, p) = p^T \dot q - L = \tfrac12 p^T M^{-1}(q) p + V(q) = T + V$$
-
-**Hamilton 正则方程**：
-$$\dot q = \frac{\partial H}{\partial p} = M^{-1} p, \qquad \dot p = -\frac{\partial H}{\partial q} + \tau$$
-
-**为什么换到 Hamiltonian 视角**：
-1. **相空间几何**：$(q, p)$ 空间的流形是辛流形，Hamilton 流保持辛形式 $\omega = dq \wedge dp$——这是 symplectic integrator（Verlet, leap-frog）能长期保能量的根本原因
-2. **Pontryagin 极小值原理**：最优控制的 Hamiltonian $H^*(q, p, u) = L_{\text{cost}}(q, u) + p^T f(q, u)$ 与力学 Hamiltonian 共享数学结构。LQR 的 Riccati 方程即由 $\partial H^*/\partial u = 0$ 推出（详见 [[ControlTheory#11.1 连续时间无限时域 LQR|ControlTheory §11.1 连续 ARE]]）
-3. **Energy-shaping 控制**：通过塑形 desired Hamiltonian $H_d = \tfrac12 p^T M_d^{-1} p + V_d$，可设计被动一致的控制器（IDA-PBC），在灵巧手力反馈遥操作中天然保证操作者-机器人-环境闭环的无源性
-
-> [!important] 三种形式的统一视角
+> [!important] 三种形式，一套物理（记忆锚点）
 > | 形式 | 状态 | 适用场景 |
-> |------|------|---------|
-> | **Lagrangian** $(q, \dot q)$ | 配置 + 速度 | 推导 + Sim-to-Real（变量易测） |
-> | **Hamiltonian** $(q, p)$ | 配置 + 动量 | 长期仿真（辛积分）+ 最优控制 |
-> | **Newton-Euler** spatial $(v, f)$ | 6D 旋量 | 实时计算（RNEA $O(N)$） |
+> |:--|:--|:--|
+> | **Lagrangian** $(q,\dot q)$ | 配置+速度 | 推导、Sim-to-Real（变量易测） |
+> | **Hamiltonian** $(q,p)$ | 配置+动量 | 长期仿真（辛积分）、最优控制 |
+> | **Newton–Euler (spatial)** $(\nu,f)$ | 6D 旋量 | 实时计算（RNEA $O(N)$，§5） |
 >
-> 现代物理引擎（MuJoCo, Drake）的 implicit integrator 实际上在 Hamiltonian 上做隐式中点法以保结构稳定。
+> 现代引擎（MuJoCo/Drake）的隐式积分器实际在 Hamiltonian 上做隐式中点法以保结构稳定。
 
-#### 3.1.6 小振动线性化：平衡点附近的二阶动力学
+### 3.6 小振动线性化：平衡点附近为何会"震"
 
-> [!note] 教科书参考
-> 本节整合分析动力学微振动题解中的通用方法：选取广义坐标 → 写出 $T,V$ → 在平衡点二阶展开 → 求质量阵/刚度阵广义特征值。
+平衡点只意味着一阶广义力为零（$\partial V/\partial q=0$），不意味着没有惯性。设扰动 $\eta=q-q_0$，二阶展开 $T\approx\frac12\dot\eta^TM_0\dot\eta$、$V\approx V(q_0)+\frac12\eta^TK_0\eta$（$K_0=\partial^2V/\partial q^2|_{q_0}$），得线性振动 $M_0\ddot\eta+K_0\eta=0$，固有频率由广义特征值 $K_0\phi_i=\omega_i^2M_0\phi_i$ 给出（单自由度退化为 $\omega_n=\sqrt{k/m}$）。
 
-小振动理论回答的问题是：系统已经在平衡点附近，为什么还会“震动”？答案是：平衡点只意味着一阶广义力为零，$\partial V/\partial q=0$，并不意味着系统没有惯性。若初始条件存在微小位移或速度，系统会在势能曲率和动能度量共同决定的局部二次系统中往复交换能量。
+> [!important] 灵巧操作解读：刚度悖论的动力学版
+> 刀头触到螺钉后的微小振动不是"噪声"，而是局部质量阵与接触/传动刚度共同决定的模态响应。高 $K_p$ 位置控制等价于增大 $K_0$、抬高自然频率，更易激发未建模柔性——这正是 [[ControlTheory#3.1 问题链：刚度悖论与接触失效 (The Problem Chain: Stiffness Paradox & Contact Failure)|刚度悖论]]的动力学根源。
 
-设 $q_0$ 为稳定平衡点，令微小扰动 $\eta=q-q_0$。若动能和势能在 $q_0$ 附近可写为：
+---
 
-$$
-T \approx \frac{1}{2}\dot{\eta}^T M_0 \dot{\eta},\qquad
-V \approx V(q_0)+\frac{1}{2}\eta^T K_0 \eta,
-$$
+## 4. 约束层：接触与闭链如何进入动力学
 
-其中：
+> [!tip] 本节四拍
+> **直觉**（手握紧螺丝刀=新约束，刀头触螺钉=新约束——约束力不是外加补丁）→ **推导**（Pfaffian→Lagrange 乘子→KKT 系统）→ **对比**（完整 vs 非完整；坐标降维 vs 乘子）→ **联系**（KKT 矩阵的 Delassus 算子↔[[ContactMechanics|LCP]]）。
 
-$$
-M_0=M(q_0),\qquad K_0=\left.\frac{\partial^2 V}{\partial q^2}\right|_{q_0}.
-$$
-
-代入 Lagrange 方程得到线性小振动方程：
-
-$$
-M_0\ddot{\eta}+K_0\eta=0.
-$$
-
-固有频率由广义特征值问题给出：
-
-$$
-K_0\phi_i=\omega_i^2 M_0\phi_i.
-$$
-
-对单自由度系统，这退化为 $\omega_n=\sqrt{k/m}$，其中 $m$ 是广义质量，$k$ 是平衡点处的势能曲率。
-
-> [!important] 灵巧操作解释
-> 接触后的微小振动不是“噪声”，而是局部质量阵和接触/传动刚度共同决定的模态响应。高 $K_p$ 位置控制等价于增大 $K_0$，会提高自然频率并更容易激发未建模柔性；这正是 [[ControlTheory#3.1 问题链：刚度悖论与接触失效 (The Problem Chain: Stiffness Paradox & Contact Failure)|刚度悖论]] 的动力学版本。
-
-### 3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)
-
-**核心逻辑**: 既然我们知道基座（Base）是静止的，且末端（End-Effector）的受力是已知的（或为零），为什么不利用运动链的 **连通性（Connectivity）**？
-
-- **Insight**: 动力学具有 **局部性（Locality）**。连杆 $i$ 的运动只取决于连杆 $i-1$；连杆 $i$ 受到的力只来自连杆 $i-1$ 和 $i+1$。这种链式结构天然适合递归。
-- **算法流程**:
-  1. **Outward Pass (Kinematics)**: 从 Base 到 Tip，传播速度 ($v, \omega$) 和加速度 ($\dot{v}, \dot{\omega}$)。利用 $v_i = v_{i-1} + \dot{q}_i S_i$。
-  2. **Inward Pass (Dynamics)**: 从 Tip 到 Base，传播力 ($f$) 和力矩 ($n$)。利用 $F_i = F_{ext} + \sum F_{children}$。
-- **Value-add (新方法的价值)**:
-  - **$O(N)$ 线性复杂度**。这是机器人控制领域的里程碑。无论手指有多少关节，计算时间随关节数线性增长。这使得在 1kHz 频率下对复杂灵巧手进行 Computed Torque Control 成为可能。
-- **限制**: RNEA 计算的是 Inverse Dynamics ($\tau = ID(q, \dot{q}, \ddot{q})$)。如果我们要进行仿真（Forward Dynamics），即求解 $\ddot{q}$，传统的做法是利用 RNEA 组装 $M(q)$ 并求逆，这又回到了 $O(N^3)$ 的复杂度。
-
-### 3.3 The Simulation Holy Grail: Articulated Body Algorithm (ABA)
-
-**问题**: 如何在 $O(N)$ 复杂度下计算 Forward Dynamics ($\ddot{q} = FD(q, \dot{q}, \tau)$)？这对于高保真仿真至关重要。
-
-**提出者**: Roy Featherstone (1983).
-
-- **核心概念**: **Articulated Inertia (关节惯量)**。
-  - *Rigid Inertia* ($I$): 一个孤立刚体的惯量，是常数。
-  - *Articulated Inertia* ($I^A$): 当一个连杆连接着一串“松弛”的子连杆链时，从该连杆看去感受到的“等效惯量”。
-  - **Physical Insight**: 想象你手里挥舞着一根鞭子（软连接）和一根铁棍（刚连接）。鞭子的末端会滞后，你感受到的阻力（惯量）小于铁棍。ABA 通过递归地计算这种“被子运动链修正后”的惯量，实现了无需显式求逆矩阵的直接求解。
-- **Value-add**: 使得包含数十个关节的灵巧手仿真能够在微秒级完成，为 Sim-to-Real Reinforcement Learning 提供了算力基础。它是现代物理引擎（MuJoCo, Dart, RBDL）的核心。
-
-### 3.4 方法对比总结 (Method Comparison Summary)
+### 4.1 Pfaffian 约束与完整/非完整之分
 
 > [!note] 教科书参考
-> 综合 Murray Ch.4（Lagrangian）与 Featherstone（RNEA/ABA）的分析
+> 本节基于 Murray et al. Ch. 6。
 
-| 对比维度 | Lagrangian | RNEA | ABA |
-|---------|-----------|------|-----|
-| **理论基础** | 能量原理（$L = T - V$） | 牛顿第二定律 + 欧拉方程 | 关节惯量递推 |
-| **数学表述** | 标量函数（广义坐标） | 矢量方程（力/力矩平衡） | 空间向量代数 |
-| **计算问题** | ID 和 FD 均可 | 主要用于 ID | 主要用于 FD |
-| **计算复杂度** | $O(N^3)$（符号推导） | $O(N)$（递归） | $O(N)$（递归） |
-| **物理直觉** | 能量守恒视角 | 逐连杆力平衡 | 等效惯量传播 |
-| **约束处理** | Lagrange 乘子（系统化） | 需虚拟切断 + 投影 | 原生支持树形结构 |
-| **适用场景** | 理论分析、Passivity 证明 | 实时逆动力学控制 | 高保真仿真 |
-| **灵巧操作** | 稳定性分析框架 | 1kHz 计算力矩控制 | Sim-to-Real 数据生成 |
+一般速度约束写成 **Pfaffian 形式** $A(q)\dot q=0$（$A\in\mathbb R^{k\times n}$）。对多指手，约束矩阵有特殊结构 $A(q)=[\,J_h(q)\ \ -G^T(q)\,]$（$J_h$ 手雅可比、$G$ 抓取矩阵——又见 [[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|对偶性]]）。
 
-> [!tip] 工程选择指南
-> - **串联结构 + 实时控制** → RNEA（$O(N)$ 逆动力学，嵌入式友好）
-> - **仿真 + RL 训练** → ABA（$O(N)$ 正向动力学，MuJoCo/Brax 内核）
-> - **理论推导 + 控制器设计** → Lagrangian（结构化分析，$\dot{M} - 2C$ 反对称性质）
-> - **闭链/并联/非完整约束** → Lagrangian + Lagrange 乘子（系统化约束处理）
+**可积性判别完整/非完整**：若存在 $h(q)$ 使 $A\dot q=0\Leftrightarrow\frac{\partial h}{\partial q}\dot q=0$，则约束**可积**、等价于完整约束 $h(q)=0$；**不可积的 Pfaffian 约束就是非完整约束**。
 
-------
+> [!tip] 母题里的非完整：滚动 = "平行泊车"
+> 刀头或指尖在物体表面**纯滚动**（rolling without slipping）是非完整约束的典型——它限制瞬时速度方向却不降低 C-space 维数。后果：你不能让接触点"侧向平移"，必须靠一串滚动机动来重定位（**finger gaiting**），就像平行泊车。这把动力学与 [[ContactMechanics#2.2 Montana 接触运动学方程|Montana 滚动]]、[[ControlTheory#6.3 非完整约束的控制含义 (Non-holonomic Implications)|非完整控制]]缝在一起。
 
-## 4. Implementation: 核心算法详解 (Algorithmic Core)
+### 4.2 约束动力学：Lagrange 乘子与约束反力
 
-在这一部分，我们将摒弃繁杂的 C++ 模板元编程细节，专注于算法的 **Python/Pseudocode 逻辑**，并使用 **Spatial Vector Algebra (空间向量代数)** 这一现代机器人学的标准语言。
+受 Pfaffian 约束的系统，运动方程加一项约束反力：
+$$M(q)\ddot q+C\dot q+N+A^T(q)\lambda=F,$$
+$\lambda\in\mathbb R^k$ 是 **Lagrange 乘子**。对约束求时间导数代入，解出
+$$\lambda=(AM^{-1}A^T)^{-1}\big[AM^{-1}(F-C\dot q-N)+\dot A\dot q\big].$$
 
-### 4.1 空间向量代数 (Spatial Vector Algebra) 基础
+> [!important] 三层物理含义
+> - **$AM^{-1}A^T$ = 约束空间的有效质量矩阵**（即 §5 要分解的 **Delassus 算子**，也即 [[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]] 里的 $A$ 矩阵——一处推导，两个领域共用）；
+> - **$\lambda$ = 接触力/内力的大小**；
+> - **d'Alembert 原则**：约束力不做功 $\lambda^TA\dot q=0$。
+>
+> 抓取控制常需**同时控位置与力**——沿约束面移动（位置控制）的同时调法向力（力控制），这正是 [[ControlTheory#5. 力/位混合控制 (Hybrid Force/Position Control)|混合位置/力控制]]的数学基础。
 
-传统的机器人学将线速度 $v \in \mathbb{R}^3$ 和角速度 $\omega \in \mathbb{R}^3$ 分开处理，导致公式冗长且难以直观理解坐标变换。Featherstone 引入了 6D Spatial Vectors，统一了平动与转动。
+### 4.3 约束 Lagrangian：闭链与接触的统一处理
 
-- **Spatial Velocity ($\hat{v}$)**: $\nu = \begin{bmatrix} \omega \\ v \end{bmatrix} \in M^6$ (Motion Space)。注意，这里的 $v$ 是刚体上与坐标原点重合点的线速度，不同于质心速度。
+存在 $k$ 个 holonomic 约束 $\phi(q)=0$（如双指捏合成闭链、握住螺丝刀的固定接触）时，两条等价路径：
 
-- **Spatial Force ($\hat{f}$)**: $f = \begin{bmatrix} n \\ f \end{bmatrix} \in F^6$ (Force Space)。$n$ 是力矩，$f$ 是力。
+- **路径 A — 坐标降维 (embedding)**：求 $n-k$ 个独立坐标使 $\phi$ 自动成立。代价：接触点随时变的灵巧操作里，实时重定义坐标极难。
+- **路径 B — Lagrange 乘子 (DAE)**：保留全坐标，引入乘子，合并成 **index-3 微分代数方程**，对约束二次微分后得 **KKT 系统**：
+$$\begin{bmatrix}M & -A^T\\ A & 0\end{bmatrix}\begin{bmatrix}\ddot q\\ \lambda\end{bmatrix}=\begin{bmatrix}\tau-C\dot q-N\\ -\dot A\dot q\end{bmatrix}.$$
 
-- **Spatial Inertia ($I$)**: 一个 $6 \times 6$ 的对称正定矩阵，包含了质量 $m$、质心位置 $c$（通过反对称矩阵 $c \times$ 表示）和转动惯量 $\bar{I}$。
+约束反力 $f_c=A^T\lambda$。对接触约束，$\lambda$ 即法向力大小；与 [[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]]的互补条件 $\lambda\ge0,\ \phi(q)\ge0,\ \lambda\cdot\phi=0$ 联立即得完整接触动力学。
 
-  $$I = \begin{bmatrix} \bar{I} + m c\times c\times^T & m c\times \\ m c\times^T & m \mathbf{1} \end{bmatrix}$$
+> [!tip] 与 §6 接触求解器的关系
+> 路径 B 的 KKT 矩阵正是 §6 LCP 求解器要分解的 **Delassus 算子** $AM^{-1}A^T$ 的来源。Convex-MuJoCo 用 soft constraint 把硬 KKT 中的 $\lambda$ 替换为弹簧-阻尼实现 $\lambda=-k\phi-d\dot\phi$——这就是"硬约束 vs 软约束"的分野（§6 详述）。**灵巧操作里实时重定义坐标不可行，所以乘子法（约束嵌入）是主流。**
 
-- **Spatial Cross Product ($\times$)**: 类似于 3D 向量积，用于求导和坐标变换。
+---
 
-  $$\nu \times = \begin{bmatrix} \omega\times & 0 \\ v\times & \omega\times \end{bmatrix}$$
+## 5. 算法层：$O(N)$ 递推的"工业革命"
 
-  $$\nu \times^* = \begin{bmatrix} \omega\times & v\times \\ 0 & \omega\times \end{bmatrix} \quad (\text{Force dual, used in } f = I a + v \times^* I v)$$
+> [!tip] 本节四拍
+> **直觉**（24 DoF 手要 1kHz 闭环，复杂度是死敌）→ **推导**（利用运动链的局部性做递推）→ **对比**（Lagrangian $O(N^3)$ vs RNEA/ABA $O(N)$）→ **联系**（ABA 是 [[ReinforcementLearning|RL 仿真器]]/[[EmbodiedAI|物理引擎]]内核）。
 
-### 4.2 Recursive Newton-Euler Algorithm (RNEA) - Python Logic
+计算复杂度是实时控制的死敌。纯 Lagrangian 展开 $M(q)$ 需 $O(N^2\sim N^3)$、科氏项更是三角函数求导的灾难——24 DoF 的 Shadow Hand 符号方程项数指数爆炸，1980 年代以前实时解算（<1ms）不可能。突破口是**动力学的局部性**：连杆 $i$ 只与 $i\pm1$ 相连，天然适合递推。
 
-此实现展示了 $O(N)$ 的核心递推。该逻辑是所有 Model-Based Controller（如 Impedance Control）的基石。
+### 5.1 空间向量代数：6D 统一平动与转动
 
-Python
+Featherstone 把 $v\in\mathbb R^3$ 与 $\omega\in\mathbb R^3$ 合并为 6D 空间向量（即 §2.3 的 twist 工程实现）：
+- **空间速度** $\nu=(\omega,v)\in M^6$、**空间力** $f=(n,f)\in F^6$；
+- **空间惯量** $I$（$6\times6$ 对称正定，含质量、质心、转动惯量）；
+- **空间叉乘** $\nu\times$（运动）与 $\nu\times^*$（力，对偶），用于 $f=Ia+v\times^*Iv$。
 
-```
-import numpy as np
+### 5.2 RNEA：$O(N)$ 逆动力学（控制的基石）
 
-class SpatialLink:
-    """
-    Represents a single link in the kinematic chain using Spatial Algebra.
-    """
-    def __init__(self, inertia_matrix, joint_axis_S, parent=None):
-        self.X_parent = np.eye(6)  # Spatial transform (Plucker transform) from parent frame
-        self.I = inertia_matrix    # 6x6 Spatial Inertia Tensor
-        self.S = joint_axis_S      # 6D Joint motion subspace (e.g.,  for Z-revolute)
-        self.parent = parent
-        self.children =
-        
-        # Dynamic State variables
-        self.v = np.zeros(6)       # Spatial velocity (6D)
-        self.a = np.zeros(6)       # Spatial acceleration (6D)
-        self.f = np.zeros(6)       # Spatial force (6D) acting across the joint
-        
-        # Kinematic inputs
-        self.q = 0.0               # Joint position
-        self.dq = 0.0              # Joint velocity
-        self.ddq = 0.0             # Joint acceleration (target)
+> [!important] 两趟递推（记住这条链就记住了 RNEA）
+> - **外向趟 (Base→Tip, 运动学)**：传播速度与加速度，$\nu_i=X_i\nu_{i-1}+S_i\dot q_i$；
+> - **内向趟 (Tip→Base, 动力学)**：传播力与力矩，$f_i=f_i^{net}+\sum_{child}X^Tf_{child}$，关节力矩 $\tau_i=S_i^Tf_i$。
+> **复杂度 $O(N)$**——这是机器人控制的里程碑：无论多少关节，计算时间线性增长，使 1kHz 计算力矩控制成为可能。
 
+```python
 def rnea_inverse_dynamics(model, gravity_vec):
-    """
-    Computes inverse dynamics: given q, dq, ddq -> find tau.
-    Complexity: O(N)
-    Algorithm: Featherstone RNEA
-    """
-    
-    # --- 1. Outward Pass (Kinematics): Base -> Tip ---
-    # Insight: Base is stationary, but we simulate gravity by accelerating 
-    # the base UPWARDS by 9.81m/s^2. This elegantly handles gravity 
-    # as an inertial force without explicit gravity terms in each link.
+    """给定 q, dq, ddq → 求 tau。复杂度 O(N)。Featherstone RNEA。"""
+    # --- 1. 外向趟（运动学）Base → Tip ---
+    # 技巧：把"重力"实现为基座以 9.81 m/s² 向上加速，
+    # 从而把重力当惯性力自然处理，无需在每个连杆显式加重力项。
     model.base.v = np.zeros(6)
-    model.base.a = -gravity_vec 
-    
-    for i in range(1, model.num_links):
-        link = model.links[i]
-        parent = link.parent
-        
-        # Calculate joint velocity contribution
+    model.base.a = -gravity_vec
+    for link in model.links[1:]:
         v_J = link.S * link.dq
-        
-        # Propagate Velocity: v_i = X_parent * v_{i-1} + S_i * dq_i
-        # X_parent transforms parent velocity into current frame
-        link.v = link.X_parent @ parent.v + v_J
-        
-        # Propagate Acceleration: 
-        # a_i = X * a_{i-1} + S * ddq + v_i x v_J (Coriolis term)
-        # spatial_cross_motion(v, w) computes v x w in 6D
-        coriolis = spatial_cross_motion(link.v, v_J)
-        link.a = link.X_parent @ parent.a + link.S * link.ddq + coriolis
-        
-        # Calculate Net Force required for this rigid body (Newton-Euler eqn)
-        # f_net = I * a + v x* (I * v)
-        # The second term is the gyroscopic force (spatial bias force)
-        gyroscopic_force = spatial_cross_force(link.v, link.I @ link.v)
-        link.f_net = link.I @ link.a + gyroscopic_force
-
-    # --- 2. Inward Pass (Forces): Tip -> Base ---
+        link.v = link.X_parent @ link.parent.v + v_J
+        coriolis = spatial_cross_motion(link.v, v_J)          # 科氏项 v × v_J
+        link.a = link.X_parent @ link.parent.a + link.S * link.ddq + coriolis
+        # Newton-Euler: f_net = I a + v ×* (I v)，第二项为陀螺力（spatial bias force）
+        link.f_net = link.I @ link.a + spatial_cross_force(link.v, link.I @ link.v)
+    # --- 2. 内向趟（力）Tip → Base ---
     taus = np.zeros(model.num_links)
-    
-    # Iterate backwards from tips to base
-    for i in range(model.num_links - 1, 0, -1):
-        link = model.links[i]
-        
-        # Force Balance: The force transmitted across joint i supports:
-        # 1. The net force required to move link i (f_net)
-        # 2. The forces transmitted to all child links (recursively)
-        # f_i = f_net + sum(X_child^T * f_child)
-        
-        force_from_children = np.zeros(6)
-        for child in link.children:
-            # Propagate force back: f_parent += X_child.T * f_child
-            # Note the Transpose on X: forces transform inversely to motion
-            force_from_children += child.X_parent.T @ child.f
-            
-        link.f = link.f_net + force_from_children
-        
-        # Project spatial force onto joint axis to get scalar torque
-        # tau = S^T * f
-        taus[i] = np.dot(link.S, link.f)
-        
+    for link in reversed(model.links[1:]):
+        f_children = sum(c.X_parent.T @ c.f for c in link.children)  # 力按 X^T 反向传播
+        link.f = link.f_net + f_children
+        taus[link.idx] = np.dot(link.S, link.f)               # 投影到关节轴：tau = S^T f
     return taus
-
-# Helper: Spatial Cross Products (The "Magic" of 6D Algebra)
-def spatial_cross_motion(v1, v2):
-    """ Computes v1 x v2 for motion vectors (Lie bracket on se(3)) """
-    # v = [omega, vel]
-    w1, vel1 = v1[:3], v1[3:]
-    w2, vel2 = v2[:3], v2[3:]
-    res = np.zeros(6)
-    # Angular part: w1 x w2
-    res[:3] = np.cross(w1, w2)
-    # Linear part: v1 x w2 + w1 x v2 (Coupling!)
-    res[3:] = np.cross(vel1, w2) + np.cross(w1, vel2)
-    return res
-
-def spatial_cross_force(v, f):
-    """ Computes v x* f for dual force vectors """
-    # v = [omega, vel], f = [moment, force]
-    w, vel = v[:3], v[3:]
-    n, force = f[:3], f[3:]
-    res = np.zeros(6)
-    # Moment part: w x n + v x f
-    res[:3] = np.cross(w, n) + np.cross(vel, force)
-    # Force part: w x f
-    res[3:] = np.cross(w, force)
-    return res
 ```
 
-### 4.3 Articulated Body Algorithm (ABA) - The Logic of Simulation
+**局限**：RNEA 算的是逆动力学。要做仿真（正向动力学求 $\ddot q$），传统做法是用 RNEA 组装 $M(q)$ 再求逆——又回到 $O(N^3)$。这就需要 ABA。
 
-ABA 的实现比 RNEA 复杂得多，因为它需要处理矩阵的 Inversion 和 Recursive Update。这是物理引擎计算 `step()` 函数的核心。
+### 5.3 ABA：$O(N)$ 正向动力学（仿真的圣杯）
 
-**核心步骤与物理直觉**:
+Featherstone (1983) 的核心概念是 **Articulated Inertia（关节惯量）** $I^A$：当一个连杆连着一串"松弛"子链时，从它看去感受到的等效惯量。
 
-1. **Pass 1 (Inward - Inertia Assembly)**: 计算 **Articulated Inertia ($I^A$)** 和 **Bias Forces ($p^A$)**。
+> [!tip] "鞭子 vs 铁棍"直觉
+> 挥动一根鞭子（软连接）和一根铁棍（刚连接）——鞭子末端滞后，你感受到的惯量小于铁棍。ABA 递归计算这种"被子链修正后"的等效惯量，**无需显式求逆大矩阵**就能直接解出加速度。更新规则：
+> $$I^A_{parent}=I_{parent}+\Big(I^A_{child}-\frac{I^A_{child}SS^TI^A_{child}}{S^TI^A_{child}S}\Big).$$
+> 减号那项是"因关节自由度而泄露掉的惯量"——关节锁死（$S=0$）时它消失、惯量直接相加。这一步把多体系统等效为变换后的单刚体。
 
-   - 对于叶子节点（Tip），$I^A = I$（即刚体本身的惯量）。
-
-   - 对于父节点，我们需要“加上”子节点的惯量。但是，子节点并不是焊死在父节点上的，它可以通过关节自由运动。
-
-   - **The ABA Update Rule**:
-
-     $$I^A_{parent} = I_{parent} + I^A_{child} - \frac{I^A_{child} S S^T I^A_{child}}{S^T I^A_{child} S}$$
-
-   - *Critical Insight*: 减号后面那一项（$U D^{-1} U^T$）代表了由于关节自由度存在而“泄露”掉的惯量。如果关节被锁死（$S=0$），这一项消失，惯量直接相加。这一步将“多体系统”等效为了一个“变换后的单刚体”。
-
-2. **Pass 2 (Outward - Acceleration Propagation)**: 计算加速度 $\ddot{q}$。
-
-   - 既然有了修正后的惯量 $I^A$，我们就可以像处理单刚体一样，从 Base 开始，利用关节力矩 $\tau$ 和 $I^A$ 直接解出当前关节的加速度，而不需要求解巨大的 $M(q)\ddot{q} = \tau$ 线性系统。
-
-Python
-
-```
+```python
 def articulated_body_algorithm(model, taus):
-    """
-    Computes forward dynamics: given q, dq, tau -> find ddq.
-    Complexity: O(N)
-    """
-    
-    # --- 1. Initialization: Compute velocity-dependent terms (Bias) ---
-    # Similar to RNEA outward pass, but we don't know ddq yet.
-    # We calculate 'c': the bias acceleration (coriolis/centrifugal)
-    for i in range(1, model.num_links):
-        link = model.links[i]
-        parent = link.parent
+    """给定 q, dq, tau → 求 ddq。复杂度 O(N)。物理引擎 step() 的内核。"""
+    # 1. 初始化：算速度相关的 bias（此时还不知道 ddq）
+    for link in model.links[1:]:
         v_J = link.S * link.dq
-        link.v = link.X_parent @ parent.v + v_J
-        # Bias acceleration: c = v x v_J
-        link.c = spatial_cross_motion(link.v, v_J)
-        # Rigid body bias force: p = v x* (I * v) - f_ext
-        link.p = spatial_cross_force(link.v, link.I @ link.v)
-
-    # --- 2. Inward Pass: Compute Articulated Inertias (Ia) and Bias Forces (pa) ---
-    for i in range(model.num_links - 1, 0, -1):
-        link = model.links[i]
-        
-        # Initialize Articulated Inertia with Rigid Inertia
-        if not hasattr(link, 'Ia'): link.Ia = link.I.copy()
-        if not hasattr(link, 'pa'): link.pa = link.p.copy()
-        
-        # Compute subspace matrix terms for this joint
-        # U = Ia * S (Projection of inertia onto joint axis)
+        link.v = link.X_parent @ link.parent.v + v_J
+        link.c = spatial_cross_motion(link.v, v_J)              # bias 加速度
+        link.p = spatial_cross_force(link.v, link.I @ link.v)   # 刚体 bias 力
+        link.Ia, link.pa = link.I.copy(), link.p.copy()
+    # 2. 内向趟：算 articulated inertia (Ia) 与 bias force (pa)
+    for link in reversed(model.links[1:]):
         U = link.Ia @ link.S
-        # D = S^T * Ia * S (Scalar inertia along the joint axis)
-        # For a simple revolute joint, D is a scalar (moment of inertia around axis)
-        D = np.dot(link.S, U)
-        D_inv = 1.0 / D 
-        
-        # u = tau - S^T * pa (Net force available for acceleration)
-        u = taus[i] - np.dot(link.S, link.pa)
-        
-        # Store intermediate results for the outward pass
-        link.U = U
-        link.D_inv = D_inv
-        link.u = u
-        
-        # Propagate Articulated Inertia and Bias Force to Parent
+        D_inv = 1.0 / np.dot(link.S, U)                          # 关节轴向标量惯量之逆
+        u = taus[link.idx] - np.dot(link.S, link.pa)            # 可用于加速的净力
+        link.U, link.D_inv, link.u = U, D_inv, u
         if link.parent:
-            # Ia_parent += X^T * (Ia - U * D_inv * U^T) * X
-            # This is the key ABA projection: subtracting the 'free' direction inertia
-            Ia_rel = link.Ia - np.outer(U, U) * D_inv
+            Ia_rel = link.Ia - np.outer(U, U) * D_inv           # 减去"自由方向"惯量
             link.parent.Ia += link.X_parent.T @ Ia_rel @ link.X_parent
-            
-            # pa_parent += X^T * (pa + Ia * c + U * D_inv * u) 
-            # Propagating bias forces, accounting for articulation
-            bias_rel = link.pa + link.Ia @ link.c + U * D_inv * link.u
+            bias_rel = link.pa + link.Ia @ link.c + U * D_inv * u
             link.parent.pa += link.X_parent.T @ bias_rel
-
-    # --- 3. Outward Pass: Compute Accelerations ---
-    for i in range(1, model.num_links):
-        link = model.links[i]
-        parent = link.parent
-        
-        # Parent spatial acceleration is now known
-        a_parent = parent.a
-        
-        # Transform parent acceleration to current frame and add coriolis bias
-        a_prime = link.X_parent @ a_parent + link.c 
-        
-        # Solve for joint acceleration using the articulated logic
-        # ddq = D_inv * (u - U^T * a_prime)
-        # Logic: (Available Force - Inertial Force from Base Motion) / Joint Inertia
-        link.ddq = link.D_inv * (link.u - np.dot(link.U, a_prime))
-        
-        # Calculate full spatial acceleration of the link
+    # 3. 外向趟：算加速度
+    for link in model.links[1:]:
+        a_prime = link.X_parent @ link.parent.a + link.c
+        link.ddq = link.D_inv * (link.u - np.dot(link.U, a_prime))  # (净力 − 基座运动惯性力)/关节惯量
         link.a = a_prime + link.S * link.ddq
-        
     return [link.ddq for link in model.links]
 ```
 
-------
+ABA 让数十关节灵巧手的仿真在微秒级完成，为 Sim-to-Real RL 提供算力基础，是 MuJoCo/Dart/RBDL/Brax 的核心。
 
-## 5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)
+### 5.4 三法对比与选型
 
-如果说 RNEA/ABA 是经典物理的巅峰，那么 Contact Dynamics 就是充满了妥协与技巧的现代工程前沿。在灵巧操作中，手指与物体的接触有以下特点：
+| 维度 | Lagrangian | RNEA | ABA |
+|:--|:--|:--|:--|
+| 理论基础 | 能量 $L=T-V$ | 牛顿-欧拉力平衡 | 关节惯量递推 |
+| 计算问题 | ID 与 FD 皆可 | 主要 ID | 主要 FD |
+| 复杂度 | $O(N^3)$（符号） | $O(N)$ | $O(N)$ |
+| 约束处理 | Lagrange 乘子（系统化） | 需虚拟切断+投影 | 原生支持树形 |
+| 灵巧操作用途 | 稳定性分析、自适应 | 1kHz 计算力矩控制 | Sim-to-Real 数据生成 |
 
-1. **Intermittent（间歇性）**: 接触状态（Make/Break）在毫秒级切换，产生非光滑（Non-smooth）动力学。
-2. **Constraint Redundancy（约束冗余）**: 三根手指抓一个方块，约束方程可能过定（Over-constrained）或欠定（Under-constrained），导致矩阵奇异。
-3. **Friction Cone（摩擦锥）**: 非线性约束 ($\|f_t\| \le \mu f_n$)。
+> [!tip] 选型指南
+> 串联+实时控制 → **RNEA**；仿真+RL 训练 → **ABA**（MuJoCo/Brax 内核）；理论推导+控制器设计 → **Lagrangian**（$\dot M-2C$ 反对称）；闭链/并联/非完整 → **Lagrangian + 乘子**。
 
-目前主要有两大流派：**LCP (Bullet, ODE)** 和 **Convex Optimization (MuJoCo)**。
+---
 
-### 5.1 Linear Complementarity Problem (LCP)
+## 6. 仿真层：接触动力学的深水区
 
-传统物理引擎将接触建模为 LCP。
+> [!tip] 本节四拍
+> **直觉**（刀头触螺钉=间歇、冗余、非线性摩擦三重困难）→ **推导**（LCP 互补 vs 凸优化软约束）→ **对比**（Bullet/ODE 的 LCP vs MuJoCo 的凸优化）→ **联系**（软接触梯度平滑→[[ReinforcementLearning|可微物理/RL 训练]]）。
 
-**基本形式**:
+灵巧操作的接触有三个折磨人的特点：**间歇性**（make/break 毫秒切换→非光滑）、**约束冗余**（多指抓握过/欠定→矩阵奇异）、**摩擦锥**（非线性 $\|f_t\|\le\mu f_n$）。两大流派：LCP（Bullet/ODE）与凸优化（MuJoCo）。
 
-$$\begin{aligned} a &= M^{-1}(f_{ext} + J^T \lambda) \\ J a + \zeta &\ge 0 \quad (\text{Separation constraint, non-penetration}) \\ \lambda &\ge 0 \quad (\text{Repulsion force}) \\ \lambda^T (J a + \zeta) &= 0 \quad (\text{Complementarity condition}) \end{aligned}$$
+### 6.1 LCP 流派
 
-其中 $\lambda$ 是接触冲量，$J$ 是接触 Jacobian。
+非穿透建为线性互补：$a=M^{-1}(f_{ext}+J^T\lambda)$，$Ja+\zeta\ge0$（不穿透），$\lambda\ge0$（只推不拉），$\lambda^T(Ja+\zeta)=0$（互补）。**摩擦锥线性化**：库伦二阶锥近似为多棱锥，引入各向异性（沿对角 vs 沿轴滑动阻力不同）。**求解器** PGS：对灵巧手这种轻量高刚度系统收敛慢，迭代不足→残差表现为**穿透**或**幽灵力**（仿真里手指"插进"螺丝刀）。
 
-- **Friction Linearization**: Coulomb 摩擦锥是二次锥（Quadratic Cone），是非线性的。为了保持 LCP 的线性性质，必须将其近似为 **Polyhedral Pyramid（多棱锥）**。这引入了方向误差（各向异性），即物体沿对角线方向滑动受到的阻力可能与沿轴线方向不同。
-- **Solver**: 通常使用 **Projected Gauss-Seidel (PGS)**。
-  - *Insight*: PGS 本质上是一个迭代法（Iterative Solver）。对于灵巧手这种 **Lightweight High-Stiffness**（轻量高刚度）系统，PGS 往往收敛很慢。如果迭代次数不足，残差会导致“穿透”或“幽灵力”。这就是为什么在仿真中你会看到手指像“插进”了物体里（Penetration Error）。
+### 6.2 凸优化流派（MuJoCo）：放弃硬约束
 
-### 5.2 Convex Optimization & Soft Constraints (The MuJoCo Way)
+Todorov 的洞见：放弃"刚体绝对不可穿透"，允许微小穿透并产生基于势能的恢复力（**soft constraint**），把接触动力学建为**凸 QP**：
+$$\min_{\ddot q}\ \tfrac12\ddot q^TM\ddot q+\text{Potential(穿透)}\quad\text{s.t. 摩擦锥}.$$
+三大 value-add：① **可逆性**——即便接触状态下动力学也良态，逆动力学仍可用（对 [[ControlTheory#4. Operational Space Formulation (OSF)|基于模型的控制]]是福音）；② **平滑性**——软接触让梯度平滑，对**可微物理与 RL 训练至关重要**（呼应 [[ContactMechanics#6. 可微接触物理：让接触进入梯度优化|可微接触]]）；③ **稳定性**——避免 LCP 在大质量比（灵巧手捏薄纸）时的数值爆炸。
 
-Emo Todorov (MuJoCo 作者) 引入了基于 **凸优化（Convex Optimization）** 的接触模型。这是 Robot Learning 领域的 Game Changer。
+### 6.3 PGS 核心循环（实时引擎的心脏）
 
-- **核心思想**: 放弃“刚体不可穿透”的硬约束假设。允许微小的穿透，但穿透会产生基于势能的恢复力。这被称为 **Soft Constraints**。
-
-- **Formulation**:
-
-  $$\min_{\ddot{q}, \tau} \quad \frac{1}{2} \ddot{q}^T M \ddot{q} + \text{Potential}(\text{Penetration}) \quad \text{s.t. Friction Cone}$$
-
-  不同于 LCP 的硬约束，MuJoCo 在接触处定义了一个阻抗（Impedance）。
-
-- **Value-add**:
-
-  1. **Invertibility**: 即使在接触状态下，动力学也是良态的（Well-posed）。这使得 Inverse Dynamics 在接触丰富的操作中依然可用。
-  2. **Smoothness**: 软接触使得梯度（Gradient）更加平滑，这对于 Differentiable Physics 和 Reinforcement Learning 训练至关重要。
-  3. **Stability**: 避免了 LCP 在大质量比（灵巧手抓薄纸）时的数值爆炸。
-
-### 5.3 Implementation: Projected Gauss-Seidel Core Logic
-
-这是大多数实时物理引擎解决接触力的核心循环。请注意这里对 Friction Cone 的处理方式（Clamping）。
-
-> [!note] 数值稳定性技巧
-> 在接触动力学中，"粘滞-滑动"(Stick-Slip) 状态的剧烈切换是导致数值不稳定的主因。以下技术可显著改善收敛性：
-> - **Warm Starting**: 使用上一帧的接触力作为初始猜测，加速收敛
-> - **Baumgarte Stabilization**: 将位置层面的约束违反映射为补偿性的加速度修正
-> - **摩擦锥投影**: 迭代过程中切向脉冲对摩擦锥约束的实时投影——根据法向力的大小对切向分量进行动态限幅
-
-Python
-
-```
+```python
 def solve_contact_lcp_pgs(J, M_inv, bias, mu, iterations=50):
-    """
-    Solves J * M_inv * J^T * lambda = -bias
-    subject to Friction Cone Constraints (Projected Gauss-Seidel).
-    
-    J: Jacobian of constraints (contact normals + friction dirs)
-    M_inv: Inverse Mass Matrix (usually sparse or Cholesky factored)
-    bias: J * v_pre + Coriolis effects + Baumgarte stabilization
-    mu: Friction coefficient
-    """
-    
-    # 1. Compute the Delassus Operator (Effective Mass in Constraint Space)
-    # A = J * M_inv * J^T
-    # This matrix A tells us how much the contact point accelerates 
-    # when a unit force is applied at the contact.
-    # In practice, A is computed sparsely. For tutorial, we assume dense.
-    A = J @ M_inv @ J.T
-    
-    n_contacts = len(bias) // 3 # Assuming 3 DOFs per contact (1 normal, 2 tangent)
-    lambdas = np.zeros(len(bias))
-    
-    # Pre-compute diagonal inverse for O(1) update (Jacobi preconditioner)
-    inv_diag = 1.0 / np.diag(A)
-    
+    """解 (J M⁻¹ Jᵀ) λ = -bias，约束于摩擦锥（投影高斯-赛德尔）。"""
+    A = J @ M_inv @ J.T            # Delassus 算子：接触点的有效逆质量（= §4.2 的 AM⁻¹Aᵀ）
+    n_contacts = len(bias) // 3    # 每接触 3 DOF：1 法向 + 2 切向
+    lam = np.zeros(len(bias)); inv_diag = 1.0 / np.diag(A)
     for _ in range(iterations):
         for i in range(n_contacts):
-            # Indices for Normal (n) and Tangents (t1, t2)
-            idx_n = i * 3
-            idx_t1 = i * 3 + 1
-            idx_t2 = i * 3 + 2
-            
-            # --- Solve Normal Component ---
-            # Gauss-Seidel Step:
-            # lambda_new = (b_i - sum(A_ij * lambda_j)) / A_ii
-            residual_n = bias[idx_n] + np.dot(A[idx_n, :], lambdas) - A[idx_n, idx_n] * lambdas[idx_n]
-            l_n = -residual_n * inv_diag[idx_n]
-            
-            # Projection: Normal force must be non-negative (Repulsion only)
-            l_n = max(0.0, l_n)
-            lambdas[idx_n] = l_n
-            
-            # --- Solve Tangent Components (Friction) ---
-            # The friction limit depends on the CURRENT normal force l_n
-            friction_limit = mu * l_n
-            
-            # Update Tangent 1
-            residual_t1 = bias[idx_t1] + np.dot(A[idx_t1, :], lambdas) - A[idx_t1, idx_t1] * lambdas[idx_t1]
-            l_t1 = -residual_t1 * inv_diag[idx_t1]
-            
-            # Update Tangent 2
-            residual_t2 = bias[idx_t2] + np.dot(A[idx_t2, :], lambdas) - A[idx_t2, idx_t2] * lambdas[idx_t2]
-            l_t2 = -residual_t2 * inv_diag[idx_t2]
-            
-            # Projection: Project (l_t1, l_t2) into the friction circle
-            # If magnitude > limit, scale it back
-            f_mag = np.sqrt(l_t1**2 + l_t2**2)
-            if f_mag > friction_limit and f_mag > 1e-8:
-                scale = friction_limit / f_mag
-                l_t1 *= scale
-                l_t2 *= scale
-                
-            lambdas[idx_t1] = l_t1
-            lambdas[idx_t2] = l_t2
-            
-    return lambdas
+            n, t1, t2 = 3*i, 3*i+1, 3*i+2
+            # 法向：高斯-赛德尔一步后投影到 ≥0（只能排斥）
+            res_n = bias[n] + A[n] @ lam - A[n, n]*lam[n]
+            lam[n] = max(0.0, -res_n * inv_diag[n])
+            # 切向：摩擦上限取决于当前法向力 lam[n]
+            limit = mu * lam[n]
+            lt1 = -(bias[t1] + A[t1] @ lam - A[t1,t1]*lam[t1]) * inv_diag[t1]
+            lt2 = -(bias[t2] + A[t2] @ lam - A[t2,t2]*lam[t2]) * inv_diag[t2]
+            mag = np.hypot(lt1, lt2)               # 投影进摩擦圆：超限则缩回
+            if mag > limit and mag > 1e-8:
+                lt1 *= limit/mag; lt2 *= limit/mag
+            lam[t1], lam[t2] = lt1, lt2
+    return lam
 ```
 
-### 5.4 摩擦的物理直觉与仿真伪影 (Artifacts of Simulation)
+> [!note] 数值稳定三技巧
+> **Warm Starting**（用上帧接触力作初值，呼应 [[ContactMechanics#5.2 两类求解器：直接 vs 迭代|SI]] 与 [[Optimization|MPC warm start]]）、**Baumgarte 稳定化**（把位置违反映射为补偿加速度）、**摩擦锥投影**（切向脉冲实时按法向力限幅）。
 
-在灵巧操作仿真中，常见的伪影（Artifacts）及其原因：
+### 6.4 仿真伪影：策略学到的是真物理还是 bug？
 
-1. **Drift (漂移)**: 物体在静止时缓慢滑动。
-   - *原因*: PGS 迭代次数不足，无法完全消除切向速度。或者 **Baumgarte Stabilization** 系数设置不当（$2\alpha \dot{e} + \beta^2 e$），导致位置修正引入了虚假的能量，表现为“幽灵速度”。
-2. **Jitter (抖动)**: 接触点在物体表面跳动。
-   - *原因*: 接触检测（Collision Detection）在离散网格（Mesh）上的法向量不连续。当接触点从一个三角形面滑到另一个面时，法向量突变导致 LCP 的 $J$ 矩阵突变，产生巨大的 Impulse 尖峰。
-3. **Tunneling (穿隧效应)**: 高速运动的物体直接穿过了障碍物。
-   - *原因*: 离散时间步长（Discrete Time Step）过大。在 $t$ 时刻未接触，$t+1$ 时刻已经穿过。解决方法是启用 **CCD (Continuous Collision Detection)**。
+| 伪影 | 现象 | 原因 |
+|:--|:--|:--|
+| **Drift（漂移）** | 静止物体缓慢滑动 | PGS 迭代不足、或 Baumgarte 系数不当引入"幽灵速度" |
+| **Jitter（抖动）** | 接触点在表面跳动 | 网格法向不连续→$J$ 突变→冲量尖峰 |
+| **Tunneling（穿隧）** | 高速物体直接穿过障碍 | 时间步过大；需启用 CCD（连续碰撞检测） |
 
-------
+> [!important] 为什么这关乎 RL
+> 策略会**利用**仿真伪影——若仿真允许穿透或幽灵力转笔/转刀更易成功，策略就学到这些非物理捷径，一上真机即崩。这是 [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|sim-to-real]] gap 中 Transition 项的微观来源。
 
-## 6. Insights: 灵巧操作中的 Closed Loop Dynamics (闭链动力学)
+---
 
-当灵巧手抓稳一个物体时，系统拓扑发生了根本性变化：从 **Open Chain (开链)** 变成了 **Closed Chain (闭链)**。这不仅仅是几何约束的变化，更是动力学特性的重塑。
+## 7. 闭链与操作空间动力学：握住螺丝刀之后
 
-### 6.1 Grasp Matrix & Effective Inertia (抓取矩阵与有效惯量)
+> [!tip] 本节四拍
+> **直觉**（手一握紧，系统从开链变闭链，"挥起来"的手感突变）→ **推导**（有效惯量、约束漂移、内力、操作空间质量阵）→ **对比**（动力学一致伪逆 vs Moore-Penrose 伪逆）→ **联系**（操作空间↔[[ControlTheory#4. Operational Space Formulation (OSF)|阻抗控制]]）。
 
-- **Grasp Matrix ($G$)**: 描述了手指关节空间到物体笛卡尔空间的映射。它是一个 $6 \times (n_{fingers} \times m_{dof})$ 的矩阵。
+### 7.1 拓扑突变与有效惯量
 
-- **Effective Inertia at Object**:
+握紧螺丝刀的瞬间，系统从**开链**变**闭链**（回扣 §2.1 的惯量突变）。物体不再是单纯负载——手指惯量经雅可比投射到物体上：
 
-  当手指紧紧抓住物体时，物体不再是单纯的负载。手指的惯量通过传动比（Jacobian）投射到了物体上。
+$$M_{eff}=M_{obj}+G^TM_{fingers}G.$$
 
-  $$M_{eff} = M_{obj} + G^T M_{fingers} G$$
+> [!important] 控制洞察
+> 若只补偿物体重力而忽略 $M_{eff}$ 的变化，控制器会变"软"、响应迟钝。手指接近伸直（奇异附近）时 $M_{fingers}$ 沿某些方向趋于无穷，物体表观惯量剧增——挥转螺丝刀时若手指构型不当，刀头会异常"沉重"难以加速。$G$ 与有效惯量见 [[ContactMechanics#3.1 抓取矩阵的严格定义与内力|抓取矩阵]]。
 
-  - *Control Insight*: 对于灵巧操作控制，如果我们只补偿物体的重力而不考虑手指 Effective Inertia 的变化，控制器会变得“软”且响应迟钝。例如，当手指伸直时（Singularity附近），$M_{fingers}$ 沿某些方向趋于无穷大，这会极大增加物体的表观惯量。
+### 7.2 约束漂移与内力
 
-### 6.2 闭链模拟的挑战: Constraint Drift
+**约束漂移**：数值积分中 $\phi(q)=0$ 的闭链会因精度误差逐渐"断开"（两手合十算着算着分开了）。**Baumgarte 稳定化**要求 $\ddot C+2\alpha\dot C+\beta^2C=0$，引入人为恢复力拉回——$\alpha,\beta$ 整定是门艺术（太小拉不回、太大刚性发散）。
 
-在数值积分中，由于精度误差，满足 $f(q)=0$ 的闭链会逐渐断开（Drift）。这就好比两只手合十，算着算着两只手就分开了。
+**内力 (Internal Forces)**：多指抓握自由度冗余，存在零空间 $\tau=J^TF_{motion}+(I-J^TJ^\#)\tau_{int}$。$\tau_{int}$ 不产生运动、只产生**挤压 (squeeze)**——必须主动控内力维持力闭合：太小螺丝刀脱手、太大损坏物体或浪费能量（与 [[ContactMechanics#3.1 抓取矩阵的严格定义与内力|内力/$\mathrm{Null}(G)$]] 是同一对象）。
 
-- **Baumgarte Stabilization**:  不仅仅要求加速度 $\ddot{C} = 0$，而是要求满足一个弹簧阻尼系统：
-
-  $$\ddot{C} + 2\alpha \dot{C} + \beta^2 C = 0$$
-
-  这引入了人为的“恢复力”，将断开的链接拉回去。参数 $\alpha, \beta$ 的整定是门艺术——太小拉不回来，太大导致系统刚性（Stiff）过大，积分发散。
-
-- **Coordinate Reduction**: 重新参数化系统，只使用独立坐标。虽然数学上严谨，但对于通用的灵巧手抓取（接触点随机变化）极其难以实现，因为这就需要实时重新定义广义坐标。因此，**Constraint Embedding** (如 Lagrange Multipliers) 依然是主流选择。
-
-### 6.3 Internal Forces (内力)
-
-在多指抓取中，自由度通常是冗余的。这意味着存在 **Null Space (零空间)**。
-
-$$\tau = J^T F_{motion} + (I - J^T J^{\#}) \tau_{internal}$$
-
-- **Insight**: $\tau_{internal}$ 不产生运动，只产生挤压（Squeeze）。在灵巧操作中，必须主动控制内力以维持摩擦锥约束（Force Closure）。如果内力过小，物体滑落；内力过大，可能损坏物体或浪费能量。动力学解算器必须能够清晰分离这这两部分。
-
-------
-
-## 7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)
+### 7.3 操作空间动力学 (Khatib)：在任务空间直接设计
 
 > [!note] 教科书参考
-> 本节内容源自 **Khatib 1987** 经典论文 "A Unified Approach for Motion and Force Control of Robot Manipulators" 以及 **Murray, Li & Sastry** Chapter 4。操作空间动力学是灵巧操作任务空间控制的数学基础。
+> Khatib 1987 "A Unified Approach for Motion and Force Control" + Murray Ch. 4。
 
-### 7.1 动机：为什么需要操作空间？
+任务定义在笛卡尔空间（刀头位姿），而非关节空间。把动力学投影到任务空间，得**操作空间质量矩阵**与控制律：
 
-传统关节空间控制问题：
-- 任务通常定义在**笛卡尔空间**（末端执行器位置/姿态），而非关节空间
-- 关节空间动力学耦合复杂，难以直观设计任务相关的控制律
-- 冗余机械臂有无穷多逆运动学解，需要统一框架处理零空间
+$$\Lambda(x)=(JM^{-1}J^T)^{-1},\qquad \tau=J^TF=J^T\big[\Lambda(x)\ddot x_d+\mu+p\big]+\tau_{null}.$$
 
-**操作空间动力学的核心思想**：将整个机器人系统"投影"到任务空间，在任务空间直接设计控制律，再映射回关节力矩。
+冗余系统（$n>m$）需**动力学一致性伪逆** $\bar J=M^{-1}J^T\Lambda$，满足 $J\bar J=I$，零空间投影 $N=I-\bar JJ$。
 
-### 7.2 操作空间质量矩阵 (Operational Space Mass Matrix)
+> [!important] $\bar J$ 不是 Moore–Penrose 伪逆
+> $\bar J$ 保证**零空间力矩不影响操作空间运动**（这才是"动力学一致"）。完整层级控制律按优先级嵌套零空间：
+> ```
+> Priority 1: 刀头轨迹跟踪  →零空间→  Priority 2: 抓取内力维持  →零空间→  Priority 3: 关节限位规避
+> ```
+> $\tau=J_1^TF_1+(I-J_1^T\bar J_1^T)[J_2^TF_2+(I-J_2^T\bar J_2^T)\tau_0]$。
 
-设关节空间动力学方程为：
-$$M(q) \ddot{q} + C(q, \dot{q}) \dot{q} + g(q) = \tau$$
+> [!tip] 工程洞察：操作空间是阻抗控制的根
+> 在操作空间定义期望的质量-阻尼-刚度，机器人即可柔顺交互——这正是 [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系|阻抗控制]]的动力学基础。挥转螺丝刀对准螺钉时，我们要的恰是"刀头在接触方向软、在跟踪方向硬"的任务空间阻抗。
 
-末端执行器位置 $x \in \mathbb{R}^m$ 与关节角度 $q \in \mathbb{R}^n$ 的关系：
-$$x = f(q), \quad \dot{x} = J(q) \dot{q}$$
+---
 
-**操作空间动力学方程**：
-$$\Lambda(x) \ddot{x} + \mu(x, \dot{x}) + p(x) = F$$
+## 8. 腱驱动与冗余动力学：真实灵巧手的传动
 
-其中：
+> [!tip] 本节四拍
+> **直觉**（Shadow/LEAP 等类人手靠腱传动，腱只能拉不能推）→ **推导**（耦合矩阵 $P$、弹性腱、力闭合）→ **对比**（腱网络 $P$ 与抓取矩阵 $G$ 完全同构）→ **联系**（冗余、自运动、可操作度椭球）。
 
-**操作空间质量矩阵**（Operational Space Inertia Matrix）：
-$$\Lambda(x) = (J M^{-1} J^T)^{-1}$$
+### 8.1 腱网络运动学：耦合矩阵 $P$
 
-**操作空间科里奥利/离心力**：
-$$\mu(x, \dot{x}) = \Lambda(x) J M^{-1} C \dot{q} - \Lambda(x) \dot{J} \dot{q}$$
+第 $i$ 根腱伸长 $h_i(\theta)=l_i+\sum_jr_{ij}\theta_j$（$r_{ij}$ 为力臂半径，正负取决于绕线方向）。**耦合矩阵** $P(\theta)=(\partial h/\partial\theta)^T$ 给出 $\tau=P(\theta)f$（$f$ 为腱张力），对偶地 $\dot h=P^T\dot\theta$。
 
-**操作空间重力**：
-$$p(x) = \Lambda(x) J M^{-1} g(q) = J^{-T} g(q)$$
+> [!important] $P$ 与抓取矩阵 $G$ 完全同构（一套工具，两处复用）
+> | | 映射 |
+> |:--|:--|
+> | 抓取 | $F_{object}=Gf_{contact}$ |
+> | 腱驱 | $\tau_{joint}=Pf_{tendon}$ |
+> **抓取分析的全部工具（力闭合、冗余、零空间，见 [[ContactMechanics#3. 接触静力学：能否夹稳这颗弹珠|§3]]）都可直接搬来分析腱网络。** 这是本讲又一处"对偶性 $J/G/P$"的体现。
 
-### 7.3 关节力矩与操作空间力的映射
+### 8.2 弹性腱与力闭合
 
-任务空间力 $F$ 与关节力矩 $\tau$ 的关系：
+弹性腱张力由位移决定 $f_i=k_i(e_i+h_i(0)-h_i(\theta))$，动力学多出刚度项 $S(\theta)=PK(h(\theta)-h(0))$ 与新耦合矩阵 $Q=PK$（执行器位置→关节力矩）。
 
-$$\tau = J^T F$$
+> [!warning] 腱的单向性：只能拉不能推（$f_i>0$）
+> 这是与刚性连杆的根本区别。**腱网络力闭合**：对任意 $\tau$ 存在 $f>0$ 使 $Pf=\tau$。充要条件（与抓取力闭合完全类比）：$P$ 行满秩 + 存在严格正内力 $f_N>0$ 使 $Pf_N=0$。腱数界限（Carathéodory/Steinitz，又见 [[ContactMechanics#3.3 最小接触点数：Caratheodory、Steinitz 与"例外曲面"|§3.3]]）：$n$ 关节**下界 $n+1$ 根、上界 $2n$ 根**。两种配置：N+1（1 共享腱+$n$ 拮抗腱）、2N（每关节 2 拮抗腱）。
 
-**逆动力学（操作空间控制）**：给定期望的操作空间加速度 $\ddot{x}_d$，计算所需的关节力矩：
+腱力控制：$f=P^+\tau+f_N$，并优化最小张力 $\min\|f_N\|^2$ s.t. $f\ge\epsilon\mathbf 1$（保证全正张力）。
 
-$$\tau = J^T \Lambda(x) \ddot{x}_d + J^T \mu(x, \dot{x}) + J^T p(x) + \tau_{null}$$
+### 8.3 冗余、自运动与可操作度
 
-其中 $\tau_{null}$ 是零空间力矩（用于冗余自由度的次级任务）。
+**运动学冗余**（$n>p$）：零空间 $\ker(J_h)$ 是不影响末端的关节运动。**自运动**：末端固定时手臂仍可改形 $\dot q=\bar Jv_x+N\alpha$——用于避障、关节限位规避、能量最小化（挥转螺丝刀时手肘可在不动刀头的前提下避开桌沿）。**可操作度椭球** $w=\sqrt{\det(J_hJ_h^T)}$，$w\to0$ 接近奇异；运动椭球与力椭球互为转置——**对偶性的又一次现身**。
 
-### 7.4 动力学一致性伪逆 (Dynamically Consistent Pseudo-Inverse)
+---
 
-对于冗余机械臂（$n > m$），需要定义 **动力学一致性伪逆**：
+## 9. 适配层：可微物理与神经动力学
 
-$$\bar{J} = M^{-1} J^T \Lambda$$
+> [!tip] 本节四拍
+> **直觉**（仿真里的螺丝刀和真机甩得不一样，Sim-to-Real 的痛点是 System ID）→ **推导**（解析梯度 vs 神经动力学）→ **对比**（全系统模型 vs 关节级分解）→ **联系**（可微物理↔[[ContactMechanics#6. 可微接触物理：让接触进入梯度优化|可微接触]]、↔[[Optimization|System ID]]）。
 
-**性质**：
-1. $J \bar{J} = I_m$（左逆）
-2. $\bar{J} J$ 是幂等矩阵（Idempotent）
-3. 零空间投影：$N = I - \bar{J} J$
+**解析梯度**：新一代引擎（Dojo/Brax/Nimble）支持链式法则直接算 $\partial s_{t+1}/\partial\theta$，于是可用**梯度下降自动调摩擦/质量/惯量**使仿真轨迹匹配真机——比盲目域随机化更高效精准（与 [[ContactMechanics#6.2 实现可微的三条路径|隐函数定理解析梯度]]同源）。
 
-**关键洞察**：$\bar{J}$ 不同于 Moore-Penrose 伪逆 $J^+$。使用 $\bar{J}$ 能保证零空间力矩**不影响操作空间运动**，这就是"动力学一致性"的含义。
+**物理先验网络**：LNN/HNN 把物理结构嵌入架构——LNN 学 Lagrangian $L_\theta(q,\dot q)$、自动微分得 Euler–Lagrange，保证能量守恒（但对传感器噪声敏感）。
 
-$$\bar{J}^T (I - \bar{J} J)^T \tau_{null} = 0$$
+> [!tip] 关节级神经动力学（[[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]）
+> 不建模整个手-物系统，而为每关节学独立的"净效应"动力学 $\hat q^{(j)}_{t+1}=f_\theta^{(j)}(q_t^{(j)},\dot q_t^{(j)},a_t^{(j)})$，隐式吸收关节耦合、接触力、未建模摩擦/间隙。优势：**数据高效**（3→1 低维）、**零样本泛化**（跨物体/腕姿）、**自主采数**（只需编码器）。与**残差策略** $\pi_{real}=\pi_{sim}+\Delta\pi$ 结合——仿真策略给基线、残差补动力学误差（呼应 [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RMA/残差迁移]]）。其本质是 §3.4"刚体对惯量参数线性、只有 actuator 非线性需神经网络补"的兑现。
 
-### 7.5 零空间控制与冗余利用 (Null Space Control)
+---
 
-完整的操作空间控制律：
+## 10. 知识回扣与记忆图：一支螺丝刀串起动力学六层
 
-$$\tau = \underbrace{J^T F}_{\text{Primary Task}} + \underbrace{(I - J^T \bar{J}^T) \tau_0}_{\text{Secondary Task in Null Space}}$$
+> [!abstract] 用一支螺丝刀把全讲复述一遍（刻意复述，为记忆）
+> 我们要让灵巧手挥转一支偏心螺丝刀、精确对准螺钉。**(§2)** 螺丝刀位姿活在 SE(3) 上，质量矩阵 $M(q)$ 是构型流形的度量。**(§3)** 由 Hamilton 最小作用量推出操作器方程 $M\ddot q+C\dot q+N=\tau$——偏心配重让 $M(q)$ 强依赖构型，快速挥动时科氏项 $C\dot\theta$ 显著（刀头"甩偏"）；操作器方程对惯量参数线性，使我们能用 1 秒轨迹辨识它的惯量。**(§4)** 手一握紧、刀头一触螺钉，都是约束——约束反力 $A^T\lambda$ 不是补丁，$AM^{-1}A^T$ 这个 Delassus 算子贯穿后续。**(§5)** 要 1kHz 算力矩用 RNEA、要仿真用 ABA，靠的是动力学的局部性与 6D 空间向量。**(§6)** 仿真里接触用 LCP 或 MuJoCo 凸优化求解，当心漂移/抖动/穿隧这些会被策略利用的伪影。**(§7)** 握住螺丝刀后系统变闭链，有效惯量 $M_{obj}+G^TM_{fingers}G$ 突变，还要控内力别脱手；在操作空间直接设计刀头的任务阻抗。**(§8)** 真实的腱驱动手里，耦合矩阵 $P$ 和抓取矩阵 $G$ 同构、只能拉不能推。**(§9)** 最后用可微物理/神经动力学把仿真的螺丝刀校准到真机。**一支螺丝刀，挥遍了动力学六层大厦。**
 
-**典型的次级任务**：
-- **关节限位回避**：$\tau_0 = -k \nabla U_{limit}(q)$
-- **奇异点规避**：$\tau_0 = k \nabla \det(J J^T)$
-- **抓取内力调节**：$\tau_0 = \tau_{squeeze}$
-- **能量最小化**：$\tau_0 = -k \dot{q}$
+> [!important] 一张表记住全篇
+> | 层 | 核心问题 | 关键工具 | 螺丝刀的哪一环 |
+> |:--|:--|:--|:--|
+> | §2 几何 | 构型如何表示 | SE(3)、指数坐标 | 位姿与构型流形 |
+> | §3 能量 | 方程从哪来 | Hamilton 原理、$M/C/N$、线性参数化 | 甩偏的科氏力、惯量辨识 |
+> | §4 约束 | 接触如何进入 | Pfaffian、Lagrange 乘子、Delassus | 握持/触螺钉的约束反力 |
+> | §5 算法 | 如何实时算 | RNEA/ABA、空间向量 | kHz 力矩、微秒仿真 |
+> | §6 仿真 | 接触如何稳 | LCP/MuJoCo/PGS、伪影 | 仿真为何甩不对 |
+> | §7 闭链 | 握住之后 | 有效惯量、操作空间、$\bar J$ | 握后手感突变、任务阻抗 |
+> | §8 腱驱/冗余 | 真实传动 | 耦合矩阵 $P$、自运动 | 类人手、避桌沿 |
+> | §9 适配 | 真机校准 | 可微物理、神经动力学 | 校准到真螺丝刀 |
 
-### 7.6 灵巧操作中的操作空间：双手协调
+> [!tip] 五条贯穿全讲的"暗线"
+> 1. **对偶性 $J/G/P$**：手雅可比、抓取矩阵、腱耦合矩阵共享同一套力闭合/冗余/零空间分析——一套工具贯穿 §4/§7/§8，并外连 [[ContactMechanics]]/[[ControlTheory]]。
+> 2. **Delassus 主线** $AM^{-1}A^T$：从约束乘子（§4.2）到 KKT（§4.3）到 PGS 的接触有效逆质量（§6.3），是动力学与 [[ContactMechanics|LCP]]/[[Optimization|QP]] 的枢纽。
+> 3. **三种等价形式**：Lagrangian（推导/Sim2Real）、Hamiltonian（辛积分/最优控制）、Newton–Euler（实时 RNEA）——同一物理、三种语言（§3.5）。
+> 4. **线性参数化→自适应**：操作器方程对惯量参数线性（§3.4），直通 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|自适应控制]]与 [[ReinforcementLearning|System ID]]。
+> 5. **变分母体**：Hamilton 原理同时生出力学、辛积分器、与 [[Optimization|Pontryagin/iLQR]]——力学与最优控制本是一家（§3.2）。
 
-对于双臂/多指系统，操作空间框架自然扩展为**层级任务**：
+> [!note] 跨领域链接（双向、点对点）
+> - **↔ [[ContactMechanics]]**：LCP/Delassus（§4/§6）、抓取矩阵与有效惯量（§7）、可微接触（§9）。
+> - **↔ [[ControlTheory]]**：操作器方程是控制对象；操作空间↔阻抗（§7）；线性参数化↔自适应（§3.4）；无源性（§3.3）；小振动↔刚度悖论（§3.6）。
+> - **↔ [[Optimization]]**：变分↔Pontryagin/iLQR（§3.2/§3.5）；动力学求解是 MPC 内循环；可微物理↔System ID（§9）。
+> - **↔ [[ReinforcementLearning]]**：ABA 是仿真器内核（§5.3）；动力学模型=世界模型；仿真伪影=sim-to-real gap 之源（§6.4）。
+> - **↔ [[StochasticProcess]]**：GP/ensemble 动力学学习补偿残差（§9）。
 
-```
-Priority 1: 物体轨迹跟踪
-    ↓ Null Space
-Priority 2: 抓取力维持
-    ↓ Null Space  
-Priority 3: 关节限位回避
-```
+---
 
-数学形式（Task Priority Framework）：
-$$\tau = J_1^T F_1 + (I - J_1^T \bar{J}_1^T)[J_2^T F_2 + (I - J_2^T \bar{J}_2^T) \tau_0]$$
-
-> [!tip] 工程洞察
-> 操作空间动力学是**阻抗控制 (Impedance Control)** 的理论基础。通过在操作空间定义期望的质量-阻尼-刚度特性，机器人可以实现柔顺的物理交互——这对灵巧操作至关重要。
-
-------
-
-## 8. 腱驱动动力学 (Tendon-Driven Dynamics)
-
-> [!tip] 参考资料
-> 详见 [[Books/A Mathematical Introduction to Robotic Manipulation.pdf]] Chapter 6, Section 4。
-> 关于灵巧手传动机构的工程设计和选型，参见 [[传动]]、[[电机]]、[[减速器]]。
-> 传动方案对仿真建模的影响分析参见 [[sim2real|Sim-to-Real Gap 分析]]。
-
-腱驱动（Tendon-Driven）是灵巧手的主流传动方式，特别是类人灵巧手（如 Shadow Hand, LEAP Hand）。与直驱不同，腱驱动通过柔性绳索将远端执行器与近端电机解耦，从而实现紧凑的指尖设计和良好的后向可驱动性。
-
-### 8.1 腱网络运动学 (Tendon Network Kinematics)
-
-#### 8.1.1 伸长函数 (Extension Function)
-
-对于第 $i$ 根腱，其**伸长量** $h_i(\theta)$ 是关节角度的函数：
-
-$$h_i(\theta) = l_i + \sum_{j=1}^{n} r_{ij} \theta_j$$
-
-其中：
-- $l_i$ 是初始腱长（$\theta = 0$ 时）
-- $r_{ij}$ 是第 $i$ 根腱在第 $j$ 个关节处的**力臂半径**（滑轮半径），可正可负取决于绕线方向
-
-**物理意义**：当关节 $\theta_j$ 旋转时，腱 $i$ 的伸长量变化为 $r_{ij} \theta_j$。
-
-#### 8.1.2 耦合矩阵 (Coupling Matrix)
-
-**耦合矩阵** $P(\theta)$ 建立腱力与关节力矩的映射：
-
-$$P(\theta) = \left(\frac{\partial h}{\partial \theta}\right)^T \in \mathbb{R}^{n \times p}$$
-
-其中 $n$ 是关节数，$p$ 是腱数。
-
-**关节力矩与腱力的关系**：
-
-$$\tau = P(\theta) f$$
-
-其中 $f \in \mathbb{R}^p$ 是腱张力向量。
-
-**对偶性**：由虚功原理，$P^T$ 将关节速度映射为腱速度：
-
-$$\dot{h} = P^T \dot{\theta}$$
-
-> [!note] 与抓取矩阵的类比
-> 腱驱动的耦合矩阵 $P$ 与抓取力学的抓取矩阵 $G$ 具有完全相同的数学结构：
-> - 抓取：$F_{object} = G f_{contact}$
-> - 腱驱：$\tau_{joint} = P f_{tendon}$
-> 
-> 这意味着抓取分析的所有工具（力封闭、冗余、零空间）都可直接用于分析腱网络。
-
-### 8.2 弹性腱与位置控制 (Elastic Tendons)
-
-#### 8.2.1 弹性腱模型
-
-当腱具有弹性时，其张力由位移决定：
-
-$$f_i = k_i (e_i + h_i(0) - h_i(\theta))$$
-
-其中：
-- $k_i$ 是第 $i$ 根腱的刚度
-- $e_i$ 是执行器端的位置指令（腱伸出量）
-- $h_i(0) - h_i(\theta)$ 是由于关节运动导致的腱伸长
-
-令 $K = \text{diag}(k_1, \ldots, k_p)$ 为刚度矩阵，弹性腱动力学：
-
-$$M(\theta)\ddot{\theta} + C(\theta,\dot{\theta})\dot{\theta} + N(\theta) + S(\theta) = Q e$$
-
-其中：
-- **刚度函数** $S(\theta) = PK(h(\theta) - h(0))$：描述腱网络对关节偏离平衡位置的回复力
-- **新耦合矩阵** $Q = PK$：将执行器位置映射为关节力矩
-
-#### 8.2.2 示例：两关节手指的耦合矩阵
-
-考虑四腱二关节手指（如图 6.10 Murray）：
-
-伸长函数：
-$$h_1 = l_1 + r_{11}\theta_1 - r_{12}\theta_2, \quad h_2 = l_2 - r_{21}\theta_1$$
-$$h_3 = l_3 + r_{31}\theta_1, \quad h_4 = l_4 - r_{41}\theta_1 + r_{42}\theta_2$$
-
-耦合矩阵（常数）：
-$$P = \begin{bmatrix} r_{11} & -r_{21} & r_{31} & -r_{41} \\ -r_{12} & 0 & 0 & r_{42} \end{bmatrix}$$
-
-关节刚度矩阵：
-$$S(\theta) = \begin{bmatrix} k_1r_{11}^2 + k_2r_{21}^2 + k_3r_{31}^2 + k_4r_{41}^2 & -k_1r_{11}r_{12} - k_4r_{41}r_{42} \\ -k_1r_{11}r_{12} - k_4r_{41}r_{42} & k_1r_{12}^2 + k_4r_{42}^2 \end{bmatrix} \theta$$
-
-### 8.3 腱网络的力封闭性 (Force-Closure)
-
-> [!warning] 腱的单向性约束
-> 腱只能拉不能推：$f_i > 0$（张力必须为正）。这是与刚性连杆系统的根本区别。
-
-**力封闭定义**：腱网络是**力封闭**的，如果对任意关节力矩 $\tau \in \mathbb{R}^n$，存在腱力 $f \in \mathbb{R}^p$ 满足：
-
-$$P(\theta) f = \tau \quad \text{且} \quad f_i > 0, \forall i$$
-
-**充要条件**（与抓取力封闭完全类比）：
-1. $P(\theta)$ 是**满秩**的（行满秩）
-2. 存在**严格正的内力** $f_N \in \mathbb{R}^p$，$f_{N,i} > 0$ 使得 $P(\theta) f_N = 0$
-
-**腱数量界限**（Carathéodory & Steinitz 定理）：
-- **下界**：$n$ 关节至少需要 $n+1$ 根腱
-- **上界**：超过 $2n$ 根腱是冗余的
-
-**两种典型配置**：
-| 配置 | 腱数 | 结构特点 |
-|------|------|----------|
-| **N+1** | $n+1$ | 1根共享腱 + $n$ 根拮抗腱 |
-| **2N** | $2n$ | 每关节2根拮抗腱 |
-
-### 8.4 腱力控制 (Tendon Force Control)
-
-**求解腱力**：给定期望关节力矩 $\tau$，腱力有无穷多解：
-
-$$f = P^+ \tau + f_N$$
-
-其中：
-- $P^+ = P^T(PP^T)^{-1}$ 是伪逆
-- $f_N \in \ker(P) \cap \mathbb{R}_+^p$ 是保证所有腱张力为正的内力
-
-**最小张力优化**：
-
-$$\min_{f_N} \|f_N\|^2 \quad \text{s.t.} \quad f = P^+ \tau + f_N \geq \epsilon \mathbf{1}$$
-
-------
-
-## 9. 冗余机械手动力学 (Redundant Manipulator Dynamics)
-
-> [!tip] 参考资料
-> 详见 [[Books/A Mathematical Introduction to Robotic Manipulation.pdf]] Chapter 6, Section 3。
-
-### 9.1 运动学冗余与执行器冗余 (Kinematic vs. Actuator Redundancy)
-
-**运动学冗余**：当关节数 $n$ 大于任务空间维数 $p$ 时，雅可比 $J_h \in \mathbb{R}^{p \times n}$ 不满秩。
-- 零空间 $\ker(J_h)$ 代表**不影响末端执行器**的关节运动
-- 典型例子：7-DOF 机械臂（6D 任务空间 + 1D 冗余）
-
-**执行器冗余**：当执行器数 $m$ 大于关节数 $n$ 时（如腱驱动系统）。
-- 前一节讨论的腱网络属于此类
-
-### 9.2 动力学一致性雅可比 ($\bar{J}$ Formulation)
-
-对于冗余系统，标准伪逆 $J^+ = J^T(JJ^T)^{-1}$ 不考虑动力学耦合。**动态一致性逆** $\bar{J}$ 保证零空间运动不产生末端力：
-
-$$\bar{J} = M^{-1}J^T(JM^{-1}J^T)^{-1}$$
-
-**性质**：
-1. $J\bar{J} = I$（左逆）
-2. $(I - \bar{J}J)\dot{q}$ 在**操作空间动力学下解耦**
-
-**冗余机械手的完整动力学**：
-
-$$M(q)\ddot{q} + C(q,\dot{q})\dot{q} + N(q) = J_h^T F + \tau_{null}$$
-
-其中 $\tau_{null} = (I - J_h^T \bar{J}_h^T) \tau_0$ 是零空间力矩。
-
-### 9.3 内部运动与自运动 (Internal Motions & Self-Motion)
-
-> [!abstract] 核心洞察
-> 冗余机械手在固定末端位置时仍可运动——这称为**自运动 (Self-Motion)**。
-
-设 $J_h$ 的零空间维数为 $k = n - p$，令 $N(q)$ 为零空间的正交基矩阵。
-
-**自运动参数化**：
-
-$$\dot{q} = \bar{J} v_x + N \alpha$$
-
-其中：
-- $v_x \in \mathbb{R}^p$ 是末端速度
-- $\alpha \in \mathbb{R}^k$ 是零空间速度参数
-
-**示例：三连杆平面机械手 (Murray Example 6.3)**
-
-对于 $n=3$ 关节、$p=2$ 任务空间（平面位置）的机械手：
-
-$$J_h = \begin{bmatrix} -s_1 - s_{12} - s_{123} & -s_{12} - s_{123} & -s_{123} \\ c_1 + c_{12} + c_{123} & c_{12} + c_{123} & c_{123} \end{bmatrix}$$
-
-其中 $s_{12} = \sin(\theta_1+\theta_2)$，$c_{12} = \cos(\theta_1+\theta_2)$。
-
-零空间（1D）：
-$$\ker(J_h) = \text{span}\{(-c_{23}, c_3 + c_{23}, -c_3)\}$$
-
-**物理意义**：沿零空间方向运动时，末端位置不变但手臂形状改变。这可用于：
-- 避障
-- 关节限位回避
-- 能量最小化
-
-### 9.4 不可操作性与任务可行性 (Nonmanipulability)
-
-当 $J_h$ 秩亏时，机械手在某些方向上**无法产生末端运动或力**。
-
-**可操作度椭球 (Manipulability Ellipsoid)**：
-
-$$\mathcal{E} = \{v_x \mid \|\dot{q}\| \leq 1\} = \{v_x \mid v_x^T (J_h J_h^T)^{-1} v_x \leq 1\}$$
-
-**可操作度指标**：
-$$w = \sqrt{\det(J_h J_h^T)}$$
-
-当 $w \to 0$ 时，接近奇异位形。
-
-**与力能力的对偶**：
-
-$$\mathcal{F} = \{F \mid \|\tau\| \leq 1\} = \{F \mid F^T (J_h J_h^T) F \leq 1\}$$
-
-运动椭球与力椭球互为转置——这是对偶性的又一体现。
-
-------
-
-## 10. Future Outlook: Differentiable Physics (可微物理)
-
-传统的物理引擎是不可微的（Non-differentiable），因为接触和摩擦引入了不连续性。然而，Sim-to-Real 的核心痛点在于 System Identification（系统辨识）。
-
-- **Analytical Gradients**: 新一代引擎（如 **Dojo**, **Brax**, **Nimble**）支持通过链式法则直接计算 $\frac{\partial \text{State}_{t+1}}{\partial \text{Param}}$。
-- **Application**: 这意味着我们可以通过梯度下降（Gradient Descent）来自动调整仿真中的摩擦系数、质量分布，使其产出的轨迹与真实机器人的轨迹相匹配。这比传统的 Domain Randomization（随机化）更加高效和精准。
-
-> [!abstract] 新兴方向：物理先验神经网络与离散时间建模
-> **Lagrangian Neural Networks (LNN)** 与 **Hamiltonian Neural Networks (HNN)** 将物理结构嵌入网络架构：
-> - LNN 学习 Lagrangian 函数 $L_\theta(q, \dot{q})$，通过自动微分获得 Euler-Lagrange 方程
-> - 保证能量守恒等物理性质，但对传感器噪声和力矩估计误差敏感
-> 
-> **离散时间动力学**：直接在固定时间步长 $\Delta t$ 下建模 $q_{t+1} = f(q_t, \dot{q}_t, \tau_t)$，避免连续-离散转换误差。在 MPC 等控制应用中，离散模型可直接匹配控制器采样周期，提升数值稳定性。
-
-> [!tip] 关节级神经动力学分解（来自 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]）
-> 可微物理的一个替代方案是**数据驱动的关节级动力学**：
-> 
-> **核心思想**：不建模整个手-物体系统，而是为每个关节学习独立的"净效应"动力学：
-> $$\hat{q}_{t+1}^{(j)} = f_\theta^{(j)}(q_t^{(j)}, \dot{q}_t^{(j)}, a_t^{(j)})$$
-> 
-> 其中 $f_\theta^{(j)}$ 是第 $j$ 个关节的神经网络模型，它隐式地吸收了：
-> - 关节间耦合
-> - 手指-物体接触力
-> - 未建模的摩擦/间隙
-> 
-> **优势**：
-> 1. **数据效率**：每个 $f_\theta^{(j)}$ 是低维函数（3→1），比全系统模型容易学习
-> 2. **泛化性**：对不同物体、不同腕部姿态具有零样本迁移能力
-> 3. **自主数据采集**：只需关节编码器，无需物体追踪系统
-> 
-> **与残差策略的结合**：
-> $$\pi_{real}(s) = \pi_{sim}(s) + \Delta\pi(s)$$
-> 仿真策略 $\pi_{sim}$ 提供基线，残差 $\Delta\pi$ 补偿动力学误差。
-
-------
-
-## 相关论文 (PapersRecap)
+## 11. 相关论文 (PapersRecap)
 
 > [!abstract] 知识图谱反向链接
-> 以下论文在其研究中涉及动力学的核心主题
+> 以下论文在其研究中涉及动力学的核心主题。
 
 ### 神经动力学与模型学习
 - [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]] — 关节级神经动力学
 - [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] — 快速电机自适应
-- [[Lessons from Learning to Spin Pens]] — 笔旋转经验教训
+- [[Lessons from Learning to Spin Pens]] — 转笔经验教训
+- [[Deep Dynamics Models for Learning Dexterous Manipulation]] — Ensemble dynamics + MPC 的样本高效模型学习
 
 ### 轨迹优化与规划
 - [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization]] — 轨迹优化数据生成
 - [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References]] — 轨迹跟踪
 - [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations]] — 演示数据生成
 
-### 物理角色动画
+### 物理角色动画与仿人
 - [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills]] — 物理角色模仿
 - [[Learning Human-like Finger Gaiting on an Anthropomorphic Hand]] — 仿人手指步态
+- [[Learning Agile and Dynamic Motor Skills for Legged Robots]] — 解析刚体动力学 + 学习型 Actuator Network 的结构化 Sim-to-Real
 
 ### Sim-to-Real 与动力学迁移
 - [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation]] — 残差动力学补偿
 - [[Reinforcement Learning for Control with Multiple Frequencies]] — 多频率动力学控制
-- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — **Actuation-aware 动力学建模**：torque-speed envelope 约束策略在执行器物理极限内
-- [[A Survey of Sim-to-Real Methods in RL]]: **MDP 四要素分类框架**——Transition 迁移即动力学域差异的核心
-- [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]: 铰接物体动力学的 Sim2Real
-- [[sim2real|硬件 Sim-to-Real Gap 分析]]: 力矩传递链路完整建模——$\tau_{joint} = \eta \cdot i \cdot K_t I - \tau_{friction} - k(\theta) \cdot \theta$
+- [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — Actuation-aware 动力学建模：torque-speed envelope 约束策略在执行器物理极限内
+- [[A Survey of Sim-to-Real Methods in RL]] — MDP 四要素分类框架（Transition 即动力学域差异）
+- [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]] — 铰接物体动力学的 Sim2Real
+- [[sim2real|硬件 Sim-to-Real Gap 分析]] — 力矩传递链完整建模 $\tau_{joint}=\eta\,i\,K_tI-\tau_{friction}-k(\theta)\theta$
 
 ### 物理感知预训练
-- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — **Dynamics-lifted 几何预训练**：将粒子动力学统一为 transport equation $\frac{\partial \rho}{\partial t} + \nabla \cdot (v\rho) = 0$，20-60% 数据需求降低
+- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — Dynamics-lifted 几何预训练：粒子动力学统一为 transport equation $\partial\rho/\partial t+\nabla\cdot(v\rho)=0$
+- [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] — 把 Rodrigues 公式改造为可学习的结构化动作算子
 
 ### 执行器建模与关节传动
-- [[谐波减速器与RV减速器选型核心区分依据|谐波 vs RV 减速器]]: 谐波柔轮弹性对 sim-to-real gap 的影响，7 维选型决策矩阵
-- [[Minimalist Compliance Control|MCC]]: **方向相关效率模型**——谐波减速器传动效率 70-90% 的非线性补偿
+- [[谐波减速器与RV减速器选型核心区分依据|谐波 vs RV 减速器]] — 谐波柔轮弹性对 sim-to-real gap 的影响
+- [[Minimalist Compliance Control|MCC]] — 方向相关效率模型：谐波减速器传动效率 70–90% 的非线性补偿
 
 ### 动力学感知策略学习
-- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]]: 世界模型预测接触诱导动力学，条件化 RL 策略
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — 世界模型预测接触诱导动力学，条件化 RL 策略
 
 ### 项目级真机动力学 Idea（WMTS）
-- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-002-Latency-Aware-Actuator|LAAA]]：CAN 延迟+温度漂移 conditioned actuator FiLM，5min 真机自适应
-- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-007-Implicit-Explicit-Contact-WM|IECW]]：解析刚体动力学 + 触觉门控的接触 patch 残差网络
-- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-014-WM-Gradient-Adaptive-DR|WG-ADR]]：用 WM 输入梯度量化各动力学参数敏感度，自适应分配 DR 方差预算
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-002-Latency-Aware-Actuator|LAAA]] — CAN 延迟 + 温漂 conditioned actuator FiLM，5min 真机自适应
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-007-Implicit-Explicit-Contact-WM|IECW]] — 解析刚体动力学 + 触觉门控接触 patch 残差网络
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-014-WM-Gradient-Adaptive-DR|WG-ADR]] — 用 WM 输入梯度量化各动力学参数敏感度，自适应分配 DR 方差预算
 
-### Sim-to-Real 动力学迁移
-- [[A Survey of Sim-to-Real Methods in RL]]: **MDP 四要素分类框架**——Transition 迁移即动力学域差异的核心
-- [[Part-Guided 3D RL for Sim2Real Articulated Object Manipulation]]: 铰接物体动力学的 Sim2Real
-- [[sim2real|硬件 Sim-to-Real Gap 分析]]: 力矩传递链路完整建模——$\tau_{joint} = \eta \cdot i \cdot K_t I - \tau_{friction} - k(\theta) \cdot \theta$
+---
 
-**结论**: 灵巧操作的动力学不再是简单的 $F=ma$。它是一门关于如何在计算资源受限、接触状态高度不确定、系统拓扑动态变化的条件下，寻找最优控制策略的艺术。掌握 RNEA/ABA 是入门，理解 Contact Solver 是进阶，而能够驾驭 Differentiable Physics 或 Neural Dynamics 则是通向未来的钥匙。
+## 12. 结论
+
+灵巧操作的动力学早已不是简单的 $F=ma$，而是一门在**计算受限、接触不确定、拓扑动态变化**下求最优策略的艺术。从 SE(3) 几何（§2）、Hamilton 变分（§3）、约束乘子（§4），到 RNEA/ABA 的 $O(N)$ 递推（§5）、接触求解器的二元取舍（§6）、闭链与操作空间（§7）、腱驱动与冗余（§8），最终落到可微物理与神经动力学（§9）：**掌握 RNEA/ABA 是入门，理解接触求解器是进阶，能驾驭可微物理/神经动力学则是通向 Sim-to-Real 未来的钥匙。** 而贯穿始终的，是对偶性（$J/G/P$）、Delassus 算子、与变分母体这几条把动力学、接触、控制、优化缝在一起的暗线。
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---

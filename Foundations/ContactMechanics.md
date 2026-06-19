@@ -268,6 +268,126 @@ $$w=Az+q,\qquad 0\le w\perp z\ge0.$$
 
 ---
 
+## 6. 可微接触物理：让接触进入梯度优化
+
+> [!tip] 本节四拍
+> **直觉**（若仿真可微，就能用梯度直接优化"怎么滚稳弹珠"，效率远超无梯度法）→ **推导**（接触不连续为何让梯度失效；隐函数定理如何救场）→ **对比**（平滑 vs 展开 vs 解析梯度）→ **联系**（[[Optimization#3.4 阶段四：可微物理与平滑化 (The Differentiable Physics & Smoothing Era)|CITO]]、[[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）|可微物理 RL]]）。
+
+### 6.1 不连续性的挑战
+
+接触本质不连续：微小动作改变可让接触**通/断 (make/break)**。这种阶跃使梯度要么为零（无接触时）、要么未定义（撞击瞬间）。这正是 [[ReinforcementLearning#1.3 非光滑性的两副面孔：接触流形与混合动力学|RL 在接触任务上高方差]]的同一物理根源——一个用梯度、一个用采样，面对的是同一道墙。
+
+### 6.2 实现可微的三条路径
+
+| 方法 | 原理 | 优点 | 缺点 | 典型引擎 |
+|:--|:--|:--|:--|:--|
+| **软化/平滑** | 弹簧阻尼替代硬约束 | 易实现，梯度连续 | 物理失真（穿透、振荡） | Brax(早期)、System ID |
+| **展开 (Unrolling)** | 通过求解器迭代步反向传播 | 适用任意可微操作 | 内存大、梯度爆炸/消失 | DiffTaichi(部分) |
+| **解析梯度 (IFT)** | 隐函数定理/KKT 条件 | 极快、精度高、内存小 | 需推导特定模型导数 | Nimble、MuJoCo(新)、Dojo |
+
+> [!important] 隐函数定理：最前沿的解析梯度（一行公式的威力）
+> 与其对 PGS 数百次迭代反向传播（计算图过深、梯度不稳），不如直接对**求解结果**微分。设求解器找到 $z^*$ 满足平衡 $R(z^*,\theta)=0$（$\theta$ 为物理参数），由隐函数定理：
+> $$\frac{\partial z^*}{\partial\theta}=-\Big(\frac{\partial R}{\partial z}\Big)^{-1}\frac{\partial R}{\partial\theta}.$$
+> 只需在求解后解一个线性方程组，就一次性得到解对所有参数的梯度——**梯度精度与前向迭代次数无关**，极其稳定。这与 [[Optimization#2.4 凸优化基础与对偶性理论 (Convex Optimization Foundations & Duality)|可微优化层 (OptNet)]] 是同一数学：对 KKT 条件用隐函数定理。**零阶平滑（上表第一行）则与 [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|域随机化]]同构**——都是用"在期望上抹平"来制造有意义的梯度方向。
+>
+> 补充：**碰撞时间 (TOI) 梯度**用连续碰撞检测算出精确碰撞时刻 $t_c$，填补固定步长仿真在时间维度上丢失的梯度信息——对优化高速运动（如快速接住弹珠）至关重要。
+
+---
+
+## 7. Sim-to-Real 与工程实现
+
+> [!tip] 本节四拍
+> **直觉**（仿真里滚得稳的弹珠，真机一上手就掉——接触的 reality gap 是落地最大障碍）→ **推导**（要随机化的不止摩擦）→ **对比**（离线辨识 vs 在线辨识）→ **联系**（与 [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|RL 的 sim-to-real]] 是同一战场的两侧）。
+
+**接触域随机化（不能只随机摩擦）**：① 摩擦系数 $\mu$（含滚动/扭转摩擦）；② 接触刚度/阻尼（MuJoCo 的 `solref`/`solimp`）；③ 延迟（接触发生→力读数、指令→力矩生效）；④ 接触几何（碰撞网格顶点扰动、凸分解精度）。**渐进式随机化**（从确定环境起、逐步加幅度）比一上来全域大随机收敛更好——这与 [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|Adaptive DR]]、[[Optimization|continuation method]] 同源。
+
+**在线系统辨识**：借可微物理，机器人在交互中（如指尖轻滑弹珠表面）实时算 $\nabla_\mu\text{Loss}$ 在线更新摩擦系数——像人一样"试探"未知接触特性，实现自适应。其稳定性分析见 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|自适应控制]]。
+
+---
+
+## 8. 知识回扣与记忆图：一颗弹珠串起接触力学
+
+> [!abstract] 用一颗弹珠把全讲复述一遍（刻意复述，为记忆）
+> 我们要在两根软指间滚转一颗玻璃弹珠。**(§2)** 弹珠是完美球面（$K=\mathrm{diag}(1/R,1/R)$），Montana 方程告诉我们接触点如何在指面与球面上各自爬行；它在滚（非完整）还是在滑（完整），由切向速度与角速度的配比决定；接触雅可比 $J_h$ 与抓取矩阵 $G$ 经虚功对偶，把关节、接触、物体三层串起。**(§3)** 想夹稳它，需要力闭合——可弹珠是"例外曲面"，无摩擦点接触永远夹不稳，必须靠摩擦锥（把点变锥）或软指（把点变斑、能传扭矩）；夹多紧则在 $\mathrm{Null}(G)$ 的内力里选。**(§4)** 软指接触斑带来椭球极限曲面，这才让"原地扭拧弹珠"成为可能。**(§5)** 仿真里要让它不穿透、受压弹开，把非穿透写成互补条件→LCP；Lemke 求真、PGS/SI 求快、MuJoCo 凸化求稳、XPBD 在位置层求软体稳定。**(§6)** 想用梯度优化"怎么滚更稳"，靠隐函数定理对求解结果直接微分。**(§7)** 搬上真机，随机化摩擦/刚度/延迟/几何，并在线辨识。**一颗弹珠，滚遍了接触力学的五层大厦。**
+
+> [!important] 一张表记住全篇
+> | 层 | 核心问题 | 关键工具 | 弹珠的哪一环 |
+> |:--|:--|:--|:--|
+> | §2 几何/运动学 | 接触点如何演化 | 高斯标架、Montana、非完整约束 | 滚还是滑 |
+> | §3 静力学 | 能否夹稳 | 抓取矩阵、力闭合、例外曲面 | 球为何难夹 |
+> | §4 接触模型 | 能传哪些力 | 摩擦锥、软指椭球极限面 | 能否扭拧 |
+> | §5 动力学/求解器 | 下一时刻状态 | LCP、Lemke/PGS/MuJoCo/XPBD | 仿真为何抖 |
+> | §6 可微接触 | 如何进梯度优化 | 隐函数定理、TOI | 怎么滚更稳 |
+
+> [!tip] 四条贯穿全讲的"暗线"
+> 1. **对偶性 $J_h\leftrightarrow G$**：运动映射与力映射经虚功对偶，贯穿 §2，并延伸到 [[ControlTheory]] 与 [[Dynamics]]。
+> 2. **LCP 主线**：互补条件（§5）是连接 [[Dynamics|接触仿真]]、[[Optimization|LCP/QP 求解]]、[[StochasticProcess|随机互补]]、[[ReinforcementLearning|混合动力学]]的枢纽——一个数学结构，五个领域共用。
+> 3. **摩擦锥与粘/滑**：库伦锥（§4）既定义力闭合（§3）、又驱动 [[SignalProcessing#4.1 早期滑移（Incipient Slip）检测算法|滑移检测]]、还是 [[ControlTheory#7.3 滑移检测与闭环防滑控制|防滑控制]]的对象。
+> 4. **非光滑性 → 可微化/采样**：接触的通/断不连续（§6），用解析平滑应对是可微物理、用采样应对是 [[ReinforcementLearning|RL]]——同一道墙，两种翻法。
+
+> [!note] 跨领域链接（双向、点对点）
+> - **↔ [[Dynamics]]**：LCP 时间步进（§5）；Delassus 矩阵↔空间向量代数；抓取矩阵↔有效惯量与内力。
+> - **↔ [[Optimization]]**：LCP/QP 求解、摩擦锥多面体线性化、可微力闭合能量替代不可微 $Q_1$（§3.4/§6）。
+> - **↔ [[ComputationalGeometry]]**：SDF/最近点/穿透深度是接触检测前置（§0/§2）。
+> - **↔ [[ControlTheory]]**：虚功对偶（§2.3）、软指 $G$ 使力位混合可行、非完整滚动控制、防滑控制。
+> - **↔ [[StochasticProcess]]**：摩擦不确定性、随机互补问题 (SCP)。
+> - **↔ [[ReinforcementLearning]]**：接触非光滑=策略梯度高方差之源；可微接触=可微物理 RL。
+> - **↔ [[SignalProcessing]]**：粘/滑切换的触觉检测。
+
+---
+
+## 9. 相关论文 (PapersRecap)
+
+> [!abstract] 知识图谱反向链接
+> 以下论文在其研究中涉及接触力学的核心主题。
+
+### 手内操作与接触建模
+- [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] — 重力无关旋转
+- [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] — 纯触觉旋转
+- [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]] — 视触觉联觉
+- [[Learning Human-like Finger Gaiting on an Anthropomorphic Hand]] — 手指步态
+
+### 接触丰富的学习
+- [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization]] — 物理驱动数据生成
+- [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation]] — 残差 DMP
+- [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] — 接触丰富任务的阻抗控制
+- [[Deep Dynamics Models for Learning Dexterous Manipulation]] — contact-rich MPC 在多指手任务中的经验验证
+
+### 触觉感知与抓取
+- [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)]] — 视触觉遥操作
+- [[Proximity Perception-Based Grasping Intelligence (P2GI)]] — 近距离感知抓取
+- [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation]] — 触觉反馈与课程学习
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] — 穿透深度作为域不变触觉表征，zero-shot sim-to-real
+- [[GenDexGrasp - Generalizable Dexterous Grasping]] — 以 contact map 作跨手型抓取表征，用 force closure 合成 MultiDex
+
+### 接触丰富的非抓取操作
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — 杂乱场景中选择性利用环境接触的 extrinsic dexterity
+
+### 视触觉策略生成
+- [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding|CGP]] — 接触 grounding 扩散策略，耦合状态-触觉扩散 + 接触一致性映射
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] — 穿透深度图作为统一触觉 sim-to-real 表征
+
+### 柔顺控制与力学建模
+- [[Minimalist Compliance Control|MCC]] — 无传感器柔顺控制，利用电机电流估计接触力，方向相关效率模型
+
+### 项目级真机接触 Idea（WMTS）
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-007-Implicit-Explicit-Contact-WM|IECW]] — 解析刚体动力学（隐式接触）+ 触觉门控 patch 残差网络（显式接触）的双通路世界模型
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-013-Stick-Slip-Mode-Switching|SSMS]] — 基于 stick-slip 模态识别的双子策略（slow/burst）+ WM dispatcher
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-001-Tactile-Anchored-Reward|TAR]] — 以触觉拓扑替代 GT pose 的真机奖励信号
+
+---
+
+## 10. 结论
+
+接触力学是灵巧操作的基石。从 Montana 方程的几何演化（§2）、力闭合的凸分析条件（§3）、到 LCP/MuJoCo/XPBD 的计算工具（§5）、再到隐函数定理开启的可微物理（§6），这一领域正在经历从"刚体精确建模"到"软体可微学习"的深刻变革。四条核心建议：
+
+1. **分层记忆**：几何原理（Montana）→ 物理建模（软指）→ 求解算法（LCP）→ 学习应用（可微）——对应本讲 §2→§4→§5→§6。
+2. **关注软体趋势**：软抓手普及下，超弹性接触与 XPBD 比刚体 LCP 更贴合现实。
+3. **求解器二元性**：高精度仿真（Lemke/牛顿）vs 实时 RL 环境（PGS/SI/XPBD），前者追真理、后者追速度与稳定。
+4. **可微物理的前瞻**：隐函数定理是连接传统力学与现代深度学习的桥——它同时点亮 [[Optimization|CITO]] 与 [[ReinforcementLearning|可微物理 RL]]。
+
+---
+
 ---
 
 ---

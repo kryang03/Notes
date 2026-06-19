@@ -26,10 +26,12 @@ related:
 
 # Reinforcement Learning for Optimal Primary Frequency Control: A Lyapunov Approach
 
-> [!note] Foundation 关联
-> - **[[ReinforcementLearning]]**: RL 训练框架
-> - **[[ControlTheory]]**: Lyapunov 稳定性嵌入网络结构
-> - **[[Optimization]]**: 单调性约束的凸优化
+> [!tip] 与理论基础的关联
+> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性|ControlTheory §7]] — Lyapunov 稳定性、无源性 $\omega u(\omega)\ge0$；本文把稳定性嵌入网络结构
+> - [[Optimization]] — 单调性约束（$\alpha_k>0$）；Stacked-ReLU 的凸结构
+> - [[ReinforcementLearning]] — RL 训练框架（策略结构设计 + RNN 展开动力学）
+>
+> **核心技术**: Lyapunov-Stable-by-Structure, Stacked-ReLU 单调控制器, 无源性, RNN 动力学展开
 
 > [!abstract] 核心贡献
 > 将 **Lyapunov 稳定性**直接嵌入神经网络控制器的**结构设计**中。证明若控制器是**单调递增函数**（过原点），则系统具有唯一平衡点且局部指数稳定。用 Stacked-ReLU 网络实现单调性，并设计 RNN 框架高效训练。
@@ -62,6 +64,21 @@ related:
 
 ## 2. 核心理论
 
+### 2.0 变量来源追踪
+
+枢纽：**控制器 $u_i$ 的"单调递增 + 过原点"两个结构条件直接蕴含 Lyapunov 稳定**（$\omega u(\omega)\ge0$ 即无源性），用 $\alpha_k>0$ 的 Stacked-ReLU 强制实现。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $\omega_i$ | scalar | 状态 | 否（输入） | 频率偏差 | 局部反馈（仅本地 $\omega_i$） |
+| $u_i(\omega_i)$ | scalar | 学习（Stacked-ReLU） | 是 | 局部控制器 | **必须单调+过原点** |
+| $M_i,D_i$ | scalar | 物理参数 | 否 | 惯量/阻尼 | — |
+| $B_{ij}$ | matrix | 物理 | 否 | 电纳矩阵 | 耦合项 $\sin(\theta_i-\theta_j)$ |
+| $\alpha_k$ | $\mathbb{R}_{>0}$ | 学习（softplus 保正） | 是 | ReLU 基权重 | **必须 $>0$ 保单调**；softplus 非 clamp |
+| $\beta_k$ | scalar | 学习 | 是 | ReLU 偏置 | 决定基函数覆盖区间 |
+| $V$ | scalar | 构造（能量函数） | — | Lyapunov 函数 | 动能 + 势能 |
+| $\dot{V}$ | scalar | 推导 | — | $-\sum\omega_i(D_i\omega_i+u_i)$ | 单调+过原点 $\Rightarrow\dot V\le0$ |
+
 ### 2.1 摇摆方程（Swing Equation）
 
 $$M_i \dot{\omega}_i = p_{m,i} - D_i \omega_i - u_i(\omega_i) - \sum_{j=1}^n B_{ij} \sin(\theta_i - \theta_j)$$
@@ -91,6 +108,16 @@ $$\dot{V} = -\sum_i \omega_i (D_i \omega_i + u_i(\omega_i))$$
 若 $u_i$ 单调且过原点 → $\omega_i u_i(\omega_i) \geq 0$ → $\dot{V} \leq 0$
 
 ---
+
+### 2.3 概念边界与符号陷阱
+
+- **单调 + 过原点 ⇒ Lyapunov 稳定**：$\omega_i u_i(\omega_i)\ge0$ 即无源性，使 $\dot V\le0$（§2.2 Theorem）——这是"结构内嵌安全"的核心。
+- **$\alpha_k>0$ 用 softplus 非 clamp**：clamp 在边界梯度为零导致参数卡死。
+- **过原点靠训练后显式减 $u(0)$ 校正**：保证部署时精确 $u(0)=0$。
+- **局部指数稳定（非全局）**：大扰动可能超出吸引域（§8 局限）。
+- **Stacked-ReLU 分段线性**：无法精确表示光滑最优控制律（如 $u^*\propto\omega^3$）。
+- **RNN 展开 T=100**：T<50 漏低频振荡模态、T>200 梯度消失。
+- **纯分散式**：每控制器只用本地 $\omega_i$，不用邻居信息。
 
 ## 3. 神经网络结构设计
 
@@ -251,6 +278,18 @@ $$\min_u \sum_{i=1}^n \left( \|\omega_i\|_\infty + \gamma \|u_i\|_2^2 \right)$$
 
 **共同主题**：将 Lyapunov 稳定性融入 RL 框架
 
+> [!note] safe-RL 子簇综述：安全的"实现位置谱"（本文补"结构内嵌"格，收官探索/稳定性簇）
+> 本文用 Stacked-ReLU 单调性把 Lyapunov 稳定**嵌进网络结构**（"建筑结构而非安全绳"）。与子簇其它成员并置，浮现**安全的实现位置谱**：
+>
+> | 实现位置 | 代表 | 机制 | 保证 ↔ 灵活 |
+> |---------|------|------|-----------|
+> | **结构内嵌**（最强保证） | 本文(单调→Lyapunov)、[[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|On Robust RL]](Sandwich→Lipschitz)、[[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control\|LipsNet]](MGN) | 架构使违反**不可能** | 保证最强，但限表达力/需设计架构 |
+> | **训练时约束** | [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective\|Stability-Cert RL]](SDP)、[[Safe Model-based Reinforcement Learning with Stability Guarantees\|Berkenkamp]](Lyapunov 下降)、[[Reachability Constrained Reinforcement Learning\|RCRL]](safety Q) | 优化过程逼近安全 | 中等 |
+> | **部署过滤**（最灵活） | [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints\|LatentCBF]](CBF 滤波) | 外挂在任意策略上 | 最灵活，但概率性、无形式保证 |
+>
+> **新 insight——安全的"保证-灵活性"谱**：从结构内嵌（架构不可能违反，但需重设计网络、限表达）到部署过滤（加在任意预训练策略上，但仅概率保证），保证强度与灵活性系统性**反向**。这与 RCRL 的"安全强度谱"（可行集 ⊃ Lyapunov ⊃ $\mathcal{L}_2$）、Lipschitz 的"表达力-保证旋钮"是**同一根本权衡的三个切面**——safe-RL 没有免费午餐：要强保证就得牺牲灵活性/表达力。
+> 另：本文"**单调性 = 无源性 = Lyapunov**"把结构约束焊到控制理论无源性，对应灵巧手"施力方向与位移一致"的接触稳定性（见 §用户启发）。
+
 ### 与 [[ReinforcementLearning]] 的联系
 
 - **策略结构设计**：不只是训练，还要设计网络结构
@@ -294,7 +333,7 @@ $$\min_u \sum_{i=1}^n \left( \|\omega_i\|_\infty + \gamma \|u_i\|_2^2 \right)$$
 
 ---
 
-## 8. 扩展思考
+## 9. 扩展思考
 
 ### 对灵巧操作的启发
 

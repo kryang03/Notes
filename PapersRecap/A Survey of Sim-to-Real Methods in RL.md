@@ -24,6 +24,15 @@ related:
 > [!abstract] 核心贡献
 > 首个以 **MDP 四元素 (S, A, T, R)** 为分类框架的 Sim-to-Real 综述，系统梳理了从经典方法到 Foundation Model 增强策略的全谱系技术。提供 GitHub 资源库持续更新: [AwesomeSim2Real](https://github.com/LongchaoDa/AwesomeSim2Real)
 
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning]] — MDP $(S,A,T,R)$ 形式化是本综述分类轴；DR / robust-MDP 理论
+> - [[Dynamics]] — Transition Gap $\Delta_T$ 的本质（仿真 vs 真实接触动力学）
+> - [[ControlTheory]] — Action Delay $\Delta_A$ 与控制频率 / 执行延迟
+> - [[Optimization]] — Distributionally Robust RL 的 minimax + $f$-散度不确定集
+> - [[EmbodiedAI]] — Foundation Model (VLM/LLM) 作为 sim-to-real 跨域语义锚点
+>
+> **核心技术**: MDP 四元素 Gap 分解, Domain Randomization / ADR, Grounding (GAT→GARAT), Domain Adaptation, FM 增强
+
 ## 1. 问题设定与动机
 
 **Sim-to-Real Gap 的形式化定义**:
@@ -50,6 +59,30 @@ Gap 来源分解为 MDP 四元素差异：
 3. **应用领域割裂**：机器人操作、自动驾驶、交通控制、医疗等领域各有独立综述，缺乏统一视角下的跨域特征提炼。
 
 本综述以 MDP 四元素 $(S, A, T, R)$ 为轴，首次在统一框架下覆盖经典方法与 Foundation Model 增强策略，并横跨多个应用领域。
+
+### 1.3 核心符号与 Gap 溯源
+
+综述的"变量来源追踪"= 把 Gap 形式化的每个符号溯清。枢纽：**$G(\pi)$ 按 MDP 四元素正交分解为 $\Delta_S/\Delta_A/\Delta_T/\Delta_R$**——这是全文分类轴。
+
+| 符号/概念 | 类型 | 来源 | 意义 | 陷阱 |
+|------|------|------|------|------|
+| $G(\pi)=\psi_s-\psi_r$ | scalar | 定义 | sim-to-real gap（性能差） | 依赖性能指标 $\psi$ 选择 |
+| $\mathcal{M}_s,\mathcal{M}_r$ | MDP | 仿真/真实 | 两个 MDP | gap 是其差异 |
+| $\Delta_S$ | gap 分量 | 观测 | 传感器噪声/部分可观/分布不匹配 | 视觉/触觉模态差异 |
+| $\Delta_A$ | gap 分量 | 动作 | 粒度 + 延迟 $\Delta_{system}$ | **硬件延迟=强制 persistence**（连 control frequency 簇）|
+| $\Delta_T$ | gap 分量 | 转移 | $P_s\neq P_r$ 动力学差 | **最核心**；接触动力学主导 |
+| $\Delta_R$ | gap 分量 | 奖励 | 仿真奖励未覆盖真实 | 真机不可直接测 |
+| $\xi$ | 物理参数 | DR 随机化 | 摩擦/质量/延迟等 | ADR 自适应优先采最难配置 |
+| $\mathcal{U}(P_s)$ | 不确定集 | robust RL | $\{P:D_f(P\|P_s)\le\epsilon\}$ | minimax 以 $P_s$ 为中心 |
+
+### 1.4 概念边界与符号陷阱
+
+- **四元素分解假设各 Gap 可独立处理**：实际 $\Delta_S$-$\Delta_T$ 耦合（§6 局限）。
+- **$\Delta_T$ 最核心**：接触动力学（摩擦/碰撞/滑移）主导机器人 sim-to-real。
+- **同一技术跨多维**：对抗训练在 $\Delta_S$（视觉对齐）与 $\Delta_T$（动力学对齐）都出现——按"解决哪维 Gap"分类才能看清其多面性。
+- **Grounding 需 sim/real 态-动作严格时间对齐**：否则学到带相位延迟的动作映射。
+- **DR vs SysID 的权衡**：DR 真实数据需求=0 但精度上限中（盲目覆盖）；SysID 精度高但需重标定、低可扩展。
+- **硬件 Gap 被综述忽略**：电机/减速器/传动非理想（齿隙、非线性摩擦、电气延迟）在 $\Delta_T$ 中占重要角色（连 [[sim2real]]）。
 
 ## 2. 核心方法/理论
 
@@ -173,7 +206,7 @@ for s, a_sim, s_next_real in real_paired_data:
 
 ### 与 [[ReinforcementLearning]] 的联系
 - MDP 形式化定义与 Sim-to-Real Gap 的理论框架直接扩展了 RL 基础
-- Domain Randomization 技术归属于 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|RL Sim-to-Real]] 范畴
+- Domain Randomization 技术归属于 [[ReinforcementLearning]] 的 Sim-to-Real 范畴
 - Distributionally Robust RL 与 robust MDP 理论相关
 
 ### 与 [[Dynamics]] 的联系
@@ -229,6 +262,21 @@ ADR 将 $P(\xi)$ 从均匀分布演化为适应性分布，优先采样当前策
 | 适用场景 | 通用、大规模 | 精确控制 | 视觉迁移 | 动力学修正 | 语义级任务 |
 
 ## 6. 局限与未来方向
+
+> [!note] 领域级综述：用 MDP 四元素统一三大簇的 sim-to-real 路线（本篇 = sim-to-real 总纲）
+> 本综述的 $(S,A,T,R)$ 框架恰好给已升级三大簇的 sim-to-real 路线一个统一坐标：
+>
+> | 簇 / 论文 | 主攻 Gap | 路线 |
+> |---------|---------|------|
+> | [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] | $\Delta_T$ | RMA 在线辨识物体参数 |
+> | [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]] | $\Delta_S$ | 二值化"量化吸收" |
+> | [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing\|Robot Synesthesia]] | $\Delta_S$ | 点云几何抽象 |
+> | [[Lessons from Learning to Spin Pens\|Spin Pens]] | $\Delta_T$ | Open-loop Replay 离线筛选 |
+> | [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning\|PFQI]] / [[TARC - Time-Adaptive Robotic Control\|TARC]] | $\Delta_A$ | 硬件延迟 = 强制 persistence |
+>
+> **新 insight——in-hand rotation 簇提炼的"找对 gap 不变的观测子空间"meta-insight，正是本综述 $\Delta_S$ 维度的统一解**：Touch Dexterity(二值量化)、Robot Synesthesia(几何点云)、AnyRotate(稠密触觉蒸馏)都在构造对 sim/real 差异不变的观测表示。而 $\Delta_T$ 维度分两路：**在线辨识（HORA RMA）vs 离线筛选（Spin Pens Open-loop）**。MDP 四元素框架把分散在三大簇的 sim-to-real 技巧组织成一张**可检索的地图**——这正是 WMTS 设计 real-robot fine-tuning 阶段的方法选型表（按主导 Gap 维度选路线，见 §3.4 因果对比）。
+
+### 6.1 关键未尽方向
 
 1. **硬件-软件联合建模**: 综述缺乏对执行器物理特性 (电气时间常数、齿隙、非线性摩擦) 的讨论——这正是真机部署的核心gap
 2. **多域联合迁移**: 同时处理 Observation + Transition Gap 的联合方法尚不成熟

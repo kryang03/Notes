@@ -132,6 +132,35 @@
 升级 `How to Train Latent CBF`：补 P2（变量表 + 符号陷阱）+ callout 带锚点；公式完整（render-check ✓）。**补全 safe-RL 子簇 CBF 格**。
 **新 insight**：① **安全的两种实现位置**——内禀（训练进策略：IQC/Lyapunov/可达集/Lipschitz）vs **外挂**（部署时 CBF 滤波器，加在任意名义策略上、不重训）。② **光滑性焊接 CBF↔Lipschitz**——LatentCBF Theorem（margin 光滑性线性传递到值函数）说明安全过滤可用性取决于证书 Lipschitz 光滑性 → Lipschitz 子簇→safe-RL 子簇桥打通。③ **WMTS world model 多用途**——潜空间可同时承载调度 $m(s)$ + 安全过滤 CBF，是"潜空间元控制器"。
 **累计范本级：20 篇** 🎉。探索/稳定性簇 8（safe-RL 子簇 4 ✅ + Lipschitz 子簇 3 ✅ + 探索 1）。该簇剩 2：`Exploration vs Exploitation`、`RL for Optimal Primary Frequency Control`。
+
+#### cron 第 17-18 轮（2026-06-17~20）— Exploration vs Exploitation 升级 + 🚨 重大发现
+升级 `Exploration vs Exploitation`（探索子簇）：补 P2（变量表+符号陷阱）+ 探索子簇综述（显式随机 Gaussian vs 内生混沌；**探索方差 $\sigma$ 加入 $m(s)$ 家族**，本文是其"全局固定最优"锚点）。累计 **21 篇**。
+**🚨 全库级问题（scan_sections 暴露）**：**84 处 broken section，全部指向 `ReinforcementLearning#...`**。根因：**`ReinforcementLearning.md` 已被外部重构**（标题体系大改），旧锚点失效。注意这是 `scan_links`（文件级，已全过）查不到的维度。
+**新旧章节映射（草案，供修复）**：
+| 旧锚点（recap 中大量使用） | 新锚点 |
+|--------|--------|
+| `#2.4 Off-Policy 演进线：从 DDPG 到 SAC` | `#5.2 Off-policy 复用线：DDPG → TD3 → SAC（$\pi_0=$ 均匀 / 物理先验）` |
+| `#2.5 On-Policy 演进线：从 TRPO 到 PPO` | `#5.1 On-policy 信任域线：TRPO → PPO（$\pi_0=\pi_{old}$）` |
+| `#2.6 Model-Based RL (MBRL): 样本效率与世界模型` | `#6.1 Model-Based RL：在想象中转笔` |
+| `#2.8 Exploration 理论：从信息论到技能发现` | `#7.1 用信息论刻画探索` |
+| `#2.2 Imitation Learning (IL): ...` | `#1.5 对比之二：纯模仿学习为何不够` |
+| `#4 / #4.2 奖励工程` | `#8 燃料：状态表征与奖励工程` / `#8.2 奖励工程：最危险的自由度` |
+| `#6 Future Frontiers: Model-Based & Diffusion` | `#6 样本效率的前沿：Model-Based 与 Offline` |
+| `#3 Implementation` / `#5 Bridging the Gap: Sim-to-Real` / `#5.0/5.1/5.2 sim-to-real` / `#6.3 Scaling Laws` | **无清晰对应**（新版移除/重组了 sim-to-real 与 implementation 大章节）→ 建议改裸链 `[[ReinforcementLearning]]` |
+**⚠️ 待用户决策**：`ReinforcementLearning.md` 仍可能继续被重构，现在批量对齐有白修风险；故暂未批量改，等用户定夺修复策略。新增锚点的 recap 在此问题解决前，ReinforcementLearning 链接可能 section 断（但文件级不断、Obsidian 仍跳到文件顶部）。
+**用户决策（2026-06-20）**：暂不修 section 锚点，优先继续升级剩余 recap。今后新升级 recap 一律用裸链 `[[ReinforcementLearning]]`（避免再造断锚），其它 Foundation 照常用 verified 锚点。
+
+#### cron 第 18 轮续（2026-06-20）— RL Primary Freq 升级，🎉 探索/稳定性簇收官
+升级 `RL for Optimal Primary Frequency Control`：补 P2（变量表+符号陷阱）+ callout（ControlTheory §7 锚点、RL 裸链）；**修两个 §8 重复编号**；§6 接入 safe-RL 子簇综述。
+**新 insight——安全的"实现位置谱"**：结构内嵌（架构保证，最强：本文/On Robust/LipsNet）→ 训练约束（Stability-Cert/Berkenkamp/RCRL）→ 部署过滤（LatentCBF，最灵活）。**保证强度与灵活性系统性反向**；与 RCRL 安全强度谱、Lipschitz 表达力旋钮统一为"safe-RL 没有免费午餐"。
+**🎉 探索/稳定性簇收官（10 篇）**：safe-RL 子簇 5（Stability-Cert/Berkenkamp/RCRL/LatentCBF/RL-PrimaryFreq）+ Lipschitz 子簇 3（On Robust/LipsNet/Off-Policy Interval）+ 探索子簇 2（Dynamic RL/Exploration vs Exploitation）。
+**🎉🎉 三大簇全收官**：in-hand rotation(7) + control frequency(5) + 探索/稳定性(10) = **累计 22 篇范本级**。
+**下一步**：转新簇/最裸小文件。剩 ~63 篇 TODO（sim-to-real transfer、diffusion/VLA/world-model、demonstration/imitation/data-gen、impedance/compliance/force、curriculum、locomotion、tactile）。建议下一簇：**sim-to-real transfer**（与三大簇都强相关，且 WMTS 核心）或最裸小文件（The Sampling Theorem 等 7 篇 <7.5KB）。
+
+#### cron 第 19 轮（2026-06-20）— 启动 sim-to-real 簇
+升级 `A Survey of Sim-to-Real Methods in RL`（簇锚点/总纲，质量本就极高）：加 `[!tip]` callout + **MDP 四元素 Gap 概念溯源表** + 符号陷阱；修 RL §5 断锚→裸链；§6 接入跨簇综述。
+**新 insight——MDP 四元素 $(S,A,T,R)$ 统一三大簇 sim-to-real 路线**：HORA($\Delta_T$ 在线辨识)、Spin Pens($\Delta_T$ 离线筛选)、Touch Dex/Robot Synesthesia($\Delta_S$ 观测抽象)、PFQI/TARC($\Delta_A$ 延迟)。**in-hand 簇"找对 gap 不变观测子空间"meta-insight = 本综述 $\Delta_S$ 维度统一解**；$\Delta_T$ 分在线辨识 vs 离线筛选两路。MDP 四元素 = WMTS real-robot fine-tune 的方法选型表。
+**累计范本级：23 篇**。sim-to-real 簇启动（A Survey 总纲）。该簇剩：`RL in Robotic Systems (Review)`、`TRANSIC`、`RialTo`、`Grounded Action Transformation`、`Curriculum-based Sensing Reduction`、`Tacmap`、`DexNDM`。
 **下一步建议**：① 建**探索/稳定性簇**（`Stability-Certified RL`、`Exploration versus Exploitation`、`Reachability Constrained RL`、`Safe Model-based RL`、`On Robust RL with Lipschitz-Bounded Policy`、`LipsNet`、`Off-Policy Interval Estimation with Lipschitz` 等——Lyapunov/Lipschitz/safe-RL 主题，很适合领域级综述）；或 ② 最裸小文件（<7.5KB：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation/Deep Dynamics Models）。
 
 ### 待办队列（下一轮接续）

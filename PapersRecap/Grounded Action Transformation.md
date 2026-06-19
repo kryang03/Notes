@@ -41,13 +41,27 @@ related:
 
 ## 2. 核心方法
 
+### 2.0 变量来源追踪
+
+枢纽：**修正发生在动作空间**（$a'=a+f_\theta(s,a)$）而非仿真器参数（vs System ID），且残差 $f_\theta$ 初始近恒等保证稳定。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $s$ | $\mathbb{R}^{d_s}$ | 观测 | 否（输入） | 状态 | 假设两域同状态可达 |
+| $a$ ($a_{sim}$) | $\mathbb{R}^{d_a}$ | 策略输出 | 否（输入） | 仿真最优动作 | — |
+| $f_\theta(s,a)$ | $\mathbb{R}^{d_a}$ | 残差网络（学习） | 是 | 动作残差 | **初始近 0**（$a'\approx a$）→ 训练稳 |
+| $a'$ ($a_{real}$) | $\mathbb{R}^{d_a}$ | $a+f_\theta(s,a)$ | 是 | 真实等效动作 | 在**动作层**补偿 gap |
+| $s'_{real}$ | $\mathbb{R}^{d_s}$ | 真机数据 | 否 | 真机下一状态 | grounding 的监督目标 |
+| $a_{sim}$（搜索） | $\mathbb{R}^{d_a}$ | 仿真采样搜索 | 否 | 逆动力学 $T_{sim}^{-1}(s,s'_{real})$ 的近似解 | 采样 $O(N{\times}K)$，高维不可行 |
+| GSL 循环 | 框架 | collect→ground→train | — | 迭代缩 gap | 每轮需真机数据（非 zero-shot） |
+
 ### Delta 分析
 
 | 维度 | System ID | Domain Randomization | GAT |
 |-----|-----------|---------------------|-----|
 | 修正层面 | 仿真器参数 | ​训练分布 | **动作空间** |
 | 真机数据需求 | 中 (轨迹) | 无 | **低 (转移)** |
-| 刹车结构性建模误差 | 不能 | 不能 | **可以** |
+| 刻画结构性建模误差 | 不能 | 不能 | **可以** |
 | 计算成本 | 低 | 中 | 中 (动作搜索) |
 | 迭代改进 | 支持 | 不支持 | **支持 (GSL 循环)** |
 
@@ -65,7 +79,7 @@ related:
 - **System ID**：修正仿真器参数使 $T_{sim} \approx T_{real}$
 - **GAT**：不修改仿真器参数，而是在动作空间中补偿差异
 
-> [!tip] 与 [[ReinforcementLearning#5.0 系统辨识与在线参数学习 (System Identification & Online Adaptation)|System ID]] 的联系
+> [!tip] 与 [[ReinforcementLearning|System ID]] 的联系
 > GAT 与 System ID 互补：System ID 减小 $\mathbb{E}[\|T_{sim} - T_{real}\|]$，GAT 在动作层面修正残差。在灵巧手场景中，GAT 可用于补偿执行器非线性（齿隙、摩擦）导致的动作空间偏移。
 
 ## 2.1 核心 PyTorch 逻辑
@@ -120,6 +134,15 @@ def gat_grounding_step(
 > [!note] 数学本质
 > GAT 的动作搜索本质是求解逆动力学 $a_{sim} = T_{sim}^{-1}(s, s'_{real})$，用采样近似代替解析求逆。这与 [[Dynamics]] 中逆动力学求解思想一致。
 
+### 2.2 概念边界与符号陷阱
+
+- **修正在动作空间、非仿真器参数**：GAT 的核心区分——对**结构性**建模误差（System ID 的参数化无法表达的）也能补偿。
+- **残差建模 $a'=a+f_\theta$ 初始近恒等**：比直接学映射稳定，初始 $f_\theta\approx0$ 即 $a'\approx a$。
+- **动作搜索 = 采样近似逆动力学** $a_{sim}=T_{sim}^{-1}(s,s'_{real})$：$O(N{\times}K)$，**高维（24-DoF）急剧退化** → 需分关节变换。
+- **假设两域同状态可达**：若仿真状态空间与真实不对齐，动作映射无意义 → 后续 GARAT 放松为状态+动作联合变换。
+- **非 zero-shot**：GSL 每轮需真机交互采数据（vs Domain Randomization 的 0 真机数据）。
+- **全局映射假设**：真实动力学差异可能状态依赖，全局 $f_\theta$ 是简化。
+
 ## 3. 实验结果
 
 ### 训练设定详情
@@ -158,7 +181,7 @@ def gat_grounding_step(
 
 ### 与 [[ReinforcementLearning]] 的联系
 - Sim-to-Real 方法谱系中的"动作转换"范式——与 DR、System ID 正交
-- §5.0 在线自适应方法表中的 GAT 条目
+- 在线自适应方法谱系中的 GAT 条目
 
 ### 与 [[Dynamics]] 的联系
 - 动作转换隐式补偿了动力学模型误差
@@ -183,7 +206,11 @@ def gat_grounding_step(
 | Domain Randomization | 2017 | 训练分布 | 不需要 | **是** | 是 |
 | [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction\|TRANSIC]] | 2024 | 可组合模块 | 在线 | 否 | 是 |
 | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] | 2024 | 神经动力学 | 少量 | 否 | **是 (16-DoF)** |
-| [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation\|RialTo]] | 2024 | 数字孜生 + RL | 少量 | 否 | 中 |
+| [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation\|RialTo]] | 2024 | 数字孪生 + RL | 少量 | 否 | 中 |
+
+> [!note] sim-to-real 簇定位（挂靠 [[A Survey of Sim-to-Real Methods in RL|Survey]] 的 MDP 四元素）
+> GAT 在 [[A Survey of Sim-to-Real Methods in RL|sim-to-real Survey]] 框架里属 **$\Delta_T$（转移 gap）的 Grounding 路线**，是 GAT→SGAT→RGAT→GARAT 演进的奠基。它揭示一个正交选择维度——**在哪一层修正 gap**：System ID 修仿真器参数、DR 修训练分布、**GAT 修动作空间**、[[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]] 修神经动力学。GAT 的核心洞见——**动作层修正对"结构性"建模误差比 System ID（仅参数）更强**，因为它不受仿真器参数化能力限制。
+> **接 in-hand rotation 簇 meta-insight**：之前提炼的"sim-to-real 本质是找对 gap 不变的观测子空间"是一极；GAT 是另一极——不找不变子空间，而**主动学一个映射把仿真动作搬运到真实等效**。两条路线（找不变 vs 学搬运）覆盖 sim-to-real 的两种哲学。GAT 的状态依赖残差 $f_\theta(s,a)$ 与 $m(s)$ 元控制框架同源（状态依赖的修正量）。
 
 ## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
 
