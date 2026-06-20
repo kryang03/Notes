@@ -66,6 +66,20 @@ TRANSIC:
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
 
+### 3.0 变量来源追踪
+
+枢纽：**人类隐式识别 gap**（不需知道 gap 是什么，只需能纠正），残差 $a^R=q^{post}\ominus q^{pre}$ + 门控 $g$ 决定何时叠加。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $\pi^B$ / $a^B$ | 策略/动作 | 仿真 RL → BC 蒸馏 | 否（冻结） | 基策略/基动作 | 残差保留它、不重训 |
+| $\mathbb{1}^H_t$ | $\{0,1\}$ | 人类决定 | 否 | 干预标志 | 门控 $g$ 的监督信号 |
+| $q^{pre},q^{post}$ | 关节状态 | 人类遥操作记录 | 否 | 干预前/后状态 | SpaceMouse 精度限制校正质量 |
+| $a^R=q^{post}\ominus q^{pre}$ | 残差 | 计算 | 否（监督目标） | 残差动作 | 连续=数值差、离散(gripper)=异或 |
+| $\pi^R_\psi$ | NN | 学习（人类校正数据） | 是 | 残差策略 | 非马尔可夫校正 → MLP 建模有限 |
+| $g_\psi$ | $[0,1]$ | 学习（门控头） | 是 | 何时叠残差 | always-residual 在基策略已好区引噪声 |
+| 点云 $P$ | $\mathbb{R}^{1024\times3}$ | 观测 | 经编码器带梯度 | 视觉输入 | 比 RGB 跨域鲁棒（§4 消融） |
+
 ### 3.1 整体框架
 
 ```
@@ -189,6 +203,15 @@ loss = loss_res + lambda_gate * loss_gate
 2. **Reach and Grasp**: 到达并抓取
 3. **Insert**: 插入对齐
 4. **Screw**: 旋转拧紧
+
+### 3.7 概念边界与符号陷阱
+
+- **残差 $a^R$ 类型混合**：连续变量数值差、离散（gripper）异或——非单一类型。
+- **门控 $g$ 决定何时叠残差**：always-residual 在基策略已好区引噪声（§4 消融 −15%）。
+- **Action Space Distillation（OSC→关节）**：OSC 模型依赖（需 $\Lambda,\mu,p$），真机用模型无关关节 PD——去掉则真机完全失败（§4 消融）。
+- **人类隐式识别 gap**：领域无关（不需知 gap 是什么），但需人在环（一次性收集后离线）。
+- **残差 > 微调**：微调灾难遗忘 + 过拟合少量校正数据。
+- **非马尔可夫校正**：人类纠正依赖历史，MLP 残差建模能力有限（§5 算法局限）。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -322,6 +345,16 @@ $$\underbrace{\tau = \Lambda(q)\ddot{x}_d + \mu(q,\dot{q}) + p(q)}_{\text{OSC (�
 | 数据需求 | 少量校正 | 持续交互 | 0 真实 | 测量数据 | 配对轨迹 |
 | Gap 覆盖 | 全部 (隐式) | 全部 (隐式) | 主要 $\Delta_T$ | $\Delta_T$ | $\Delta_T$ |
 | 可扩展性 | 中 (需人类) | 低 (持续人类) | 高 | 低 (需重新标定) | 中 |
+
+> [!note] sim-to-real 簇定位：gap 处理的"分解 vs holistic"维度
+> TRANSIC 在 [[A Survey of Sim-to-Real Methods in RL|Survey]] 框架里独特——它**不按 MDP 四元素分解 gap**，而靠**人类 holistic 纠正**所有 gap 的综合表现（§8.1 标注"Gap 覆盖：全部（隐式）"）。这揭示一个正交维度——**gap 处理粒度**：
+>
+> | 方式 | 做法 | 代表 | 权衡 |
+> |------|------|------|------|
+> | 显式分解 | 定位并修正特定 $\Delta$ | A Survey 四元素 / [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]](关节) / [[Grounded Action Transformation\|GAT]](动作) | 需领域知识，可针对性优化 |
+> | **隐式 holistic** | 不分解，人类一次纠正所有 | **TRANSIC** / HIL-SERL | 领域无关，但需人在环 |
+>
+> **两个 insight**：① **残差 > 微调**——残差小补偿稳定、微调灾难遗忘；与 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]] 的残差策略、[[Grounded Action Transformation|GAT]] 的残差动作 $a+f_\theta$ 同源——**sim-to-real 普遍偏好"基策略+残差"而非重训**。② **Action Space Distillation = 控制器层面的 $\Delta_A$ 修正**：OSC（模型依赖 $\Lambda,\mu,p$）→ 关节 PD（模型无关），把被 A Survey $\Delta_A$ 含括却少被单列的"控制器 gap"显式解决。
 
 ## 9. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
 

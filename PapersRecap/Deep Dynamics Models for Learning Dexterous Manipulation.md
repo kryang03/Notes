@@ -23,6 +23,14 @@ related:
 > [!abstract] 核心贡献
 > PDDM 证明了 bootstrap ensemble 深度动力学模型 + 在线 MPC/MPPI 式规划可以在高维灵巧手上高效获得复杂接触技能，并在 24-DoF Shadow Hand Baoding balls 任务中仅用约 4 小时真机数据完成学习。
 
+> [!tip] 与理论基础的关联
+> - [[Dynamics]] — 数据驱动 forward dynamics；监督学习近似接触丰富系统的局部转移
+> - [[Optimization]] — MPPI/reward-weighted refinement 是 sampling-based 无梯度轨迹优化（同族 CEM/CMA-ES）
+> - [[ReinforcementLearning]] — model-based RL：transition supervision 替代稀疏 policy gradient → 样本效率
+> - [[StochasticProcess]] — bootstrap ensemble 近似动力学后验，disagreement = epistemic uncertainty
+>
+> **核心技术**: Bootstrap Ensemble Dynamics, MPPI/reward-weighted MPC, Beta-filtered Action Noise
+
 ## 1. 问题设定与动机
 
 ### 1.1 核心洞察
@@ -36,6 +44,21 @@ related:
 - 早期 neural dynamics + random shooting MPC 在高维动作序列上搜索效率低，容易输出不平滑动作。
 
 ## 2. 核心方法/理论
+
+### 2.0 变量来源追踪
+
+枢纽：**ensemble disagreement = epistemic uncertainty**（小数据防过拟合），**beta filter = 动作低通先验**（压缩 $H\times d_a$ 搜索维度）。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $s_t,a_t,s_{t+1}$ | 状态/动作 | 真实 rollout | 否 | 真实转移 | dense transition 监督 |
+| $f_{\theta_i},\Sigma_i$ | $E$ 个网络 | 学习（各独立 init+batch） | 是 | ensemble head | 不独立则方差退化为训练噪声 |
+| $\hat{s}_{t+1}$ | 预测 | ensemble 前向 | 带模型梯度 | 模型预测 | **MPC 不反传到动作执行**（采样优化） |
+| $A^{(k)}$ | $N\times H\times d_a$ | MPC 采样 | 否 | 候选动作序列 | — |
+| $R_k$ | scalar | 模型内 rollout 评估 | 否 | 序列 reward | 模型误差长 horizon 复合 |
+| $\mu_t$ | $H\times d_a$ | reward-weighted soft update | 否 | 序列均值 | MPPI（非 CEM hard top-k） |
+| $\gamma$ | scalar | 超参 | 否 | reward weighting 温度 | — |
+| $\beta$ | scalar | 超参 | 否 | filter 系数 | **动作低通**，非装饰项 |
 
 ### 2.1 Delta 分析
 
@@ -99,6 +122,15 @@ execute(action_mean[0])
 
 **物理量来源**：$s_t,a_t,s_{t+1}$ 来自真实 rollout；$\hat{s}_{t+1}$ 来自 ensemble 前向传播，带模型梯度但 MPC 本身不反传到动作执行；$R_k$ 来自任务 reward 的模型内评估。
 
+### 2.4 概念边界与符号陷阱
+
+- **ensemble disagreement = epistemic uncertainty**：不分离 aleatoric（传感噪声/接触随机）。
+- **MPC 每步在线规划、无 amortized policy**：实时性受 sample count × ensemble size 限制。
+- **reward-weighted soft update (MPPI) > CEM hard top-k**：保留排序信息，避免早熟到局部模式。
+- **beta filter = 动作低通先验**：把搜索从 $H\times d_a$ 独立空间压到有效更低维；去掉则维度灾难 + 动作高频抖动（§3.3 消融）。
+- **原始状态空间预测 → 长 horizon 误差累积**：短 horizon + receding horizon 缓解（→ DexNDM 关节级分解根治）。
+- **模型梯度不反传到动作执行**：MPC 是采样优化，非可微规划。
+
 ## 3. 训练与实验细节
 
 ### 3.1 任务设定
@@ -139,6 +171,18 @@ execute(action_mean[0])
 ### 5.2 与 WMTS 的启发
 
 PDDM 是 [[Final_WMTS]] 中 Ensemble World Model 与 latent task curiosity 的直接祖先。WMTS 可以保留 PDDM 的 ensemble disagreement 作为任务生成信号，但应避免把 PDDM 直接变成真机控制器：更可靠的路径是让 ensemble 做**短 horizon 安全评估 + 任务盲区发现**，由 Diffusion Generalist 执行动作。
+
+> [!note] neural dynamics 在灵巧手的演进：PDDM(整体+规划) → DexNDM(关节级+残差)
+> PDDM(2019) 是灵巧手 neural dynamics 的奠基，与 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]](2024) 构成清晰演进主线——同用学习的 forward dynamics，但解法相反：
+>
+> | | PDDM | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] |
+> |---|------|--------|
+> | dynamics | **整体** $f(s,a)$ | **关节级** $f_j(h_j)$（分解降维） |
+> | 用法 | MPC 在线规划（无 amortized） | 残差策略（amortized 可部署） |
+> | 痛点 | 原始状态空间长 horizon 误差累积（§5.1） | — |
+>
+> **演进 insight**：DexNDM 的"关节级分解"正是为解决 PDDM 自己指出的"整体状态空间长 horizon 误差累积"——把高维整体模型拆成低维关节模型，误差不再跨关节复合。这是 neural dynamics 从"整体+规划"到"分解+残差"的范式迁移。
+> **接 $m(s)$ / WMTS**：PDDM 的 **ensemble disagreement 是状态依赖的不确定性量 $u(s)$**——可作 WMTS 的任务生成/安全评估信号（§5.2），把不确定性 $u(s)$ 加入 $m(s)$ 元控制家族（频率/平滑/探索/安全/不确定性）。beta filter 的动作低通则与 [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]] 的平滑约束同源（都抑制高频动作）。
 
 ## 6. 与知识体系的联系
 

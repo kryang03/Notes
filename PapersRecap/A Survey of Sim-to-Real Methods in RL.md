@@ -84,6 +84,15 @@ Gap 来源分解为 MDP 四元素差异：
 - **DR vs SysID 的权衡**：DR 真实数据需求=0 但精度上限中（盲目覆盖）；SysID 精度高但需重标定、低可扩展。
 - **硬件 Gap 被综述忽略**：电机/减速器/传动非理想（齿隙、非线性摩擦、电气延迟）在 $\Delta_T$ 中占重要角色（连 [[sim2real]]）。
 
+### 1.4 概念边界与符号陷阱
+
+- **MDP 四元素分解假设各 Gap 可独立处理**：实际 $\Delta_S$-$\Delta_T$ 耦合（§6）——分解是分析框架而非物理正交。
+- **$\Delta_T$ 是机器人 sim-to-real 最核心**：接触动力学主导；视觉任务则 $\Delta_S$ 主导（§3.4 因果对比）。
+- **同一技术跨多 Gap 维度**：对抗训练在 $\Delta_S$（视觉对齐）与 $\Delta_T$（动力学对齐）都出现——按"解决哪个 Gap"而非"技术族"分类是本综述的关键视角。
+- **DR 真机数据=0 但精度上限中（盲目覆盖）**；System ID 精度高但需重标定——真机数据可得性决定方法族内的具体选择。
+- **Grounding 需 sim/real 态-动作严格时间对齐**：否则学到带相位延迟的动作映射。
+- **硬件 gap 被综述忽略**：电机/减速器非理想（齿隙/摩擦/电气延迟）对 $\Delta_T$ 的贡献未讨论（§6）。
+
 ## 2. 核心方法/理论
 
 ### 2.0 Delta 分析：本综述的增量贡献
@@ -201,6 +210,21 @@ for s, a_sim, s_next_real in real_paired_data:
 2. **Foundation Models 横跨全部四个维度**: LLM/VLM 不仅用于奖励设计，在观测对齐、动作语义、动力学预测中均有潜力
 3. **Grounding 与 Randomization 是互补而非竞争关系**: DR 扩大策略鲁棒范围，Grounding 精准修正系统模型
 4. **硬件层面的 Gap 未被充分讨论**: 综述主要关注软件策略层面，但电机/减速器/传动的非理想特性（参见 [[sim2real]]）在 Transition Gap 中占重要角色
+
+> [!note] 领域级综述：三大簇 sim-to-real 路线归位到 MDP 四元素（本综述 = 全库 sim2real 总纲）
+> 知识库已范本级的三大簇，其 sim-to-real 策略都能精确落到本文 $(S,A,T,R)$ 框架——把分散方法统一成一张地图：
+>
+> | 簇 / 论文 | 攻的 Gap | 具体路线 |
+> |------|------|------|
+> | [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] | $\Delta_T$ | RMA 在线辨识物体参数 |
+> | [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]] | $\Delta_S$ | 二值化"量化吸收"传感 gap |
+> | [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing\|Robot Synesthesia]] | $\Delta_S$ | 点云几何抽象 |
+> | [[Lessons from Learning to Spin Pens\|Spin Pens]] | $\Delta_T$ | Open-loop Replay 离线筛可迁移动作 |
+> | [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning\|PFQI]] / [[TARC - Time-Adaptive Robotic Control\|TARC]] | $\Delta_A$ | 硬件延迟=强制 persistence；变频匹配真机 |
+> | [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|Lipschitz RL]] | $\Delta_S$ | Lipschitz 约束抑制观测扰动放大 |
+> | [[Grounded Action Transformation\|GAT]] | $\Delta_T,\Delta_A$ | 动作层 grounding |
+>
+> **两个领域级 insight**：① in-hand 簇 meta-insight"sim-to-real 本质是找对 gap 不变的观测子空间"正是 $\Delta_S$ 路线的统一表述；GAT 的"学搬运映射"是 $\Delta_T$ 路线另一极——**$\Delta_S$ 偏"抽象掉差异"、$\Delta_T$ 偏"主动补偿差异"**。② 跨簇 $m(s)$ 元控制（频率/平滑/探索/安全）与 $\Delta_A$（硬件延迟决定的 persistence）交汇——**状态依赖元控制本身就是一种 $\Delta_A$ grounding**。本综述因此是连接四大簇的总纲。
 
 ## 5. 与知识体系的联系
 

@@ -161,6 +161,80 @@
 升级 `A Survey of Sim-to-Real Methods in RL`（簇锚点/总纲，质量本就极高）：加 `[!tip]` callout + **MDP 四元素 Gap 概念溯源表** + 符号陷阱；修 RL §5 断锚→裸链；§6 接入跨簇综述。
 **新 insight——MDP 四元素 $(S,A,T,R)$ 统一三大簇 sim-to-real 路线**：HORA($\Delta_T$ 在线辨识)、Spin Pens($\Delta_T$ 离线筛选)、Touch Dex/Robot Synesthesia($\Delta_S$ 观测抽象)、PFQI/TARC($\Delta_A$ 延迟)。**in-hand 簇"找对 gap 不变观测子空间"meta-insight = 本综述 $\Delta_S$ 维度统一解**；$\Delta_T$ 分在线辨识 vs 离线筛选两路。MDP 四元素 = WMTS real-robot fine-tune 的方法选型表。
 **累计范本级：23 篇**。sim-to-real 簇启动（A Survey 总纲）。该簇剩：`RL in Robotic Systems (Review)`、`TRANSIC`、`RialTo`、`Grounded Action Transformation`、`Curriculum-based Sensing Reduction`、`Tacmap`、`DexNDM`。
+
+#### cron 第 20 轮（2026-06-20）— GAT + A Survey 补完 + 自查
+- 升级 `Grounded Action Transformation (GAT)`：补 P2（变量表+符号陷阱）；修 RL 断锚 `#5.0`→裸链；修 OCR（刹车→刻画、孜生→孪生）；接入 sim2real 簇综述（$\Delta_T$ grounding 奠基；"学搬运映射" vs "找不变子空间"两种哲学）。
+- **补完 `A Survey` 批2**（第19轮仅做批1）：符号陷阱节 + **跨簇综述——三大簇 sim2real 路线全部归位到 MDP 四元素地图**。
+- **领域级 insight**：$\Delta_S$ 偏"抽象掉差异"(Touch Dex/Robot Synesthesia/Lipschitz)、$\Delta_T$ 偏"主动补偿差异"(HORA/Spin Pens/GAT)；$m(s)$ 元控制 = 一种 $\Delta_A$ grounding。A Survey 成为连接四大簇的总纲。
+- **自查**：结构扫描确认 24 篇 EXEMPLAR、无遗漏半成品（核实记忆模糊的 How to Train CBF/Exploration 均完整）。
+**累计范本级：24 篇**。sim-to-real 簇 2/8（A Survey 总纲 ✅, GAT ✅）。该簇剩：`RL in Robotic Systems Review`、`TRANSIC`、`RialTo`、`Curriculum-based Sensing Reduction`、`Tacmap`、`DexNDM`。
+
+#### cron 第 21 轮（2026-06-20）— DexNDM + 🚨 全库锚点危机
+升级 `DexNDM`：补 P2（变量表+符号陷阱）；接入跨簇综述（**$\Delta_T$ 修正"粒度谱"**：系统级 HORA → 动作级 GAT → 关节级 DexNDM；DexNDM = RMA 的关节级下放，"用运动链分解放松数据/泛化代价"）。
+**🚨 重大发现——多 Foundation 持续重构致全库 section 锚点失效**：IDE 揭示 DexNDM 有 7 处断锚，不止 ReinforcementLearning，**Dynamics / ControlTheory 也被重构**（`#3.2 RNEA`/`#2 Core Concepts`/`#9 数据驱动` 全失效）。section 锚点是移动靶。
+**对策（已对 DexNDM 施行）**：对这三个高频重构 Foundation，recap 改用**裸链 `[[Foundation|alias]]`**（去 `#section`，alias 承载 correspondence），perl 批量降级。**后续升级一律对 Dynamics/ControlTheory/ReinforcementLearning 用裸链。**
+**⚠️ 全库待决策**：之前 24 篇中链接这三个 Foundation `#section` 的多处可能已断。**全库批量降级裸链 vs 等 Foundation 稳定后重对齐——有损决策，建议询问用户或作专门任务。**
+**累计范本级：25 篇**。sim-to-real 簇 3/8（A Survey, GAT, DexNDM）。该簇剩：`RL in Robotic Systems Review`、`TRANSIC`、`RialTo`、`Curriculum-based Sensing Reduction`、`Tacmap`。
+
+#### cron 第 22 轮（2026-06-20）— Tacmap
+升级 `Tacmap`：补 P2（变量表+符号陷阱）；RL 锚点降级裸链；接入跨簇综述。
+**新 insight——触觉 sim-to-real 的"表征选择谱"**：Touch Dexterity(二值)/Robot Synesthesia(点云)/AnyRotate(姿态+力)/Tacmap(穿透深度场) 都把触觉从"原始光学/力读数"抽象到"几何/接触结构"——是 in-hand 簇 meta-insight"找对 gap 不变子空间"在触觉模态的完整谱系。Tacmap 的 deform map 最接近连续接触物理（= Hertz $\delta$ 空间化 = 物体 SDF 负值截断），zero-shot 最彻底。
+**累计范本级：26 篇**。sim-to-real 簇 4/8（A Survey, GAT, DexNDM, Tacmap）。该簇剩：`RL in Robotic Systems Review`、`TRANSIC`、`RialTo`、`Curriculum-based Sensing Reduction`。
+
+#### cron 第 23 轮（2026-06-20）— RialTo
+升级 `RialTo`：补 P2（变量表+符号陷阱）；RL 锚点降级裸链；修 OCR（孜生→孪生）；接入跨簇综述。
+**新 insight——sim-to-real 两个正交层面**：① 修正固定仿真 gap（DR/GAT/DexNDM/Tacmap，接受 $\mathcal{M}_s\neq\mathcal{M}_r$）vs ② **重建仿真逼近真实**（RialTo 数字孪生，缩小 $\mathcal{M}_s,\mathcal{M}_r$ 距离）。数字孪生**"几何易、物理难"**：RialTo 重建几何缩 $\Delta_S$ 但残留 $\Delta_T$ → 需 DexNDM 补动力学。**RialTo(几何) + DexNDM(物理) 是互补的两半**。
+**累计范本级：27 篇**。sim-to-real 簇 5/8（A Survey, GAT, DexNDM, Tacmap, RialTo）。该簇剩：`RL in Robotic Systems Review`、`TRANSIC`、`Curriculum-based Sensing Reduction`。
+
+#### cron 第 24 轮（2026-06-20）— TRANSIC
+升级 `TRANSIC`：补 P2（变量表+符号陷阱）；接入跨簇综述（tip 本就裸链、无断锚）。
+**新 insight——gap 处理的"分解 vs holistic"维度**：显式分解（A Survey 四元素 / DexNDM 关节 / GAT 动作，需领域知识）vs 隐式 holistic（TRANSIC/HIL-SERL 人类一次纠正所有，领域无关需人在环）。**残差 > 微调**（连 DexNDM/GAT，sim2real 普遍偏好"基策略+残差"）。**Action Space Distillation = 控制器层 $\Delta_A$ 修正**（OSC 模型依赖 → 关节 PD 模型无关）。
+**累计范本级：28 篇**。sim-to-real 簇 6/8（A Survey, GAT, DexNDM, Tacmap, RialTo, TRANSIC）。该簇剩：`RL in Robotic Systems Review`、`Curriculum-based Sensing Reduction`。
+
+#### cron 第 25 轮（2026-06-20）— RL Robotics Review
+升级 `RL in Robotic Systems Review`：补 P2（Gap 概念溯源表+符号陷阱）+ tip callout；降级 Foundation 锚点；修 OCR（灯巧→灵巧）。
+**新 insight——两综述元综合**：本 review（"怎么修"：模型优化/知识迁移/迭代精炼）× [[A Survey...]]（"修什么"：MDP 四元素）**正交 → 2D 全景地图**。每方法定位到"(修什么)×(怎么修)"。三分类印证 RialTo 两层面（模型优化=重建逼近 / 知识迁移=修正固定 / 迭代精炼=闭环）。两综述 + 层面 insight 收敛同一全景图。
+**累计范本级：29 篇**。sim-to-real 簇 7/8（仅剩 `Curriculum-based Sensing Reduction`）。
+
+#### cron 第 26 轮（2026-06-20）— CSR，🎉 sim-to-real 簇收官
+升级 `Curriculum-based Sensing Reduction (CSR)`：补 P2；RL 锚点降级；**精确验证发现 ContactMechanics §2.3 已改名（重构）→ 修正锚点到新标题，而 RepresentationLearning §2.4 有效则保留**（精确处理而非盲目降级）。
+**新 insight——观测 gap 的"补 vs 减"两条路**：补/翻译观测（Tacmap/Robot Synesthesia，让真实像仿真）vs 减少观测依赖（CSR 课程缩减）。**本体感知部分替代触觉**（$f_c=J_c^{-T}\tau$，移除触觉仍 65%，呼应 HORA 纯本体）。
+**🎉 sim-to-real 簇收官（8 篇）**：A Survey / RL Review / GAT / DexNDM / Tacmap / RialTo / TRANSIC / CSR，全簇定位到"两综述 2D 网格"。
+**🎉🎉 累计范本级：30 篇。四大簇全部范本级**：in-hand rotation(7) · control frequency(5) · 探索-稳定性(10) · sim-to-real(8)。
+**🔑 锚点修复经验**：Foundation 重构程度不均——**需精确验证（grep 目标标题）而非盲目降级**；有效锚点保留、断的修正到新标题或降级裸链。
+**下一步**：① 最裸小文件（<7.5KB：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation/Deep Dynamics Models）；② 其它大簇（diffusion/VLA/world-model、demonstration/imitation/data-gen、impedance/compliance/force、curriculum、locomotion、tactile-pretraining）。
+
+#### cron 第 27 轮（2026-06-20）— PDDM
+升级 `Deep Dynamics Models (PDDM)`：补 tip callout + P2（变量表+符号陷阱）；无断锚（§6 本就裸链）。
+**新 insight——neural dynamics 灵巧手演进：PDDM(整体+MPC) → [[DexNDM...]](关节级+残差)**。DexNDM 的关节级分解正解决 PDDM 的"整体状态空间长 horizon 误差累积"。**ensemble disagreement $u(s)$ 加入 $m(s)$ 元控制家族**（频率/平滑/探索/安全/不确定性）；beta filter 动作低通连 LipsNet。
+**累计范本级：31 篇**。最裸小文件起步（剩 6：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation）。
+
+#### cron 第 28 轮（2026-06-20）— Unified Policy Evaluation
+升级 `Unified Policy Evaluation (On/Off-Policy)`：补 tip + P2（符号溯源+符号陷阱）；无断锚。
+**新 insight——RL 算法分类学锚点**：(数据源 $w$) × ($\pi_{ref}$ 参照系) 两轴统一所有 Actor-Critic。**$\pi_{ref}$ 三选择统一 信任域($\pi^k$/PPO) / 探索(Uniform/SAC = Exploration vs Exploitation 熵正则) / 保守($\mu$/offline)**——探索与保守是 $\pi_{ref}$ 谱两端，与 Dynamic RL Lyapunov 标尺是同一权衡的两种语言（KL vs Lyapunov）。
+**累计范本级：32 篇**。最裸小文件剩 5：`The Sampling Theorem`/`Learning Agile`/`GenDexGrasp`/`Learning Quadrupedal`/`RECAP`。
+
+#### cron 第 29 轮（2026-06-20）— Learning Agile (Actuator Network)
+升级 `Learning Agile and Dynamic Motor Skills`：补 tip + P2；无断锚。
+**新 insight——neural dynamics 作用对象谱 + reality gap 物理归因分解**：Learning Agile(actuator) / DexNDM(关节) / PDDM(系统) 是 neural dynamics 的作用对象谱。**reality gap 两种分解**：A Survey 信息论(MDP 四元素) vs Learning Agile 物理来源(rigid 解析 / actuator 学习 / contact 触觉)——互补。"按物理来源归因、各个击破比全黑箱稳"是 WMTS 的 WM 设计原则。
+**累计范本级：33 篇**。最裸小文件剩 4：`The Sampling Theorem`/`GenDexGrasp`/`Learning Quadrupedal`/`RECAP`。
+
+#### cron 第 30 轮（2026-06-20）— Learning Quadrupedal Locomotion
+升级 `Learning Quadrupedal Locomotion`：补 tip + P2；无断锚。
+**新 insight——privileged teacher-student 范式根**：本文(2020, locomotion) 是知识库 **privileged teacher-student 范式的根**；HORA 的 RMA = 把它迁到手。贯穿 HORA/AnyRotate/Robot Synesthesia/DexNDM/CSR——都是"privileged teacher → proprioceptive student"在灵巧手的变体。从 ANYmal(2020) → Shadow/Allegro Hand(2022–24) 是 sim-to-real 主动脉。particle curriculum 是另一线（连 AnyRotate/DemoStart）。
+**累计范本级：34 篇**。最裸小文件剩 3：`The Sampling Theorem`/`GenDexGrasp`/`RECAP`。
+
+#### cron 第 31 轮（2026-06-20）— The Sampling Theorem (LowRelevance 轻量升级)
+升级 `The Sampling Theorem (PWM)`：纯信号理论 LowRelevance——**critical thinking 判断：不强套灵巧操作四支柱（牵强），补轻量 P2（符号溯源/陷阱，对信号论文也适用）+ 强化真实联系**；无断锚。
+**新 insight——采样/编码理论是 control frequency 簇与 Touch Dexterity 的共同数学根**：PWM/PAM/Sigma-Delta/PDM 编码谱映射机器人量化策略。**Touch Dexterity 二值触觉 = Sigma-Delta(1-bit+过采样)、PFQI persistence = ZOH/PAM**。LowRelevance 论文也能贡献跨文献综合。
+**方法论**：不是所有 recap 都该套满四支柱——LowRelevance 参考文献宜轻量（结构完整+联系清晰），保留诚实定位。
+**累计范本级：35 篇**。最裸小文件剩 2：`GenDexGrasp`/`RECAP`。
+
+#### cron 第 32 轮（2026-06-20）— GenDexGrasp
+升级 `GenDexGrasp`：补 tip + P2；无断锚。
+**新 insight——接触表征是灵巧操作的统一中间语言 + 抓取→操作的桥梁**：接触表征**时间维度谱**（静态 contact map[GenDexGrasp] / 动态切换 $\sigma(t)$[Spin Pens] / 实时感知 deform map[Tacmap/Robot Synesthesia]）。**抓取→操作桥梁 = contact map → contact schedule $\Omega_{1:T}$**（= Spin Pens finger gaiting 的连续版）。接触几何连接 grasping 与 manipulation 两大主题。
+**累计范本级：36 篇**。最裸小文件仅剩 1：`RECAP`。
+**⚠️ 注**：IDE 报 PDDM/DexNDM wikilink "ambiguous"——`Backups/` 有同名副本致歧义（非断链，Obsidian 同目录优先，低优先级）；可能广泛影响指向 PapersRecap 文件的 wikilink，待评估是否需 Backups 排除。
 **下一步建议**：① 建**探索/稳定性簇**（`Stability-Certified RL`、`Exploration versus Exploitation`、`Reachability Constrained RL`、`Safe Model-based RL`、`On Robust RL with Lipschitz-Bounded Policy`、`LipsNet`、`Off-Policy Interval Estimation with Lipschitz` 等——Lyapunov/Lipschitz/safe-RL 主题，很适合领域级综述）；或 ② 最裸小文件（<7.5KB：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation/Deep Dynamics Models）。
 
 ### 待办队列（下一轮接续）

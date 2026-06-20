@@ -21,8 +21,12 @@ related:
 
 # The Sampling Theorem With Constant Amplitude Variable Width Pulses
 
-> [!note] Foundation 关联
-> - **[[SignalProcessing]]**: 采样定理与 PWM 信号处理
+> [!tip] 与理论基础的关联
+> - [[SignalProcessing]] — Nyquist-Shannon 采样定理；PWM (等幅变宽) vs PAM (等宽变幅) vs Sigma-Delta 编码
+> - [[ControlTheory]] — 离散控制 ZOH 假设本质是 PAM；PWM 是另一种 DAC 范式；电机驱动占空比上限
+>
+> **核心技术**: PWM Sampling Theorem, 0.637 (2/π) 峰值约束, 变宽脉冲编码
+> **定位**: LowRelevance 信号处理参考——经 [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]] 引用接入 control frequency 簇，作采样/编码理论根（不强套灵巧操作四支柱）。
 
 ## 元信息
 - **作者**: Jing Huang, Krishnan Padmanabhan, Oliver M. Collins
@@ -37,6 +41,16 @@ related:
 ---
 
 ## 核心内容
+
+### 核心符号溯源
+
+| 符号 | 定义/来源 | 意义 | 陷阱 |
+|------|----------|------|------|
+| $x(t)$ | 带限信号 | 待编码基带信号 | **峰值须 ≤0.637** |
+| $B$ | 带宽 | 信号带宽 | Nyquist $T_s=1/2B$ |
+| $\delta_n=\frac{1}{2B}(1+x(nT_s))$ | 脉冲宽度 | 由信号值决定 | **等幅变宽**（PWM 本质） |
+| $0.637=2/\pi$ | 峰值约束 | sinc 峰值交叉条件 | **充分非必要**；源自 Gibbs |
+| 脉冲数 | = Nyquist 采样数 | 信息容量 | 不增不减 |
 
 ### 核心洞察（直观隐喻）
 如同莫尔斯电码用"长短脉冲"编码字母 — PWM 用"宽窄脉冲"编码连续信号。关键约束是信号幅值不能太大（≤ 0.637），否则脉冲之间会"挤到重叠"，信息编码就崩溃了。这一约束与机器人 PWM 电机驱动中的占空比上限直接对应。
@@ -70,6 +84,14 @@ $$\hat{x}(t) = \text{LPF}\left\{\sum_n \text{rect}\left(\frac{t - nT_s}{\delta_n
 
 ---
 
+### 概念边界与符号陷阱
+
+- **PWM = 等幅变宽**（vs PAM 等宽变幅、Sigma-Delta 过采样噪声整形、PDM 等宽等幅变密）。
+- **0.637 = 2/π 充分非必要**：源自 sinc 峰值交叉 / Gibbs 现象。
+- **仅带限信号 + 峰值约束**：冲击/阶跃信号不适用。
+- **电机占空比 [18%, 82%] 对称裕度**；死区时间限制可表示的动态范围。
+- **PWM 谐波需滤波 → 增加延迟**。
+
 ## 与机器人控制的间接联系
 
 ### EvoControl 中的引用
@@ -102,6 +124,18 @@ $$\hat{x}(t) = \text{LPF}\left\{\sum_n \text{rect}\left(\frac{t - nT_s}{\delta_n
 | **应用场景** | 电机驱动 | 通信 | 音频 | 功率放大 |
 
 **理论局限**: 仅适用于带限信号 + 峰值约束 → 对冲击/阶跃信号不适用；实际中 PWM 谐波需滤波增加延迟。
+
+> [!note] 采样/编码理论 → 机器人控制与传感的映射（接 control frequency 簇 + Touch Dexterity）
+> 本文的 PWM/PAM/Sigma-Delta/PDM 编码谱，正好映射到知识库机器人方法的不同量化策略：
+>
+> | 编码 | 信号处理 | 机器人对应 |
+> |------|---------|----------|
+> | PAM/ZOH | 等宽变幅 | [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning\|PFQI]] 的 "persistence = ZOH 离散化" |
+> | **Sigma-Delta** | 过采样 + 1-bit 噪声整形 | **[[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]] 的 "1-bit 二值触觉 + 空间/时间过采样"** |
+> | PWM | 等幅变宽 | 电机驱动、高频力控（[[EvoControl - Evolved High Frequency Control for Continuous Control Tasks\|EvoControl]]）|
+> | Nyquist $f_s\ge2f_{max}$ | 采样下限 | control frequency 簇普遍（[[Elastic Time Step Reinforcement Learning, VTS-RL\|VTS-RL]]/[[TARC - Time-Adaptive Robotic Control\|TARC]] 的自适应 Nyquist）|
+>
+> **insight**：机器人"如何用有限比特/脉冲表示连续控制量/传感量"本质是采样编码问题。Touch Dexterity 的二值触觉 = Sigma-Delta 在触觉传感的实例（1-bit + 多路复用换鲁棒），PFQI 的 persistence = ZOH。**这篇纯信号理论是 control frequency 簇与 Touch Dexterity 的共同数学根**——虽 LowRelevance，却提供了"量化/采样"视角的理论统一。
 
 ## 与用户研究的启发（灵巧手转笔/Sim-to-Real）
 

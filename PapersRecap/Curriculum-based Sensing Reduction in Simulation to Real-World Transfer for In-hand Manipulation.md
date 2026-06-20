@@ -24,7 +24,7 @@ related:
 > 提出 **CSR (Curriculum-based Sensing Reduction)**：解决 Sim2Real 中"仿真有丰富传感、真实难以复现"的矛盾。通过**课程式逐步移除特征**（而非一步裁剪），让策略从完整观测空间渐进适应到受限观测空间，提升训练效率和真实世界性能。ICRA 2024。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - Asymmetric Actor-Critic 的改进
+> - [[ReinforcementLearning]] - Asymmetric Actor-Critic 的改进
 > - [[RepresentationLearning]] - 特征重要性评估
 > - [[ContactMechanics]] - 触觉特征在操作中的作用
 >
@@ -107,6 +107,19 @@ $$\text{Simulation: } o_{critic} = [o_{full}], \quad o_{actor} = [o_{reduced}]$$
 ---
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+枢纽：**critic 全程完整观测、actor 渐进缩减**（mask + DRG 替代），以及"渐进 > 一步"、"DRG > 置零"两个核心设计。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $o_{full}$ | 完整观测 | 仿真（特权） | 否 | 关节角/速/触觉/物体姿态 | 真实部分不可得 |
+| $o^{critic}$ | 完整观测 | 仿真 | 否（输入） | critic 观测 | **全程不缩减**（稳定 value） |
+| $o^{actor}_t$ | mask+DRG | 课程渐进 | 否 | actor 观测 | 随阶段缩减 |
+| $I_i=\mathbb{E}[\|\partial\pi/\partial o_i\|]$ | scalar | 梯度计算 | — | 特征重要性 | 局部线性近似，不敏感非线性交互 |
+| DRG | frozen MLP | 固定随机初始化 | **否（no grad）** | 随机替代信号 | **替代被移除特征 ≠ 置零** |
+| $\text{mask}_{\lambda(t)}$ | 掩码 | 课程阶段 | 否 | 保留/替代特征选择 | 硬切换可能振荡 |
 
 ### 3.1 特征重要性评估
 
@@ -248,6 +261,15 @@ Stage 3: Actor = [joint, image] (if needed)
 | 移除多阶段（只保留 Stage 0 和最终 Stage） | 性能介于一步裁剪和完整课程之间 | 中间过渡阶段提供了梯度信号的平滑桥梁，减少了策略梯度方差 |
 
 ---
+
+## 4.6 概念边界与符号陷阱
+
+- **渐进缩减 > 一步裁剪**：一步致 actor 观测空间突变、value function 估计崩溃（§4 消融 85→72）。
+- **DRG 随机替代 > 置零**：置零是确定性信号，策略学会"零=某状态"虚假关联，迁移时分布外（§4 消融 −8%）。
+- **关节角度隐含接触信息** $f_{contact}=J_c^{-T}\tau$：移除显式触觉仍保 65%——本体感知部分替代触觉。
+- **critic 全程完整观测**：不随课程缩减，提供稳定 value 估计（asymmetric AC 的核心）。
+- **特征重要性 $I_i$ 是局部线性近似**：对非线性特征交互不敏感（§5 理论局限）。
+- **阶段硬切换**：可能在临界点引起策略振荡 → 连续衰减 $\alpha_i(t)$ 更稳。
 
 ## 5. 批判性分析 (Critical Analysis)
 
@@ -438,7 +460,7 @@ def train_with_csr(env, policy, csr, n_stages):
 
 ### [[ReinforcementLearning]] — Asymmetric Actor-Critic 的观测空间适应
 
-CSR 扩展了 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] 中的 Asymmetric AC 框架。标准 AAC 的观测空间划分是一步完成的：
+CSR 扩展了 [[ReinforcementLearning]] 中的 Asymmetric AC 框架。标准 AAC 的观测空间划分是一步完成的：
 
 $$\pi_\theta(a|o^{\text{actor}}), \quad V_\phi(o^{\text{critic}}) \quad \text{where } o^{\text{actor}} \subset o^{\text{critic}}$$
 
@@ -450,7 +472,7 @@ $$o^{\text{actor}}_t = \text{Mask}_{\lambda(t)}(o^{\text{full}}) + \text{DRG}(\b
 
 ### [[ContactMechanics]] — 触觉特征在抓取中的信息论角色
 
-CSR 的特征重要性排序隐含了一个接触力学 insight：关节角度 $q$ 通过 [[ContactMechanics#2.3 接触雅可比矩阵 (Contact Jacobian)]] 间接编码了接触状态：
+CSR 的特征重要性排序隐含了一个接触力学 insight：关节角度 $q$ 通过 [[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|接触雅可比]] 间接编码了接触状态：
 
 $$f_{\text{contact}} = J_c(q)^{-T} \tau_{\text{joint}}$$
 
@@ -472,3 +494,11 @@ CSR 本质上是在学习一个 [[RepresentationLearning#2.4 表征学习：从�
 | **[[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]]** | 演示引导初始化 | 统一观测 | 状态初始化课程 | Allegro 多任务 |
 | **[[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation\|Curriculum > Haptic]]** | 任务子目标课程 | 触觉可选 | 任务顺序 | 仿真三指手 |
 | **[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]]** | 域随机化 + 触觉 | 触觉必选 | 无 | LEAP Hand |
+
+> [!note] sim-to-real 簇收官：观测 gap ($\Delta_S$) 的"补 vs 减"两条路 + 全簇地图
+> CSR 在 [[A Survey of Sim-to-Real Methods in RL|Survey]] MDP 四元素属 **$\Delta_S$ 的特例：仿真特权观测真实不可得**。把它与簇内其它 $\Delta_S$ 方法并置，浮现**观测 gap 的两条应对路线**：
+> - **补/翻译观测**（让真实像仿真）：[[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map\|Tacmap]]（翻译触觉到 deform map）、[[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing\|Robot Synesthesia]]（点云统一）。
+> - **减少观测依赖**（让策略不需仿真特权）：**CSR**（课程缩减 + DRG 遮蔽）。
+> 前者"补足缺失观测"、后者"训练出不依赖该观测的策略"——$\Delta_S$ 的"补 vs 减"二分。
+> **新 insight——本体感知部分替代触觉**：CSR 移除触觉仍 65%，因关节角度通过 $f_c=J_c^{-T}\tau$ 隐含接触信息。这给触觉表征谱（见 [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map\|Tacmap]]）补一个反向视角——**有时最鲁棒的"触觉表征"是没有触觉、靠本体隐式推断**，呼应 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 的纯本体+RMA 路线。
+> **🎉 sim-to-real 簇收官（8 篇）**：A Survey（总纲）· RL Review（综述）· GAT（grounding）· DexNDM（神经动力学）· Tacmap（触觉几何）· RialTo（数字孪生）· TRANSIC（人类纠正）· CSR（观测缩减）。全簇可定位到"两综述 2D 网格"（(修什么 $\Delta$) × (怎么修)）。

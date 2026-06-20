@@ -25,7 +25,7 @@ related:
 > 提出 **DexNDM** 框架：通过**关节级神经动力学模型**（joint-wise neural dynamics model）弥合 sim-to-real gap，实现前所未有的通用灵巧手内旋转——包括高长宽比物体（5.33:1）、复杂形状、多样腕部姿态和旋转轴。
 
 > [!note] 教科书背景
-> **动力学分解的理论根源**：本论文的"关节级动力学分解"思想源于 [[Dynamics#3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)|RNEA 递归思想]]——将整体系统分解为关节-连杆级别的局部力学关系，利用运动链的**连通性**实现 $O(N)$ 计算。
+> **动力学分解的理论根源**：本论文的"关节级动力学分解"思想源于 [[Dynamics|RNEA 递归思想]]——将整体系统分解为关节-连杆级别的局部力学关系，利用运动链的**连通性**实现 $O(N)$ 计算。
 > 
 > **与教科书的 Delta**：
 > - **经典 RNEA**：假设精确已知的刚体惯量参数和接触模型
@@ -34,11 +34,11 @@ related:
 > 详见 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Ch.4 中关于 **Lagrangian 分解** 和 **Newton-Euler 递推** 的理论推导。
 
 > [!tip] 与理论基础的关联
-> - [[Dynamics#2. Core Concepts: 物理直觉与数学形式的对偶 (The Duality of Intuition and Formalism)]] - 关节运动学基础
-> - [[Dynamics#3. Evolution & Insights: 动力学算法的演进脉络 (The Evolutionary Chain of Algorithms)]] - 分解式动力学的理论根源
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 域随机化的替代方案
+> - [[Dynamics]] - 关节运动学基础
+> - [[Dynamics]] - 分解式动力学的理论根源
+> - [[ReinforcementLearning]] - 域随机化的替代方案
 > - [[ContactMechanics]] - 手指-物体接触的复杂性
-> - [[ControlTheory#9. 数据驱动控制理论：从模型到数据的范式转移]] - 残差策略适应
+> - [[ControlTheory]] - 残差策略适应
 >
 > **核心技术**: Joint-wise Dynamics Factorization, Residual Policy, Autonomous Data Collection
 
@@ -112,6 +112,21 @@ System Identification + Fine-tuning
 ---
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+枢纽：**把系统级动力学 $f(x_{system},a)$ 分解为每关节 $f_j(h_j)$**（降维 → 15 分钟数据即可），以及历史窗口 $h_j$ 作为隐式系统辨识的唯一信号源。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $q_j,\dot{q}_j,\tau_j$ | scalar×3 | 观测（本体） | 否（输入） | 关节 $j$ 位置/速度/力矩 | 单关节 2-dim($q,a$)×W 历史 |
+| $h_j$ | $\mathbb{R}^{2W}$ | 观测窗口 | 否 | 关节 $j$ 本体感受历史 | **隐式系统辨识唯一信号**（去掉 −41%）|
+| $\phi_j$ | params | 学习（每关节独立） | 是 | 关节级动力学网络 | **参数不共享**（各关节摩擦/耦合异） |
+| $\hat{q}_j^{t+1}$ | scalar | $\phi_j(h_j)$ 输出 | 是 | 预测下一状态 | **增量 $\Delta q$** 非绝对（避恒等映射） |
+| $a_{base}$ | $\mathbb{R}^{16}$ | 仿真基策略 | 否 | 基动作 | 残差依赖其合理性 |
+| $\Delta a$ | $\mathbb{R}^{16}$ | 残差网络 | 是 | sim-to-real 修正 | $a=a_{base}+\Delta a$ |
+| $\hat{s}_{sim},\hat{s}_{real}$ | 状态 | 仿真器 / DexNDM 预测 | — | 两者差 = reality gap | 残差显式编码 $\hat s_{sim}-\hat s_{real}$ |
+| 随机外部负载 | — | 数据采集 | 否 | 代替真实物体 | 须覆盖真实物体惯量分布 |
 
 ### 3.1 核心洞察：动力学分解
 
@@ -217,6 +232,16 @@ $$a_{final} = a_{base} + \Delta a$$
 ```
 
 ---
+
+### 3.6 概念边界与符号陷阱
+
+- **关节级独立性假设**：强耦合（腱驱动对指快速同动）时交叉耦合力矩可能超出"净效应"建模能力（§5 理论局限）。
+- **预测增量 $\Delta q$ 非绝对 $q$**：残差学习避免恒等映射，提升小变化量预测精度。
+- **关节间参数不共享**：各关节动力学差异大（对指 vs 拇指的摩擦/耦合），16 DoF → 16 个独立网络。
+- **仅前向动力学、无逆动力学约束**：不保证物理一致性（能量守恒）。
+- **自主数据采集用随机外部负载代替物体**：免物体追踪/复位，但负载分布须覆盖真实物体惯量。
+- **残差依赖基策略合理性**：仿真基策略在高速操作偏差过大时，残差修正空间不足。
+- **历史窗口 $h_j$ 是隐式系统辨识唯一信号源**：去掉 −41%（最大降幅）——单帧无法推断耦合/负载隐变量。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -477,11 +502,11 @@ def autonomous_data_collection(hand, duration_minutes=15):
 
 ### 与 [[Dynamics]] 的数学对应
 - DexNDM 的 $\dot{q}_j = f_j(h_j^{proprio})$ 是经典 Newton-Euler 递推 $\tau_j = I_j \ddot{q}_j + \text{bias}_j$ 的数据驱动化：用神经网络替代解析的惯量矩阵 $I_j$ 和偏置力矩
-- 历史窗口 $h_j$ 隐式实现了经典[[Dynamics#3.2 The Industrial Revolution: Recursive Newton-Euler Algorithm (RNEA)|系统辨识]]——提供等效于惯量参数和接触力的信息
+- 历史窗口 $h_j$ 隐式实现了经典[[Dynamics|系统辨识]]——提供等效于惯量参数和接触力的信息
 
 ### 与 [[ReinforcementLearning]] 的数学对应
 - 残差策略 $a = \pi_{base}(s) + \pi_{res}(s, \hat{s}_{sim}, \hat{s}_{real})$ 中，动力学差异 $(\hat{s}_{sim} - \hat{s}_{real})$ 显式编码 reality gap
-- 与 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|RMA 的 adaptation module]] 一脉相承：从"推断环境参数"推广到"预测状态差异"
+- 与 [[ReinforcementLearning|RMA 的 adaptation module]] 一脉相承：从"推断环境参数"推广到"预测状态差异"
 
 ### 与 [[ContactMechanics]] 的数学对应
 - 手指-物体接触的复杂性（摩擦力、接触形变、非光滑切换）被压缩到关节级 $f_j$ 中隐式建模
@@ -496,3 +521,15 @@ def autonomous_data_collection(hand, duration_minutes=15):
 | 计算成本 | 极高 | 低 | 中 | **低** |
 | 理论保证 | 无 | 有 | 无 | 无 |
 | 触觉需求 | 无 | 可选 | 无 | 无 |
+
+> [!note] 跨簇定位：$\Delta_T$ 修正的"粒度谱" + RMA 的关节级下放（连接 sim-to-real × in-hand rotation 两簇）
+> DexNDM 是 **sim-to-real 簇 × in-hand rotation 簇**的交汇点。在 [[A Survey of Sim-to-Real Methods in RL|Survey]] 的 MDP 四元素里属 $\Delta_T$（转移 gap），但它揭示 **$\Delta_T$ 修正存在"粒度谱"**：
+>
+> | 粒度 | 代表 | 修正对象 |
+> |------|------|----------|
+> | 系统级 | [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] | 一个 extrinsics $z$（物体参数） |
+> | 动作级 | [[Grounded Action Transformation\|GAT]] | 动作映射 $a_{sim}\to a_{real}$ |
+> | **关节级** | **DexNDM** | 每关节 $f_j$（净效应动力学） |
+>
+> 越细粒度 → 数据效率越高（DexNDM **15 分钟** vs DR 上万年仿真）、泛化越强（单策略多物体）。
+> **新 insight——关节级分解 = "RMA 的降维"**：[[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 用 RMA 学**系统级** extrinsics，DexNDM 把 RMA **下放到关节级**（每关节本体历史推断净效应）——"用运动链分解的结构先验放松数据/泛化代价"，与跨簇 meta-insight"用结构先验放松保守约束"同源。它给出与 [[Lessons from Learning to Spin Pens|Spin Pens]]（open-loop replay）、[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]（蒸馏）并列的第三条 in-hand rotation sim-to-real 路线：关节级动力学 grounding。

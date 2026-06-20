@@ -22,6 +22,14 @@ related:
 > [!abstract] 核心贡献
 > 从信息流和方法作用对象的角度，提出 sim-to-real 迁移的统一框架，将现有方法分为三大类：面向真实环境的模型优化、基于仿真环境的知识迁移、仿真-现实迭代策略精炼。综述了 System ID、DR、Domain Adaptation、Multi-Fidelity、Progressive Neural Networks 等方法。
 
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning]] — MDP $(S,A,P,R,\gamma)$；sim/real 的 $P,R$ 差异是 gap 数学本质
+> - [[Dynamics]] — System ID / 执行器建模 / 接触动力学保真度
+> - [[EmbodiedAI]] — sim-to-real 基准平台（Real Robot Challenge / HomeRobot）
+> - [[Optimization]] — DR 作为鲁棒优化 $\max_\theta\mathbb{E}_\xi[J]$
+>
+> **核心技术**: 三分类框架（模型优化 / 知识迁移 / 迭代精炼）、System ID、DR/ADR、Domain Adaptation、R2S2R
+
 ### 核心洞察（直观隐喻）
 
 **Sim-to-Real 如同"在梦中练武"**——仿真是高效但不完美的梦境，Reality Gap 是梦与现实的差异。三类方法分别对应：让梦更真实（System ID）、让武功对梦境差异免疫（DR/DA）、醒来后根据实战修正梦的设定（R2S2R）。
@@ -48,6 +56,20 @@ related:
 - **Reality Gap**: 物理动力学、感知输入、环境变异性的系统性差异
 - **MDP 框架**: $\mathcal{M} = (S, A, P, R, \gamma)$ — sim/real 的 $P$, $R$ 差异是 Gap 的数学本质
 - **仿真优势**: 低成本、可真实性、多维度、安全性
+
+### 1.1 核心概念与 Gap 溯源
+
+综述的"变量来源追踪"——把核心概念溯清。本 review 按**"怎么修"**分三类（与 [[A Survey of Sim-to-Real Methods in RL|A Survey]] 按"修什么"的 MDP 四元素正交，见文末元综合）。
+
+| 概念 | 定义/来源 | 意义 | 陷阱/对比 |
+|------|----------|------|----------|
+| Reality Gap | 物理/感知/环境变异差异 | sim-real 系统性差异 | = A Survey 的 $\Delta_S/\Delta_A/\Delta_T/\Delta_R$ 总和 |
+| $\Delta P$ | $\|P_{sim}-P_{real}\|_{TV}$ | 转移概率差（gap 数学本质） | DR 有效性依赖 $P_{real}\in\text{support}(\rho)$ |
+| 模型优化类 | 让仿真像真实 | System ID / 执行器建模 | 精度有上限（接触/摩擦突变难建模） |
+| 知识迁移类 | 让策略鲁棒 | DR / DA / Transfer | 过宽 DR → 策略保守 |
+| 迭代精炼类 | sim-real 交替 | R2S2R / Multi-Fidelity | = RialTo |
+| $\rho(\xi)$ | DR 参数分布 | 物理参数随机化 | ADR 自适应优先最难配置 |
+| $L_f$ | 动力学 Lipschitz | 误差传播率 | 高速接触 $L_f\gg1$ → 误差指数放大 |
 
 ## 2. 方法分类总结
 
@@ -136,11 +158,28 @@ def train_sim2real_ppo(env, policy, critic, epochs=5000):
 | Progressive NN | 少量 | 中 | 中 | 策略层 |
 | R2S2R | 迭代 | 自适应 | 高 | 全局 |
 
+## 2.10 概念边界与符号陷阱
+
+- **三分类按"怎么修"、[[A Survey of Sim-to-Real Methods in RL|A Survey]] 按"修什么"（MDP 四元素）**——两个正交分类轴（见 §4 前元综合）。
+- **$\Delta P$ TV 距离是 gap 数学本质**；DR 有效性依赖覆盖假设 $P_{real}\in\text{support}(\rho)$。
+- **模型优化精度有上限**：接触/摩擦突变难精确建模。
+- **DR 过宽 → 策略保守**："对所有天气训练 → 任何天气下都不最优"。
+- **执行器/通信延迟是最被低估的 gap 源**：USB 30ms、以太网 1ms。
+- **本 review 侧重 locomotion**，灵巧操作（高维力接触）覆盖少 → 灵巧操作 sim-to-real 应参考 A Survey 的 MDP 四元素。
+
 ## 3. 核心洞见 (Insights)
 
-1. **System ID 与 DR 互补**: 前者提升仿真保真度，后者提升策略鲁棒性 → 与 [[ReinforcementLearning#5.0 系统辨识与在线参数学习 (System Identification & Online Adaptation)|RL §5.0]] 的"正交关系"分析一致
-2. **执行器建模被低估**: 大多数 sim-to-real 工作忽视电机/驱动器级别建模 → 与 [[ControlTheory#Sim-to-Real 迁移中的控制挑战|ControlTheory sim-to-real]] 中的硬件 Gap 分析呼应
+1. **System ID 与 DR 互补**: 前者提升仿真保真度，后者提升策略鲁棒性 → 与 [[ReinforcementLearning|RL §5.0]] 的"正交关系"分析一致
+2. **执行器建模被低估**: 大多数 sim-to-real 工作忽视电机/驱动器级别建模 → 与 [[ControlTheory|ControlTheory sim-to-real]] 中的硬件 Gap 分析呼应
 3. **统一框架思维**: 从信息流角度审视迁移方法，有助于识别方法组合策略
+
+> [!note] 领域级元综合：两个 sim-to-real 综述的正交分类轴 → 2D 全景地图
+> 知识库现有两篇 sim-to-real 综述，分类轴**正交**，组合成一张 2D 地图：
+> - **本 review（信息流/作用对象）= "怎么修"**：① 模型优化（让仿真像真实，System ID）② 知识迁移（让策略鲁棒，DR/DA）③ 迭代精炼（sim-real 交替，R2S2R）。
+> - **[[A Survey of Sim-to-Real Methods in RL|A Survey]]（MDP 四元素）= "修什么"**：$\Delta_S/\Delta_A/\Delta_T/\Delta_R$。
+>
+> **2D 分类网格**：每个方法定位到"（修什么）×（怎么修）"——[[Grounded Action Transformation|GAT]] =（$\Delta_T,\Delta_A$）×（知识迁移/grounding）；[[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation|RialTo]] =（$\Delta_S$ 几何）×（迭代精炼）；[[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]] =（$\Delta_T$ 关节级）×（模型优化）。
+> **新 insight**：本 review 三分类正好印证 [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation|RialTo]] 提的"修正固定仿真 gap vs 重建仿真逼近真实"两层面——"模型优化"=重建逼近、"知识迁移"=修正固定、"迭代精炼"=二者闭环。**两综述 + 层面 insight 收敛到同一张 sim-to-real 全景图**。分工：本 review 侧重 locomotion 的系统性分类，A Survey 侧重灵巧操作的 MDP 精细定位——互补覆盖。
 
 ## 4. 与知识体系的联系
 
@@ -149,7 +188,7 @@ def train_sim2real_ppo(env, policy, critic, epochs=5000):
 - 补充了 Progressive Neural Networks、Multi-Fidelity 等未被充分覆盖的方法
 
 ### 与 [[Dynamics]] 的联系
-- System ID 和执行器建模直接关联 [[Dynamics#Sim-to-Real 与动力学迁移|动力学迁移]]
+- System ID 和执行器建模直接关联 [[Dynamics|动力学迁移]]
 - 仿真器物理保真度是所有方法的底层依赖
 
 ### 与 [[EmbodiedAI]] 的联系
@@ -197,4 +236,4 @@ $$\max_\theta \mathbb{E}_{\xi \sim \rho} \left[ J(\pi_\theta, \mathcal{M}_\xi) \
 
 1. **Sim-to-Real 分类学习**: 本综述对 DR/DA/Transfer Learning 的分类框架可为转笔项目的 sim-to-real 方案选型提供系统性参考
 2. **Gap 分析思维**: 将 sim-to-real gap 分解为力学/视觉/触觉/执行器多个维度，逐一定位和解决，而非笼统地“加域随机化”
-3. **补充参考**: 本综述侧重 locomotion，灯巧操作特定的 sim-to-real 应参考 [[A Survey of Sim-to-Real Methods in RL|AwesomeSim2Real]] 综述中的 MDP 四元素框架
+3. **补充参考**: 本综述侧重 locomotion，灵巧操作特定的 sim-to-real 应参考 [[A Survey of Sim-to-Real Methods in RL|AwesomeSim2Real]] 综述中的 MDP 四元素框架

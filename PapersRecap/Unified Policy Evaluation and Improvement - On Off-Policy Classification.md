@@ -20,6 +20,12 @@ related:
 > [!abstract] 核心贡献
 > 提出以"数据来源 (Data Source)"和"更新调度 (Update Schedule)"两个正交维度对 RL 算法进行统一分类的理论框架，证明了 PPO/SAC/IQL/AWAC 等看似不同的算法在数学底层同源——差异仅在于目标分布的采样策略和 KL 散度正则化的参照系选择。为机器人基础模型的训练策略提供了理论指导。
 
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning]] — 为 PPO/SAC/IQL/AWAC 提供统一分类学（数据源 $w$ × $\pi_{ref}$ 参照系两轴）
+> - [[Optimization]] — Trust Region = KL 约束 $\pi_{ref}=\pi^k$；统一提升式是带 KL 正则的策略优化
+>
+> **核心技术**: 统一 Policy Eval/Improve 方程, Data Source × Update Schedule 两轴, $\pi_{ref}$ 参照系选择
+
 ## 1. 问题设定与动机
 
 ### 1.1 核心洞察（一句话 + 直观隐喻）
@@ -34,6 +40,20 @@ related:
 - 实践中选择算法缺乏系统性指导，尤其在机器人数据飞轮场景下
 
 ## 2. 核心方法/理论
+
+### 2.0 核心符号溯源
+
+理论统宗的"变量来源追踪"。枢纽：**$w$（数据源）与 $\pi_{ref}$（KL 参照系）是两个正交轴**——前者定 on/off-policy，后者定算法身份。
+
+| 符号 | 类型 | 来源 | 意义 | 陷阱 |
+|------|------|------|------|------|
+| $w$ | 分布 | 数据源 | 评估的状态-动作分布 | On=$d^{\pi^k}$、Off/Offline=$d^\mu$（需 IS 修正）|
+| $\pi_{ref}$ | 策略 | **选择** | KL 正则参照系 | **决定算法身份**：$\pi^k$/Uniform/$\mu$ |
+| $\hat{Q}^k$ | 值函数 | 学习 | 第 $k$ 代 Q | — |
+| $\beta$ | scalar | 超参 | KL 惩罚系数 | 极难调，需动态衰减 |
+| $\pi^k$ | 策略 | 第 $k$ 代 | 当前策略 | — |
+| "step" | 策略代差 | 调度 | **一次完整 Eval+Improve 循环** | **非 env step / grad step**——三态调度的关键定义 |
+| IS 权重 | scalar | off-policy 修正 | 重要性采样比 | **必须截断**否则 Q 梯度爆炸 |
 
 ### 2.1 关键创新点（Delta 分析）
 1. **大统一数学方程**：将几乎所有现代 Actor-Critic 方法归入同一组公式
@@ -98,6 +118,15 @@ for iteration in range(num_iterations):
         update(Actor, actor_loss)
 ```
 
+### 2.5 概念边界与符号陷阱
+
+- **"step" = 策略代差 (Generations)**，非 env step / grad step——三态调度（Iterative ~10000 / Multi-step ~3-5 / One-step 1）的关键定义。
+- **$w$（数据源）vs $\pi_{ref}$（KL 参照）两轴正交**：on/off-policy 由 $w$ 定、算法身份由 $\pi_{ref}$ 定。
+- **PPO 是 Iterative**：minibatch+epoch 只构成一个 Eval+Improve 圈，清空 buffer 后重复几千次。
+- **$\pi_{ref}=\text{Uniform}\Rightarrow$ 最大熵**（$D_{KL}(\pi\|U)=-\mathcal{H}(\pi)$）= SAC。
+- **IS 权重必须截断**：否则 off-policy evaluation 的 Q 梯度爆炸。
+- **KL 假设可解析**：高维连续空间可能不精确（§5 理论局限）。
+
 ## 3. 训练与实验细节
 
 ### 3.1 理论验证
@@ -123,6 +152,17 @@ for iteration in range(num_iterations):
 ### 5.2 与用户研究的启发
 - 当前用户的 PPO 转笔训练 = 典型 Iterative RL — 高频交互，每轮清空 Buffer
 - 若考虑真机部署，应采用 Multi-step 路线：先仿真中 Iterative PPO 练到收敛 → 真机上做几轮安全 Multi-step 微调 → 最后少量 Online RL 突破 Sim-to-Real gap
+
+> [!note] RL 算法统一框架：知识库所有 Actor-Critic 的分类学锚点
+> 本文给出**元框架**，把知识库里所有用 RL 的 recap 归位到 **(数据源 $w$) × ($\pi_{ref}$ 参照系)** 两轴。最深的 insight 是 **$\pi_{ref}$ 三种选择统一了"信任域 / 探索 / 保守"**：
+>
+> | $\pi_{ref}$ | 算法 | 效果 | 知识库对应 |
+> |------|------|------|----------|
+> | $\pi^k$（旧策略） | PPO/TRPO | 信任域 | in-hand / control-freq 簇大量用 PPO |
+> | Uniform | SAC | 最大熵 $-\mathcal{H}(\pi)$ | = [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach\|Exploration vs Exploitation]] 证明的 Gaussian 熵正则最优 |
+> | $\mu$（行为策略） | BRAC/AWAC/IQL | 保守约束 | offline / safe RL |
+>
+> **跨簇 insight**：这把探索/稳定性簇的"熵正则探索"（$\pi_{ref}$=Uniform）与 safe-RL 的"保守约束"（$\pi_{ref}=\mu$）统一为**同一个 KL 正则的参照系选择**——探索与保守不是对立，而是 $\pi_{ref}$ 谱的两端（Uniform 最探索、$\mu$ 最保守、$\pi^k$ 居中）。这与 [[Dynamic Reinforcement Learning for Actors|Dynamic RL]] 的"Lyapunov 标尺（探索↔利用）"是**同一权衡的两种数学语言**（KL 参照系 vs Lyapunov 指数）。更新调度三态（Iterative/Multi-step/One-step）则对应 sim-to-real 训练流程（[[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]] IL→Offline→Online）。
 
 ## 6. 与知识体系的联系
 

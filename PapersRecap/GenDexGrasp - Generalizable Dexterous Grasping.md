@@ -23,6 +23,14 @@ related:
 > [!abstract] 核心贡献
 > GenDexGrasp 用 object-centric contact map 作为 hand-agnostic 中间表征，在 MultiDex 数据集上学习可迁移抓取生成，实现对多种未见机械手的成功率、速度与多样性折中。
 
+> [!tip] 与理论基础的关联
+> - [[ContactMechanics]] — force closure、摩擦锥是 MultiDex 抓取合成的物理基础
+> - [[RepresentationLearning]] — CVAE contact map 是跨手型可迁移的中间表征
+> - [[ComputationalGeometry]] — aligned distance 是法向一致的表面距离度量
+> - [[Optimization]] — 抓取姿态 = contact-map matching + penetration/joint 正则的非凸优化
+>
+> **核心技术**: Object-centric Contact Map (hand-agnostic), CVAE 生成, Aligned Distance, MultiDex 数据集
+
 ## 1. 问题设定与动机
 
 ### 1.1 核心洞察
@@ -36,6 +44,19 @@ related:
 - 确定性 IK/solver 生成多样性不足，容易只找到单一抓取模式。
 
 ## 2. 核心方法/理论
+
+### 2.0 变量来源追踪
+
+枢纽：**contact map $\Omega$ 是 object-centric（不含手型拓扑）→ hand-agnostic 泛化**，aligned distance 修正薄壳物体的欧氏假接触。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $\mathcal{P}_O=\{p_i,n_i\}$ | 点云+法向 | 观测 | 否 | 物体表面 | object-centric |
+| $\Omega_i=\exp(-\alpha D_{align})$ | $[0,1]^N$ | 合成（force closure）/ CVAE | — | contact map（接近度） | **不含手型** → 跨手迁移 |
+| $D_{align}$ | scalar | 计算（含法向一致 $g$） | 否 | aligned distance | **非欧氏**（薄壳两侧不误判） |
+| $\hat{\Omega}$ | $[0,1]^N$ | CVAE 解码 | 是 | 生成的 contact map | 训练目标 |
+| $z$ | latent | CVAE 采样 | — | 隐变量 | **多样性来源**（单初值收敛相似 basin） |
+| $q_H$ | 手姿态 | 优化变量（可微 FK） | 是 | 手关节配置 | 多初值并行避局部极小 |
 
 ### 2.1 Delta 分析
 
@@ -93,6 +114,15 @@ q_hand = physics_refine(q_hand, object_mesh)
 
 **物理量来源**：$\Omega$ 来自 force-closure 优化生成的合成抓取；$\hat{\Omega}$ 是 CVAE 输出；$q_H$ 来自可微 FK/优化变量；物理 refine 在仿真器中验证稳定性。
 
+### 2.4 概念边界与符号陷阱
+
+- **contact map 必须 object-centric**：否则手型拓扑泄漏，削弱 hand-agnostic 泛化。
+- **aligned distance（非欧氏）**：薄壳物体欧氏最近会误判两侧接触 → 法向一致惩罚 $g$ 修正。
+- **contact map matching ≠ force closure**：需 physics refine 验证摩擦锥/穿透（§3.3 消融）。
+- **CVAE latent 采样 → 多样性**：单一初值收敛相似 grasp basin。
+- **静态 grasp**：不含 rolling/sliding 切换（→ §7 提出 time-indexed $\Omega_{1:T}$）。
+- **contact map 只说"哪里接触"**：不含"多大力/切向力"（§5 理论局限）。
+
 ## 3. 训练与实验细节
 
 ### 3.1 数据与监督信号
@@ -131,6 +161,17 @@ q_hand = physics_refine(q_hand, object_mesh)
 ### 5.2 与灵巧操作/WMTS 的启发
 
 GenDexGrasp 给 [[Final_WMTS]] 的启发是：任务隐空间不应只编码目标姿态，还应编码**目标接触拓扑**。对于转笔或 in-hand reorientation，任务生成器可以把 $z_{task}$ 拆成 $z_{motion}$ 与 $z_{contact}$，后者由接触图或 finger-object affordance map 表示，从而让 Scheduler 生成“可执行接触模式”而不是只生成几何终点。
+
+> [!note] 接触表征作为灵巧操作的统一中间语言 + 抓取→操作的桥梁
+> GenDexGrasp 的 object-centric contact map 是"**接触几何作中间表征**"主题在**抓取**上的实例。把它与簇内方法并置，浮现接触表征的**时间维度谱**：
+>
+> | 论文 | 接触表征 | 时间维度 |
+> |------|---------|---------|
+> | **GenDexGrasp** | object-centric contact map $\Omega$ | **静态**（抓取那一刻哪里接触） |
+> | [[Lessons from Learning to Spin Pens\|Spin Pens]] | finger gaiting 切换 $\sigma(t)$ | **动态切换**（接触集如何序列切换） |
+> | [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map\|Tacmap]] / [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing\|Robot Synesthesia]] | deform map / 触觉点云 | **实时感知**（当前接触几何观测） |
+>
+> **领域级 insight——抓取→操作的桥梁是 contact map → contact schedule**：GenDexGrasp §7 自己指出"contact map $\Omega$ → time-indexed contact schedule $\Omega_{1:T}$"——这正是从**静态抓取**到**动态操作**的关键升级，而 $\Omega_{1:T}$ 就是 [[Lessons from Learning to Spin Pens|Spin Pens]] 的 finger gaiting 切换序列 $\sigma(t)$ 的连续版本。**接触几何是连接 grasping 与 manipulation 的统一中间语言**：静态 contact map 定义"抓得稳"、动态 contact schedule 定义"操作得动"。给 WMTS 的任务表征设计：$z_{task}=(z_{motion}, z_{contact})$，$z_{contact}$ 用 contact schedule 编码可执行接触模式（§5.2）。aligned distance 的法向一致表面距离则与 [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] 的 SDF/穿透深度同族。
 
 ## 6. 与知识体系的联系
 

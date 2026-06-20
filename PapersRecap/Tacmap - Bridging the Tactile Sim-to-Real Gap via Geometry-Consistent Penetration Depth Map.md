@@ -39,6 +39,19 @@ related:
 
 ## 2. 核心方法
 
+### 2.0 变量来源追踪
+
+枢纽：**deform map $M$ 是 sim/real 的"公共几何空间"**——解耦传感器光学（$I_{raw}$ 传感器特定），让仿真与真实在同一几何表征上对齐。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $I_{raw}$ | 触觉图像 | 传感器观测 | 否 | 原始触觉图 | **传感器特定**（光学复杂）→ 不直接用 |
+| $M$ / $d(u,v)$ | 深度场 | sim 射线投射 / real 翻译网络 | real 端翻译网带梯度 | **deform map（公共几何空间）** | sim/real 在此对齐——核心 |
+| $z_s,z_u,z_o$ | 深度 | 几何（法线投射） | 否 | 感知面/未变形/物体交点坐标 | 法线空间投射（非平面假设） |
+| $F$ | 力 | sim 引擎 / real 力传感回归 | real 端带梯度 | 净力 | 三流之一 |
+| $P$ | 位置 | sim 引擎 / real deform 质心 | 否 | 接触位置 | real 端由 $M$ 几何质心导出 |
+| Translator | ResNet enc-dec | 学习（real 端） | 是 | Image→Deform 映射 | **每传感器需独立标定** |
+
 ### Delta 分析
 
 | 维度 | 前人工作 | Tacmap |
@@ -185,11 +198,20 @@ $$d(u,v) = \max\!\left(0,\, -\phi_{\text{obj}}\bigl(\mathbf{p}(u,v)\bigr)\right)
 其中 $\phi_{\text{obj}}$ 为物体 SDF。梯度 $\nabla d = -\nabla\phi_{\text{obj}}$ 在接触区域指向法向外侧，可直接用于基于梯度的操作优化
 - Deform map 作为 2.5D 表征 → 与深度图、SDF 同族
 
-### 与 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|Sim-to-Real]] 的联系
+### 与 [[ReinforcementLearning|Sim-to-Real]] 的联系
 - 触觉 sim-to-real gap 可形式化为观测分布偏移 $D_{\text{KL}}\bigl(p_{\text{sim}}(o|s)\,\|\,p_{\text{real}}(o|s)\bigr)$。Tacmap 通过映射至公共 deform map 空间 $f_d$ 使该散度最小化:
 $$o = f_d(I) \implies D_{\text{KL}}\bigl(p_{\text{sim}}(f_d(I)|s)\,\|\,p_{\text{real}}(f_d(I)|s)\bigr) \approx 0$$
-- 这是 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|MDP Gap]] 中 **State Gap** 的子问题 — 传感器域移位
+- 这是 [[ReinforcementLearning|MDP Gap]] 中 **State Gap** 的子问题 — 传感器域移位
 - Zero-shot 迁移验证了统一表征空间对消除域移位的有效性
+
+### 5.5 概念边界与符号陷阱
+
+- **deform map 是公共几何空间**：sim/real 在此对齐，解耦传感器光学外观——"几何抽象胜过光学模拟"。
+- **法线空间投射（非平面假设）**：曲面指尖（LEAP/Allegro）关键；平面渲染（TACTO）致投影畸变、zero-shot 失败（§Ablation）。
+- **仅法向穿透深度、无切向/剪切**：incipient slip 检测受限（§6）。
+- **$d=\max(0,\cdot)$ 截断非负**：物理约束，避免网络学非物理值。
+- **deform map = 物体 SDF 负值截断** $\max(0,-\phi_{obj})$：与 SDF 同族的 2.5D 表征。
+- **每传感器需独立标定** Image→Deform 翻译网络：换传感器需重采配对数据。
 
 ## 6. 局限与未来方向
 
@@ -221,3 +243,15 @@ $$o = f_d(I) \implies D_{\text{KL}}\bigl(p_{\text{sim}}(f_d(I)|s)\,\|\,p_{\text{
 | TacEx/Taccel | 通用 | FEM/IPC | 高 | 低 | 理论可行 |
 | **Tacmap (本文)** | **通用** | **射线投射** | **中-高** | **高** | **Zero-shot** |
 | DenseTact | 曲面传感器 | 光学仿真 | 中 | 中 | 需微调 |
+
+> [!note] 跨簇综述：触觉 sim-to-real 的"表征选择谱"（连接 sim-to-real 簇 × in-hand rotation 触觉论文）
+> Tacmap 在 [[A Survey of Sim-to-Real Methods in RL|Survey]] 的 MDP 四元素里属 **$\Delta_S$（传感 gap）的几何抽象**。把它与 in-hand rotation 簇触觉论文并置，浮现**触觉 sim-to-real 的表征选择谱**——都在回答"触觉的什么表征对 sim-to-real 不变"：
+>
+> | 论文 | 触觉表征 | 对什么不变 |
+> |------|---------|----------|
+> | [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]] | 二值接触(1-bit) | 量化吸收力幅值差异 |
+> | [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing\|Robot Synesthesia]] | 触觉点云 | 几何位置（去光学/力） |
+> | [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]] | 接触姿态+力 | 物理可解释中间量 |
+> | **Tacmap** | **穿透深度场** | **几何变形（解耦光学外观）** |
+>
+> **统一 insight**：四者都把触觉从"原始光学/力读数"抽象到"几何/接触结构"——这正是 in-hand rotation 簇 meta-insight"**sim-to-real 本质是找对 gap 不变的观测子空间**"在触觉模态上的完整谱系。Tacmap 的 deform map 是其中**最接近连续接触物理**的一档（穿透深度 = Hertz $\delta$ 的空间化 = 物体 SDF 负值截断），故 zero-shot 迁移最彻底。
