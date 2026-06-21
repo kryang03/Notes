@@ -142,6 +142,15 @@ class MCCController:
         return x_new, dx_new
 ```
 
+### 2.6 概念边界与符号陷阱
+
+- **力控无需力传感器**：电流/PWM 含外力信息（频域精度够即可）。
+- **方向 > 幅值**：力方向准 + 频域合理 >> 精确力幅值（= Touch Dexterity "二值够用" 同源）。
+- **方向相关效率** $\eta$（正驱）vs $\eta^{-1}$（反驱）：高减速比关键，忽略则力矩偏 >50%。
+- **准静态假设**：高加速度时惯性项 $M\ddot{q}$ 不可忽略（§5 算法局限）。
+- **电流线性假设**：忽略磁饱和/温漂（§5 理论局限）。
+- **零学习模型方法**（非 RL）：可解释、跨平台、安全可分析。
+
 ## 3. 实验结果
 
 ### 3.0 训练/标定细节
@@ -220,8 +229,8 @@ class MCCController:
 - 导纳因果关系：$f_{ext} \xrightarrow{\text{admittance}} \Delta x_{ref} \xrightarrow{\text{IK}} q_{target}$
 
 ### 与 [[Dynamics]] 的联系
-- 雅可比映射 $\hat{f}_{ext} = (J_p^T)^{\dagger} \tau_{ext}$ 将关节力矩投影到任务空间——正是 [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)|操作空间动力学]] 中的核心运算
-- 重力补偿项 $\tau_{grav} = g(q)$ 来自 [[Dynamics#3.1 The Classical Era: Lagrangian Formulation|Lagrangian 动力学]] 的势能梯度 $g(q) = \frac{\partial V}{\partial q}$
+- 雅可比映射 $\hat{f}_{ext} = (J_p^T)^{\dagger} \tau_{ext}$ 将关节力矩投影到任务空间——正是 [[Dynamics|操作空间动力学]] 中的核心运算
+- 重力补偿项 $\tau_{grav} = g(q)$ 来自 [[Dynamics|Lagrangian 动力学]] 的势能梯度 $g(q) = \frac{\partial V}{\partial q}$
 
 ### 与 [[ContactMechanics]] 的联系
 - 接触力估计精度直接影响顺应行为质量——MCC 证明方向正确即可：$\hat{f}_{ext} / \|\hat{f}_{ext}\|$ 的精度比 $\|\hat{f}_{ext}\|$ 更重要
@@ -241,6 +250,13 @@ class MCCController:
 | 跨平台通用性 | 高（4 种平台验证） | 中（腿式为主） | 中（单臂为主） | 低（需标定） |
 | 安全保障 | 显式可分析 | 通过 DR 隐式 | 通过阻抗限幅 | 显式 |
 | 动态操作 | 仅准静态 | 可动态（冲击存活） | 中速 | 可动态 |
+
+> [!note] impedance 簇：学习程度谱 + 力感知来源谱（MCC 是"零学习 + 电流估力"极）
+> MCC 占据 impedance 簇的**零学习 + 无力传感器**极，与 RL 方法对立，揭示两条谱：
+> **① 学习程度谱**：零学习模型（MCC）→ 凸优化辨识（[[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking\|Data-Driven VIC]]）→ RL（[[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks\|VICES]]/[[FACET - Force-Adaptive Control via Impedance Reference Tracking\|FACET]]）。
+> **② 力感知来源谱**：力传感器（传统）→ **电流/PWM 物理映射（MCC）** → 本体历史学习（隐式，[[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]]/[[Learning Agile and Dynamic Motor Skills for Legged Robots\|Learning Agile]]）。
+> **critical-thinking insight——模型方法 > RL（在顺应控制上）**：MCC 位置误差 15.9mm < FACET 22.4mm < UniFP 57.8mm——**简单物理模型 + 2 参数标定全面超越大规模 RL**（且安全/可解释/跨 4 平台）。这是对"RL 万能"的反例：问题有清晰物理结构（电流→力矩）时，物理模型优于黑盒。
+> **"方向 > 幅值"连 Touch Dexterity**：MCC"力方向准 >> 力幅值精确"与 [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]]"二值触觉够用"同源——**低精度但对的信息（方向/接触模式）常常够用**，是接触控制/感知的反直觉共性。
 
 ## 8. 局限与未来方向
 
