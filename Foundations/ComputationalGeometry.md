@@ -235,3 +235,113 @@ def optimize_path(waypoints, obs_c, obs_r, lr=0.01, iters=100, eps=0.5):
 > 若初始路径直接穿过障碍中心，梯度可能相互抵消、或把路径推向更拥堵的一侧。这正是 [[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|非凸景观]]的局部极小，也是为什么 TrajOpt/CHOMP 需好的初值或结合全局规划器（RRT）——呼应 [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|同伦/continuation method]]：用一个易解的近邻问题热启动。
 
 ------
+
+## 5. 神经隐式表示：DeepSDF 与几何学习的前沿
+
+> [!tip] 本节四拍
+> **直觉**（抽屉里只看到钥匙一角，怎么规划抓取？得"脑补"全貌）→ **推导**（DeepSDF 用 latent code 学连续 SDF；自解码器训练）→ **对比**（体素 SDF 受显存限 vs 神经 SDF 无限分辨率）→ **落点**（NGDF 把抓取从"采样-评分"变成"梯度优化"，但警惕几何伪影）。
+
+传统 SDF 须预计算并存进体素格、分辨率受显存限。**Neural SDF** 用网络拟合 SDF，实现无限分辨率连续查询。
+
+### 5.1 DeepSDF：用 latent code 学一族形状
+
+DeepSDF 学 $f_\theta(\mathbf x,\mathbf z)\approx\mathrm{SDF}(\mathbf x)$：输入 3D 坐标 $\mathbf x$ + 形状编码 $\mathbf z$，输出标量距离。它是**自解码器 (auto-decoder)** 架构——训练时同时优化网络参数 $\theta$ 和每个样本的 latent $\mathbf z_i$。两大优势：① **非凸拓扑的平滑近似**——对薄壁、孔洞（如镂空把手、钥匙齿）比凸分解更精确；② **数据驱动补全**——视觉只看到正面 (partial view) 时，DeepSDF 基于先验"脑补"背面几何，这对规划抓取点至关重要（正是抽屉里只见钥匙一角的场景）。
+
+### 5.2 NGDF：把抓取从采样变成梯度优化
+
+DeepSDF 表示物体表面，**NGDF (Neural Grasp Distance Field)** 把它推广到任务空间：学 $f(\mathbf T_{ee})=d_{grasp}$——输入末端执行器 6D 位姿，输出"距成功抓取流形的距离"。
+
+> [!important] 范式转移：采样-评分 → 梯度吸附
+> 传统抓取规划是"采样-评分"；NGDF 直接对位姿求梯度 $\nabla f(\mathbf T_{ee})$、沿梯度下降，把机械手"吸附"到最近的可行抓取姿态。更妙的是它可直接作 [[Optimization#8. 深度专题：可微抓取合成 (Differentiable Grasp Synthesis)|TrajOpt]] 的一个代价项，**联合优化"接近 (reaching) + 抓取 (grasping)"**——抽屉取钥匙时，伸入轨迹与最终抓取姿态被一并规划。这与 [[Optimization#8.2 可微力闭合能量 + SDF 引导|可微抓取合成]]、[[ContactMechanics#3.2 力闭合 vs 形闭合：抓取稳定性的数学条件|力闭合]]直接接续。
+
+> [!warning] 神经几何的风险：幽灵几何 (Ghost Geometry)
+> 神经 SDF 需大量离线数据；推理时反传求 latent $\mathbf z$ 可能慢；更危险的是网络在训练分布外产生**非物理伪影**（ghost geometry），致机器人去躲不存在的障碍、或对着错误法向发力。这是可微物理研究的热点——必须用 Eikonal 约束（$\|\nabla\phi\|=1$）、法向校准、接触验证来约束（与 [[RepresentationLearning|表征学习]] 的几何归纳偏置、[[InformationTheory#3.1 隐式曲面高斯过程 (GPIS)|GPIS]] 的不确定性量化互补）。
+
+------
+
+## 6. 接触流形与运动学对偶：几何如何接力学
+
+> [!tip] 本节四拍
+> **直觉**（摸到钥匙后捻动取出——几何计算最终要服务于力学控制）→ **推导**（抓取矩阵 $G$ 与手雅可比 $J_h$ 的虚功对偶）→ **对比**（多面体近似 vs 光滑几何在滚动接触上的差异）→ **落点**（精细滚动操作必须用光滑几何表示）。
+
+几何的终点是力学。**接触流形**是几何与力学的界面。
+
+### 6.1 抓取矩阵与手雅可比的对偶
+
+多指手协调需两个核心矩阵：**抓取矩阵** $G$ 把接触力映射到物体 wrench $\mathbf w_{ext}=G\mathbf f_c$（$G$ 由接触点几何位置与法向决定）；**手雅可比** $J_h$ 把关节速度映射到接触点速度 $\mathbf v_c=J_h\dot{\mathbf q}$。
+
+> [!important] 深刻对偶：几何约束 $G$ 直接定义运动学相容性 $G^T$
+> 由虚功原理（忽略摩擦耗散），物体速度对接触点速度的约束由 $G^T$ 给出：$\mathbf v_{c,\text{virtual}}=G^T\mathbf v_{obj}$。若 $J_h\dot{\mathbf q}\ne G^T\mathbf v_{obj}$，则接触点发生**相对滑动或脱离**。**几何上的约束（$G$）直接定义了运动学上的相容性（$G^T$）**——这与 [[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|接触雅可比对偶]]、[[ControlTheory#2.2 手雅可比 $J_h$：从关节到接触|手雅可比]]是同一对偶在三份讲稿的呼应。捻动钥匙取出，本质就是在 $J_h\dot q=G^T\mathbf v_{obj}$ 的相容流形上规划运动。
+
+### 6.2 滚动接触的微分几何：为什么网格会失效
+
+高级操作（指间捻动钥匙/硬币）希望维持**纯滚动**接触——这是**非完整约束**。Montana 公式描述接触点坐标 $(u,v)$ 在两曲面上的演化，需曲面的**曲率形式**与**度量张量**（详见 [[ContactMechanics#2.2 Montana 接触运动学方程|Montana 方程]]）。
+
+> [!warning] 多面体近似在滚动操作上必然失效
+> 网格（多面体）的曲率在顶点和棱边处是**狄拉克 δ 函数（无限大）**，滚动规划会在这些奇点崩溃。因此精细滚动操作**必须**用 NURBS 或 Neural SDF 的光滑几何表示——**这把 §5 的神经几何与 §6 的接触力学缝在一起**：不是为了"好看的 mesh"，而是为了滚动接触需要处处良定义的法向与曲率。
+
+------
+
+## 7. 知识回扣与记忆图：一只抽屉串起计算几何六层
+
+> [!abstract] 用一条故事线把全讲复述一遍（刻意复述，为了记忆）
+> 我们要伸手进塞满杂物的抽屉、绕开障碍够到钥匙、再捻出来。**(§1)** 几何不只是形状，是物理交互的场所；用布尔碰撞，手在自由空间会陷入"零梯度"不知往哪挪。**(§2)** 闵可夫斯基差把"手与杂物相交"化归为"原点是否在差集内"，而高维下我们从不显式构建差集、只用支持函数懒查询；非凸物体先凸分解 (CoACD 保住钥匙齿)。**(§3)** GJK 用 simplex 逼近原点判碰撞、支持函数是其灵魂（=Gauge 函数的 Fenchel 共轭）；EPA 再给穿透深度与法向——法向直接决定摩擦锥，告诉手指往哪退出抽屉壁。**(§4)** SDF 把边界变成可微势场、梯度=单位法向，避碰成了无约束优化，手平滑地在杂物间穿行而非贴壁——但小心局部极小。**(§5)** 只看到钥匙一角，DeepSDF 脑补全貌、NGDF 把机械手梯度吸附到可行抓取姿态，联合优化接近与抓取。**(§6)** 摸到后捻动取出，几何在 $J_h\dot q=G^T\mathbf v_{obj}$ 的相容流形上接力学；而滚动需处处良定义的曲率，逼我们用光滑几何。**一只抽屉，摸完了整座计算几何大厦。**
+
+> [!important] 一张表记住全篇（层 → 问题 → 工具 → 抽屉角色）
+> | 层 | 核心问题 | 关键工具 | 抽屉取钥匙的哪一环 |
+> |:--|:--|:--|:--|
+> | §2 集合 | 碰撞=什么 | 闵可夫斯基差、C-space | 手与杂物是否相交 |
+> | §2 凸几何 | 非凸怎么办 | 凸分解 (V-HACD/CoACD) | 保住钥匙齿尖锐特征 |
+> | §3 离散碰撞 | 撞没撞 | GJK、支持函数、对偶 | 判手-壁碰撞 |
+> | §3 响应 | 撞多深/往哪退 | EPA、穿透深度、法向 | 退出抽屉壁的方向 |
+> | §4 连续场 | 给优化器梯度 | SDF、Eikonal、$\nabla\phi$=法向 | 平滑伸入不贴壁 |
+> | §5 神经场 | 学/补全几何 | DeepSDF、NGDF | 脑补遮挡的钥匙、吸附抓取 |
+> | §6 接触流形 | 几何接力学 | $G\leftrightarrow J_h$ 对偶、Montana | 捻动取出钥匙 |
+
+> [!tip] 三条贯穿全讲的"暗线"（抓住它们，细节自来）
+> 1. **从离散到连续是主线**：布尔（$C^{-1}$）→ SDF（$C^1$）→ 神经场（$C^\infty$），每一步都是为了**让梯度能流动**——这与 [[Optimization#5. 演进脉络：从模态预设到接触隐式（修复梯度流的四个阶段）|优化"修复梯度流"]]是同一部演进史。
+> 2. **显式构建 → 隐式查询**：支持函数（§3）、SDF（§4）、神经隐式（§5）都在回避"显式存整个几何"，改成"按需查询一个函数值+梯度"。
+> 3. **几何为接触/优化服务**：所有算法的唯一 KPI 是能否稳定给出最近点、法向、穿透深度、可微梯度——法向喂 [[ContactMechanics|摩擦锥]]、SDF 喂 [[Optimization|TrajOpt]]、对偶喂 [[ControlTheory|力控]]。
+
+> [!note] 跨领域链接（双向、点对点）
+> - **↔ [[ContactMechanics]]**：EPA 法向→摩擦锥（§3.2）；$G\leftrightarrow J_h$ 对偶（§6.1）；Montana 滚动接触（§6.2）。
+> - **↔ [[Optimization]]**：SDF 可微势场→TrajOpt/CHOMP（§4）；支持函数↔对偶（§3.1）；局部极小↔同伦（§4.2）；NGDF→可微抓取（§5.2）。
+> - **↔ [[RepresentationLearning]]**：神经隐式 DeepSDF/NGDF（§5）；几何归纳偏置防伪影。
+> - **↔ [[InformationTheory]]**：GPIS 隐式曲面的不确定性量化（§5.2）。
+> - **↔ [[Dynamics]]**：构型空间、运动学（§2）；碰撞是接触求解前置。
+> - **↔ [[ControlTheory]]**：手雅可比、抓取矩阵的力控用法（§6.1）。
+
+------
+
+## 8. 结论与建议
+
+1. **几何处理的分层架构**：不应依赖单一算法。底层 **BVH** 广相剔除 → 中层 **GJK/EPA** 精细接触与力解算 → 顶层 **SDF/NGDF** 基于梯度的轨迹与抓取优化。
+2. **SDF 是优化的核心**：从离散碰撞状态转向连续 SDF 势场，是实现平滑、自然、类人动作的关键（兑现 §1 的零梯度问题）。
+3. **神经几何的潜力与风险**：强于处理复杂非凸拓扑、泛化到未见物体，但须警惕推理延迟与非物理伪影（§5.2）。
+
+> [!important] 一句话钥匙 + 前沿方向
+> 计算几何是接触与优化之间的翻译官——它把"形状"翻译成"最近点、法向、穿透、可微梯度"，让手指能安全地推、滚、夹。前沿圣杯是**可微碰撞检测**：把 GJK/EPA 过程可微化，将硬接触约束反向传播到控制策略中（接 [[ContactMechanics#6. 可微接触物理：让接触进入梯度优化|可微接触物理]]、[[Optimization#6. 核心算法实现：iLQR/DDP 与"让梯度穿过接触"的三方案|让梯度穿过接触]]）。
+
+------
+
+## 9. 相关论文 (PapersRecap)
+
+> [!abstract] 知识图谱反向链接
+> 以下论文涉及本 Foundation 的计算几何技术。
+
+### SDF 与距离场表示
+- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]：SDF 引导的双臂避障规划
+- [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing|Robot Synesthesia]]：视觉触觉几何重建
+- [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction|TRANSIC]]：几何对齐的迁移学习
+
+### 点云与 3D 表示
+- [[Proximity Perception-Based Grasping Intelligence (P2GI)|P2GI]]：部件级点云分割与几何推理
+- [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]：点云状态估计与旋转表示
+
+### 接触几何与抓取分析
+- [[Lessons from Learning to Spin Pens|Lessons from Spin Pens]]：几何形状对操作可行性的影响
+- [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation|RialTo]]：接触几何的 Sim-to-Real 对齐
+
+### 3D 空间智能与点云表征
+- [[空间智能作为机器人的结构化表征|PointWorld]]：3D Flow 作为统一动作表征，PTV3 点云 Transformer
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]]：曲面指尖的穿透深度几何计算

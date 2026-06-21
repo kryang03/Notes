@@ -118,7 +118,7 @@ related:
 
 为什么指数坐标对灵巧操作至关重要（四条）：
 1. **运动学建模**：**指数积公式 (PoE)** $g_{st}(\theta)=e^{\hat\xi_1\theta_1}\cdots e^{\hat\xi_n\theta_n}g_{st}(0)$ 比 DH 参数更简洁、几何意义更清晰；
-2. **雅可比计算**：空间/物体雅可比可直接由 twist 导出（见 [[ControlTheory#2.2 手雅可比矩阵：从关节到接触 (Hand Jacobian: From Joints to Contacts)|手雅可比]]）；
+2. **雅可比计算**：空间/物体雅可比可直接由 twist 导出（见 [[ControlTheory#2.2 手雅可比 $J_h$：从关节到接触|手雅可比]]）；
 3. **接触约束建模**：[[ContactMechanics#2.2 Montana 接触运动学方程|Montana 方程]]用相对旋量描述接触点演化——挥转螺丝刀时刀头在螺钉面上的接触演化正用这套语言；
 4. **轨迹插值**：$SE(3)$ 上的测地线插值（SLERP 的 6D 推广）保证刚体运动的物理合理性。
 
@@ -152,12 +152,12 @@ $$M(\theta)\ddot\theta+\underbrace{C(\theta,\dot\theta)\dot\theta}_{\text{科氏
 > [!tip] 为什么变分形式重要（三条跨领域射线）
 > 1. **统一框架**：同一个 Hamilton 原理推出场论、广义相对论、乃至 RL 的 path-integral；
 > 2. **数值保结构**：变分积分器 (DMOC/RATTLE) 在离散积分中保辛结构、近似守恒能量，远优于 Forward Euler——MuJoCo 的隐式积分器即属此族（伏笔 §6）；
-> 3. **最优控制桥梁**：Pontryagin 极小值原理本质是 Hamilton 原理在控制变分 $\delta u$ 上的推广，与 [[Optimization#4.1 核心算法：iLQR / DDP|iLQR/DDP]] 共享变分根基。**力学与最优控制，同一个变分母体。**
+> 3. **最优控制桥梁**：Pontryagin 极小值原理本质是 Hamilton 原理在控制变分 $\delta u$ 上的推广，与 [[Optimization#6.1 iLQR/DDP：动态规划结构上的 Gauss-Newton|iLQR/DDP]] 共享变分根基。**力学与最优控制，同一个变分母体。**
 
 ### 3.3 反对称性与无源性：$\dot M-2C$ 的礼物
 
 > [!important] $\dot M(\theta)-2C(\theta,\dot\theta)$ 是反对称的
-> 这是 **Passivity-based Control** 的数学基础：取 Lyapunov 函数 $V=\frac12\dot\theta^TM\dot\theta$，有 $\dot V=\dot\theta^T(\tau-N)$（能量守恒结构）。它直接连到 [[ControlTheory#10.4 被动性、Passivity-Based Control 与 RL 价值函数|无源性控制]]——挥转螺丝刀的能量注入/耗散可被精确记账，保证人-机-环境闭环稳定。
+> 这是 **Passivity-based Control** 的数学基础：取 Lyapunov 函数 $V=\frac12\dot\theta^TM\dot\theta$，有 $\dot V=\dot\theta^T(\tau-N)$（能量守恒结构）。它直接连到 [[ControlTheory#10. 稳定性理论的统一基石|无源性控制]]——挥转螺丝刀的能量注入/耗散可被精确记账，保证人-机-环境闭环稳定。
 
 ### 3.4 惯量参数线性性：通往自适应控制的桥
 
@@ -167,14 +167,14 @@ $$M(\theta)\ddot\theta+\underbrace{C(\theta,\dot\theta)\dot\theta}_{\text{科氏
 
 直接后果——**Slotine–Li 自适应律**：设误差 $e=\theta-\theta_d$、参考速度 $\dot\theta_r=\dot\theta_d-\Lambda e$、滑动变量 $s=\dot\theta-\dot\theta_r$，则
 $$\tau=\mathbf Y\hat\pi-K_Ds,\qquad \dot{\hat\pi}=-\Gamma\,\mathbf Y^Ts.$$
-用 $\dot M-2C$ 反对称 + Lyapunov $V=\frac12s^TMs+\frac12\tilde\pi^T\Gamma^{-1}\tilde\pi$ 可证 $s\to0$（详见 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|ControlTheory §12]]）。
+用 $\dot M-2C$ 反对称 + Lyapunov $V=\frac12s^TMs+\frac12\tilde\pi^T\Gamma^{-1}\tilde\pi$ 可证 $s\to0$（详见 [[ControlTheory#12. 自适应控制与确定性等价|ControlTheory §12]]）。
 
 > [!tip] 母题里的 System ID
 > 把 1 秒挥动螺丝刀的真机轨迹送入最小二乘 $\hat\pi=(\mathbf Y^T\mathbf Y)^{-1}\mathbf Y^T\tau_{meas}$，就能在线辨识这支偏心螺丝刀（连同手）的全部惯量参数（前提：轨迹满足**持续激励 PE** 条件）。这也给 [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|域随机化]]提供了理论替代——不必盲目随机化所有惯量，只需保证 $\mathbf Y$ 在训练分布上行满秩。
 
 ### 3.5 Hamiltonian 形式与三种等价视角
 
-Legendre 变换给出广义动量 $p=M\dot q$ 与 Hamiltonian $H=\frac12p^TM^{-1}p+V=T+V$，正则方程 $\dot q=M^{-1}p,\ \dot p=-\partial H/\partial q+\tau$。换到 Hamiltonian 的三个理由：相空间辛几何（symplectic integrator 长期保能量）、Pontryagin（最优控制 Hamiltonian 同构、LQR 的 Riccati 由 $\partial H^*/\partial u=0$ 推出，见 [[ControlTheory#11. 线性二次最优控制 (Linear Quadratic Regulator, LQR)|LQR]]）、energy-shaping（IDA-PBC 保无源）。
+Legendre 变换给出广义动量 $p=M\dot q$ 与 Hamiltonian $H=\frac12p^TM^{-1}p+V=T+V$，正则方程 $\dot q=M^{-1}p,\ \dot p=-\partial H/\partial q+\tau$。换到 Hamiltonian 的三个理由：相空间辛几何（symplectic integrator 长期保能量）、Pontryagin（最优控制 Hamiltonian 同构、LQR 的 Riccati 由 $\partial H^*/\partial u=0$ 推出，见 [[ControlTheory#11. 线性二次最优控制 (LQR)|LQR]]）、energy-shaping（IDA-PBC 保无源）。
 
 > [!important] 三种形式，一套物理（记忆锚点）
 > | 形式 | 状态 | 适用场景 |
@@ -190,7 +190,7 @@ Legendre 变换给出广义动量 $p=M\dot q$ 与 Hamiltonian $H=\frac12p^TM^{-1
 平衡点只意味着一阶广义力为零（$\partial V/\partial q=0$），不意味着没有惯性。设扰动 $\eta=q-q_0$，二阶展开 $T\approx\frac12\dot\eta^TM_0\dot\eta$、$V\approx V(q_0)+\frac12\eta^TK_0\eta$（$K_0=\partial^2V/\partial q^2|_{q_0}$），得线性振动 $M_0\ddot\eta+K_0\eta=0$，固有频率由广义特征值 $K_0\phi_i=\omega_i^2M_0\phi_i$ 给出（单自由度退化为 $\omega_n=\sqrt{k/m}$）。
 
 > [!important] 灵巧操作解读：刚度悖论的动力学版
-> 刀头触到螺钉后的微小振动不是"噪声"，而是局部质量阵与接触/传动刚度共同决定的模态响应。高 $K_p$ 位置控制等价于增大 $K_0$、抬高自然频率，更易激发未建模柔性——这正是 [[ControlTheory#3.1 问题链：刚度悖论与接触失效 (The Problem Chain: Stiffness Paradox & Contact Failure)|刚度悖论]]的动力学根源。
+> 刀头触到螺钉后的微小振动不是"噪声"，而是局部质量阵与接触/传动刚度共同决定的模态响应。高 $K_p$ 位置控制等价于增大 $K_0$、抬高自然频率，更易激发未建模柔性——这正是 [[ControlTheory#3.1 刚度悖论与计算力矩控制的诱惑|刚度悖论]]的动力学根源。
 
 ---
 
@@ -209,7 +209,7 @@ Legendre 变换给出广义动量 $p=M\dot q$ 与 Hamiltonian $H=\frac12p^TM^{-1
 **可积性判别完整/非完整**：若存在 $h(q)$ 使 $A\dot q=0\Leftrightarrow\frac{\partial h}{\partial q}\dot q=0$，则约束**可积**、等价于完整约束 $h(q)=0$；**不可积的 Pfaffian 约束就是非完整约束**。
 
 > [!tip] 母题里的非完整：滚动 = "平行泊车"
-> 刀头或指尖在物体表面**纯滚动**（rolling without slipping）是非完整约束的典型——它限制瞬时速度方向却不降低 C-space 维数。后果：你不能让接触点"侧向平移"，必须靠一串滚动机动来重定位（**finger gaiting**），就像平行泊车。这把动力学与 [[ContactMechanics#2.2 Montana 接触运动学方程|Montana 滚动]]、[[ControlTheory#6.3 非完整约束的控制含义 (Non-holonomic Implications)|非完整控制]]缝在一起。
+> 刀头或指尖在物体表面**纯滚动**（rolling without slipping）是非完整约束的典型——它限制瞬时速度方向却不降低 C-space 维数。后果：你不能让接触点"侧向平移"，必须靠一串滚动机动来重定位（**finger gaiting**），就像平行泊车。这把动力学与 [[ContactMechanics#2.2 Montana 接触运动学方程|Montana 滚动]]、[[ControlTheory#6. 接触非线性：Montana 接触运动学|非完整控制]]缝在一起。
 
 ### 4.2 约束动力学：Lagrange 乘子与约束反力
 
@@ -223,7 +223,7 @@ $$\lambda=(AM^{-1}A^T)^{-1}\big[AM^{-1}(F-C\dot q-N)+\dot A\dot q\big].$$
 > - **$\lambda$ = 接触力/内力的大小**；
 > - **d'Alembert 原则**：约束力不做功 $\lambda^TA\dot q=0$。
 >
-> 抓取控制常需**同时控位置与力**——沿约束面移动（位置控制）的同时调法向力（力控制），这正是 [[ControlTheory#5. 力/位混合控制 (Hybrid Force/Position Control)|混合位置/力控制]]的数学基础。
+> 抓取控制常需**同时控位置与力**——沿约束面移动（位置控制）的同时调法向力（力控制），这正是 [[ControlTheory#5. 力/位混合控制：正交分解任务空间|混合位置/力控制]]的数学基础。
 
 ### 4.3 约束 Lagrangian：闭链与接触的统一处理
 
@@ -357,7 +357,7 @@ ABA 让数十关节灵巧手的仿真在微秒级完成，为 Sim-to-Real RL 提
 
 Todorov 的洞见：放弃"刚体绝对不可穿透"，允许微小穿透并产生基于势能的恢复力（**soft constraint**），把接触动力学建为**凸 QP**：
 $$\min_{\ddot q}\ \tfrac12\ddot q^TM\ddot q+\text{Potential(穿透)}\quad\text{s.t. 摩擦锥}.$$
-三大 value-add：① **可逆性**——即便接触状态下动力学也良态，逆动力学仍可用（对 [[ControlTheory#4. Operational Space Formulation (OSF)|基于模型的控制]]是福音）；② **平滑性**——软接触让梯度平滑，对**可微物理与 RL 训练至关重要**（呼应 [[ContactMechanics#6. 可微接触物理：让接触进入梯度优化|可微接触]]）；③ **稳定性**——避免 LCP 在大质量比（灵巧手捏薄纸）时的数值爆炸。
+三大 value-add：① **可逆性**——即便接触状态下动力学也良态，逆动力学仍可用（对 [[ControlTheory#4. 操作空间公式化 (OSF)：在任务空间直接设计控制|基于模型的控制]]是福音）；② **平滑性**——软接触让梯度平滑，对**可微物理与 RL 训练至关重要**（呼应 [[ContactMechanics#6. 可微接触物理：让接触进入梯度优化|可微接触]]）；③ **稳定性**——避免 LCP 在大质量比（灵巧手捏薄纸）时的数值爆炸。
 
 ### 6.3 PGS 核心循环（实时引擎的心脏）
 
@@ -403,7 +403,7 @@ def solve_contact_lcp_pgs(J, M_inv, bias, mu, iterations=50):
 ## 7. 闭链与操作空间动力学：握住螺丝刀之后
 
 > [!tip] 本节四拍
-> **直觉**（手一握紧，系统从开链变闭链，"挥起来"的手感突变）→ **推导**（有效惯量、约束漂移、内力、操作空间质量阵）→ **对比**（动力学一致伪逆 vs Moore-Penrose 伪逆）→ **联系**（操作空间↔[[ControlTheory#4. Operational Space Formulation (OSF)|阻抗控制]]）。
+> **直觉**（手一握紧，系统从开链变闭链，"挥起来"的手感突变）→ **推导**（有效惯量、约束漂移、内力、操作空间质量阵）→ **对比**（动力学一致伪逆 vs Moore-Penrose 伪逆）→ **联系**（操作空间↔[[ControlTheory#4. 操作空间公式化 (OSF)：在任务空间直接设计控制|阻抗控制]]）。
 
 ### 7.1 拓扑突变与有效惯量
 
@@ -439,7 +439,7 @@ $$\Lambda(x)=(JM^{-1}J^T)^{-1},\qquad \tau=J^TF=J^T\big[\Lambda(x)\ddot x_d+\mu+
 > $\tau=J_1^TF_1+(I-J_1^T\bar J_1^T)[J_2^TF_2+(I-J_2^T\bar J_2^T)\tau_0]$。
 
 > [!tip] 工程洞察：操作空间是阻抗控制的根
-> 在操作空间定义期望的质量-阻尼-刚度，机器人即可柔顺交互——这正是 [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系|阻抗控制]]的动力学基础。挥转螺丝刀对准螺钉时，我们要的恰是"刀头在接触方向软、在跟踪方向硬"的任务空间阻抗。
+> 在操作空间定义期望的质量-阻尼-刚度，机器人即可柔顺交互——这正是 [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|阻抗控制]]的动力学基础。挥转螺丝刀对准螺钉时，我们要的恰是"刀头在接触方向软、在跟踪方向硬"的任务空间阻抗。
 
 ---
 
@@ -509,7 +509,7 @@ $$\Lambda(x)=(JM^{-1}J^T)^{-1},\qquad \tau=J^TF=J^T\big[\Lambda(x)\ddot x_d+\mu+
 > 1. **对偶性 $J/G/P$**：手雅可比、抓取矩阵、腱耦合矩阵共享同一套力闭合/冗余/零空间分析——一套工具贯穿 §4/§7/§8，并外连 [[ContactMechanics]]/[[ControlTheory]]。
 > 2. **Delassus 主线** $AM^{-1}A^T$：从约束乘子（§4.2）到 KKT（§4.3）到 PGS 的接触有效逆质量（§6.3），是动力学与 [[ContactMechanics|LCP]]/[[Optimization|QP]] 的枢纽。
 > 3. **三种等价形式**：Lagrangian（推导/Sim2Real）、Hamiltonian（辛积分/最优控制）、Newton–Euler（实时 RNEA）——同一物理、三种语言（§3.5）。
-> 4. **线性参数化→自适应**：操作器方程对惯量参数线性（§3.4），直通 [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|自适应控制]]与 [[ReinforcementLearning|System ID]]。
+> 4. **线性参数化→自适应**：操作器方程对惯量参数线性（§3.4），直通 [[ControlTheory#12. 自适应控制与确定性等价|自适应控制]]与 [[ReinforcementLearning|System ID]]。
 > 5. **变分母体**：Hamilton 原理同时生出力学、辛积分器、与 [[Optimization|Pontryagin/iLQR]]——力学与最优控制本是一家（§3.2）。
 
 > [!note] 跨领域链接（双向、点对点）
@@ -571,15 +571,3 @@ $$\Lambda(x)=(JM^{-1}J^T)^{-1},\qquad \tau=J^TF=J^T\big[\Lambda(x)\ddot x_d+\mu+
 ## 12. 结论
 
 灵巧操作的动力学早已不是简单的 $F=ma$，而是一门在**计算受限、接触不确定、拓扑动态变化**下求最优策略的艺术。从 SE(3) 几何（§2）、Hamilton 变分（§3）、约束乘子（§4），到 RNEA/ABA 的 $O(N)$ 递推（§5）、接触求解器的二元取舍（§6）、闭链与操作空间（§7）、腱驱动与冗余（§8），最终落到可微物理与神经动力学（§9）：**掌握 RNEA/ABA 是入门，理解接触求解器是进阶，能驾驭可微物理/神经动力学则是通向 Sim-to-Real 未来的钥匙。** 而贯穿始终的，是对偶性（$J/G/P$）、Delassus 算子、与变分母体这几条把动力学、接触、控制、优化缝在一起的暗线。
-
----
-
----
-
----
-
----
-
----
-
----

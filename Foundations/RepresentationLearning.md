@@ -18,1149 +18,512 @@ related:
   - "[[InformationTheory]]"
   - "[[Optimization]]"
   - "[[EmbodiedAI]]"
+  - "[[ComputationalGeometry]]"
 ---
 
-# 灵巧操作中的物理具身与计算表征：从接触动力学到多模态策略 (Physical Embodiment and Computational Representation in Dexterous Manipulation: From Contact Dynamics to Multimodal Policies)
+# 灵巧操作中的表征学习：从像素/触觉到可控、可泛化的策略
+
+# Representation Learning for Dexterous Manipulation: From Pixels/Touch to Controllable, Generalizable Policies
 
 > [!tip] 相关领域
-> - [[ReinforcementLearning]] - 策略学习的强化学习视角
-> - [[Dynamics]] - 微分物理与可微仿真
-> - [[SignalProcessing]] - 触觉表征与多模态融合
-> - [[InformationTheory]] - 信息瓶颈与表征压缩
-> - [[Optimization]] - 轨迹优化与策略梯度
-> - [[EmbodiedAI]] - Vision Foundation Models (CLIP, DINO, SAM) 为机器人感知提供预训练表征
+> - [[ReinforcementLearning]] — 策略学习；表征是状态、扩散策略可被 RL 微调
+> - [[Dynamics]] — 可微物理；表征要能预测下一步物理状态
+> - [[SignalProcessing]] — 触觉表征与多模态融合；压缩=去噪
+> - [[InformationTheory]] — 信息瓶颈=最优表征压缩；泛化需要压缩
+> - [[Optimization]] — 隐式行为克隆=能量景观下降；NTK 区间下的凸化
+> - [[ComputationalGeometry]] — 点云/SDF 是几何表征；神经隐式
+> - [[EmbodiedAI]] — Vision Foundation Models (CLIP/DINO/SAM) 提供预训练表征
 >
-> **技术演进**: BC → MDN → IBC → Diffusion Policy / ACT
+> **贯穿母题（本讲的"主角"）**：**视触觉对齐的精密插 USB (multimodal USB insertion)**。USB 可正插也可反插（多峰）、远看近摸（视触觉互补）、要微米级对齐（精密接触）、还要泛化到没见过的接口——一个动作把表征学习每一层都点亮，我们让它贯穿全篇。
+
+## 0. 母题与理论大厦构建路线：从像素/触觉到可控状态
+
+> [!abstract] 为什么用"插 USB"做贯穿母题？
+> 表征学习的核心不是"换一个 encoder"，而是逐层回答：**原始观测里哪些变量对控制有因果作用，哪些只是域噪声或纹理 shortcut？** **插 USB** 这一个动作恰好逐层激活：
+> - USB 可正插可反插 → **多峰动作分布**（MSE 会学成"插向两者中间的空气"）；
+> - 远处用视觉对准、接触后视觉模糊、靠触觉微调 → **多模态融合**；
+> - 接口的 3D 几何（形状、孔位） → **点云/几何表征**；
+> - 仿真里训练、真机上面对没见过的接口 → **泛化理论**（§6）；
+> - 生成整段插入动作而非单步 → **扩散/ACT 动作分块**。
 >
-> **相关论文**:
-> - [[GenDexGrasp - Generalizable Dexterous Grasping]] - object-centric contact map 作为 hand-agnostic intermediate representation
-> - [[Learning Quadrupedal Locomotion over Challenging Terrain]] - proprioceptive TCN 将历史传感序列压缩为隐式接触/地形状态
+> 全讲每引入一个方法，我们都回到这个 USB："**它学到的表征，能预测物理、能稳定控制、能在真机域差异下保留任务变量吗？**"
 
-## 0. 理论大厦构建路线：从像素/触觉到可控状态
-
-表征学习的核心不是“换一个 encoder”，而是逐层回答：原始观测中哪些变量对控制有因果作用，哪些只是域噪声或纹理 shortcut。
+表征学习是一条"逐层剥离 shortcut、逼近可控因果变量"的链：
 
 | 阶段 | 表征问题 | 典型方法 | 失败模式 | 灵巧操作中的修正 |
 |:--|:--|:--|:--|:--|
-| 重构式表征 | 如何压缩高维观测？ | PCA、AE、VAE | 可能重构噪声而非控制变量 | 用 [[InformationTheory#5. 信息瓶颈原理：最优表征的信息论基础 (Information Bottleneck Principle: Information-Theoretic Foundation for Optimal Representation)|信息瓶颈]] 约束任务相关性 |
-| 对比式表征 | 哪些状态应在 latent 中接近？ | InfoNCE、CLIP、时序对比 | 语义相近但物理接触不同 | 加入触觉/几何正样本，而不是只靠视觉帧 |
-| 几何表征 | 物体形状如何进入策略？ | PointNet++、Point Transformer、SDF | 点云稀疏或遮挡导致接触边界错误 | 与 [[ComputationalGeometry]] 的法向/SDF 校准 |
-| 动作表征 | 多模态动作如何避免均值坍缩？ | MDN、IBC、Diffusion、Flow Matching | 平均动作落在不可行动作中间 | 预测 action chunk，并用低层控制过滤 |
-| 因果表征 | latent 是否保留可控变量？ | world model、object-centric latent、3D flow | 学到 simulator artifact 或纹理 shortcut | 用动力学预测、触觉变化、执行器残差做检验 |
+| **重构式** | 如何压缩高维观测？ | PCA、AE、VAE | 重构噪声而非控制变量 | 用 [[InformationTheory\|信息瓶颈]] 约束任务相关性 |
+| **对比式** | 哪些状态该在 latent 接近？ | InfoNCE、CLIP、时序对比 | 语义近但物理接触不同 | 加触觉/几何正样本，不只靠视觉帧 |
+| **几何** | 形状如何进策略？ | PointNet++、Point Transformer、SDF | 稀疏/遮挡致接触边界错 | 与 [[ComputationalGeometry]] 的法向/SDF 校准 |
+| **动作** | 多峰动作如何避免均值坍缩？ | MDN、IBC、Diffusion、Flow Matching | 平均动作落到不可行处 | 预测 action chunk + 低层控制过滤 |
+| **因果** | latent 是否保留可控变量？ | world model、object-centric、3D flow | 学到 simulator artifact / 纹理 shortcut | 用动力学预测、触觉变化、执行器残差检验 |
 
-> [!important] Foundation 级判断标准
-> 好表征必须能通过三个问题：能否预测下一步物理状态，能否指导稳定控制，能否在真机域差异下保留任务变量。只提高重构质量或分类准确率，不等于对灵巧操作有用。
+> [!important] Foundation 级判断标准（好表征必须通过三问）
+> 1. **能否预测下一步物理状态**？（动力学一致性）
+> 2. **能否指导稳定控制**？（Lipschitz/雅可比正则）
+> 3. **能否在真机域差异下保留任务变量**？（泛化/域适应）
+>
+> 只提高重构质量或分类准确率，不等于对灵巧操作有用。
 
-## 1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)
+> [!note] 本讲在知识图谱中的位置（依赖 / 被依赖）
+> ```
+>   [[SignalProcessing]] ─触觉流─┐                      ┌── 状态表征 ──> [[ReinforcementLearning]]
+> [[ComputationalGeometry]] ─点云/SDF─┤                  │
+>   [[InformationTheory]] ─信息瓶颈─┼──> 【RepresentationLearning】 ──扩散/ACT──> [[EmbodiedAI]] (VLA)
+>     可微物理 <──> [[Dynamics]]    │                     │
+>                              └── NTK/泛化理论 ──> 所有学习方法的"为何能泛化"
+> ```
+> 读法：信号/几何/信息论给表征"原料与约束"，可微物理给"物理检验"；表征产出（latent、扩散策略）喂给 RL/VLA；而 §6 的泛化理论（NTK、域适应）是**所有学习方法共享的理论地基**，被 [[Optimization]]、[[InformationTheory]]、[[StochasticProcess]] 反向链接。
 
-作为致力于机器人灵巧操作（Dexterous Manipulation）的研究者，我们必须清醒地认识到，虽然深度学习（Deep Learning）在计算机视觉和自然语言处理领域取得了令人瞩目的成就，但将其直接迁移至机器人操作领域——特别是涉及复杂接触的灵巧操作——并非易事。这并非仅仅是数据量的问题，而是因为物理世界的**接触动力学（Contact Dynamics）**与神经网络所擅长的平滑函数逼近（Smooth Function Approximation）之间存在根本性的张力。
+## 1. 物理交互的计算本质：高维、非连续、流形
 
-本报告旨在以严谨、怀疑且深度的视角，剖析机器学习在灵巧操作中的应用，从底层的物理先验到上层的多模态表征，构建一个扎实的知识体系。
+> [!tip] 本节四拍
+> **直觉**（深度学习擅长平滑函数，但插 USB 的接触是断续突变的——根本张力在此）→ **推导**（维度诅咒与流形假设；接触非凸）→ **对比**（分析方法 vs 数据驱动，及其融合）→ **落点**（学习目标必须蕴含物理意义）。
 
-### 1.1 高维性与非连续性的诅咒 (The Curse of Dimensionality and Discontinuity)
+将深度学习迁移到灵巧操作，难点不只是数据量，而是**接触动力学与神经网络擅长的平滑函数逼近之间的根本张力**。
 
-灵巧操作的本质是在高维状态空间中通过断续的接触来改变物体的状态。
+### 1.1 维度诅咒与流形假设
 
-#### 1.1.1 维度的爆炸与流形假设 (Dimensional Explosion and the Manifold Hypothesis)
+Shadow/Allegro Hand 有 16–24 DoF，加物体 6 DoF 位姿与接触状态，状态空间维度极高。但有效操作（插 USB、转笔）并不遍历整个空间，而被约束在**低维流形**上（由关节限位、闭链运动学、任务目标共同决定）。**机器学习的挑战**：传统监督学习试图在整个空间拟合策略，需天文级数据；有效方法必须具备**流形学习**能力，自动发现并利用低维结构以降样本复杂度。
 
-一个典型的人形机械手（如 Shadow Hand 或 Allegro Hand）拥有 16 到 24 个自由度（DoF）。加上物体的 6 DoF 位姿以及物体与环境的接触状态，整个系统的状态空间维度极高。然而，在实际的有效操作（如指尖转笔、插拔作业）中，系统并不是遍历整个高维空间，而是被约束在一个低维的流形（Manifold）上运动 。
+### 1.2 接触的非凸非光滑：神经网络的"均值化"陷阱
 
-- **物理意义**：流形的存在是由机械结构的约束（Joint Limits）、闭链运动学（Closed-loop Kinematics）以及任务的目标导向性共同决定的。
-- **机器学习的挑战**：传统的监督学习（Supervised Learning）往往试图在整个空间中拟合策略，这需要天文数字级的训练数据。有效的机器学习方法必须具备**流形学习（Manifold Learning）**的能力，能够自动发现并利用这些低维结构，从而极大地降低样本复杂度 。
+接触的建立/断开使动力学方程突变（分析力学用 [[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]] 描述）。**数据驱动的困境**：神经网络倾向学连续函数，训练数据含接触突变时，简单回归会产生**"平均化"模糊输出**——物理上不可行（手指穿透物体、或悬空不施力）。**这正是插 USB 时 MSE 把"正插/反插"平均成"插向中间空气"的根源**（§2 详述）。
 
-#### 1.1.2 接触动力学的非凸性与硬约束 (Non-Convexity and Hard Constraints of Contact Dynamics)
+### 1.3 分析 vs 数据驱动：从对立到融合
 
-接触的建立与断开（Make and Break Contact）导致系统动力学方程发生突变。这种非平滑（Non-smooth）和非凸（Non-convex）特性是优化算法的噩梦。
+| 特性 | 分析方法 | 数据驱动方法 |
+|:--|:--|:--|
+| 基础 | 物理定律（牛顿-欧拉、库伦摩擦） | 统计相关性（神经网络） |
+| 优势 | 可解释、保物理一致、无需训练 | 处理非结构化、适应噪声、端到端 |
+| 劣势 | 难建模复杂摩擦/形变；对参数误差敏感 | 数据饥渴、缺可解释、OOD 泛化差 |
+| 代表 | IK、阻抗控制、MPC | RL、IL、扩散策略 |
 
-- **分析视角**：在分析力学中，这通常通过线性互补问题（Linear Complementarity Problems, LCP）来描述 。
-- **数据驱动的困境**：神经网络倾向于学习连续函数。当训练数据包含接触突变时，简单的回归模型（Regression Models）往往会产生“平均化”的模糊输出，导致物理上不可行的动作（例如手指穿透物体或悬浮在物体表面而不施加力）。
+> [!important] 趋势是融合，不是二选一
+> **可微物理 (Differentiable Physics)** 把物理模拟器本身变成可微层、嵌进网络，让梯度直接穿过物理交互反向传播（见 [[Dynamics#9. 适配层：可微物理与神经动力学|Dynamics 可微物理]]、[[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|优化的可微接触]]）。它保留物理先验、又具学习能力——是本讲与其他 Foundation 最深的接口。
 
-### 1.2 数据驱动范式与分析方法的辩证关系 (The Dialectic between Data-Driven Paradigms and Analytical Methods)
+### 1.4 学习目标的物理重构
 
-长久以来，机器人学界存在两派观点：基于模型（Model-Based）的分析方法和基于数据（Data-Driven）的学习方法。
-
-| **特性 (Feature)** | **分析方法 (Analytical Methods)**                | **数据驱动方法 (Data-Driven Methods)**          |
-| ------------------ | ------------------------------------------------ | ----------------------------------------------- |
-| **基础 (Basis)**   | 物理定律 (牛顿-欧拉方程, 库伦摩擦)               | 统计相关性 (神经网络, 概率分布)                 |
-| **优势 (Pros)**    | 可解释性强，保证物理一致性，无需训练             | 可处理非结构化环境，适应感知噪声，端到端优化    |
-| **劣势 (Cons)**    | 难以建模复杂摩擦、形变和软体接触；对参数误差敏感 | 数据饥渴 (Data Hungry)，缺乏可解释性，OOD泛化差 |
-| **典型代表**       | 逆运动学 (IK), 阻抗控制, MPC                     | 强化学习 (RL), 模仿学习 (IL), 扩散策略          |
-
-**深度洞察**：近年来的趋势并非二选一，而是融合。例如，**微分物理（Differentiable Physics）**试图将物理模拟器本身变为可微层，嵌入到神经网络中，从而允许梯度直接穿过物理交互过程进行反向传播 。这种方法保留了物理先验，同时具备了学习能力，是我们重点关注的前沿方向。
-
-### 1.3 学习目标的物理重构 (Physical Reconstruction of Learning Objectives)
-
-在灵巧操作中，机器学习的目标函数不能仅仅是预测误差的最小化，必须蕴含物理意义。
-
-- **能量最小化 (Energy Minimization)**：在隐式行为克隆（IBC）和扩散模型中，策略被建模为能量景观（Energy Landscape）的下降过程。这与物理学中的最小作用量原理不谋而合 。
-- **雅可比正则化 (Jacobian Regularization)**：为了保证控制的稳定性，策略函数 $\pi(s)$ 必须是利普希茨连续的（Lipschitz Continuous）。通过惩罚输入-输出雅可比矩阵的范数，我们可以显式地控制策略对感知噪声的敏感度，这在Sim-to-Real迁移中至关重要 。
+目标函数不能只是预测误差最小化，必须蕴含物理意义：**能量最小化**（IBC/扩散把策略建成能量景观下降，与最小作用量原理不谋而合）；**雅可比正则**（策略 $\pi(s)$ 须 Lipschitz 连续，惩罚输入-输出雅可比范数以控制对感知噪声的敏感度——sim-to-real 关键，§3.3 给代码）。
 
 ------
 
-## 2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)
+## 2. 模仿学习的复兴：从均值坍缩到生成式分布建模
 
-本节将深入剖析几种主流机器学习范式在灵巧操作中的演变轨迹，特别是从简单的行为克隆到生成式扩散模型，以及从单纯的视觉特征到包含物理信息的表征学习。
+> [!tip] 本节四拍
+> **直觉**（插 USB 可正可反，确定性回归会学成"插中间"）→ **推导**（协变量漂移；多峰；MDN→IBC→Diffusion→Flow Matching）→ **对比**（四种动作分布建模的多峰能力与推理成本）→ **联系**（扩散=朗之万采样↔[[StochasticProcess|SDE]]；ACT 时间集成=低通滤波↔[[SignalProcessing]]）。
 
-### 2.1 模仿学习的复兴：从确定性拟合到生成式分布建模 (The Renaissance of Imitation Learning: From Deterministic Fitting to Generative Distribution Modeling)
+模仿学习 (IL) 从专家演示提策略。早期行为克隆 (BC) 视其为监督回归 $a=f_\theta(s)$，在灵巧操作遭遇两大顽疾：
 
-模仿学习（Imitation Learning, IL）旨在从专家演示（Demonstrations）中提取策略。早期的行为克隆（Behavioral Cloning, BC）简单地将其视为监督回归问题：$a = f_\theta(s)$。然而，这种方法在灵巧操作中遭遇了严重的**分布偏移（Distribution Shift）**和**多模态（Multimodality）**问题。
+### 2.1 两大顽疾：协变量漂移与多峰
 
-#### 2.1.1 协变量偏移与误差的指数级累积 (Covariate Shift and Exponential Error Accumulation)
+**协变量漂移**：执行策略时访问的状态分布 $P_{\pi_\theta}$ 偏离训练分布 $P_{expert}$，一旦犯小错 $\epsilon$ 就进入没见过的状态，误差随时间 $O(T^2)$ 累积（混沌系统对初值敏感的体现；BC 缺"恢复机制"）——这与 [[ReinforcementLearning#1.5 对比之二：纯模仿学习为何不够|RL 讲的 IL 分布漂移]]是同一回事。
 
-当机器人执行策略 $\pi_\theta$ 时，它访问的状态分布 $P_{\pi_\theta}$ 可能偏离训练数据的分布 $P_{expert}$。一旦发生微小误差 $\epsilon$，机器人进入未见过的状态，误差会随着时间步 $T$ 呈 $O(T^2)$ 甚至指数级增长 。
+**多峰**：同一状态可能有多种合法动作（插 USB 正插/反插、抓杯把/杯身）。**MSE 的失效**：确定性网络输出两种动作的均值——插向中间的空气，物理无效。解决方案演进：
 
-- **物理洞察**：这反映了混沌系统（Chaotic System）对初值敏感的特性。传统的BC缺乏“恢复机制”，即如何从偏离的轨迹返回到稳定流形上。
+| 方法 | 机制 | 多峰 | 代价 |
+|:--|:--|:--|:--|
+| **MDN** | 显式高斯混合 | ✅ | 难扩到高维动作 |
+| **IBC** | 能量函数 $E(s,a)$ 隐式定义策略 | ✅ | 推理需昂贵 MCMC |
+| **Diffusion Policy** | 条件去噪过程 | ✅✅ | 推理慢（迭代去噪） |
 
-#### 2.1.2 多模态动作分布的挑战 (The Challenge of Multimodal Action Distributions)
+### 2.2 扩散策略：迭代的轨迹优化器
 
-在许多任务中，针对同一状态可能存在多种合法的动作。例如，抓取一个杯子，既可以抓杯把，也可以抓杯身。
+扩散策略不只是生成模型，本质是**迭代轨迹优化器**。它学动作分布的**分数函数** $\nabla_a\log p(a\mid s)$，训练是去噪：
 
-- **MSE的失效**：如果我们使用均方误差（MSE）训练确定性网络，模型会输出这两种动作的平均值——即抓向两者之间的空气。这是物理上无效的动作 。
-- **解决方案的演进**：
-  1. **混合密度网络 (MDN)**：显式建模高斯混合分布。但难以扩展到高维动作空间。
-  2. **隐式行为克隆 (IBC)**：通过能量函数 $E(s,a)$ 隐式定义策略。虽然解决了多模态，但在推理时需要昂贵的MCMC采样 。
-  3. **扩散策略 (Diffusion Policy)**：这是当前的最优解（SOTA）。它将策略建模为条件去噪过程，能够精确捕捉极其复杂的多模态分布，并具有极佳的训练稳定性 。
+$$
+L(\theta)=\mathbb E_{k,a_0,\epsilon}\big[\|\epsilon-\epsilon_\theta(\sqrt{\bar\alpha_k}a_0+\sqrt{1-\bar\alpha_k}\epsilon,\,k,\,s)\|^2\big].
+$$
 
-### 2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础
+> [!important] 物理意义：朗之万动力学（接 [[StochasticProcess]]）
+> 推理是逆向 SDE 求解，等价于动作空间的朗之万采样 $a_{k-1}=a_k+\frac{\sigma^2}2\nabla_a\log p(a_k\mid s)+\sigma z$。机器人不"计算"动作，而是**跟随概率梯度（分数函数）逐步演化出动作**——天然支持多峰（正插/反插两个峰都保留），且预测整段 action horizon 保证时间平滑、抑制高频抖动。其 score 与 [[StochasticProcess#2.1 SDE：漂移 + 扩散，且扩散是状态相关的|SDE]]、被 RL 微调的路径见 [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）|RL §10.1]]。
 
-扩散策略不仅仅是一个生成模型，它实际上是一个**迭代的轨迹优化器（Iterative Trajectory Optimizer）**。
+**Flow Matching：从 SDE 到 ODE**。扩散用 SDE、路径弯曲、采样几百步；Flow Matching 直接构造从噪声到数据的**直线最优传输路径** $x_t=(1-t)x_0+tx_1$，目标速度场 $u_t=x_1-x_0$，训练 $\mathcal L_{FM}=\mathbb E\|v_\theta(x_t,t,c)-(x_1-x_0)\|^2$，采样用 ODE 积分、**4–10 步**即可。
 
-#### 2.2.1 数学表述 (Mathematical Formulation)
-
-扩散策略学习的是动作分布的分数函数（Score Function） $\nabla_a \log p(a|s)$。训练过程是一个去噪过程：
-
-$$L(\theta) = \mathbb{E}_{k, a_0, \epsilon} [ \| \epsilon - \epsilon_\theta(\sqrt{\bar{\alpha}_k}a_0 + \sqrt{1-\bar{\alpha}_k}\epsilon, k, s) \|^2 ]$$
-
-其中 $k$ 是扩散步数，$\epsilon$ 是加入的高斯噪声。
-
-#### 2.2.2 物理意义：朗之万动力学 (Langevin Dynamics)
-
-在推理阶段，扩散过程可以看作是随机微分方程（SDE）的逆向求解。这等价于在动作空间中进行朗之万动力学采样：
-
-$$a_{k-1} = a_k + \frac{\sigma^2}{2} \nabla_a \log p(a_k|s) + \sigma z$$
-
-这意味着机器人并没有“计算”出一个动作，而是通过在动作空间中跟随“概率梯度”（即分数函数）逐步演化出最优动作。这种机制天然支持多模态，并且通过预测整个动作序列（Action Horizon），保证了轨迹的时间平滑性（Temporal Smoothness），有效抑制了高频抖动 。
-#### 2.2.3 Flow Matching：从 SDE 到 ODE 的范式迁移
-
-> [!note] 教科书参考
-> Flow Matching 是 Continuous Normalizing Flows (CNF) 的现代训练框架，由 Lipman et al. (2023) 和 Liu et al. (2023) 独立提出。其理论根基是常微分方程 (ODE) 生成模型。
-
-**核心直觉**: 扩散策略（§2.2）使用随机微分方程（SDE）建模，路径弯曲且采样需要数百步。Flow Matching 直接构造一条从噪声到数据的**直线最优传输路径**，用 ODE 替代 SDE，大幅降低采样步数（通常 4-10 步即可）。
-
-**形式化定义**:
-
-设 $x_0 \sim \mathcal{N}(0, I)$（噪声），$x_1 \sim q(x_1)$（真实动作分布），$t \in [0, 1]$。最优传输 Flow Matching 构造直线路径：
-
-$$x_t = (1 - t) x_0 + t x_1$$
-
-对时间求导得到**目标速度场**：
-
-$$u_t(x_t) = \frac{dx_t}{dt} = x_1 - x_0$$
-
-训练神经网络 $v_\theta$ 拟合此速度场，损失函数为：
-
-$$\mathcal{L}_{FM} = \mathbb{E}_{t, x_0, x_1} \left[ \| v_\theta(x_t, t, c) - (x_1 - x_0) \|^2 \right]$$
-
-其中 $c$ 为条件信息（视觉观测、语言指令等）。
-
-**采样（推理）过程**: 从 $x_0 \sim \mathcal{N}(0,I)$ 出发，用 ODE 求解器沿学到的速度场积分：
-
-$$x_{t+\Delta t} = x_t + v_\theta(x_t, t, c) \cdot \Delta t$$
-
-迭代至 $t=1$ 即得到去噪后的动作 $x_1$。
-
-**与 Diffusion Policy 的对比**:
-
-| 维度 | Diffusion Policy (SDE) | Flow Matching (ODE) |
-|------|----------------------|---------------------|
-| 路径 | 布朗运动（弯曲） | 最优传输直线 |
+| 维度 | Diffusion (SDE) | Flow Matching (ODE) |
+|:--|:--|:--|
+| 路径 | 布朗运动（弯） | 最优传输（直） |
 | 训练目标 | 预测噪声 $\epsilon$ | 预测速度场 $v_\theta$ |
-| 采样步数 (NFE) | 100-1000 步 | **4-10 步** |
-| 训练稳定性 | SNR 极值导致梯度方差大 | 常数速度回归，梯度平稳 |
-| 多模态支持 | ✅ | ✅ |
+| 采样步数 (NFE) | 100–1000 | **4–10** |
+| 训练稳定性 | SNR 极值致梯度方差大 | 常速回归，梯度平稳 |
 
-**与 Action Chunking 的关系**: Flow Matching 是**生成算法**层面的革新，而 Action Chunking 是**策略结构**层面的设计。两者正交且可组合——$\pi_0$ 和 [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] 均使用 Flow Matching 一次性生成整个 Action Chunk，避免了确定性回归的均值坍缩问题。
+> [!tip] 低 NFE 对灵巧操作至关重要
+> 20+ DoF 灵巧手实时闭环要 >10Hz 推理，传统扩散的高 NFE 成瓶颈。Flow Matching 与 action chunking 正交可组合（$\pi_0$、[[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] 均用 FM 一次生成整个 chunk）。详见 [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]。
 
-**灵巧操作应用**: Flow Matching 的低 NFE 特性对灵巧操作至关重要——高维灵巧手 (20+ DoF) 的实时闭环控制要求 >10 Hz 推理频率，而传统扩散策略的高 NFE 成为部署瓶颈。参见 [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] 的 Flow Matching 预训练方案。
-### 2.3 动作分块与Transformer (ACT)：处理长时间相关性 (Action Chunking with Transformers: Handling Long-Horizon Correlations)
-
-ACT (Action Chunking with Transformers) 是另一种解决误差累积和多模态问题的强力架构。详见 [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT 论文精读笔记]]。
-
-#### 2.3.1 动作分块 (Action Chunking) 机制
-
-ACT 不再预测单一时间步的动作，而是预测未来 $k$ 步的动作块（Chunk）。
-
-- **降低有效视界**：将任务的时间视界 $T$ 压缩为 $T/k$，显著减少了自回归过程中的误差累积次数 。
-
-- **时间集成 (Temporal Ensembling)**：在每一个时间步，ACT 会对重叠的多个预测块进行加权平均：
-
-  $$a_t = \sum_{i} w_i \hat{a}_t^{(t-i)}$$
-
-  这种指数加权平均本质上是一个**低通滤波器（Low-Pass Filter）**，过滤掉了高频控制噪声，使得机械臂的运动更加平滑流畅，符合物理系统的惯性约束。
-
-#### 2.3.2 CVAE与风格变量 (CVAE and Style Variables)
-
-ACT 引入条件变分自编码器（CVAE）来学习潜在的“风格变量” $z$。
-
-- **洞察**：人类的演示在完成任务的同时，包含了大量个性化的风格（如速度、力度、接近角度）。CVAE 将这些与任务目标无关但影响动作细节的信息压缩到潜空间 $z$ 中。推理时，我们可以固定 $z$（例如设为均值）来获得确定性的行为，或者采样 $z$ 来生成多样化行为 。
-- **KL散度正则化**：在训练中，最大化 KL 散度约束了 $z$ 的分布接近标准高斯分布，防止了过拟合，保证了潜空间的连续性 。
-
-### 2.4 表征学习：从视觉特征到物理属性 (Representation Learning: From Visual Features to Physical Properties)
-
-在像素输入下，如何提取包含物理信息的特征？这直接决定了策略的泛化能力。
-
-#### 2.4.0 表征学习演进脉络 (Evolution: PCA → AE → VAE → Contrastive → Foundation Models)
-
-> [!abstract] 降维思想的统一主线
-> 所有表征学习方法的本质目标相同：找到一个低维流形 $\mathcal{Z} \subset \mathbb{R}^d$（$d \ll D$），使得高维观测 $x \in \mathbb{R}^D$ 在 $\mathcal{Z}$ 上的投影保留任务相关信息。
-
-**Phase 1: 线性子空间方法**
-- **PCA（主成分分析）**：求协方差矩阵的前 $k$ 个特征向量 $\{v_i\}$，最小化重构误差 $\min_V \mathbb{E}[\|x - VV^Tx\|^2]$
-- **局限性**：仅捕捉线性相关性。灵巧操作中的接触模式切换、物体旋转等本质上是**非线性流形**上的变化
-
-**Phase 2: 非线性自编码器 (Autoencoder)**
-- **结构**：编码器 $z = f_\theta(x)$，解码器 $\hat{x} = g_\phi(z)$，目标 $\min_{\theta,\phi} \|x - g_\phi(f_\theta(x))\|^2$
-- **与 PCA 的关系**：当 $f, g$ 均为线性时，AE 退化为 PCA（特征值分解的等价表示）
-- **不足**：潜空间 $\mathcal{Z}$ 无结构保证——无法采样、插值不连续。不适合作为生成式策略的输入
-
-**Phase 3: 变分自编码器 (VAE)**
-- **突破**：引入概率框架 $p_\theta(z|x) = \mathcal{N}(\mu_\theta(x), \sigma_\theta^2(x))$，ELBO 目标同时优化重构质量和潜空间正则化
-- **灵巧操作意义**：ACT 利用 CVAE 将人类演示的风格变量编码到连续潜空间（见 [[RepresentationLearning#2.3 动作分块与Transformer (ACT)：处理长时间相关性 (Action Chunking with Transformers: Handling Long-Horizon Correlations)|ACT 章节]]）
-
-**Phase 4: 对比学习 → 多模态融合 → Foundation Models**
-- 从像素级重构转向**语义级对齐**（InfoNCE, CLIP），再到视觉-触觉联合嵌入（见 [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)|多模态融合章节]]）
-
-#### 2.4.1 通用视觉表征的局限：R3M vs. VIP vs. Voltron
-
-R3M (Real-world ResNet-50 for Manipulation)  和 VIP  通过在大规模人类视频（如 Ego4D）上进行对比学习或预测学习来预训练视觉编码器。
-
-- **R3M (Time-Contrastive Learning)**：假设视频中相邻帧在特征空间应相近，远距离帧应相远。这捕捉了时序进程，但忽略了精细的几何细节。
-- **VIP (Value-Implicit Pre-training)**：试图学习一个能够反映“到达目标进度”的价值函数嵌入。
-- **批判性分析**：尽管这些方法在导航和简单抓取上有效，但在灵巧操作中往往表现不佳 。根本原因在于**具身差异（Embodiment Gap）**——人手的运动学结构与机械手截然不同，且视频中缺乏**接触力学**信息。人类视频中的“操作”更多是语义层面的，而机器人需要的是毫米级的几何与动力学特征。
-
-#### 2.4.2 稠密对象网 (Dense Object Nets, DON)：面向形变物体的像素级对应
-
-对于非刚体（Deformable Objects）或形状复杂的物体，我们需要像素级的对应关系（Correspondence）。DON  通过自监督学习，训练全卷积网络输出像素级的描述符（Descriptors）。
-
-- **核心逻辑**：同一物体上的同一物理点，无论在何种视角、光照甚至**形变**下，其描述符应当保持一致；不同物理点的描述符应当正交。
-- **物理意义**：DON 实际上学习了一个附着在物体表面的**典型坐标系（Canonical Coordinate System）**。即使物体是绳子或布料，发生了拓扑扭曲，描述符依然能追踪特定的物理点（如绳结的位置）。这对于灵巧操作中的非刚体操作至关重要 。
-
-### 2.5 强化学习中的对比与正则化 (Reinforcement Learning: Contrastive and Regularized Approaches)
-
-#### 2.5.1 对比强化学习 (Contrastive RL)
-
-传统的RL依赖于标量奖励，但在灵巧操作中，奖励往往极其稀疏（只有成功/失败）。Contrastive RL  将RL重构为表示学习问题。
-
-- **InfoNCE Loss**：利用对比损失（InfoNCE）在潜空间中拉近状态-目标对 $(s, g)$ 与能够到达该目标的轨迹，推远无关轨迹。
-- **洞察**：学到的表示空间的内积 $\langle \phi(s), \phi(g) \rangle$ 直接对应于值函数 $Q(s, a, g)$ 或到达概率。这使得规划（Planning）可以直接在潜空间几何中进行，规避了高维像素空间的复杂性。
-
-#### 2.5.2 雅可比正则化 (Jacobian Regularization)
-
-为了提高策略的鲁棒性，特别是针对感知噪声和对抗攻击，雅可比正则化被引入RL 。
-
-- **数学形式**：
-
-  $$J_{reg}(\pi) = \lambda \| \frac{\partial \pi(s)}{\partial s} \|_F^2$$
-
-  其中 $\| \cdot \|_F$ 是Frobenius范数。
-
-- **物理意义**：限制雅可比范数等价于限制策略函数的局部利普希茨常数（Lipschitz Constant）。这意味着如果传感器读数有微小扰动，机器人的输出动作不会发生剧烈跳变。这是控制系统稳定性的必要条件，也是Sim-to-Real成功的关键因素之一，因为现实世界的观测总是充满噪声的。
-
-------
-
-## 3. Implementation: 核心算法实现与物理逻辑 (Core Algorithmic Implementation and Physical Logic)
-
-本节将展示关键算法的Python/PyTorch核心实现，重点在于展示这些代码如何映射到上述的物理概念。
-
-### 3.1 扩散策略 (Diffusion Policy) 推理循环
-
-扩散策略的核心在于逆向扩散过程，即从高熵的噪声状态逐渐收敛到低熵的动作流形。
-
-Python
-
-```
-import torch
-import torch.nn as nn
-
+```python
+import torch, torch.nn as nn
+# 扩散策略推理：从纯噪声迭代去噪到动作流形（朗之万动力学在能量景观中梯度下降）
 class DiffusionPolicy(nn.Module):
     def __init__(self, noise_scheduler, action_dim, horizon):
-        """
-        noise_scheduler: 噪声调度器 (DDPM or DDIM), 控制 alpha_t, beta_t
-        action_dim: 动作空间维度 (e.g., 24 for Shadow Hand + Proprioception)
-        horizon: 预测的时间视界 (e.g., 16 steps)
-        """
-        super().__init__()
-        self.noise_scheduler = noise_scheduler
-        self.action_dim = action_dim
-        self.horizon = horizon
-        # noise_pred_net 通常是一个 Conditional U-Net 或 Transformer
-        # 输入: (Noisy Action, Timestep, Global Condition)
-        # 输出: Predicted Noise epsilon
-        self.noise_pred_net = ConditionalUnet1D(input_dim=action_dim, global_cond_dim=...)
-
-    def predict_action(self, global_cond, num_inference_steps=100):
-        """
-        推理过程：从纯高斯噪声开始，迭代去噪。
-        物理意义：类似于朗之万动力学(Langevin Dynamics)，在能量景观中梯度下降寻找极小值。
-        """
-        device = global_cond.device
-        batch_size = global_cond.shape
-
-        # 1. 初始化纯高斯噪声 (对应高熵状态，完全不确定)
-        # Shape: (Batch, Horizon, Action_Dim)
-        current_action = torch.randn(
-            (batch_size, self.horizon, self.action_dim), 
-            device=device
-        )
-
-        # 2. 逆向扩散循环 (Reverse Diffusion Process)
-        self.noise_scheduler.set_timesteps(num_inference_steps)
-        
-        for t in self.noise_scheduler.timesteps:
-            # 模型预测当前残差噪声 epsilon_theta
-            # global_cond 包含视觉特征(ResNet/ViT embedding)和本体感知信息
-            # 这一步相当于计算分数函数 score = -epsilon / sqrt(1 - alpha_bar)
-            noise_pred = self.noise_pred_net(
-                sample=current_action, 
-                timestep=t, 
-                global_cond=global_cond
-            )
-
-            # 根据预测的噪声更新动作序列
-            # x_{t-1} = (x_t - beta * noise_pred) / sqrt(alpha) + sigma * z
-            # 这一步在物理上使得轨迹逐渐“清晰”，从无序变有序
-            # 同时也保证了不同时间步之间的相干性 (Coherence)
-            current_action = self.noise_scheduler.step(
-                model_output=noise_pred,
-                timestep=t,
-                sample=current_action
-            ).prev_sample
-
-        # 3. 输出去噪后的动作序列
-        # 通常采用 Receding Horizon Control (RHC)，只执行序列的前几步，然后重新规划
-        return current_action
+        self.scheduler, self.action_dim, self.horizon = noise_scheduler, action_dim, horizon
+        self.noise_pred_net = ConditionalUnet1D(input_dim=action_dim, global_cond_dim=...)  # 预测噪声 ε
+    def predict_action(self, global_cond, steps=100):
+        a = torch.randn((global_cond.shape[0], self.horizon, self.action_dim))  # 高熵初始（完全不确定）
+        self.scheduler.set_timesteps(steps)
+        for t in self.scheduler.timesteps:
+            eps = self.noise_pred_net(a, t, global_cond)   # score = -ε/√(1-ᾱ)；cond=视觉+本体特征
+            a = self.scheduler.step(eps, t, a).prev_sample # 轨迹逐渐"清晰"、保持时序相干
+        return a   # 通常 receding horizon：只执行前几步再重规划
 ```
 
-**关键细节分析**：
+### 2.3 ACT：动作分块处理长时相关
 
-- **Horizon Prediction**：预测整个 `horizon` 而非单步，利用了扩散模型生成高维联合分布的能力。这在物理上确保了动作序列的平滑性，避免了高频振荡。
-- **Global Conditioning**：`global_cond` 将视觉和感知信息作为条件注入。这实际上改变了扩散过程的能量景观，使得生成的动作流形坍缩到与当前观测一致的子空间中。
+ACT (Action Chunking with Transformers) 是另一条解多峰+误差累积的强力路线（详见 [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT 精读]]）。
 
-### 3.2 ACT (Action Chunking with Transformers) 核心架构
+**动作分块**：不预测单步、而预测未来 $k$ 步的 chunk，把时间视界从 $T$ 压到 $T/k$、显著减少自回归误差累积。**时间集成**：每步对重叠的多个预测块加权平均 $a_t=\sum_i w_i\hat a_t^{(t-i)}$——这本质是个**低通滤波 (EWMA)**（又一次与 [[SignalProcessing#1.4 数字滤波器：去噪、延迟与可控性的三角权衡|信号处理]]同形），滤掉高频控制噪声、合惯性约束。**CVAE 风格变量**：用 CVAE 学潜在"风格" $z$（演示里的速度/力度/接近角等任务无关信息），KL 正则约束 $z\sim\mathcal N(0,I)$ 保潜空间连续；推理时固定 $z=0$ 得确定行为或采样得多样行为。
 
-ACT 利用 CVAE 处理多模态分布的随机性，利用 Transformer 处理时序依赖。
-
-Python
-
-```
+```python
+# ACT 核心：CVAE 处理多模态 + Transformer 处理时序（去防御代码）
 class ACTPolicy(nn.Module):
-    def __init__(self, d_model=512, nhead=8, latent_dim=32):
-        super().__init__()
-        # CVAE Encoder: 将 (Observation, Action_Sequence) 压缩为 Latent z
-        # 物理意义：z 捕捉了演示中的“风格” (Style) 或“多模态意图” (Intent)
-        self.cls_token = nn.Parameter(torch.randn(1, 1, d_model))
-        self.encoder = TransformerEncoder(...) 
-        self.latent_proj = nn.Linear(d_model, 2 * latent_dim) # 输出均值 mu 和对数方差 logvar
-
-        # Transformer Decoder: 根据 z 和 Observation 生成 Action Sequence
-        self.decoder = TransformerDecoder(...)
-        self.action_head = nn.Linear(d_model, action_dim)
-        
-        # 固定位置编码 (Fixed Positional Embedding)
-        # 物理意义：告诉网络这组动作在时间序列中的相对位置，处理时序因果
-        self.pos_embed = PositionalEncoding(d_model)
-
     def forward(self, qpos, image, actions=None, is_training=True):
-        # 1. 处理观测特征 (ResNet Backbone + Linear Projection)
-        obs_tokens = self.process_observations(qpos, image)
-        
-        if is_training:
-            # 训练阶段：从真实动作中编码 z
-            # 输入不仅有观测，还有Ground Truth动作序列
-            action_embed = self.action_embed(actions)
-            # + Observation + Action -> Encoder
-            encoder_input = torch.cat([self.cls_token, obs_tokens, action_embed], dim=1)
-            encoder_out = self.encoder(encoder_input)
-            
-            # 变分推断：预测分布 q(z | x, a)
-            mu, logvar = self.latent_proj(encoder_out[:, 0]).chunk(2, dim=-1)
-            z = self.reparameterize(mu, logvar)
-            
-            # KL散度损失：拉近 q(z|x,a) 与先验 p(z) = N(0,I)
-            # 物理意义：正则化潜空间，使其紧凑平滑，防止过拟合，使得 z 的插值具有语义意义
-            kl_loss = compute_kl_loss(mu, logvar)
-        else:
-            # 推理阶段：由于没有 Ground Truth Action，我们无法使用 Encoder
-            # 直接设 z 为 0 (均值模式，确定性) 或从 N(0,I) 采样 (随机模式)
-            z = torch.zeros((qpos.shape, self.latent_dim)).to(qpos.device)
-            kl_loss = None
-
-        # 2. 解码动作序列
-        # query_embed 是可学习的查询向量，对应未来的每一个时间步 t, t+1,..., t+k
-        style_embed = self.style_proj(z).unsqueeze(1)
-        # 将 z 注入到 Input Tokens 中
-        transformer_input = torch.cat([obs_tokens, style_embed], dim=1)
-        
-        # Decoder 通过 Cross-Attention 关注观测特征
-        # Query: Positional Embeddings, Key/Value: Image+Proprio Features
-        hs = self.decoder(self.query_embed, transformer_input)
-        pred_action_sequence = self.action_head(hs)
-        
-        return pred_action_sequence, kl_loss
+        obs_tokens = self.process_observations(qpos, image)     # ResNet backbone + 投影
+        if is_training:                                          # 训练：从真实动作编码 z=q(z|x,a)
+            enc = self.encoder(torch.cat([self.cls_token, obs_tokens, self.action_embed(actions)], 1))
+            mu, logvar = self.latent_proj(enc[:, 0]).chunk(2, -1)
+            z = mu + torch.exp(0.5*logvar) * torch.randn_like(mu)  # 重参数化
+            kl_loss = compute_kl_loss(mu, logvar)                # 拉近 q(z|x,a) 与 N(0,I)，正则潜空间
+        else:                                                     # 推理：无真值动作 → z=0（均值模式）
+            z = torch.zeros((qpos.shape[0], self.latent_dim)); kl_loss = None
+        hs = self.decoder(self.query_embed,                       # query=各未来时间步；cross-attn 关注观测
+                          torch.cat([obs_tokens, self.style_proj(z).unsqueeze(1)], 1))
+        return self.action_head(hs), kl_loss   # 外层再做 temporal ensembling（EWMA 低通）
 ```
 
-**关键细节分析**：
+------
 
-- **Temporal Ensembling (在推理循环外部实现)**：ACT 不仅依赖单次预测，而是维护一个重叠动作的缓冲区。
+## 3. 表征的演进：从重构到对比到基础模型
 
-  Python
+> [!tip] 本节四拍
+> **直觉**（插 USB 要泛化到没见过的接口，靠的是表征而非记忆）→ **推导**（PCA→AE→VAE→对比→基础模型的统一降维主线）→ **对比**（通用视觉表征 R3M/VIP 为何在灵巧操作失灵；DON 的像素级对应）→ **联系**（雅可比正则↔Lipschitz↔[[ControlTheory|稳定性]]；信息瓶颈↔[[InformationTheory]]）。
 
-  ```
-  # 伪代码逻辑
-  # weights = [exp(-m * i) for i in range(k)]
-  # final_action = sum(weights * predicted_actions) / sum(weights)
-  ```
+### 3.1 降维思想的统一主线
 
-  这在信号处理上相当于一个**指数加权移动平均（EWMA）**滤波器，能够极其有效地平滑动作，这对于减少机械臂磨损和保持接触力稳定至关重要 。
+所有表征方法目标相同：找低维流形 $\mathcal Z\subset\mathbb R^d$（$d\ll D$），使高维观测 $x$ 的投影保留任务相关信息。
 
-### 3.3 稠密对象网 (Dense Object Nets) 的像素级对应损失
+- **PCA**：协方差前 $k$ 特征向量，$\min_V\mathbb E\|x-VV^Tx\|^2$。只捕**线性**相关——接触模式切换、物体旋转本质是非线性流形。
+- **AE**：$z=f_\theta(x),\hat x=g_\phi(z)$；线性时退化为 PCA。潜空间无结构保证（不能采样、插值不连续），不适合作生成式策略输入。
+- **VAE**：引入概率 $p_\theta(z\mid x)=\mathcal N(\mu,\sigma^2)$，ELBO 同时优化重构与潜空间正则——ACT 用 CVAE 编码演示风格（§2.3）。
+- **对比 → 基础模型**：从像素级重构转向**语义级对齐**（InfoNCE、CLIP）、再到视觉-触觉联合嵌入（§5）。
 
-DON 旨在学习独立于视角的几何描述符。
+> [!note] VAE 即 $\beta$-VAE 即信息瓶颈
+> VAE 的 KL 正则正是 [[InformationTheory#5. 信息瓶颈：最优表征的信息论基础|信息瓶颈]] 的拉格朗日乘子 $\beta$——**重构-压缩权衡 = 预测-压缩权衡**。这把表征学习与信息论钉在了同一个变分式上。
 
-Python
+### 3.2 通用视觉表征的局限：具身差异
 
-```
-def pixelwise_contrastive_loss(image_a, image_b, matches, non_matches, model, margin=0.5):
-    """
-    image_a, image_b: 同一物体的两张不同视角的图像 (可能是形变后的)
-    matches: 匹配点坐标对列表 [(u_a, v_a), (u_b, v_b),...] (由仿真或3D重建获得)
-    non_matches: 不匹配点坐标对列表
-    """
-    # 提取稠密描述符 Map: (B, Descriptor_Dim, H, W)
-    # Descriptor_Dim 通常为 3 (RGB可视化) 或 16 (更强的区分力)
-    desc_a = model(image_a)
-    desc_b = model(image_b)
+R3M（时序对比，假设视频相邻帧特征相近）、VIP（学反映"到达目标进度"的价值嵌入）在大规模人类视频上预训练视觉编码器，导航/简单抓取有效，**但在灵巧操作常失灵**。根因是**具身差异 (Embodiment Gap)**：人手运动学≠机械手，且视频缺**接触力学**信息——人类视频的"操作"是语义层面的，而机器人需毫米级几何与动力学特征。**插 USB 泛化到新接口，需要的是接触几何表征，不是语义相似度。**
 
+### 3.3 Dense Object Nets：形变物体的像素级对应
+
+对非刚体（USB 线缆、布、绳）需像素级**对应**。DON 自监督训练全卷积网络输出像素级描述符：**同一物理点在任何视角/光照/形变下描述符一致，不同点正交**。它实际学了附着在物体表面的**典型坐标系**——即使绳子拓扑扭曲，仍能追踪特定物理点（如绳结），对非刚体操作至关重要。
+
+```python
+# DON 像素级对比损失：学视角/形变不变的几何描述符（去防御代码）
+def pixelwise_contrastive_loss(img_a, img_b, matches, non_matches, model, margin=0.5):
+    desc_a, desc_b = model(img_a), model(img_b)        # 稠密描述符图 (B, D, H, W)
     loss = 0
-    
-    # 1. 匹配损失 (Match Loss)
-    # 物理意义：同一物理点在不同形变下的描述符距离应趋近于 0
-    # 这迫使网络学习“光度不变性”和“形变不变性”
-    for ua, va, ub, vb in matches:
-        d_a = desc_a[:, :, va, ua]
-        d_b = desc_b[:, :, vb, ub]
-        # L2 距离平方
-        dist_sq = torch.sum((d_a - d_b) ** 2, dim=1)
-        loss += dist_sq.mean()
-
-    # 2. 非匹配损失 (Non-Match Loss)
-    # 物理意义：不同物理点的描述符距离应大于 margin
-    # 这防止了“平凡解” (即所有点输出相同描述符，Mode Collapse)
-    for ua, va, ub, vb in non_matches:
-        d_a = desc_a[:, :, va, ua]
-        d_b = desc_b[:, :, vb, ub]
-        dist = torch.norm(d_a - d_b, p=2, dim=1)
-        # Hinge Loss: 只有当距离小于 margin 时才产生损失
-        loss += torch.clamp(margin - dist, min=0).pow(2).mean()
-
+    for ua, va, ub, vb in matches:                     # 匹配：同一物理点 → 描述符趋近（光度+形变不变）
+        loss += ((desc_a[:, :, va, ua] - desc_b[:, :, vb, ub]) ** 2).sum(1).mean()
+    for ua, va, ub, vb in non_matches:                 # 非匹配：不同点 → 距离 > margin（防 mode collapse）
+        d = torch.norm(desc_a[:, :, va, ua] - desc_b[:, :, vb, ub], dim=1)
+        loss += torch.clamp(margin - d, min=0).pow(2).mean()
     return loss
 ```
 
-### 3.4 雅可比正则化 (Jacobian Regularization)
+### 3.4 对比 RL 与雅可比正则
 
-确保策略平滑性的关键实现。
+**对比 RL**：稀疏奖励下把 RL 重构为表示学习——用 InfoNCE 在潜空间拉近能到达目标的"状态-目标对"$(s,g)$、推远无关轨迹；学到的内积 $\langle\phi(s),\phi(g)\rangle$ 直接对应到达概率/值函数，规划可在潜空间几何里做（接 [[ReinforcementLearning#7. 探索：稀疏奖励下，如何"撞见"转笔成功|RL 探索]]）。
 
-Python
+**雅可比正则**：$J_{reg}=\lambda\|\partial\pi(s)/\partial s\|_F^2$，限制策略的局部 **Lipschitz 常数**——传感器微扰时动作不剧变。这是控制稳定性的必要条件（[[ControlTheory#10. 稳定性理论的统一基石|Lyapunov 稳定性]]），也是 sim-to-real 关键。
 
-```
-def compute_jacobian_loss(policy_net, states, lambda_reg=0.01):
-    """
-    计算输入-输出雅可比矩阵的 Frobenius 范数
-    """
+```python
+# 雅可比正则：惩罚输入-输出雅可比 Frobenius 范数（控制策略对感知噪声的敏感度）
+def jacobian_loss(policy_net, states, lam=0.01):
     states.requires_grad_(True)
     actions = policy_net(states)
-    
-    loss_reg = 0
-    # 对每一个动作维度计算梯度
-    for i in range(actions.shape):
-        # create_graph=True 允许对梯度再次求导 (二阶导数)
-        grad_outputs = torch.ones_like(actions[:, i])
-        gradients = torch.autograd.grad(
-            outputs=actions[:, i],
-            inputs=states,
-            grad_outputs=grad_outputs,
-            create_graph=True, # 关键：为了能够反向传播这一项
-            retain_graph=True,
-            only_inputs=True
-        )
-        
-        # 累加梯度的范数: |
-
-| J ||_F^2 = sum( (dy_i/dx_j)^2 )
-        loss_reg += torch.sum(gradients ** 2)
-        
-    return lambda_reg * loss_reg
+    reg = 0
+    for i in range(actions.shape[1]):                  # 对每个动作维求梯度
+        g, = torch.autograd.grad(actions[:, i], states, torch.ones_like(actions[:, i]),
+                                 create_graph=True, retain_graph=True)  # create_graph 以便反传此正则
+        reg += (g ** 2).sum()                          # ‖J‖_F² = Σ(∂y_i/∂x_j)²
+    return lam * reg     # 深层网络实战用 Hutchinson estimator 近似，避免算完整雅可比
 ```
-
-**注意**：在深层网络中直接计算完整雅可比非常昂贵。实践中常使用**Hutchinson Estimator**或投影法进行近似计算 。
 
 ------
 
-## 4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)
+## 4. 3D 几何表征：点云的深度学习
+
+> [!tip] 本节四拍
+> **直觉**（USB 接口的 3D 形状/孔位是点云，但点云无序——CNN/MLP 用不了）→ **推导**（Deep Sets 定理给置换不变；PointNet/++ 层级局部特征）→ **对比**（PointNet 全局 vs PointNet++ 局部 vs Point Transformer 注意力）→ **落点**（3D Flow 作载体无关动作表征）。
 
 > [!note] 教科书参考
-> 本节基于 **Qi et al. (2017) PointNet/PointNet++** 系列的奠基性工作，以及 **Guo et al. (2021) Deep Learning on 3D Point Clouds: A Survey** 的综述框架。
+> 本节基于 Qi et al. (2017) PointNet/PointNet++ 与 Guo et al. (2021) 3D 点云深度学习综述。
 
-在灵巧操作中，RGB-D 相机和激光雷达产生的**3D 点云**是核心输入模态。与结构化的图像不同，点云具有**无序性（Unordered）**和**几何不变性需求**，这催生了专门的神经网络架构。
+### 4.1 集合函数：置换不变性
 
-### 4.1 核心数学问题：集合函数的设计 (Set Functions: The Mathematical Foundation)
+点云是**无序集合** $\mathcal P=\{p_1,\dots,p_N\}$，须 $f(\{p_i\})=f(\{p_{\pi(i)}\})$（任意排列不变）。标准 MLP/CNN 假设固定顺序、用不了。
 
-#### 4.1.1 置换不变性 (Permutation Invariance)
+> [!theorem] Deep Sets 定理 (Zaheer et al.)
+> 任何置换不变函数可分解为 $f(\mathcal P)=\rho\big(\sum_{p\in\mathcal P}\phi(p)\big)$，$\phi$ 逐点特征提取、$\rho$ 聚合后处理、$\sum$ 是对称聚合（可换 max/mean）。
 
-点云是一个**无序集合** $\mathcal{P} = \{p_1, p_2, ..., p_N\} \subset \mathbb{R}^3$。对于任意排列 $\pi$，我们需要：
+**PointNet** 直接应用：$\text{PointNet}(\mathcal P)=\gamma(\max_{p}h(p))$。物理直觉：$h_i(p)$ 是"探测函数"检测某几何特征（角点/平面），$\max$ 问"这种特征**是否存在**"。**局限**：缺局部几何建模，每点独立处理。
 
-$$f(\{p_1, ..., p_N\}) = f(\{p_{\pi(1)}, ..., p_{\pi(N)}\})$$
+### 4.2 PointNet++：层级局部特征
 
-**问题**：标准 MLP 或 CNN 假设输入有固定顺序，无法直接处理集合。
+模仿 CNN 局部感受野：**FPS**（最远点采样，保覆盖均匀）→ **Ball Query**（半径 $r$ 内取 $K$ 邻居）→ **Mini-PointNet**（逐邻域提特征）→ 递归。用**相对坐标** $(p_j-p_i)$ 保平移不变：$f_i^{(l+1)}=\text{PointNet}(\{p_j-p_i:p_j\in\mathcal N(p_i,r)\})$。
 
-**解决方案（Zaheer et al., Deep Sets 定理）**：任何置换不变函数可以分解为：
+### 4.3 几何不变性的编码
 
-$$f(\mathcal{P}) = \rho\left(\sum_{p \in \mathcal{P}} \phi(p)\right)$$
-
-其中 $\phi: \mathbb{R}^3 \to \mathbb{R}^d$ 是逐点特征提取器，$\rho: \mathbb{R}^d \to \mathbb{R}^k$ 是聚合后的处理函数，$\sum$ 是对称聚合操作（可替换为 max, mean 等）。
-
-#### 4.1.2 PointNet：最简实现
-
-PointNet 直接应用 Deep Sets 定理：
-
-$$\text{PointNet}(\mathcal{P}) = \gamma\left(\max_{p \in \mathcal{P}} h(p)\right)$$
-
-- $h(p)$：共享权重的 MLP，将 $\mathbb{R}^3 \to \mathbb{R}^{1024}$
-- $\max$：逐通道取最大值（对称聚合）
-- $\gamma$：分类/分割头
-
-> [!tip] 物理直觉
-> PointNet 可以理解为学习一组"探测函数"。每个 $h_i(p)$ 检测点云中是否存在某种几何特征（如角点、平面）。$\max$ 操作相当于问"这种特征在点云中**是否存在**"，而不关心存在多少个。
-
-**局限性**：PointNet 缺乏对**局部几何结构**的建模。每个点独立处理，无法捕获邻域信息。
-
-### 4.2 PointNet++：层级局部特征学习 (Hierarchical Local Feature Learning)
-
-PointNet++ 引入**层级抽象**，模仿 CNN 的局部感受野：
-
-```
-输入点云 (N, 3) 
-    ↓ FPS (Farthest Point Sampling)
-采样中心点 (N', 3)   N' << N
-    ↓ Ball Query (Radius r)
-构建局部邻域 (N', K, 3)
-    ↓ PointNet (逐邻域)
-局部特征 (N', d)
-    ↓ 递归重复
-全局特征 (1, D)
-```
-
-**关键组件**：
-
-1. **Farthest Point Sampling (FPS)**：选择覆盖性最好的采样点，保证几何均匀性
-2. **Ball Query**：在半径 $r$ 内搜索 $K$ 个邻居，构建局部邻域
-3. **Mini-PointNet**：对每个局部邻域应用 PointNet，提取局部特征
-
-**数学形式**：
-$$f_i^{(l+1)} = \text{PointNet}\left(\{p_j - p_i : p_j \in \mathcal{N}(p_i, r^{(l)})\}\right)$$
-
-其中使用**相对坐标** $(p_j - p_i)$ 保证平移不变性。
-
-### 4.3 几何不变性的编码 (Encoding Geometric Invariance)
-
-#### 4.3.1 SE(3) 等变网络 (SE(3)-Equivariant Networks)
-
-在灵巧操作中，物体的旋转和平移不应改变抓取策略的本质。需要设计 **SE(3)-等变** 或 **SE(3)-不变** 的网络。
-
-**等变性定义**：对于变换 $T \in SE(3)$，
-$$f(T \cdot \mathcal{P}) = T \cdot f(\mathcal{P}) \quad \text{(Equivariant)}$$
-$$f(T \cdot \mathcal{P}) = f(\mathcal{P}) \quad \text{(Invariant)}$$
-
-**Vector Neurons (VN-PointNet)**：将标量特征替换为 3D 向量特征，使用旋转等变的线性层：
-$$\mathbf{v}_{out} = W \mathbf{v}_{in}$$
-其中 $W$ 作用在向量集合上，保持旋转等变性。
+物体旋转/平移不应改变抓取策略本质，需 **SE(3)-等变/不变**网络：$f(T\cdot\mathcal P)=T\cdot f(\mathcal P)$（等变）或 $=f(\mathcal P)$（不变）。**Vector Neurons** 把标量特征换成 3D 向量特征、用旋转等变线性层。**T-Net** 数据驱动对齐 $\mathcal P'=\mathcal P\cdot T_{pred}$，正则 $\|I-TT^T\|_F^2$ 约束近正交。
 
 > [!abstract] 动作结构先验：RodriNet
-> [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] 与通用 SE(3)-equivariant network 互补：后者关心外部坐标变换下的等变性，RodriNet 关心机器人内部 joint/link 特征如何沿运动学树传播。它把 [[Dynamics#2.4 刚体变换与指数坐标 (Rigid Body Transformations & Exponential Coordinates)|Rodrigues 正运动学模板]] 做成可学习 backbone，是高 DoF 动作表征中“结构化 action mixer”的代表。
+> [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] 与通用 SE(3)-等变网络互补：后者关心外部坐标变换的等变，RodriNet 关心机器人内部 joint/link 特征如何沿运动学树传播——它把 [[Dynamics#2.2 旋转群 SO(3)、李代数 so(3) 与 Rodrigues 公式|Rodrigues 正运动学模板]]做成可学习 backbone，是高 DoF 动作表征里"结构化 action mixer"的代表。
 
-#### 4.3.2 T-Net：学习规范化变换
+### 4.4 Point Transformer 与 3D Flow
 
-PointNet 的 **T-Net** 是一种数据驱动的对齐方法：
+**Point Transformer** 把自注意力引入点云，局部自注意力用位置编码 $\alpha,\delta$ 编码相对几何位置——自适应邻域权重（vs PointNet++ 固定聚合），表达力更强。
 
-$$\mathcal{P}' = \mathcal{P} \cdot T_{pred}$$
-
-其中 $T_{pred} \in \mathbb{R}^{3 \times 3}$ 由一个小型 PointNet 预测，并通过正则化损失约束接近正交矩阵：
-$$L_{reg} = \|I - T T^T\|_F^2$$
-
-### 4.4 Point Transformer：注意力机制在点云上的应用 (Attention on Point Clouds)
-
-受 Vision Transformer 启发，**Point Transformer** 将自注意力引入点云处理：
-
-**局部自注意力**：
-$$y_i = \sum_{j \in \mathcal{N}(i)} \text{softmax}_j\left(\frac{(\phi(x_i) - \psi(x_j)) \cdot \alpha(p_i - p_j)}{\sqrt{d}}\right) \odot (\gamma(x_j) + \delta(p_i - p_j))$$
-
-其中：
-- $\phi, \psi, \gamma$：线性投影（Query, Key, Value）
-- $\alpha, \delta$：位置编码函数，编码相对几何位置
-- $\odot$：Hadamard 乘积
-
-**优势**：
-- 自适应的邻域权重（vs. PointNet++ 的固定聚合）
-- 更强的表达能力，适合复杂几何
-
-### 4.5 灵巧操作中的点云处理管线 (Point Cloud Pipeline for Dexterous Manipulation)
-
-```
-RGB-D → 点云分割 → 物体点云 → PointNet++/Transformer → 物体几何特征
-                                     ↓
-                            融合 Hand Proprioception
-                                     ↓
-                              策略网络 (Policy)
-```
-
-**关键实践经验**：
-
-| 阶段 | 技术选择 | 原因 |
-|-----|---------|-----|
-| **点云降采样** | FPS + Voxel Grid | 平衡覆盖性和计算效率 |
-| **特征提取** | PointNet++ 或 Point Transformer | 层级局部特征对抓取姿态估计至关重要 |
-| **坐标系** | 物体中心坐标系 | 保证平移不变性 |
-| **数据增强** | 随机旋转 + 抖动 | 提升 SO(3) 鲁棒性 |
-
-### 4.6 3D Flow 作为载体无关的动作表征 (3D Flow as Embodiment-Agnostic Action Representation)
-
-> [!tip] 空间智能核心论点 (Wenlong Huang, Stanford SVL / Fei-Fei Li)
-> **动作的本质是 3D 的** — 人类闭眼可在 3D 空间移动手臂，动作感知天生是 3D 属性。场景观测可以是 2D，但动作表征**必须是 3D**。
-
-传统动作表征（末端执行器位姿、关节空间指令）无法跨载体泛化：不同机器人的自由度、夹爪几何结构各异。**3D Flow** 提供了统一解法：
-
-- 在机器人每个连杆上基于 URDF 网格采样端点 → 正运动学计算 → **点流** (Point Flow)
-- 场景状态同样用 RGBD → 静态点云表征 → **模态统一** (状态与动作均为 3D 点云)
-- 对点数量具有不变性 → 自动适配不同 DOF / 不同夹爪数量
-
-**PointWorld (Stanford, 2026)** 将此表征应用于 3D 世界模型：
-
-$$\text{Input: } (P_{\text{scene}}, P_{\text{robot\_flow}}) \xrightarrow{\text{PTV3 Transformer}} P_{\text{scene\_flow}} \text{ (场景未来动态)}$$
-
-核心发现：
-1. PTV3 等现代 Transformer 在相近内存下可扩容至图基模型的 ~300×
-2. 仅基于夹爪的 3D 点流 > 全身点流 > 低维表征（关节位置/EE pose）
-3. 模型**隐式**学习了目标检测、材料属性估计、形状补全、物体间动态交互
-
-> [!warning] 迁移效率差距
-> 基于 TRI 技术报告的量化分析，机器人学领域的预训练→微调迁移效率比 NLP 低 **~100×**。要达到 NLP 水平需 ~1.25 亿小时机器人操作数据（当前数据集的 74000×）。这激励了世界模型作为更高效预训练目标的研究方向。
-
-与灵巧操作的关联：3D Flow 天然适配高 DOF 灵巧手 — 每个手指连杆均可采样为点流，无需设计手指专用的动作空间。
+> [!tip] 3D Flow：载体无关的动作表征（Wenlong Huang, Stanford SVL）
+> **动作的本质是 3D 的**——人闭眼也能在 3D 空间移动手臂。传统动作表征（EE 位姿、关节指令）无法跨载体泛化。**3D Flow**：在每个连杆按 URDF 网格采样端点 → 正运动学 → **点流**；场景也用 RGBD→点云，**状态与动作模态统一**、对点数量不变、自动适配不同 DoF/夹爪。**PointWorld (Stanford 2026)** 将其用于 3D 世界模型，发现：① PTV3 等现代 Transformer 在相近内存下可扩容至图基模型的 ~300×；② **仅夹爪 3D 点流 > 全身点流 > 低维表征**；③ 模型隐式学到目标检测、材料估计、形状补全、物体间动态。**对灵巧操作**：每个手指连杆都可采样为点流，无需设计手指专用动作空间。
+> （旁注：机器人预训练→微调迁移效率比 NLP 低 ~100×，要达 NLP 水平需 ~1.25 亿小时数据——这激励了世界模型作为更高效预训练目标，接 [[ReinforcementLearning#6.1 Model-Based RL：在想象中转笔|MBRL]]、[[EmbodiedAI]]。）
 
 ------
 
-## 5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)
+## 5. 多模态融合：视触觉的交响
 
-在灵巧操作中，视觉（Vision）和触觉（Tactile）并非简单的冗余，而是具有**互补的物理尺度（Complementary Physical Scales）**。视觉擅长全局规划（Global Planning）和物体识别，但在接触发生时，由于**遮挡（Occlusion）**和**尺度限制**，视觉几乎完全失效。此时，触觉成为感知接触力学（摩擦、滑动、纹理）的唯一窗口。
+> [!tip] 本节四拍
+> **直觉**（插 USB：远处视觉对准，一接触视觉就被遮挡，靠触觉微调）→ **推导**（视触觉在物体表面这一共同实体上对齐；触觉点云）→ **对比**（简单拼接 vs 交叉注意力融合）→ **落点**（多模态=信息量 + 冗余度/鲁棒性）。
 
-### 5.1 视触觉联觉表征：跨模态对齐与联合嵌入 (Visuotactile Synesthesia: Cross-Modal Alignment)
+视觉与触觉不是冗余，而是**互补的物理尺度**：视觉擅长全局规划与识别，但接触发生时因**遮挡**和尺度限制几乎失效；此时触觉是感知接触力学（摩擦、滑动、纹理）的唯一窗口。**插 USB 的"接触后视觉模糊"正是这一互补的教科书场景。**
 
-> [!note] 论文参考
-> 本节基于 **Robot Synesthesia (Higuera et al., 2024)** 和 **RotateIt (Yuan et al., 2023)** 的跨模态学习框架。
-> 相关笔记: [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]], [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]
+### 5.1 视触觉联觉：跨模态对齐
 
-#### 5.1.1 联觉的物理直觉
+**核心洞察**：视觉与触觉在**物体表面这一共同实体**上有天然对应——视觉观测表面光度属性（颜色、纹理、曲率），触觉感知表面力学属性（硬度、摩擦、法向）。二者可通过**对比学习**在共享潜空间对齐：**看到表面即可预测触觉响应，触觉感知即可推断几何**。
 
-人类的"联觉"(Synesthesia)是一种感知模态自动触发另一模态体验的神经现象。在机器人系统中，视触觉联觉意味着：**看到物体表面即可预测触觉响应，触觉感知即可推断物体几何**。
+**触觉点云表征**：把触觉数据从 2D 图/1D 向量升级为 **3D 点云** $\mathcal T=\{(x_i,y_i,z_i,f_i)\}$（$(x,y,z)$ 由传感器几何 + 手指正运动学算出、$f$ 是力强度）——与视觉点云同几何空间、便于融合、保拓扑、支持 PointNet 系列（接 §4）。
 
-**核心洞察**：视觉和触觉在物体表面这一共同实体上具有天然的对应关系：
-- 视觉观测的是表面的光度属性（颜色、纹理、曲率）
-- 触觉感知的是表面的力学属性（硬度、摩擦、法向量）
+**跨模态对比 (InfoNCE)**：
 
-两者可以通过**对比学习**在共享的潜在空间中对齐。
+$$
+\mathcal L_{NCE}=-\log\frac{\exp(\mathrm{sim}(z_v,z_t^+)/\tau)}{\sum_j\exp(\mathrm{sim}(z_v,z_t^j)/\tau)},
+$$
 
-#### 5.1.2 触觉点云表征 (Tactile Point Cloud Representation)
+$z_v$ 视觉嵌入、$z_t^+$ 时间对齐的触觉嵌入（正样本）、$z_t^j$ 其他时刻（负样本）。Robot Synesthesia 做**双向**对比（视→触预测、触→视检索），形成联合嵌入空间使 $\|z_v-z_t\|\propto$ 物理状态差异（与 [[InformationTheory#2.2 互信息：观测的"切割能力"|互信息]]、[[StochasticProcess#4. 信念更新：从 EKF 失效到粒子滤波|多模态融合]]同源）。
 
-传统触觉表征将传感器数据视为 2D 图像或 1D 向量。更具几何意义的方法是将触觉数据转换为**3D 点云**：
+### 5.2 交叉注意力融合：让触觉"询问"视觉
 
-$$\mathcal{T} = \{(x_i, y_i, z_i, f_i)\} \subset \mathbb{R}^4$$
+简单特征拼接不够（两模态空间结构与更新频率不同）。VTT/GelFusion 用**交叉注意力**：
 
-其中 $(x, y, z)$ 是接触点的 3D 坐标（通过传感器几何和手指正运动学计算），$f$ 是该点的力强度。
+$$
+\mathrm{Attn}(Q_T,K_V,V_V)=\mathrm{softmax}\Big(\frac{Q_TK_V^T}{\sqrt d}\Big)V_V,\qquad Q_T=W_QT,\ K_V=W_KV,\ V_V=W_VV.
+$$
 
-**优势**：
-- 与视觉点云在同一几何空间，便于融合
-- 保留空间拓扑结构，支持 PointNet 系列架构
-- 自然编码多指接触的分布式信息
+| 模态 | 特性 | 编码器 | 角色 |
+|:--|:--|:--|:--|
+| 视觉 | 全局、低频、易遮挡 | ResNet/ViT | 物体位姿先验，指导接近阶段 |
+| 触觉 | 局部、高频、接触敏感 | ConvNet/触觉编码器 | 接触几何/力反馈，指导操作阶段 |
 
-**RotateIt 的实现**：
-```
-触觉图像 (GelSight) → 深度估计 → 正运动学变换 → 世界坐标系点云
-                                         ↓
-                                   与视觉点云拼接
-```
+> [!important] 物理逻辑：把局部触觉"注册"到全局物体模型
+> Query 来自触觉：当触觉探到一个局部特征（感到 USB 接口的棱角），它生成 Query，交叉注意力在视觉特征图（Key）里搜匹配的空间位置，把局部触觉**注册**到全局物体模型上——有效解决局部感知的状态歧义。这与 [[ComputationalGeometry#3.2 EPA：从"撞了"到"撞多深、往哪退"|EPA 法向]]、[[SignalProcessing#5.3 因子图：多模态融合与触觉里程计|因子图融合]]互补。
 
-#### 5.1.3 跨模态对比学习 (Cross-Modal Contrastive Learning)
+### 5.3 GelSight 的 Sim-to-Real：Taxim 快速仿真
 
-**InfoNCE 目标函数**：
+要在仿真训触觉策略，须解触觉仿真难题。FEM 模拟弹性体精确但太慢（撑不住 RL 每秒数千次采样）。**Taxim** 把光学与力学**解耦**：光学响应用多项式查找表（<100 真实数据校准）把形变梯度映到像素强度；标记运动场用线性弹性的**叠加原理**预计算基本形状位移、线性组合合成复杂接触——速度提升几个数量级，可集成进 Isaac Gym 做大规模并行 sim-to-real（穿透深度等新表征见 [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]]，触觉信号处理见 [[SignalProcessing#3. 视觉触觉传感 (VTS)：把触觉变成视觉问题|SignalProcessing §3]]）。
 
-$$\mathcal{L}_{NCE} = -\log \frac{\exp(\text{sim}(z_v, z_t^+) / \tau)}{\sum_{j} \exp(\text{sim}(z_v, z_t^j) / \tau)}$$
+### 5.4 接触丰富任务：插 USB 的多阶段策略
 
-其中：
-- $z_v$：视觉编码器输出
-- $z_t^+$：与 $z_v$ 时间对齐的触觉编码器输出（正样本）
-- $z_t^j$：其他时间步的触觉样本（负样本）
-- $\tau$：温度参数
-
-**Robot Synesthesia 的双向对比**：
-- 视觉→触觉预测：给定视觉嵌入，预测对应的触觉嵌入
-- 触觉→视觉预测：给定触觉嵌入，检索匹配的视觉状态
-
-这形成了**联合嵌入空间**，使得：
-$$\|z_v - z_t\|_2 \propto \text{物理状态差异}$$
-
-#### 5.1.4 多模态 Transformer 融合架构
-
-```
-视觉点云 → PointNet++ → Visual Tokens [V1, V2, ..., Vn]
-                                         ↓
-触觉点云 → PointNet++ → Tactile Tokens [T1, T2, ..., Tm]
-                                         ↓
-                          Cross-Attention Transformer
-                                         ↓
-                              Fused Representation
-```
-
-**Cross-Attention 机制**：
-
-$$\text{Attn}(Q_T, K_V, V_V) = \text{softmax}\left(\frac{Q_T K_V^T}{\sqrt{d}}\right) V_V$$
-
-- Query 来自触觉模态：$Q_T = W_Q \cdot T$
-- Key/Value 来自视觉模态：$K_V = W_K \cdot V$, $V_V = W_V \cdot V$
-
-**物理解释**：触觉信号主动"询问"视觉特征中与当前接触相关的区域，实现注意力引导的信息选择。
-
-### 5.2 GelSight 与 Sim-to-Real 的模拟挑战 (GelSight and the Simulation Challenge of Sim-to-Real)
-
-GelSight 等光学触觉传感器通过内部摄像头拍摄弹性体（Elastomer）的形变来感知接触。为了在仿真中训练触觉策略，我们必须解决**触觉仿真（Tactile Simulation）**的难题。
-
-#### 5.2.1 传统方法的局限
-
-使用有限元分析（FEM）模拟弹性体形变虽然精确，但计算成本极高，无法满足强化学习（RL）所需的每秒数千次交互的采样效率。
-
-#### 5.2.2 Taxim：基于实例的快速仿真 (Taxim: Example-based Fast Simulation)
-
-Taxim  提出了一种革命性的方法，将光学模拟与力学模拟解耦。
-
-- **光学响应建模**：使用多项式查找表（Polynomial Lookup Table）将形变梯度映射到像素强度。这个表是通过极其少量（<100）的真实数据校准得到的。
-- **标记运动场 (Marker Motion Field)**：GelSight 表面通常印有标记点以追踪切向力（Shear Force）。Taxim 利用线性弹性理论的**叠加原理（Superposition Principle）**，预计算基本接触形状的位移场，然后通过线性组合快速合成复杂接触的位移场。
-- **Sim-to-Real 效果**：Taxim 将仿真速度提高了几个数量级，能够集成到 Isaac Gym 或 Gazebo 中，使得在大规模并行仿真中训练包含触觉反馈的 Sim-to-Real 策略成为可能 。
-
-### 5.3 视觉-触觉融合 Transformer (Visuo-Tactile Fusion Transformer)
-
-如何融合 3D 点云/图像（视觉）和 2D 接触图像（触觉）？简单的特征拼接（Concatenation）是不够的，因为两者具有不同的空间结构和更新频率。
-
-**Visuo-Tactile Transformer (VTT)**  及 **GelFusion**  采用了基于注意力机制的融合架构。
-
-| **模态**           | **特性**                 | **编码器**                | **角色**                           |
-| ------------------ | ------------------------ | ------------------------- | ---------------------------------- |
-| **视觉 (Vision)**  | 全局视角，低频，易遮挡   | ResNet / ViT              | 提供物体位姿先验，指导接近阶段     |
-| **触觉 (Tactile)** | 局部视角，高频，接触敏感 | ConvNet / Tactile Encoder | 提供接触几何、力反馈，指导操作阶段 |
-
-#### 5.3.1 交叉注意力机制 (Cross-Attention Mechanism)
-
-核心在于让触觉特征主动“查询”视觉特征。
-
-$$Attention(Q_{tactile}, K_{vision}, V_{vision}) = softmax(\frac{Q K^T}{\sqrt{d_k}}) V$$
-
-- **物理逻辑**：当触觉传感器探测到一个局部特征（例如感觉到一个棱角），它会生成一个 Query。交叉注意力机制会在视觉特征图（Keys）中搜索与该棱角相匹配的空间位置，从而将局部的触觉感受**注册（Register）**到全局的物体模型上。这有效地解决了局部感知带来的状态歧义性（State Ambiguity）。
-
-### 5.4 接触丰富任务中的具体应用 (Applications in Contact-Rich Tasks)
-
-在插拔任务（Peg-in-Hole）或精密装配中，单纯依靠视觉通常只能达到毫米级的精度，而任务往往需要微米级的对齐。
-
-- **多阶段策略 (Multi-stage Policy)**：
-  1. **Approach Phase**: 视觉主导，快速接近目标区域。
-    2. **Search/Alignment Phase**: 触觉主导。利用**螺旋搜索（Spiral Search）**或**力控（Force Control）**策略。此时，策略网络利用触觉反馈的梯度来微调动作，实际上是在执行一种隐式的**阻抗控制（Impedance Control）**。
-- **GelFusion 的鲁棒性**：实验表明，即使在人为遮挡摄像头的情况下，经过多模态训练的策略依然能利用触觉流（Tactile Flow）和本体感知（Proprioception）推断出物体状态，完成任务 。这证明了多模态融合不仅增加了信息量，更增加了系统的**冗余度（Redundancy）**和**鲁棒性（Robustness）**。
+插拔/精密装配单靠视觉只能毫米级、任务要微米级。**多阶段策略**：① **接近阶段**视觉主导、快速到目标区；② **搜索/对齐阶段**触觉主导，用螺旋搜索或力控，策略用触觉反馈梯度微调动作——本质是隐式的 [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|阻抗控制]]。**GelFusion 的鲁棒性**：即便人为遮挡摄像头，多模态策略仍能靠触觉流 + 本体感知推断状态完成任务——证明**多模态不只增信息量，更增冗余度与鲁棒性**。这就是插 USB 母题的完整闭环：视觉对准→触觉对齐→力控插入。
 
 ------
 
-## 6. Tutorial Analysis: 批判性综合与未来方向 (Critical Synthesis and Future Directions)
+## 6. 泛化理论：为什么表征决定泛化【理论枢纽】
 
-为了构建真正具备物理常识的知识库，我们不仅要记录成功，还要深入剖析当前的失败模式与局限性。
-
-### 6.1 Case Study: 长视界规划的因果断裂 (Causal Break in Long-Horizon Planning)
-
-**现象**：当前的端到端模型（如 RT-2, VoxPoser）在处理长序列任务（例如：“煮咖啡” = 拿杯子 $\to$ 放咖啡机 $\to$ 按按钮）时，经常出现“重复动作”（反复拿已经拿到的杯子）或“遗漏步骤” 。
-
-**根源分析**：
-
-- **马尔可夫假设的滥用**：大多数策略网络是反应式的（Reactive），即 $a_t = \pi(s_t)$。它们假设当前状态 $s_t$ 包含了所有必要信息。
-- **隐状态丢失**：在长序列任务中，很多关键信息（如“我已经按过按钮了吗？”）是**历史依赖（History-Dependent）**的，在当前视觉帧中可能不可见（按钮状态可能视觉上变化不明显）。
-- **因果推理缺失**：模型只学到了状态之间的统计相关性，没有学到**前置条件（Preconditions）**和**后置效果（Post-conditions）**的因果逻辑。
-
-**前沿解决方案**：
-
-- PALM / Guardian ：引入显式的**进度跟踪（Progress Tracking）**模块。模型不仅预测动作，还要预测“当前子任务是否完成”。
-- **分层规划（Hierarchical Planning）**：结合大语言模型（LLM）的高层逻辑推理能力与底层策略（如 ACT/Diffusion）的物理执行能力。LLM 充当“大脑”进行因果推理和任务分解，ACT 充当“小脑”处理接触动力学 。
-
-### 6.2 Case Study: Sim-to-Real 的物理陷阱与域随机化的局限 (The Physics Trap of Sim-to-Real and Limits of Domain Randomization)
-
-**现象**：即使使用了大规模的域随机化（Domain Randomization, DR），策略在真机上仍可能失败，尤其是在摩擦力极其敏感的任务（如灵巧手转笔）中 。
-
-**批判性洞察**：
-
-- **模型偏差（Model Bias）**：DR 的前提是真实世界落在模拟参数分布的覆盖范围内。然而，真实世界的许多物理效应（如软指尖的迟滞效应 Hysteresis、非库伦摩擦 Non-Coulomb Friction、线缆的柔性牵拉）在刚体模拟器中**根本没有被建模**。对于这些未建模动力学（Unmodeled Dynamics），再大的随机化范围也是徒劳 。
-- **系统辨识与在线适应 (System ID & Online Adaptation)**：未来的方向不是无限扩大 DR 范围，而是赋予机器人**在线系统辨识**能力。
-  - **RMA (Rapid Motor Adaptation)**：通过分析历史本体感知数据（Proprioception History），实时推断环境参数的隐变量（Latent Variable），并动态调整策略。这使得机器人能够在几秒钟内适应新的摩擦系数或物体质量，而无需重新训练。
-
-### 6.3 泛化理论基础：为什么表征决定泛化？(Generalization Theory: Why Representation Determines Generalization)
+> [!tip] 本节四拍
+> **直觉**（仿真训练的插 USB 策略，凭什么能在没见过的真实接口上工作？泛化的数学本质是什么？）→ **推导**（经验/期望风险→VC/Rademacher→表征如何降复杂度→域适应→隐式正则→NTK→鞍点）→ **对比**（VC 维 vs Rademacher；显式正则 vs 隐式正则）→ **落点**（好表征 = 低复杂度 = 好泛化）。
+>
+> 本节是**被多份 Foundation 反向链接的理论地基**——[[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|Optimization 的非凸景观]]、[[InformationTheory#5. 信息瓶颈：最优表征的信息论基础|信息瓶颈]]、[[StochasticProcess#5. 学习未知动力学：高斯过程与残差学习|GP 的样本效率]] 都在此交汇。
 
 > [!note] 教科书参考
-> 本节基于 **Theory of Deep Learning** (书籍) 的泛化理论章节，以及 Rademacher 复杂度与神经网络泛化的经典分析。
+> 本节基于 *Theory of Deep Learning* (Arora et al.) 的泛化理论、Rademacher 复杂度、隐式正则、NTK（Ch.9）与鞍点逃逸（Ch.6–7）章节。
 
-**核心问题**：为什么一个在仿真中训练的策略能够泛化到真实世界？泛化的数学本质是什么？
+### 6.1 经验风险 vs 期望风险
 
-#### 6.3.1 经验风险 vs 期望风险
+训练集 $\mathcal D=\{(x_i,y_i)\}_{i=1}^n$：经验风险 $\hat R(f)=\frac1n\sum\ell(f(x_i),y_i)$、期望风险 $R(f)=\mathbb E_{(x,y)\sim P}[\ell(f(x),y)]$。**泛化误差** $=R(f)-\hat R(f)$。核心问题：**如何控制泛化误差？**
 
-给定训练数据集 $\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n$，我们定义：
+### 6.2 VC 维与打散
 
-- **经验风险（Empirical Risk）**: $\hat{R}(f) = \frac{1}{n} \sum_{i=1}^n \ell(f(x_i), y_i)$
-- **期望风险（Expected Risk）**: $R(f) = \mathbb{E}_{(x,y) \sim P}[\ell(f(x), y)]$
-
-**泛化误差（Generalization Gap）** = $R(f) - \hat{R}(f)$
-
-泛化的核心问题是：**如何控制泛化误差？**
-
-#### 6.3.2 VC 维与打散 (VC Dimension & Shattering)
-
-> [!note] 教科书参考
-> 本节基于 **Theory of Deep Learning** (书籍) Chapter 5, Theorem 5.2.1 及 ρ-cover 分析
-
-Rademacher 复杂度之前，经典泛化理论的核心工具是 **VC 维**。理解 VC 维有助于把握泛化理论的历史脉络及其对深度学习的启示与局限。
-
-**定义（打散, Shattering）**：假设类 $\mathcal{H}$（二分类器集合）**打散**样本集 $S = \{x_1, \ldots, x_m\}$，如果对于 $S$ 上的**所有** $2^m$ 种标签赋值，都存在 $h \in \mathcal{H}$ 能正确分类。
-
-**定义（VC 维）**：$\mathcal{H}$ 的 VC 维 $d_{VC}(\mathcal{H})$ 是 $\mathcal{H}$ 能打散的**最大**样本集大小：
-
-$$d_{VC}(\mathcal{H}) = \max \{m : \exists S, |S| = m, \; \mathcal{H} \text{ shatters } S\}$$
-
-**经典例子**：
-- $\mathbb{R}^2$ 中的线性分类器：$d_{VC} = 3$（可以打散任意 3 个一般位置点，但无法打散 4 个点——XOR 问题）
-- $\mathbb{R}^d$ 中的线性分类器：$d_{VC} = d + 1$
+**打散**：假设类 $\mathcal H$ 打散样本集 $S$（$|S|=m$）当且仅当对 $S$ 上全部 $2^m$ 种标签都存在 $h\in\mathcal H$ 正确分类。**VC 维** $d_{VC}=\max\{m:\exists S,\mathcal H\text{ 打散 }S\}$。例：$\mathbb R^d$ 线性分类器 $d_{VC}=d+1$。
 
 > [!theorem] VC 泛化界
-> 设 $\mathcal{H}$ 的 VC 维为 $d$，损失取值 $[0, 1]$。以高概率 $1 - \delta$：
-> $$R(h) \leq \hat{R}(h) + O\left(\sqrt{\frac{d \log(m/d) + \log(1/\delta)}{m}}\right)$$
-> 
-> 即训练样本数 $m \gg d$ 时泛化误差趋于零。
+> VC 维为 $d$、损失 $\in[0,1]$，则以概率 $1-\delta$：$R(h)\le\hat R(h)+O\big(\sqrt{(d\log(m/d)+\log(1/\delta))/m}\big)$。即 $m\gg d$ 时泛化误差趋零。
 
-**VC 维 vs Rademacher 复杂度**：
+> [!important] 为什么 VC 维对深度学习失效（推动范式转移）
+> $k$ 参数网络 VC 维约 $O(k^2)$（Bartlett 1998），远大于训练样本数——预言严重过拟合，但实践中深度网络泛化良好。这一悖论把理论从 VC/Rademacher 推向**隐式正则化**（§6.6）。**灵巧操作含义**：VC 维只适用于简单（线性）策略类，深度策略的泛化更适合用域适应（§6.5）与 NTK（§6.7）。
 
-| 度量 | 依赖数据？ | 对深度学习的适用性 |
-|------|-----------|-----------------|
-| **VC 维** | 否（仅依赖假设类） | 过于宽松（给出 trivial bound） |
-| **Rademacher 复杂度** | 是（依赖数据分布） | 更紧，但仍不够解释过参数化 |
+### 6.3 Rademacher 复杂度与表征
 
-**为什么 VC 维对深度学习失效？**
+$$
+\mathfrak R_n(\mathcal F)=\mathbb E_{\sigma,\mathcal D}\Big[\sup_{f\in\mathcal F}\frac1n\sum_i\sigma_i f(x_i)\Big],\quad \sigma_i\in\{-1,+1\}.
+$$
 
-有限精度的 $k$ 参数网络的 VC 维约为 $O(k^2)$（Bartlett 1998），远大于训练样本数——这预言了严重过拟合。但实践中深度网络泛化良好。这一悖论推动了从 VC/Rademacher 复杂度转向**隐式正则化**理论（§6.3.6）的范式转移。
+泛化界 $R(f)\le\hat R(f)+2\mathfrak R_n(\mathcal F)+O(\sqrt{\log(1/\delta)/n})$。物理直觉：Rademacher 复杂度衡量函数类**拟合随机噪声的能力**——能完美拟合任意噪声则可能过拟合。它比 VC 维更紧（依赖数据分布），但仍不够解释过参数化。
 
-**灵巧操作含义**：
-- VC 维分析适用于简单策略类（线性策略），但对深度策略网络的泛化预测无效
-- Sim-to-Real 泛化更适合用**域适应**理论（§6.3.5）而非 VC 维分析
+### 6.4 为什么好表征 = 好泛化
 
-#### 6.3.3 Rademacher 复杂度与表征的关系
+两阶段模型 $f(x)=g(\phi(x))$（$\phi$ 表征/encoder、$g$ 任务头）：
 
-**定义（Rademacher 复杂度）**：
+> [!theorem] 表征降低下游复杂度
+> 若 $\phi$ 把输入映到**低维流形**，则 $\mathfrak R_n(\mathcal G\circ\phi)\le\mathfrak R_n(\mathcal G)\cdot\mathrm{Lip}(\phi)$。
 
-$$\mathfrak{R}_n(\mathcal{F}) = \mathbb{E}_{\sigma, \mathcal{D}} \left[ \sup_{f \in \mathcal{F}} \frac{1}{n} \sum_{i=1}^n \sigma_i f(x_i) \right]$$
+**灵巧操作含义**：PointNet 的 max-pooling 是隐式 Lipschitz 约束；VAE 瓶颈强制低维降复杂度；对比学习把相似样本拉近、减少有效维度——**这就是"好表征决定好泛化"的数学**，也是 §0 判断标准第三问的理论依据。
 
-其中 $\sigma_i \in \{-1, +1\}$ 是独立的 Rademacher 随机变量。
+### 6.5 Sim-to-Real 的泛化视角：域适应
 
-**泛化界**：以高概率，对于所有 $f \in \mathcal{F}$：
+把 sim-to-real 形式化为**域适应**：源域 $P_{sim}$、目标域 $P_{real}$。
 
-$$R(f) \leq \hat{R}(f) + 2\mathfrak{R}_n(\mathcal{F}) + O\left(\sqrt{\frac{\log(1/\delta)}{n}}\right)$$
+> [!theorem] 域差异界 (Ben-David et al.)
+> $R_{real}(f)\le R_{sim}(f)+d_{\mathcal H}(P_{sim},P_{real})+\lambda$，其中 $d_{\mathcal H}$ 是 $\mathcal H$-散度（两域可区分性）、$\lambda$ 是最优联合假设误差。
 
-**物理直觉**：Rademacher 复杂度衡量函数类 $\mathcal{F}$ 拟合随机噪声的能力。如果 $\mathcal{F}$ 能完美拟合任意噪声，则它可能过拟合；如果 $\mathcal{F}$ 无法拟合噪声，则它有更好的泛化性。
+三条实践（与 [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|RL sim-to-real]]一一对应）：① **域随机化**扩大 $P_{sim}$ 覆盖 $P_{real}$、降 $d_{\mathcal H}$；② **域不变表征**学 $\phi$ 使 $\phi(x_{sim})$ 与 $\phi(x_{real})$ 不可区分；③ **系统辨识**在线估 $P_{real}$ 参数、直接最小化 $R_{real}$。插 USB 泛化到新接口，本质是把 $d_{\mathcal H}$ 压到足够小。
 
-#### 6.3.4 为什么好的表征等于好的泛化？
+### 6.6 隐式正则化：为什么过参数化能泛化
 
-考虑两阶段模型：$f(x) = g(\phi(x))$，其中：
-- $\phi: \mathcal{X} \to \mathcal{Z}$ 是表征映射（encoder）
-- $g: \mathcal{Z} \to \mathcal{Y}$ 是下游任务头
+**悖论**：参数远超样本应过拟合，但现代深度学习恰在过参数化下表现出色。**答案：优化算法本身引入隐式正则化。**
 
-**关键定理**：如果表征 $\phi$ 将输入映射到**低维流形**，则下游任务的 Rademacher 复杂度显著降低：
+> [!important] GD 的最小范数偏置（命题 8.1.1）
+> 过参数化线性回归 $\min_w\frac12\|Xw-y\|^2$（$n<d$）有无穷多零损失解。GD 从 $w_0$ 收敛到 $w^*=\arg\min_{Xw=y}\|w-w_0\|_2$——**隐式寻找距初始化最近的零损失解**（因梯度恒在 $X$ 行空间）。
 
-$$\mathfrak{R}_n(\mathcal{G} \circ \phi) \leq \mathfrak{R}_n(\mathcal{G}) \cdot \text{Lip}(\phi)$$
+**镜像下降一般化**（定理 8.1.2）：对强凸势 $R$，收敛到 $\arg\min_{Xw=y}D_R(w,w_0)$（Bregman 散度）。
 
-其中 $\text{Lip}(\phi)$ 是 $\phi$ 的 Lipschitz 常数。
+| 算法 | 势函数 | 隐式偏置 |
+|:--|:--|:--|
+| 梯度下降 | $\frac12\|w\|_2^2$ | 最小 $\ell_2$ 范数 |
+| 指数梯度 | $\sum w_i\log w_i$ | 最大熵解 |
+| 自然梯度 | Fisher 矩阵 | 分布空间最短路径 |
 
-**灵巧操作含义**：
-- **点云 PointNet** 的 max-pooling 是一种隐式的 Lipschitz 约束
-- **VAE 的瓶颈** 强制低维表征，降低复杂度
-- **对比学习** 通过将相似样本拉近，减少有效维度
+深度网络中：线性网络 GD 倾向**低秩**解；ReLU 网络倾向低复杂度（path norm）；注意力的 softmax 隐式引入熵正则。**与 Rademacher 的联系**：隐式正则**有效降低函数类复杂度**——GD 能到达的解集 $\mathcal W_{GD}\subset\mathcal W$ 复杂度更低。**灵巧操作含义**：从 demo/pretrain 初始化 = 设 $w_0$，GD 找距此先验最近的解；LoRA 微调显式实现低秩偏好；扩散策略的 score matching 不需额外正则也因隐式正则。
 
-#### 6.3.5 Sim-to-Real 的泛化理论视角
-
-Sim-to-Real 问题可以被形式化为**域自适应（Domain Adaptation）**：
-
-- **源域**（仿真）: $P_{sim}$
-- **目标域**（真实）: $P_{real}$
-
-**域差异界**（Ben-David et al.）：
-
-$$R_{real}(f) \leq R_{sim}(f) + d_{\mathcal{H}}(P_{sim}, P_{real}) + \lambda$$
-
-其中：
-- $d_{\mathcal{H}}$ 是 **$\mathcal{H}$-散度**，衡量两个域的可区分性
-- $\lambda$ 是最优联合假设的误差
-
-**实践启示**：
-1. **域随机化（DR）** 扩大 $P_{sim}$ 以覆盖 $P_{real}$，降低 $d_{\mathcal{H}}$
-2. **域不变表征** 学习一个 $\phi$ 使得 $\phi(x_{sim})$ 与 $\phi(x_{real})$ 不可区分
-3. **系统辨识** 在线估计 $P_{real}$ 的参数，直接最小化 $R_{real}$
-
-#### 6.3.6 隐式正则化：为什么过参数化模型能泛化？(Algorithmic Regularization: Why Overparameterized Models Generalize)
+### 6.7 神经正切核 (Neural Tangent Kernel, NTK)
 
 > [!note] 教科书参考
-> 本节基于 **Theory of Deep Learning** (书籍) Chapter 8: Algorithmic Regularization，以及 mirror descent 与隐式偏置的经典分析。
+> 本节基于 *Theory of Deep Learning* Ch.9，定理 9.1.1 / 9.2.2 / 9.2.3，公式 9.6–9.11。**本小节被 [[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|Optimization]]、[[StochasticProcess#5. 学习未知动力学：高斯过程与残差学习|StochasticProcess]] 反向链接。**
 
-**悖论**：经典泛化理论（如 Rademacher 复杂度）表明，参数数量远超样本数量的模型应该严重过拟合。然而，现代深度学习恰恰在过参数化（overparameterization）条件下表现出色。**为什么？**
-
-答案在于：**优化算法本身引入了隐式正则化（Implicit Regularization）**。
-
-##### 最小范数解与梯度下降的偏置
-
-考虑过参数化线性回归：$\min_w \frac{1}{2}\|Xw - y\|_2^2$，其中 $X \in \mathbb{R}^{n \times d}$，$n < d$（样本少于参数）。
-
-存在无穷多个零损失解 $\mathcal{G} = \{w : Xw = y\}$。然而，梯度下降从初始化 $w_0$ 出发，会收敛到**特定的**解。
-
-**命题 8.1.1**（GD 的最小范数偏置）：对于线性回归损失，梯度下降从 $w_0$ 出发收敛到：
-
-$$w^* = \arg\min_{w \in \mathcal{G}} \|w - w_0\|_2$$
-
-即：GD 隐式地寻找**距离初始化最近**（在 $\ell_2$ 范数意义下）的零损失解。
-
-**证明直觉**：梯度 $\nabla L = X^\top(Xw - y)$ 总是在 $X$ 的行空间中。因此 $w_t - w_0$ 始终在行空间，而 $w^* - w_0$ 正是行空间中到 $\mathcal{G}$ 的最短向量。
-
-##### 镜像下降的一般化
-
-**定理 8.1.2**（Mirror Descent 的隐式偏置）：对于任何强凸势函数 $R$，镜像下降从 $w_0$ 出发收敛到：
-
-$$w^* = \arg\min_{w \in \mathcal{G}} D_R(w, w_0)$$
-
-其中 $D_R(w, w_0) = R(w) - R(w_0) - \langle \nabla R(w_0), w - w_0 \rangle$ 是 **Bregman 散度**。
-
-| **算法** | **势函数 $R(w)$** | **隐式偏置** | **适用场景** |
-|----------|-------------------|--------------|--------------|
-| 梯度下降 | $\frac{1}{2}\|w\|_2^2$ | 最小 $\ell_2$ 范数 | 一般深度学习 |
-| 指数梯度下降 | $\sum_i w_i \log w_i$ | 最大熵解 | 分类、注意力机制 |
-| 自然梯度 | Fisher 信息矩阵 | 分布空间最短路径 | 策略梯度 RL |
-
-##### 最速下降与几何的微妙性
-
-**警告**：对于一般范数 $\|\cdot\|_p$（$p \neq 2$），**最速下降**（Steepest Descent）的隐式偏置依赖于步长，且不一定收敛到最小范数解。
-
-$$w_{t+1} = w_t - \eta \cdot \arg\max_{\|v\|_p^* \leq 1} \langle v, \nabla L(w_t) \rangle$$
-
-其中 $\|\cdot\|_p^*$ 是对偶范数。这表明**优化算法的几何结构决定了隐式正则化的形式**。
-
-##### 深度学习中的隐式正则化
-
-对于深度神经网络，隐式正则化更加微妙：
-
-1. **线性网络**：$f(x) = W_L W_{L-1} \cdots W_1 x$，GD 倾向于找**低秩**解（矩阵分解的 nuclear norm 最小化）
-2. **ReLU 网络**：GD 倾向于找**低复杂度**（total variation / path norm 意义下）的函数
-3. **注意力机制**：softmax 隐式引入熵正则化，促使注意力集中
-
-**与 Rademacher 复杂度的联系**：隐式正则化**有效降低了函数类的复杂度**。虽然参数空间 $\mathcal{W}$ 很大，但 GD 只能到达的解集 $\mathcal{W}_{GD} \subset \mathcal{W}$ 具有更低的 Rademacher 复杂度。
-
-**灵巧操作含义**：
-- **策略初始化**：从 demo/pretrain 初始化可视为设置 $w_0$，GD 将找到距离此先验最近的解
-- **LoRA 微调**：通过低秩约束，显式实现 GD 对低秩解的隐式偏好
-- **Diffusion Policy 的 score matching**：隐式正则化解释了为何去噪目标不需要额外正则项
-
-#### 6.3.7 神经正切核 (Neural Tangent Kernel, NTK)
-
-> [!note] 教科书参考
-> 本节基于 **Theory of Deep Learning** (Arora et al.) Chapter 9: Ultra-wide Neural Networks and Neural Tangent Kernel，定理编号 9.1.1 / 9.2.2 / 9.2.3，公式 9.6–9.11。
-
-##### 物理直觉
-
-NTK 给出了一个看似矛盾现象的精确数学解释：**为什么参数远多于样本的过参数化神经网络，其训练动力学竟然等价于一个固定的核回归？** 当宽度 $m \to \infty$，每个权重在训练中只移动 $O(1/\sqrt{m})$，网络函数被困在初始化的一阶 Taylor 展开邻域内——这就是 **lazy training / kernel regime**。
-
-##### 形式化定义
-
-对平方损失 $\ell(w) = \tfrac{1}{2} \sum_i (f(w, x_i) - y_i)^2$，梯度流 $\dot w = -\nabla \ell(w)$ 诱导预测向量 $u(t) = (f(w(t), x_i))_i$ 演化：
+**物理直觉**：为什么参数远多于样本的过参数化网络，训练动力学竟等价于一个固定核回归？当宽度 $m\to\infty$，每个权重训练中只移动 $O(1/\sqrt m)$，网络函数被困在初始化的一阶 Taylor 邻域——**lazy training / kernel regime**。
 
 > [!theorem] Lemma 9.1.1（演化方程）
-> $$\frac{du(t)}{dt} = -H(t) \cdot (u(t) - y), \qquad [H(t)]_{ij} = \left\langle \frac{\partial f(w(t), x_i)}{\partial w}, \frac{\partial f(w(t), x_j)}{\partial w} \right\rangle.$$
+> 平方损失下梯度流诱导预测向量 $u(t)$ 演化 $\frac{du}{dt}=-H(t)(u(t)-y)$，$[H(t)]_{ij}=\langle\partial_w f(w,x_i),\partial_w f(w,x_j)\rangle$。
 
-对二层 ReLU 网络 $f(a, W, x) = (1/\sqrt{m}) \sum_r a_r \sigma(w_r^\top x)$，无穷宽极限下的 **NTK 核**为：
+二层 ReLU 无穷宽极限的 **NTK 核** $H^*_{ij}=x_i^Tx_j\cdot\mathbb E_{w}[\sigma'(w^Tx_i)\sigma'(w^Tx_j)]$，解析形式 $H^*_{ij}=\frac{x_i^Tx_j}{2\pi}(\pi-\arccos\frac{x_i^Tx_j}{\|x_i\|\|x_j\|})$。
 
-$$H^*_{ij} \;=\; x_i^\top x_j \cdot \mathbb{E}_{w \sim \mathcal{N}(0, I)}[\sigma'(w^\top x_i)\, \sigma'(w^\top x_j)].$$
+> [!theorem] Lemma 9.2.2 / 9.2.3（NTK 收敛与核区间稳定）
+> 若 $m=\Omega(\varepsilon^{-2}n^2\log(n/\delta))$，则 $\|H(0)-H^*\|\le\varepsilon$；若 $m=\Omega(n^6t^2/\varepsilon^2)$，则训练时间 $t$ 内 $\|H(t)-H(0)\|\le\varepsilon$。**关键**：每权重只移动 $O(tn/\sqrt m)$，$H(t)$ 近似常量，动力学退化为线性 ODE $\dot u\approx-H^*(u-y)$。
 
-ReLU 解析形式：
+特征分解 $H^*=\sum_i\lambda_iv_iv_i^T$ 给出沿各特征方向的指数衰减 $v_i^T(u(t)-y)=e^{-\lambda_it}v_i^T(u(0)-y)$——**收敛速率=NTK 谱**。泛化界（Eq. 9.11）：$\text{误差}\le\frac{\sqrt{2\,y^T(H^*)^{-1}y\cdot\mathrm{tr}(H^*)}}n$——泛化取决于标签 $y$ 在 $H^*$ 谱上的分布（低频成分多则泛化好）。
 
-$$H^*_{ij} = \frac{x_i^\top x_j}{2\pi} \left( \pi - \arccos\!\frac{x_i^\top x_j}{\|x_i\| \|x_j\|} \right).$$
+> [!important] NTK 的意义与局限
+> **意义**：① 过参数化不是 bug，是 lazy regime 成立的充分条件；② 核区间损失对预测向量是凸二次、全局收敛有保证（这是 [[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|非凸优化里一个可处理的凸化特例]]）；③ 解耦"学到什么"（核 $H^*$）与"如何学"（GD）。**局限**：lazy regime **不覆盖特征学习**（表征恰是初始化随机特征）；依赖 $1/\sqrt m$ 缩放；高维下 NTK 病态、指数收敛被最小特征方向拖慢。**灵巧操作应用**：lazy training 解释了"为何 frozen-rigid + 5min 真机数据微调可行"——大模型小数据更新困在 NTK 邻域、等价固定核回归、避免灾难性遗忘（[[StochasticProcess#5. 学习未知动力学：高斯过程与残差学习|GP]] 是其贝叶斯近亲）。
 
-##### 核心定理：lazy training
-
-> [!theorem] Lemma 9.2.2（初始化时的 NTK 收敛）
-> 若 $m = \Omega(\varepsilon^{-2} n^2 \log(n/\delta))$，则以概率 $\geq 1 - \delta$，$\|H(0) - H^*\|_2 \leq \varepsilon$。
-
-> [!theorem] Lemma 9.2.3（核区间的稳定性）
-> 若 $m = \Omega(n^6 t^2 / \varepsilon^2)$，则训练时间 $t$ 内 $\|H(t) - H(0)\|_2 \leq \varepsilon$。
->
-> **证明关键**：每个权重在 $[0, t]$ 内只移动 $\|w_r(t) - w_r(0)\|_2 = O(tn / \sqrt{m})$，故 $H(t)$ 近似常量，训练动力学退化为线性 ODE
-> $$\dot u(t) \approx -H^* (u(t) - y).$$
-
-特征分解 $H^* = \sum_i \lambda_i v_i v_i^\top$ 给出沿每个特征方向的指数衰减：
-
-$$v_i^\top (u(t) - y) = e^{-\lambda_i t} \cdot v_i^\top (u(0) - y).$$
-
-即**收敛速率 = NTK 谱**；训练目标若与 $H^*$ 的高频特征向量对齐，则收敛极慢。
-
-最终预测器等价于核最小二乘回归：
-
-$$f^*(x) = (k(x, x_1), \ldots, k(x, x_n)) \cdot (H^*)^{-1} y.$$
-
-##### 泛化界（Eq. 9.11）
-
-NTK 区间下，Rademacher 复杂度给出：
-
-$$\text{generalization error} \;\leq\; \frac{\sqrt{2\, y^\top (H^*)^{-1} y \cdot \mathrm{tr}(H^*)}}{n}.$$
-
-**洞见**：泛化好坏取决于标签 $y$ 在 $H^*$ 谱上的分布——若 $y$ 主要由低频（大特征值）成分组成，则 $y^\top (H^*)^{-1} y$ 小，泛化好。
-
-##### 为什么有效
-
-- **过参数化解释**：宽度 $m$ 越大，权重位移越小，linearization 误差越小——over-parameterization 不是 bug，是 lazy regime 成立的**充分条件**。
-- **凸优化等价性**：在核区间，损失函数对预测向量 $u$ 是凸的（二次型），全局收敛有保证。
-- **解耦优化与表征**：NTK 把"网络学到了什么"（kernel $H^*$）与"如何学"（梯度下降）分离开来。
-
-##### 局限性
-
-- **lazy regime 不覆盖特征学习**：NTK 区间的网络不会真正"学到新特征"——其表征恰好是初始化的随机特征。这与现代深度学习中特征学习的关键作用矛盾。
-- **依赖 $1/\sqrt{m}$ 缩放**：实际网络通常使用 $1/m$（mean-field）或其他缩放，导致非 NTK 行为。
-- **谱条件数 $\lambda_1 / \lambda_n$ 巨大**：高维数据下 NTK 矩阵病态，理论的指数收敛在实践中被极慢的最小特征方向主导。
-
-##### 灵巧操作应用
-
-- **小数据真机 RL（[[Idea-002-Latency-Aware-Actuator]] / [[Idea-012-WPTE-Tactile-Encoder]]）**：lazy training 解释了为何 frozen-rigid + 5 min 真机适配可行——大模型在小数据上的更新被困在 NTK 邻域，等价于在固定 kernel 上做核回归，避免了灾难性遗忘。
-- **WM 重要性加权（[[Idea-011-WM-Importance-Weighted-Diffusion]]）**：NTK 谱分析为"加权核回归"提供严格基础——重要性权重 $\rho_i$ 修改的是有效核 $H^*_{ij} \to \rho_i \rho_j H^*_{ij}$，可解析其条件数变化。
-- **Diffusion Policy 训练动力学**：score matching 在 NTK 区间下是线性 ODE，可从谱角度分析 denoising step 数与样本复杂度的折中。
-
-#### 6.3.8 优化景观与逃离鞍点 (Optimization Landscape & Escaping Saddles)
+### 6.8 优化景观与逃离鞍点
 
 > [!note] 教科书参考
-> 本节基于 **Theory of Deep Learning** Chapter 6 (Tractable Landscapes) 与 Chapter 7 (Escaping Saddle Points)，定义 6.3.2 / 6.3.3 / 7.1.3 / 7.1.5，定理 7.2.1 与 11.3.5。
+> 本节基于 *Theory of Deep Learning* Ch.6（可处理景观）与 Ch.7（逃离鞍点），定义 6.3.2/6.3.3，定理 7.2.1/11.3.5。
 
-##### 物理直觉
+**物理直觉**：非凸景观的"可优化性"不取决于全局凸性，而取决于更温和的几何：**局部极小全是全局，且每个鞍点都有严格负曲率方向**——这是矩阵分解、相位恢复等能用 GD 解决的根本。
 
-非凸损失景观的"可优化性"不取决于全局凸性，而取决于一个温和得多的几何条件：**局部 minima 全是 global，且每个 saddle 都有严格负曲率方向**——这正是矩阵分解、相位恢复、张量分解等许多机器学习问题在实践中能用 GD 解决的根本原因。
+> [!important] 定义：二阶稳定点 (SOSP) 与 strict saddle
+> $w$ 是 $(\varepsilon,\gamma)$-SOSP 当 $\|\nabla f\|\le\varepsilon$ 且 $\lambda_{\min}(\nabla^2f)\ge-\gamma$。$f$ **ridable（可优化）** 当所有局部极小都是全局、所有鞍点都是 strict saddle（$\lambda_{\min}(\nabla^2f)<0$）。
 
-##### 形式化定义
-
-> [!important] Def 6.3.2（$(\varepsilon, \gamma)$-SOSP）
-> $w$ 是**二阶稳定点**当且仅当 $\|\nabla f(w)\|_2 \leq \varepsilon$ 且 $\lambda_{\min}(\nabla^2 f(w)) \geq -\gamma$。
-
-> [!important] Def 6.3.3（局部可优化 / Strict Saddle 性质）
-> $f$ 是**ridable**（可优化）当且仅当 $\forall \tau > 0$，$\exists\, \varepsilon, \gamma = \mathrm{poly}(\tau)$，使得每个 $(\varepsilon, \gamma)$-SOSP $w$ 都满足 $f(w) \leq f(w^*) + \tau$。
->
-> 等价表述：**所有局部极小点都是全局极小**，**所有鞍点都是 strict saddle**（即 $\lambda_{\min}(\nabla^2 f) < 0$）。
-
-##### 核心定理：扰动梯度下降逃离鞍点
-
-**Perturbed Gradient Descent (PGD)**：$x_{t+1} \leftarrow x_t - \eta(\nabla f(x_t) + \xi_t),\ \xi_t \sim \mathcal{N}(0, (r^2/d) I)$。
-
-> [!theorem] Theorem 7.2.1（PGD 高效逃离鞍点）
-> 若 $f$ 是 $\ell$-梯度 Lipschitz、$\rho$-Hessian Lipschitz，取 $\eta = 1/\ell$、$r = \tilde\Theta(\varepsilon)$，则 PGD 在 $\tilde O\big(\ell(f(x_0) - f^*) / \varepsilon^2\big)$ 步内以高概率找到 $\varepsilon$-SOSP。
->
-> **关键**：维度依赖仅为 $\mathrm{polylog}(d)$——与 GD 找一阶稳定点的复杂度（除对数因子外）相同。
-
-##### 景观结构定理
+> [!theorem] Theorem 7.2.1（扰动 GD 逃离鞍点）
+> 扰动 GD $x_{t+1}=x_t-\eta(\nabla f+\xi_t),\xi_t\sim\mathcal N(0,(r^2/d)I)$，对 $\ell$-梯度-Lipschitz、$\rho$-Hessian-Lipschitz 的 $f$，在 $\tilde O(\ell(f(x_0)-f^*)/\varepsilon^2)$ 步内高概率找到 $\varepsilon$-SOSP。**关键**：维度依赖仅 $\mathrm{polylog}(d)$。
 
 > [!theorem] Theorem 11.3.5（dropout 矩阵分解无伪局部极小）
-> 设 $r = \mathrm{rank}(M)$，$d_1 \leq d_0$，$\lambda < r \lambda_r(M) / \big(\sum_{i=1}^r \lambda_i(M) - r \lambda_r(M)\big)$。dropout 正则化的矩阵分解平方损失满足：
-> 1. 所有局部极小点都是全局极小；
-> 2. 所有鞍点都是 strict saddle。
+> dropout 正则的矩阵分解平方损失（适当 $\lambda$）满足：① 所有局部极小都是全局；② 所有鞍点都是 strict saddle。同类景观结果覆盖 matrix sensing/completion、dictionary learning、phase retrieval、tensor decomposition、deep linear nets。
 
-特例 $\lambda = 0$ 即标准矩阵分解（[BH89, JGN+17]）。同类景观结果还覆盖：matrix sensing [BNS16]、matrix completion [GLM16]、dictionary learning [SQW16]、phase retrieval [SQW18]、tensor decomposition [GHJY15]、deep linear nets [Kaw16]。
-
-##### 为什么有效
-
-- **几何 + 算法的协同**：strict saddle 性质保证存在逃离方向，PGD 的高斯扰动以高概率落入逃离方向，由 Hessian Lipschitz 给出确定的下降量。
-- **维度无关性**：扰动梯度的"球面随机化"使得逃离时间只与最坏特征值相关，而非 $d$。
-- **替代凸性**：strict saddle + no spurious minima 给出了**与凸性等价的全局收敛保证**，但无需凸性假设。
-
-##### 局限性
-
-- **真实深度网络非 ridable**：标准多层 ReLU 网络存在 spurious local minima 与 degenerate saddle（$\lambda_{\min} = 0$）。Theorem 7.2.1 只保证收敛到 SOSP，不保证全局最优。
-- **Hessian Lipschitz 假设**：ReLU 不满足，需用 smoothed surrogate 分析。
-- **扰动尺度敏感**：$r$ 过大破坏收敛，过小逃离过慢；实践中 SGD 的内禀噪声替代显式扰动。
-
-##### 灵巧操作应用
-
-- **CMA-ES Latent Task Generator（[[Final_WMTS]] §三）**：CMA-ES 协方差自适应可视为 PGD 的二阶推广——其逃离 saddle 的能力解释了为何 latent 任务搜索能跳出 trivial 模式。
-- **iLQR/DDP 收敛性（[[Optimization#4.1 核心算法：iLQR / DDP|iLQR 章节]]）**：接触约束的 trajectory optimization 存在大量 saddle，PGD 理论指导了 trust region 半径与 noise injection 设计。
-- **Diffusion 训练（[[StochasticProcess]]）**：DDPM 的 noise injection 在景观视角下是天然的 PGD，解释了为何 score matching 训练对初始化鲁棒。
-- **WMTS [[Idea-014-WM-Gradient-Adaptive-DR]]**：DR 方差预算调度本质上在调控 loss landscape 的 conditioning，strict saddle 视角给出了"何时增大方差以助逃离"的理论判据。
-
----
-
-### 6.4 结论：从拟合到物理理解 (Conclusion: From Fitting to Physical Understanding)
-
-灵巧操作的机器学习正在经历一场深刻的变革。我们已经证明了大规模数据和生成式模型（Diffusion, Transformers）可以拟合极其复杂的动作分布。然而，**拟合不是理解**。
-
-未来的研究应当聚焦于：
-
-1. **Differentiable Physics + Learning**：将物理定律作为可微层嵌入网络，利用物理梯度指导学习，而非仅仅作为黑盒数据源 。
-2. **Causal Representation Learning**：学习状态变量之间的因果结构图，而非仅仅是像素距离，以实现真正的 OOD 泛化。
-3. **Active Tactile Exploration**：不仅是被动感知触觉，而是像人类一样，通过主动触摸（Active Touch）来减少环境的不确定性 。
-
-作为科研人员，我们在构建知识库时，应当透过 SOTA 的迷雾，抓住物理交互这一根本线索。机器人的灵巧性终究是在物理世界中定义的，而不是在损失函数的收敛曲线中。
+**意义**：strict saddle + no spurious minima 给出**与凸性等价的全局收敛保证**，但无需凸性。**局限**：真实深度 ReLU 网络非 ridable（有 spurious minima 与退化鞍点），且 ReLU 不满足 Hessian Lipschitz。**灵巧操作应用**：扰动 GD 理论正是 [[StochasticProcess#2.2 Itō 引理：噪声不止增加方差，还改变能量的漂移方向|噪声逃逸鞍点]]、[[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|优化鞍点逃逸]]、[[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 熵正则]]、扩散训练 noise injection 的统一理论根——**它们都是"用噪声逃离对称造成的鞍点"**。
 
 ------
 
-**Table 1: Comparison of Core Machine Learning Paradigms in Dexterous Manipulation**
+## 7. 批判性综合：失败模式与知识回扣
 
-| **Paradigm**         | **Key Algorithm**        | **Action Distribution**           | **Handling Multimodality**      | **Temporal Consistency**       | **Primary Limitation**                |
-| -------------------- | ------------------------ | --------------------------------- | ------------------------------- | ------------------------------ | ------------------------------------- |
-| **Behavior Cloning** | Standard BC (ResNet/MLP) | Deterministic / Unimodal Gaussian | **Poor** (Averages modes)       | Low (Needs smoothing)          | Covariate shift, compounding errors   |
-| **Implicit BC**      | IBC (Energy-Based)       | Energy Landscape (Implicit)       | **Good** (Multiple minima)      | Medium                         | Inference cost (MCMC sampling)        |
-| **Action Chunking**  | ACT (CVAE + Transformer) | CVAE Latent + Deterministic       | **Good** (Via Latent $z$)       | **High** (Temporal Ensembling) | Fixed chunk size, training stability  |
-| **Diffusion Policy** | DDPM / DDIM              | Gradient Field (Score Function)   | **Excellent** (Arbitrary dist.) | **High** (Horizon prediction)  | Inference speed (Iterative denoising) |
+> [!tip] 本节四拍
+> **直觉**（拟合不是理解——SOTA 模型仍在长时程与 sim-to-real 上翻车）→ **推导**（因果断裂、物理陷阱的根源）→ **对比**（反应式 vs 历史/因果感知）→ **落点**（用一条 USB 把全讲串起来记住）。
+
+### 7.1 失败模式一：长视界规划的因果断裂
+
+端到端模型（RT-2、VoxPoser）处理长序列（"煮咖啡=拿杯→放咖啡机→按钮"）常出现重复动作或遗漏步骤。**根源**：① **马尔可夫假设滥用**——多数策略是反应式 $a_t=\pi(s_t)$，假设当前帧含全部信息；② **隐状态丢失**——"我按过按钮了吗"是历史依赖的、当前帧可能不可见；③ **因果推理缺失**——只学了状态间统计相关，没学前置条件/后置效果。**解法**：显式**进度跟踪**（PALM/Guardian，预测"子任务是否完成"）；**分层规划**（LLM 高层因果推理 + ACT/Diffusion 低层物理执行——大脑+小脑，接 [[EmbodiedAI]]）。插 USB 的长程版"找线→对准→插入→确认通电"同样需要进度跟踪，否则会反复尝试已插好的口。
+
+### 7.2 失败模式二：Sim-to-Real 的物理陷阱
+
+即便大规模域随机化 (DR)，摩擦敏感任务（转笔、插 USB）真机仍可能失败。**批判**：DR 前提是真实落在仿真参数分布内，但许多真实效应（软指迟滞、非库伦摩擦、线缆柔性牵拉）在刚体仿真里**根本没建模**——对这些**未建模动力学**，再大随机化也徒劳（与 [[StochasticProcess#3.1 三类不确定性|结构不确定性]]一致）。**方向**：不是无限扩大 DR，而是赋予**在线系统辨识**能力——**RMA** 分析本体感知历史、实时推断环境隐变量并动态调策略，几秒内适应新摩擦/质量（与 [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RMA]]、[[ControlTheory#12. 自适应控制与确定性等价|自适应控制]]同一思想）。
+
+### 7.3 知识回扣与记忆图：一条 USB 串起表征学习
+
+> [!abstract] 用一条故事线把全讲复述一遍（刻意复述，为了记忆）
+> 我们要插一个 USB。**(§1)** 接触是断续突变的，神经网络的"均值化"会把正插/反插平均成插向空气——这是高维非连续的诅咒。**(§2)** 于是用扩散策略/Flow Matching 把动作建成多峰分布、用 ACT 分块预测整段插入序列并 EWMA 平滑。**(§3)** 但要泛化到没见过的接口，靠的是表征：从 PCA 到 VAE 到对比学习，且通用人类视频表征因具身差异失灵，需 DON 学接触几何的像素级对应、用雅可比正则保稳定。**(§4)** 接口的 3D 形状用点云表征（PointNet++/Transformer），3D Flow 让动作跨载体泛化。**(§5)** 接触后视觉模糊，靠视触觉交叉注意力把局部触觉注册到全局模型——视觉对准、触觉对齐、力控插入。**(§6)** 而这一切"为何能从仿真泛化到真实接口"，由泛化理论回答：好表征=低复杂度=低 Rademacher，域差异界量化 sim-real gap，隐式正则与 NTK 解释过参数化为何不过拟合、小数据微调为何可行。**(§7)** 最后警惕：长程要进度跟踪防因果断裂，sim-real 要在线辨识防物理陷阱。**一条 USB，插完了整座表征学习大厦。**
+
+> [!important] 一张表记住全篇（层 → 问题 → 工具 → 插 USB 角色）
+> | 层 | 核心问题 | 关键工具 | 插 USB 的哪一环 |
+> |:--|:--|:--|:--|
+> | §1 物理本质 | 接触为何坑神经网络 | 流形假设、LCP | 别把正/反插平均成空气 |
+> | §2 动作分布 | 多峰怎么建 | 扩散、Flow Matching、ACT | 正插/反插两峰都保留 |
+> | §3 表征演进 | 怎么泛化到新接口 | VAE、对比、DON、雅可比正则 | 学接触几何而非语义 |
+> | §4 几何表征 | 3D 形状怎么进 | PointNet++、3D Flow | 接口孔位的点云 |
+> | §5 多模态 | 视觉模糊后靠谁 | 交叉注意力、Taxim | 视觉对准→触觉对齐 |
+> | §6 泛化理论 | 为何能 sim→real | Rademacher、域适应、NTK | 量化 sim-real gap |
+> | §7 失败模式 | 还会怎么翻车 | 进度跟踪、RMA | 防重复插、防未建模摩擦 |
+
+> [!tip] 三条贯穿全讲的"暗线"（抓住它们，细节自来）
+> 1. **均值坍缩是万恶之源**：从 §1 的接触均值化到 §2 的多峰建模——整条"BC→MDN→IBC→Diffusion/ACT"演进就是在逃离均值坍缩。
+> 2. **压缩=泛化=去噪**：信息瓶颈（§3.1）、低维流形降 Rademacher（§6.4）、压缩去噪对偶（[[InformationTheory#5.1 率失真：压缩的理论下界|率失真]]）——**好表征的三个等价面**。
+> 3. **优化算法自带正则**：隐式正则（§6.6）、NTK lazy regime（§6.7）、扰动 GD 逃鞍点（§6.8）——"如何学"本身就决定了"学到什么能泛化"，这把表征学习与 [[Optimization]] 钉在一起。
+
+> [!note] 跨领域链接（双向、点对点）
+> - **↔ [[ReinforcementLearning]]**：扩散策略被 RL 微调（§2.2）；对比 RL（§3.4）；表征=状态；NTK 解释小数据真机微调。
+> - **↔ [[InformationTheory]]**：信息瓶颈=VAE 的 $\beta$（§3.1）；压缩=去噪；泛化需要压缩（§6.4）。
+> - **↔ [[Optimization]]**：IBC=能量景观下降；NTK 区间凸化（§6.7）；隐式正则↔近端（§6.6）；鞍点逃逸（§6.8）。
+> - **↔ [[ComputationalGeometry]]**：点云/SDF 几何表征（§4）；神经隐式 DeepSDF/NGDF。
+> - **↔ [[SignalProcessing]]**：触觉表征、Taxim 仿真（§5.3）；ACT 时间集成=低通（§2.3）；压缩去噪。
+> - **↔ [[StochasticProcess]]**：扩散=朗之万/SDE（§2.2）；NTK↔GP（§6.7）；噪声逃鞍点（§6.8）。
+> - **↔ [[Dynamics]]**：可微物理（§1.3）；Rodrigues 正运动学模板→RodriNet（§4.3）。
+> - **↔ [[ControlTheory]]**：雅可比正则=Lipschitz 稳定（§3.4）；RMA=自适应控制（§7.2）。
+> - **↔ [[EmbodiedAI]]**：分层 LLM+ACT（§7.1）；Vision Foundation Models；VLA 用扩散/FM 动作头。
 
 ------
 
-*Report compiled by the Chief Scientist, Robotics Dexterous Manipulation Research Group.*
+## 8. 结论：从拟合到物理理解
 
-*Date: January 2026*
+大规模数据与生成式模型（Diffusion、Transformer）能拟合极复杂的动作分布。但**拟合不是理解**。未来聚焦：① **可微物理 + 学习**——物理定律作可微层、用物理梯度指导学习；② **因果表征学习**——学状态变量的因果结构图而非像素距离，实现真 OOD 泛化；③ **主动触觉探索**——像人一样主动触摸减少不确定（接 [[InformationTheory#3. 概率接触模型与高斯过程探索|主动感知]]）。机器人的灵巧性终究在物理世界中定义，而非损失曲线的收敛里。
+
+| 范式 | 关键算法 | 动作分布 | 多峰 | 时序一致 | 主要局限 |
+|:--|:--|:--|:--|:--|:--|
+| **行为克隆** | BC (ResNet/MLP) | 确定性/单峰高斯 | 差（均值化） | 低（需平滑） | 协变量漂移、复合误差 |
+| **隐式 BC** | IBC（能量） | 能量景观（隐式） | 好（多极小） | 中 | 推理成本（MCMC） |
+| **动作分块** | ACT (CVAE+Transformer) | CVAE latent + 确定性 | 好（经 $z$） | 高（时间集成） | 固定 chunk、训练稳定性 |
+| **扩散策略** | DDPM/DDIM/Flow Matching | 分数场/速度场 | 极佳（任意分布） | 高（horizon 预测） | 推理速度（迭代去噪） |
 
 ------
 
-## 相关论文 (PapersRecap)
+## 9. 相关论文 (PapersRecap)
 
 > [!abstract] 知识图谱反向链接
-> 以下论文在其研究中涉及表征学习的核心主题
+> 以下论文涉及本 Foundation 的表征学习核心主题。
 
 ### 视触觉表征
 - [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]] — 视触觉联觉表征
 - [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] — 触觉点云表征
 - [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)]] — 双手视触觉技能
-- [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]] — **视觉触觉自监督预训练**，低成本感知实现高性能
+- [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]] — 视觉触觉自监督预训练
+- [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]] — 触觉点云 + 跨模态融合
 
 ### Diffusion 策略与生成式表征
-- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation]] — 扩散策略
+- [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation]] — 规划引导扩散策略
 - [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation]] — 仿真增强表征
+- [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT]] — 动作分块 + CVAE
 
 ### 多模态融合与课程学习
-- [[Vision-force-fused Curriculum Learning for Robotic Assembly]] — **视觉-力融合课程**，感知渐进训练范式
+- [[Vision-force-fused Curriculum Learning for Robotic Assembly]] — 视觉-力融合课程
 
 ### 潜在空间学习
-- [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] — 快速自适应的隐编码
+- [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] — 快速自适应隐编码
 - [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation]] — 观测空间课程
 
 ### 层级与时序表征
@@ -1171,23 +534,22 @@ $$\text{generalization error} \;\leq\; \frac{\sqrt{2\, y^\top (H^*)^{-1} y \cdot
 - [[Weight-sparse transformers have interpretable circuits]] — 稀疏可解释回路
 
 ### 物理感知几何表征
-- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — **Dynamics-lifted 几何预训练**：在 transport equation 空间构建 E(3)-equivariant 表征，跨粒子系统泛化
-- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — **动力学感知表征**：点级世界模型 (位置+质量+速度) 条件化 RL，extrinsic dexterity 涌现
+- [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — Dynamics-lifted 几何预训练，E(3)-等变
+- [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — 动力学感知表征，点级世界模型
+- [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] — Rodrigues 正运动学作可学习 action backbone
 
 ### 触觉仿真表征
-- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] — **统一 Deform Map 表征**：穿透深度作为域不变触觉几何空间，zero-shot sim-to-real
-- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|STOLA]] — **MoE 触觉-语言模型**：动态路由区分触觉与语言模态
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] — 统一 Deform Map，穿透深度域不变表征
+- [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning|STOLA]] — MoE 触觉-语言模型
 
 ### VLA 潜空间推理
-- [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — **潜在时空链式推理**：在隐空间而非文本空间执行 CoT，MoT 双系统路由
+- [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — 潜在时空链式推理，MoT 双系统
 
 ### 信息瓶颈与运动生成表征
-- [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]] — **RL Token 信息瓶颈**：编码器-解码器压缩 VLA embedding 为紧凑状态表征，残差动作编辑实现高效在线 RL
-- [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]] — **TP-MoE token 级参数混合**：每个文本 token 混合不同专家参数实现细粒度时间-语义对齐，262D 机器人原生空间扩散生成
+- [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]] — RL Token 信息瓶颈，残差动作编辑
+- [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]] — TP-MoE token 级参数混合，262D 机器人原生扩散
 
 ### 项目级真机表征 Idea（WMTS）
-- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-006-In-Context-Hypernet-Adapter|ICHA]]：In-context Transformer prompt → FiLM offsets，零梯度真机适应
-- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-012-WPTE-Tactile-Encoder|WPTE]]：以 WM forward prediction 作为触觉编码器的 pretext，实现 zero-shot sim-to-real
-- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-009-Discrete-Task-Tokens|VQ Discrete Task Tokens]]：VQ-VAE 离散任务 token + transition graph 用于安全 replan
-
-*Format: Markdown for Obsidian Knowledge Base Integration.*
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-006-In-Context-Hypernet-Adapter|ICHA]]：In-context Transformer → FiLM offsets，零梯度真机适应
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-012-WPTE-Tactile-Encoder|WPTE]]：WM forward prediction 作触觉编码器 pretext，zero-shot sim-to-real
+- [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-009-Discrete-Task-Tokens|VQ Discrete Task Tokens]]：VQ-VAE 离散任务 token + transition graph 安全 replan

@@ -25,12 +25,12 @@ related:
 > 提出 **VICES (Variable Impedance Control in End-Effector Space)** 作为接触密集型任务 RL 的动作空间。动作 = 末端执行器位移 + 可变阻抗增益，实现**样本效率高、能耗低、跨机器人迁移**的策略学习。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] - 阻抗控制的理论基础
-> - [[ReinforcementLearning]] - 动作空间对学习的影响
-> - [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] - 接触任务中的力控制需求
-> - [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] - 末端空间的动力学补偿
+> - [[ControlTheory]] — 阻抗控制（弹簧-阻尼）理论；从刚性位置控制到柔顺力控制
+> - [[ReinforcementLearning]] — 动作空间设计对接触任务 RL 的样本效率/迁移影响
+> - [[ContactMechanics]] — 接触任务力控制需求；接触刚度与控制刚度串联
+> - [[Dynamics]] — 操作空间动力学 (Khatib)：末端空间动力学补偿、动态一致性
 >
-> **核心技术**: Impedance Control, Action Space Design, Sim-to-Real Transfer
+> **核心技术**: Variable Impedance Control, End-Effector Action Space, 操作空间动力学补偿, Sim-to-Real 迁移
 
 ---
 
@@ -100,6 +100,19 @@ $$u = f \circ g(o)$$
 ---
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+枢纽：**action = (位姿增量 $\Delta x$, 刚度 $K$)**——"去哪 + 多软硬"；$K(s)$ 是状态依赖的物理阻抗元控制；底层操作空间控制器处理动力学补偿。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $\Delta x$ | $\mathbb{R}^6$ | 策略输出（tanh×MAX） | 是 | 末端位姿增量（位置+轴角） | 限幅防跳变；轴角 $\|\omega\|\to\pi$ 不连续 |
+| $K_{diag}$ | $\mathbb{R}^6$ | 策略输出（sigmoid→[Kmin,Kmax]） | 是 | 对角刚度 | **状态依赖元控制 $K(s)$**；对角 only，无耦合 $K_{ij}$ |
+| $D=2\sqrt{K}$ | $\mathbb{R}^6$ | 计算（临界阻尼） | — | 阻尼 | 随 $K$ 自动跟随 |
+| $F=K\Delta x+D\dot e$ | $\mathbb{R}^6$ | 计算 | — | 操作空间力 | 弹簧-阻尼律 |
+| $\Lambda=(JM^{-1}J^T)^{-1}$ | $6\times6$ | 计算（需 $M$） | — | 操作空间惯性 | **动态一致性**根源；奇异位形需正则 |
+| $\tau=J^T\Lambda F+\mu+p$ | 关节力矩 | 计算 | — | 底层输出 | 需精确 $M,C,g$ |
 
 ### 3.1 阻抗控制回顾
 
@@ -175,6 +188,15 @@ $$\tau = J^T \Lambda (K \Delta x + D \dot{e}) + \mu(q, \dot{q}) + p(q)$$
 ```
 
 ---
+
+### 3.5 概念边界与符号陷阱
+
+- **action = ($\Delta x$, $K$)**：位姿增量 + 刚度——"去哪 + 多软硬"，非力矩/绝对位置。
+- **对角 $K$ only**：无法表达耦合力场 $K_{ij}$（§5 局限，可 Cholesky $K=LL^T$）。
+- **底层需精确动力学** $M,C,g$（操作空间补偿）；去掉则 Door Opening 失败（§4 消融）。
+- **策略 20Hz / 阻抗 1kHz 分离**：避免策略延迟污染力控质量（= EvoControl 双层频率的 impedance 版）。
+- **$D=2\sqrt{K}$ 临界阻尼**随 $K$ 自动跟随、保无振荡。
+- **轴角姿态 $\|\omega\|\to\pi$ 不连续**：可用四元数/旋转矩阵。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -451,3 +473,8 @@ def train_vices_policy(env, policy):
 | 力传感器 | 不需要 | 不需要 | 不需要 | 需要（数据采集） |
 | 验证任务 | 单臂接触 | 腿式行走 | 多平台力控 | 假肢行走 |
 | 核心优势 | 样本效率+迁移 | 力自适应+安全 | 零学习+通用 | 零调参+全局最优 |
+
+> [!note] impedance 簇定位 + 阻抗刚度 $K(s)$ 加入"状态依赖元控制 $m(s)$"家族
+> VICES 是 impedance/compliance 簇的锚点——RL 学可变阻抗作 action space（簇内对比见 §10：[[FACET - Force-Adaptive Control via Impedance Reference Tracking\|FACET]] 跟踪参考模型 / [[Minimalist Compliance Control\|MCC]] 固定参数 / [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking\|Data-Driven VIC]] 凸优化辨识）。两个跨簇 insight：
+> **① 阻抗刚度 $K(s)$ 加入 $m(s)$ 家族**：VICES 的 $K(s)$（当前该多软硬）与 control frequency 的 $\Delta t(s)$、[[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control\|LipsNet]] 的平滑度 $K(x)$、[[TARC - Time-Adaptive Robotic Control\|TARC]]、[[Dynamic Reinforcement Learning for Actors\|Dynamic RL]] 的 $\lambda_{max}(s)$ 同属"**状态依赖元控制 $m(s)$**"——策略不只输出动作，还输出"当前控制**柔顺度**该是多少"。物理阻抗是 $m(s)$ 在柔顺度维度的实例。
+> **② "action space = 闭环控制空间"是贯穿的设计自由度**：VICES 揭示选对 action space（末端阻抗）比选算法更影响接触任务——与 control frequency 簇"频率也是 action 的一部分"（[[Elastic Time Step Reinforcement Learning, VTS-RL\|VTS-RL]] 输出 $\tau$、[[Reinforcement Learning for Control with Multiple Frequencies\|AP-AC]] 多频率动作）呼应。VICES 的"策略 20Hz + 阻抗 1kHz"分层正是 [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks\|EvoControl]] 双层频率的 impedance 版。

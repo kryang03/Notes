@@ -24,13 +24,11 @@ related:
 > 提出将阻抗控制的虚拟弹簧-质量-阻尼模型作为 RL 策略的跟踪目标，使腿式机器人获得可控柔顺性和力自适应行为。通过暴露阻抗参数 $(x_{des}, K_p, K_d)$ 作为控制接口，策略能在大冲击下柔顺跟随（200 Ns 脉冲存活）、碰撞时显著降低冲击力（80%减小），并在真机上实现运动学示教和负载拖拽。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]] — 阻抗控制理论基础
-> - [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] — PPO 训练策略
-> - [[Dynamics#3.1 The Classical Era: Lagrangian Formulation]] — 质量-弹簧-阻尼参考模型的动力学基础
+> - [[ControlTheory]] — 阻抗控制（弹簧-质量-阻尼）理论基础
+> - [[ReinforcementLearning]] — PPO 训练；时间平滑奖励类 GAE 多步混合
+> - [[Dynamics]] — 质量-弹簧-阻尼参考模型的动力学基础（Lagrangian）
 > - [[Optimization]] — 跟踪目标的时间平滑优化
 > - [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks|VICES]] — 变阻抗动作空间的先驱工作
->
-> **核心技术**: 阻抗参考模型跟踪, RL-based 力自适应, 时间平滑, Teacher-Student
 >
 > **核心技术**: 阻抗参考模型跟踪, RL-based 力自适应, 时间平滑, Teacher-Student
 
@@ -60,6 +58,20 @@ related:
 4. **多平台验证**：四足 Go2、人形 G1、四足+机械臂 B1+Z1，真机验证运动学示教和 10kg 负载拖拽
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+枢纽：**策略跟踪虚拟阻抗参考模型的轨迹**（而非直接输出阻抗，vs VICES），阻抗藏在 reference；$f_{ext}$ 是 teacher 特权。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $x_{des}$ | $\mathbb{R}^3$ | 策略输出 | 是 | 期望位置 | 输入参考模型、非直接目标 |
+| $K_p,K_d$ | $\mathbb{R}^3$ | 策略输出（softplus） | 是 | 阻抗增益 | $K_d=2\sqrt{K_p}$ 临界；**$K_p(s)$ 元控制** |
+| $x_{ref},\dot{x}_{ref}$ | 状态 | 参考模型积分 | 否 | 虚拟弹簧轨迹 | 半隐式 Euler |
+| $f_{ext}$ | 力 | **teacher 特权** | 否 | 外力（参考+机器人共享） | **student 未知**，靠历史估（−10~15%）|
+| $x_{sim}$ | 状态 | 仿真机器人 | 否 | 实际状态 | 训练目标 $x_{sim}\approx x_{ref}$ |
+| offsets {8,16,32} | 超参 | 时间平滑 | — | 多尺度参考 | 开环(精确)/闭环(自适应)混合 |
+| $a\in[0,1]$ | scalar | 多体（随机） | 否 | 末端力→基座传导 | $a=1$ 示教牵引 |
 
 ### 3.1 数学建模
 
@@ -153,6 +165,15 @@ class FACETPolicy(torch.nn.Module):
         Kd = 2.0 * torch.sqrt(Kp + 1e-6)                        # 临界阻尼
         return x_des, Kp, Kd
 ```
+
+### 3.6 概念边界与符号陷阱
+
+- **策略跟踪参考模型轨迹、非直接输出阻抗**（vs VICES 直接输出）——阻抗藏在 reference/reward 里。
+- **$f_{ext}$ teacher 特权、student 未知**：student 靠历史隐式估计（§4 消融 −10~15%）。
+- **时间平滑混合开环(精确)/闭环(自适应)**：类 GAE 偏差-方差权衡。
+- **$K_d=2\sqrt{K_p}$ 临界阻尼**：减半调参自由度。
+- **$K_p\to0$ 纯惯性（运动学示教）、$K_p\to\infty$ 退化位置控制**。
+- **CoM 级阻抗、未建模关节级**（§5 局限）；多体靠参数 $a$ 控制力传导。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -269,7 +290,7 @@ $$\underbrace{m\ddot{x}_{ref} = f_{spring} + f_{ext}}_{\text{参考}} \quad vs \
 跟踪目标 $x_{sim} \approx x_{ref}$ 等价于 $f_{grf} \approx f_{spring}$，即用地面反力模拟弹簧力。
 
 #### 与 [[ReinforcementLearning]] 的联系
-时间平滑奖励本质是多尺度参考轨迹的加权融合，类似 [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|PPO]] 中 GAE 的多步 TD 混合——开环参考对应低 $\lambda$ (低偏差高方差)，闭环参考对应高 $\lambda$ (高偏差低方差)。
+时间平滑奖励本质是多尺度参考轨迹的加权融合，类似 [[ReinforcementLearning|PPO]] 中 GAE 的多步 TD 混合——开环参考对应低 $\lambda$ (低偏差高方差)，闭环参考对应高 $\lambda$ (高偏差低方差)。
 
 #### 与 [[Optimization]] 的联系
 时间平滑奖励可视为多目标优化：$\min_{\pi} \sum_{t'} w_{t'} \|x_{sim} - x_{ref}^{t'}\|^2$，其中权重 $w_{t'} = \exp(-\|x_{sim} - x_{ref}^{t'}\|^2)$ 自适应地偏向更接近的参考轨迹。
@@ -291,3 +312,14 @@ $$\underbrace{m\ddot{x}_{ref} = f_{spring} + f_{ext}}_{\text{参考}} \quad vs \
 ├── 与 HDC 等课程方法结合用于动态操作
 └── 统一的力-位-柔顺控制接口标准化
 ```
+
+> [!note] impedance 簇：阻抗如何进入策略的二分 + $K_p(s)$ 入 $m(s)$
+> FACET 与 [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks|VICES]] 揭示 impedance RL 的**两种架构**：
+>
+> | 范式 | 阻抗在哪 | 代表 |
+> |------|---------|------|
+> | **直接输出** | action = $(\Delta x, K)$ | VICES（阻抗是 action space）|
+> | **跟踪参考模型** | 策略跟踪虚拟阻抗系统轨迹 | FACET（阻抗藏在 reference/reward）|
+>
+> 前者阻抗是 action、后者是 reference。FACET 优势：力自适应**隐式**（无力传感器）、时间平滑（混合开环/闭环参考，类 GAE 偏差-方差）解决跟踪权衡。
+> **$K_p(s)$ 入 $m(s)$ 家族**：FACET 的时变 $K_p$ 与 VICES 的 $K(s)$ 同属状态依赖元控制（柔顺度维度）——"先软后硬"snap 阶段调度（§6）正是 $m(s)$ 在转笔的落点。**多体扩展（基座低 $K_p$ + 末端独立阻抗 + 参数 $a$ 控制力传导）= [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]] 双层 / arm-hand 协调的 impedance 版**。

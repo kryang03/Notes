@@ -22,6 +22,13 @@ related:
 > [!abstract] 核心贡献
 > 提出 RECAP（RL with Experience & Corrections via Advantage-conditioned Policies）— 三阶段训练流程（示范 → 纠正辅导 → 自主练习强化），将 VLA 从"模仿偶尔成功"推至"持续可靠运行"。在真实世界咖啡制作、折叠衣物、装配包装盒等任务上，throughput 翻倍、失败率降半，实现全天无中断运行。
 
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning]] — Advantage-conditioned policy 是 Offline RL 在 VLA 的延伸；IL→RL 飞轮
+> - [[EmbodiedAI]] — VLA post-training 的第三条路径（IL → RL with Experience）
+> - [[RepresentationLearning]] — π0 系列 flow-matching 扩散策略基座
+>
+> **核心技术**: RECAP 三阶段 (Demo→Correction→RL), Advantage-Conditioned Policy, VLA 数据飞轮
+
 ## 1. 问题设定与动机
 
 ### 1.1 核心洞察（一句话 + 直观隐喻）
@@ -35,6 +42,19 @@ related:
 - **RL 训练信号获取**：从"失败的自主经验"中提取有效训练信号（而非复制错误）是核心难题
 
 ## 2. 核心方法/理论
+
+### 2.0 变量来源追踪
+
+枢纽：**advantage $A(s,a)$ 作为策略的条件输入**——$A>0$ 复制、$A<0$ 避免，从失败经验学"避免"而非"复制错误"；Corrections 直接当高优势样本。
+
+| 变量 | 类型/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $\pi$ | VLA (π0.6) | flow-matching 扩散 | 是 | 策略 | 三阶段共享基座 |
+| Demo 数据 | 轨迹 | 人类遥操作 (Stage 1) | 否 | IL 监督 | 打底、天花板有限 |
+| Corrections | 轨迹 | 人类介入纠正 (Stage 2) | 否 | 高质量纠正 | **当高优势 $A>0$ 样本注入** |
+| 自主 rollout | 轨迹 | VLA 自主 (Stage 3) | 否 | 成败经验 | 含失败——靠 $A$ 筛选 |
+| $A(s,a)$ | scalar | 优势估计 | 否（条件输入） | 行为好坏判据 | **稀疏奖励下估计不可靠**（§5） |
+| advantage 条件化 | 离散/归一 | 构造 | — | $A$ 作策略额外输入 | $A>0$ 复制/$A<0$ 避免 |
 
 ### 2.1 关键创新点（Delta 分析）
 相比前代 π0/π0.5（纯 IL VLA）：
@@ -53,6 +73,15 @@ RECAP 的核心是 **Advantage-conditioned Policy**：
 1. **Stage 1 — Demonstrations (IL)**：人类遥操作收集示范数据 $\to$ 监督学习预训练 VLA
 2. **Stage 2 — Corrections (Coaching)**：VLA 自主运行中人类介入纠正错误 $\to$ 纠正轨迹作为高优势标注加入训练
 3. **Stage 3 — Autonomous RL (Practice)**：VLA 完全自主运行，通过成败结果信号 + Advantage 筛选进行 Self-Improvement
+
+### 2.4 概念边界与符号陷阱
+
+- **advantage-conditioned**：$A>0$ 复制、$A<0$ 避免——从失败学"避免"，不复制错误（核心机制）。
+- **Corrections = 高优势样本**：人类纠正直接当 $A>0$ 注入，不需单独 reward。
+- **三阶段角色**：Demo(IL 打底) → Corrections(coaching) → RL(practice 突破)。
+- **advantage 估计稀疏奖励下不可靠**（§5 理论局限）。
+- **per-task fine-tuning**：未验证跨任务/embodiment 泛化。
+- **自动复位 + 安全约束**是真实长时自主 RL 的工程瓶颈。
 
 ## 3. 训练与实验细节
 
@@ -99,6 +128,22 @@ RECAP 的核心是 **Advantage-conditioned Policy**：
 - **PPO 转笔策略的三阶段路径**：(1) 仿真大量 PPO 训练（=IL 阶段等效），(2) 真机少量纠正示范（= Corrections），(3) 真机自主 RL 微调（= Practice）
 - **Sim-to-Real Gap 与 Corrections**：真机纠正数据可能是弥补 Sim-to-Real gap 的高效方式——以 few-shot 成本覆盖关键失败模式
 - **与 [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]] 对比**：RL-100 = Diffusion 内部嵌入 PPO 的 Offline→Online 飞轮；RECAP = VLA 级别的 IL→Corrections→RL 飞轮。核心哲学一致：模仿打底 + RL 突破上限
+
+> [!note] VLA post-training 子簇 + "IL×RL 组合的两种正交拓扑"
+> RECAP 是 VLA post-training 子簇一员：
+>
+> | 论文 | post-training 路径 |
+> |------|------------------|
+> | RECAP | IL → Corrections → Autonomous RL（advantage-conditioned）|
+> | [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation\|DexHiL]] | Human-in-the-Loop |
+> | [[RL-100 - Performant Robotic Manipulation with Real-World RL\|RL-100]] | IL → Offline RL → Online RL（diffusion 内嵌 PPO）|
+> | [[WMPO - World Model-based Policy Optimization for VLA\|WMPO]] | World-model-based PO |
+>
+> **领域级 insight——IL×RL 组合的两种正交拓扑**：知识库反复出现"IL 与 RL 组合"，但拓扑有两种、**RL 与 IL 的时序角色相反**：
+> 1. **IL 打底 → RL 突破上限**（RECAP / RL-100 / [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction\|TRANSIC]]）：IL 先学"偶尔成功"，RL 突破到"可靠"——瓶颈是 **IL 天花板/长尾失败**时选它。
+> 2. **RL 教师 → IL 学生**（privileged teacher-student：[[Learning Quadrupedal Locomotion over Challenging Terrain\|Learning Quadrupedal]] / [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] / [[Lessons from Learning to Spin Pens\|Spin Pens]]）：RL 用特权信息学 oracle，IL 蒸馏到可部署 student——瓶颈是 **sim-to-real 部署**时选它。
+>
+> RECAP 的 advantage-conditioning（从失败学"避免"）与 [[Unified Policy Evaluation and Improvement - On Off-Policy Classification\|Unified Policy]] 的 Multi-step→Iterative 演进、$\pi_{ref}$ 保守约束一脉相承。
 
 ## 6. 与知识体系的联系
 

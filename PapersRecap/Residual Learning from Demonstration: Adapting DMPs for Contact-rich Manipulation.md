@@ -25,12 +25,12 @@ related:
 > 提出 **rLfD (residual Learning from Demonstration)** 框架：用 DMP 提供 100Hz 基础轨迹，叠加 10Hz 的 RL 残差策略进行在线修正，实现接触密集型插入任务（插销、齿轮、网线）的稳健执行。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] - 底层使用阻抗控制
-> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - 残差策略用 SAC/PPO 训练
-> - [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] - 接触密集型任务的核心挑战
-> - [[Dynamics#6. Insights: 灵巧操作中的 Closed Loop Dynamics (闭链动力学)]] - 插入任务中的力控制
+> - [[ControlTheory]] - 底层阻抗控制；残差调节参考轨迹
+> - [[ReinforcementLearning]] - 残差策略用 SAC/PPO 训练
+> - [[ContactMechanics]] - 接触密集型插入任务的核心挑战（自由↔约束的力突变）
+> - [[Dynamics]] - 插入任务闭链动力学；DMP 是二阶弹簧-阻尼系统
 >
-> **核心技术**: Dynamic Movement Primitives, Residual Policy Learning, Task-space Adaptation
+> **核心技术**: Dynamic Movement Primitives, Residual Policy Learning, Task-space Adaptation, 三级频率分离
 
 ---
 
@@ -84,6 +84,19 @@ Residual RL (Silver et al., 2018)
 ---
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+枢纽：**$a_{final}=a_{DMP}+\pi_{residual}$**——DMP 强先验（100Hz）+ RL 残差（10Hz）局部修正；姿态残差用角速度而非四元数加法。
+
+| 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|------------|----------------|----------|
+| $a_{DMP}(s)$ | 位姿 | 演示学习（DMP，100Hz） | 否 | 基轨迹 | forcing term $f(s)$ 从演示拟合 |
+| $\pi_{residual}$ | NN | RL 学习（10Hz） | 是 | 残差策略 | 任务空间（局部即时）非参数空间 |
+| $\Delta x$ | $\mathbb{R}^3$ | 残差输出 | 是 | 位置残差 | **限 5mm = 10× 间隙**（安全） |
+| $\Delta\omega$ | $\mathbb{R}^3$ | 残差输出 | 是 | 角速度残差 | **指数映射叠加** $q\cdot\exp(\Delta\omega\Delta t/2)$，非四元数加 |
+| $s$ | $(0,1)$ | DMP 相位 | 否（观测） | 相位变量 | 入观测，区分接近/插入阶段 |
+| $f_c$ | 力/力矩 | 观测 | 否 | 接触力 | 去掉则 −20%（区分将接触/已接触） |
 
 ### 3.1 系统架构
 
@@ -164,6 +177,15 @@ $$a_{final} = a_{DMP}(s) + \pi_{residual}(s, o)$$
    $$q_{final} = q_{DMP} \cdot \exp(\Delta \omega \cdot \Delta t / 2)$$
 
 ---
+
+### 3.5 概念边界与符号陷阱
+
+- **姿态残差用 $\Delta\omega$ + 指数映射** $q_{DMP}\cdot\exp(\Delta\omega\Delta t/2)$，非四元数加法（$q_1+q_2$ 非有效旋转）。
+- **残差幅度限制**（5mm = 10× 间隙）：安全 + 稳定（残差 > 微调）。
+- **三级频率分离**：DMP 100Hz / 残差 10Hz / 阻抗 500Hz——各司其职。
+- **任务空间残差（局部即时）vs 参数空间（全局）**：接触修正需局部响应。
+- **残差依赖 DMP 质量**：DMP 偏差 > 残差上限则无法补偿（§局限）。
+- **10Hz 残差对 <10ms 力突变响应不及**（§算法局限）。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -275,11 +297,11 @@ $$a_{final} = a_{DMP}(s) + \pi_{residual}(s, o)$$
 
 ### 与 Foundation 的数学联系
 
-**与 [[ControlTheory]] 的联系**：rLfD 的阻抗控制 $\tau = K_x(x_{ref} - x) + D_x(\dot{x}_{ref} - \dot{x})$ 将任务空间目标转为关节扭矩，残差策略修改 $x_{ref}$。这等效于 [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] 中阻抗控制的在线参考轨迹调节
+**与 [[ControlTheory]] 的联系**：rLfD 的阻抗控制 $\tau = K_x(x_{ref} - x) + D_x(\dot{x}_{ref} - \dot{x})$ 将任务空间目标转为关节扭矩，残差策略修改 $x_{ref}$。这等效于 [[ControlTheory]] 中阻抗控制的在线参考轨迹调节
 
-**与 [[Dynamics]] 的联系**：DMP 的弹簧-阻尼系统 $\tau \dot{v} = K(g-x) - Dv + f(s)$ 是二阶动力学系统（[[Dynamics#2. Core Concepts: 物理直觉与数学形式的对偶 (The Duality of Intuition and Formalism)]]），其稳定性由 $K, D$ 的正定性保证（被动性条件）
+**与 [[Dynamics]] 的联系**：DMP 的弹簧-阻尼系统 $\tau \dot{v} = K(g-x) - Dv + f(s)$ 是二阶动力学系统（[[Dynamics]]），其稳定性由 $K, D$ 的正定性保证（被动性条件）
 
-**与 [[ContactMechanics]] 的联系**：插入任务涉及刚性接触的力突变——从自由运动 ($f_c = 0$) 到约束运动 ($f_c > 0$) 的不连续跳变，这是 [[ContactMechanics#4. 计算动力学与求解器：从LCP到凸优化]] 中 LCP 建模的典型场景。残差策略需学习在接触边界附近的柔顺行为
+**与 [[ContactMechanics]] 的联系**：插入任务涉及刚性接触的力突变——从自由运动 ($f_c = 0$) 到约束运动 ($f_c > 0$) 的不连续跳变，这是 [[ContactMechanics]] 中 LCP 建模的典型场景。残差策略需学习在接触边界附近的柔顺行为
 
 ---
 
@@ -356,10 +378,18 @@ class rLfD_Controller:
 
 ---
 
-## 9. 与 Foundation 的链接更新
+## 9. 残差学习作为通用修正范式（跨文献综述）
 
-### 需要添加到 ControlTheory.md
-在阻抗控制部分添加"参考轨迹的学习与适应"小节。
-
-### 需要添加到 ReinforcementLearning.md
-在模仿学习部分添加"残差策略学习"作为 BC 的改进方向。
+> [!note] "基策略 + RL 残差"是 sim-to-real / LfD 的通用修正范式 + 残差的三个设计维度
+> rLfD 是"**基策略 + RL 残差**"范式的 DMP 实例。这个范式贯穿知识库：
+>
+> | 论文 | 基策略 | 残差 |
+> |------|--------|------|
+> | rLfD | DMP（演示） | RL 位姿残差 |
+> | [[RECAP - A VLA that Learns from Experience\|RECAP]] | IL VLA | advantage-conditioned RL |
+> | [[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction\|TRANSIC]] | 仿真策略 | 人类纠正残差 |
+> | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] | 仿真基策略 | residual policy |
+> | [[Grounded Action Transformation\|GAT]] | 仿真动作 | grounding 残差 $a+f_\theta$ |
+>
+> **为何普遍偏好残差而非重训**（呼应 TRANSIC insight）：残差小补偿稳定、保留基策略知识、避免灾难遗忘 + 可加安全限幅。
+> **rLfD 系统揭示残差的三个设计维度**：① **作用空间**——任务空间（局部即时，rLfD）vs 参数空间（全局，PoWER）：接触修正需局部；② **频率分离**——DMP 100Hz + 残差 10Hz + 阻抗 500Hz 三级各司其职（= control frequency 簇 / [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks\|EvoControl]] 分层的推广）；③ **残差幅度限制**——5mm=10× 间隙的安全边界。这三维把"加个残差网络"提升为有系统设计空间的范式。

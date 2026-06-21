@@ -78,7 +78,7 @@ related:
 ## 1. 古典控制最小语法：后续一切的前置语言
 
 > [!tip] 本节四拍
-> **直觉**（控制的最小定义：选输入使未来状态趋向期望）→ **推导**（三视角→阶次→极点→频域→PID→状态空间→离散延迟）→ **对比**（开环 vs 闭环、传递函数 vs 状态空间）→ **联系**（这是 §3 阻抗、§10 稳定性、§11 LQR 的共同语言，与 [[SignalProcessing#1.1 基础知识地图：从波形到状态估计|信号处理基础]]对接）。
+> **直觉**（控制的最小定义：选输入使未来状态趋向期望）→ **推导**（三视角→阶次→极点→频域→PID→状态空间→离散延迟）→ **对比**（开环 vs 闭环、传递函数 vs 状态空间）→ **联系**（这是 §3 阻抗、§10 稳定性、§11 LQR 的共同语言，与 [[SignalProcessing#1. 从波形到状态：信号处理的系统骨架|信号处理基础]]对接）。
 
 > [!note] 入门直觉
 > 控制系统的最小定义：**选择输入，使系统未来状态趋向期望状态。** 同一件事出现在开关电源调压、机械隔振、机器人 PID、飞机颤振抑制中。**开环**：输入不依赖输出（固定油门），环境变化直接造成漂移；**闭环（负反馈）**：传感器测输出、与参考比较得误差、控制器调输入——这正是 [[SignalProcessing|状态估计]]、[[Dynamics|动力学]]、[[Optimization|控制优化]]汇合的接口。**阻尼直觉**：手指按住振动的酒杯让声响更快消失，因为你改变了能量耗散路径——阻抗控制本质上就是在设计"该吸收/反弹多少能量"。
@@ -117,7 +117,7 @@ $G(j\omega)=|G(j\omega)|e^{j\phi(\omega)}$。**Bode 图**画幅频/相频随频�
 | 相位裕度 | 还能承受多少额外延迟 | 传感/通信/滤波延迟是否危险 |
 | 带宽 | 能响应多快的扰动 | 高频滑移能否被闭环抑制 |
 
-这与 [[SignalProcessing#1.1 基础知识地图：从波形到状态估计|傅里叶变换]]是同一套数学：信号处理关心"频率成分是什么"，控制理论关心"系统对这些频率成分做什么"。
+这与 [[SignalProcessing#1. 从波形到状态：信号处理的系统骨架|傅里叶变换]]是同一套数学：信号处理关心"频率成分是什么"，控制理论关心"系统对这些频率成分做什么"。
 
 ### 1.4 PID、灵敏度与状态空间
 
@@ -129,7 +129,7 @@ PID $C(s)=K_p+\frac{K_i}{s}+K_ds$（微分项常加低通防噪声放大）。�
 | $K_i$ | 消稳态误差 | 积分饱和、接触蓄能 |
 | $K_d$ | 增阻尼 | 放大噪声，需滤波 |
 
-**状态空间**（MIMO/高阶/内部状态重要时更合适）：可控性 $\mathrm{rank}[B\ AB\ \cdots\ A^{n-1}B]=n$（输入能否移动所有状态）；可观性 $\mathrm{rank}[C;CA;\cdots;CA^{n-1}]=n$（传感器能否恢复所有状态）。LQR 依赖可镇定、Kalman 依赖可检测，二者经**分离原理**合成 LQG——这也是 [[SignalProcessing#5.2 状态估计的演进脉络：从卡尔曼滤波到因子图 (Evolution: KF → EKF → UKF → PF → Factor Graph)|KF/EKF/PF]]必须进 SignalProcessing 的原因。
+**状态空间**（MIMO/高阶/内部状态重要时更合适）：可控性 $\mathrm{rank}[B\ AB\ \cdots\ A^{n-1}B]=n$（输入能否移动所有状态）；可观性 $\mathrm{rank}[C;CA;\cdots;CA^{n-1}]=n$（传感器能否恢复所有状态）。LQR 依赖可镇定、Kalman 依赖可检测，二者经**分离原理**合成 LQG——这也是 [[SignalProcessing#5.2 演进脉络：KF → EKF → UKF → PF → 因子图|KF/EKF/PF]]必须进 SignalProcessing 的原因。
 
 > [!warning] 离散化与延迟：相位裕度预算
 > 数字控制器经零阶保持采样 $A_d=e^{AT_s}$；单位延迟 $z^{-1}$ 在频域是相位滞后 $e^{-j\omega T_d}$——**频率越高，同样延迟吃掉越多相位裕度**。低频看似稳定的控制器，在高频接触切换或通信延迟下可能失稳。CAN 延迟、触觉帧率、动作保持时间，都应理解为闭环相位裕度预算的一部分。
@@ -321,7 +321,7 @@ $$\dot U\propto(K_{rel})^{-1}\omega_{rel}.$$
 ## 7. 鲁棒控制与接触状态机：对抗不确定、管理模式切换
 
 > [!tip] 本节四拍
-> **直觉**（孔的摩擦未知、接触在 free/stick/slide 间跳变）→ **推导**（滑模面强制收敛 + 状态机切换）→ **对比**（理想 SMC 抖振 vs 边界层平滑）→ **联系**（滑移检测↔[[SignalProcessing#4.1 早期滑移（Incipient Slip）检测算法|SignalProcessing]]、模式↔[[ReinforcementLearning#1.3 非光滑性的两副面孔：接触流形与混合动力学|RL 混合动力学]]）。
+> **直觉**（孔的摩擦未知、接触在 free/stick/slide 间跳变）→ **推导**（滑模面强制收敛 + 状态机切换）→ **对比**（理想 SMC 抖振 vs 边界层平滑）→ **联系**（滑移检测↔[[SignalProcessing#4.1 早期滑移 (Incipient Slip) 检测|SignalProcessing]]、模式↔[[ReinforcementLearning#1.3 非光滑性的两副面孔：接触流形与混合动力学|RL 混合动力学]]）。
 
 ### 7.1 滑模控制 (SMC) 与抖振
 
@@ -352,7 +352,7 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 > [!tip] 灵巧操作的核心安全约束
 > 稳定夹持的本质是保持接触力始终在**摩擦锥内部**；滑移意味着接触约束即将失效。
 
-**摩擦锥余量** $\gamma=\mu f_n-\|f_t\|$ 是滑移风险指标：$\gamma>0$ 安全、$\gamma\approx0$ 临界、$\gamma<0$ 已滑移。滑移概率 $P_{slip}=\sigma((\gamma_{th}-\gamma)/\tau)$。检测手段：视触觉（DIGIT/GelSight 标记点位移/光流）、6D 力矩（摩擦锥余量）、压阻/电容阵列（接触面积变化率）——这些信号处理细节见 [[SignalProcessing#4.1 早期滑移（Incipient Slip）检测算法|SignalProcessing §4.1]]。
+**摩擦锥余量** $\gamma=\mu f_n-\|f_t\|$ 是滑移风险指标：$\gamma>0$ 安全、$\gamma\approx0$ 临界、$\gamma<0$ 已滑移。滑移概率 $P_{slip}=\sigma((\gamma_{th}-\gamma)/\tau)$。检测手段：视触觉（DIGIT/GelSight 标记点位移/光流）、6D 力矩（摩擦锥余量）、压阻/电容阵列（接触面积变化率）——这些信号处理细节见 [[SignalProcessing#4.1 早期滑移 (Incipient Slip) 检测|SignalProcessing §4.1]]。
 
 **分层防滑架构**（三个时间尺度）：
 
@@ -371,12 +371,12 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 ## 8. 接触隐式模型预测控制 (Contact-Implicit MPC)
 
 > [!tip] 本节四拍
-> **直觉**（别预设"先食指后拇指"的接触序列，让优化器自己发现）→ **推导**（互补约束的非光滑性如何被平滑化）→ **对比**（预设接触序列 vs 接触隐式）→ **联系**（与 [[Optimization#3.3 阶段三：接触隐式轨迹优化 (Contact-Implicit Trajectory Optimization, CITO)|Optimization CITO]]、[[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]]同源）。
+> **直觉**（别预设"先食指后拇指"的接触序列，让优化器自己发现）→ **推导**（互补约束的非光滑性如何被平滑化）→ **对比**（预设接触序列 vs 接触隐式）→ **联系**（与 [[Optimization#5.3 阶段三：接触隐式轨迹优化 CITO（求解器自己发现）|Optimization CITO]]、[[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]]同源）。
 
 接触动力学本质是**互补约束** $0\le\lambda\perp\phi(q)\ge0$（分离则无力、受力则贴合）。这非凸、非光滑——梯度在接触瞬间未定义或为零，使 iLQR/DDP 难以直接应用。
 
 > [!important] Sigmoid 松弛：让优化器"感觉到"即将到来的接触
-> 把严格互补 $\lambda\phi=0$ 松弛为 $\lambda\phi\le\epsilon$，或用 Sigmoid 构造连续可导接触力 $F_{contact}\approx\frac{F_{max}}{1+e^{-k\phi(q)}}$。这让优化器能计算**穿过接触事件的梯度**，自动规划最佳接触序列、无需人工指定何时接触——机器人能自主发现利用环境重定姿的策略（extrinsic dexterity）。这与 [[ContactMechanics#6.2 实现可微的三条路径|可微接触的零阶平滑]]、[[Optimization#3.4 阶段四：可微物理与平滑化 (The Differentiable Physics & Smoothing Era)|平滑化范式]]是同一思想。
+> 把严格互补 $\lambda\phi=0$ 松弛为 $\lambda\phi\le\epsilon$，或用 Sigmoid 构造连续可导接触力 $F_{contact}\approx\frac{F_{max}}{1+e^{-k\phi(q)}}$。这让优化器能计算**穿过接触事件的梯度**，自动规划最佳接触序列、无需人工指定何时接触——机器人能自主发现利用环境重定姿的策略（extrinsic dexterity）。这与 [[ContactMechanics#6.2 实现可微的三条路径|可微接触的零阶平滑]]、[[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|平滑化范式]]是同一思想。
 
 **分层架构**（平衡长时程规划与高频响应）：高层 (10–50Hz) 跑接触隐式 MPC，基于简化模型规划未来几秒的接触序列；底层 (1kHz) 跑全身控制/阻抗，接收参考轨迹与接触力指令，用高频力反馈稳定当前接触、补偿高层忽略的高频动态。**这种"优化智能决策 + 反馈物理鲁棒"的分层，是当前灵巧操作控制的最高水平。**
 
@@ -453,13 +453,13 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 ## 11. 线性二次最优控制 (LQR)
 
 > [!tip] 本节四拍
-> **直觉**（插销接近相用 LQR 当 baseline，免手调 PD）→ **推导**（HJB→ARE / Riccati 递推）→ **对比**（LQR / iLQR / 数据驱动 LQR / RL）→ **联系**（LQR=能解析求解的 RL，§10 Lyapunov、[[Dynamics#3.5 Hamiltonian 形式与三种等价视角|Hamiltonian]]、[[Optimization#4.1 核心算法：iLQR / DDP|iLQR]]）。
+> **直觉**（插销接近相用 LQR 当 baseline，免手调 PD）→ **推导**（HJB→ARE / Riccati 递推）→ **对比**（LQR / iLQR / 数据驱动 LQR / RL）→ **联系**（LQR=能解析求解的 RL，§10 Lyapunov、[[Dynamics#3.5 Hamiltonian 形式与三种等价视角|Hamiltonian]]、[[Optimization#6.1 iLQR/DDP：动态规划结构上的 Gauss-Newton|iLQR]]）。
 
 > [!theorem] 连续 ARE 与最优反馈
 > $\dot x=Ax+Bu$、$J=\int_0^\infty(x^TQx+u^TRu)dt$（$Q\succeq0,R\succ0$）。若 $(A,B)$ 可镇定、$(A,Q^{1/2})$ 可观，则代数 Riccati 方程 $A^TP+PA-PBR^{-1}B^TP+Q=0$ 有唯一正定解 $P^*$，最优反馈 $u^*=-Kx$，$K=R^{-1}B^TP^*$，闭环 $A-BK$ Hurwitz，最优代价 $J^*=x_0^TP^*x_0$。
 > **证明骨架**：对 $V=x^TPx$ 应用 HJB $\min_u\{x^TQx+u^TRu+\nabla V\cdot(Ax+Bu)\}=0$，对 $u$ 求导得 $u^*=-R^{-1}B^TPx$，回代即 ARE。
 
-离散有限时域是 **Riccati 后向递推** $P_k=Q+A^TP_{k+1}A-A^TP_{k+1}B(R+B^TP_{k+1}B)^{-1}B^TP_{k+1}A$——这正是 [[Optimization#4.1 核心算法：iLQR / DDP|iLQR]] 后向 pass 的线性化原型。
+离散有限时域是 **Riccati 后向递推** $P_k=Q+A^TP_{k+1}A-A^TP_{k+1}B(R+B^TP_{k+1}B)^{-1}B^TP_{k+1}A$——这正是 [[Optimization#6.1 iLQR/DDP：动态规划结构上的 Gauss-Newton|iLQR]] 后向 pass 的线性化原型。
 
 > [!important] LQR 是连接四个领域的枢纽
 > | 方法 | 模型来源 | 解法 |
@@ -615,19 +615,3 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 ## 16. 结论
 
 从高增益位置控制，到引入顺应性的阻抗/导纳（§3），到处理冗余的 OSF（§4），控制理论的演进主线是**对物理交互本质的尊重**——不再强行命令机器人违反物理约束，而是用数学工具（对偶性、动态解耦、接触松弛）去建模和利用约束。非线性控制与接触隐式 MPC（§8）更把这一理念推向极致：**接触不再是干扰，而是可优化利用的资源**。而把这一切缝在一起的，是 Lyapunov 这把统一尺度（§10）——它让稳定性、安全性、最优性、自适应、乃至 RL 的价值函数说同一种语言。三大记忆支柱：**对偶性、动态解耦、接触松弛**；一条终极暗线：**价值即 Lyapunov**——它通向 [[ReinforcementLearning|强化学习]]的安全未来。
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----

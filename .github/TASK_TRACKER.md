@@ -234,6 +234,28 @@
 升级 `GenDexGrasp`：补 tip + P2；无断锚。
 **新 insight——接触表征是灵巧操作的统一中间语言 + 抓取→操作的桥梁**：接触表征**时间维度谱**（静态 contact map[GenDexGrasp] / 动态切换 $\sigma(t)$[Spin Pens] / 实时感知 deform map[Tacmap/Robot Synesthesia]）。**抓取→操作桥梁 = contact map → contact schedule $\Omega_{1:T}$**（= Spin Pens finger gaiting 的连续版）。接触几何连接 grasping 与 manipulation 两大主题。
 **累计范本级：36 篇**。最裸小文件仅剩 1：`RECAP`。
+
+#### cron 第 33 轮（2026-06-20）— RECAP（最裸小文件收尾）
+升级 `RECAP (π*0.6 VLA)`：补 tip + P2；无断锚。**🎉 最裸小文件批次全部完成**（7 篇 <7.5KB）。
+**新 insight——IL×RL 组合的两种正交拓扑**：① **IL 打底→RL 突破**（RECAP/RL-100/TRANSIC，瓶颈=IL 天花板/长尾失败）；② **RL 教师→IL 学生**（privileged teacher-student：Learning Quadrupedal/HORA/Spin Pens，瓶颈=sim-to-real 部署）。RL 与 IL 时序角色相反，选哪种取决于瓶颈。开启 VLA post-training 子簇（RECAP/DexHiL/RL-100/WMPO）。
+**累计范本级：37 篇**。
+**下一步大簇**：① VLA/diffusion/world-model（DexHiL/RL-100/WMPO/WoG/COMET/GLIDE/LaST0/RLT/GeoPT）；② demonstration/data-gen（MimicGen/RoboTwin/CyberDemo/Physics-Driven/DemoStart/RialTo）；③ impedance/compliance/force（VICES/FACET/Minimalist Compliance/Path-Constrained/Data-Driven VIC/Residual LfD）；④ locomotion/humanoid（OmniXtreme/PhyGile）；⑤ tactile（Contact-Grounded Policy/Tacmap/STOLA/Visual-tactile Pretraining/HATO/Dextrous Tactile）；⑥ 其它 in-hand/grasp（RotateIt 已/Emerging Extrinsic/P2GI/Part-Guided/Curriculum-based Sensing Reduction）。
+
+#### cron 第 34 轮（2026-06-20）— VICES（impedance 簇启动）
+升级 `VICES`：补 P2 + 降级 ControlTheory/Dynamics 断锚（裸链）；**impedance/compliance 簇启动**（锚点）。
+**新 insight**：① **阻抗刚度 $K(s)$ 加入 $m(s)$ 状态依赖元控制家族**（柔顺度维度，连 control freq $\Delta t(s)$ / LipsNet $K(x)$ / TARC / Dynamic RL $\lambda_{max}(s)$）。② **"action space = 闭环控制空间"是贯穿设计自由度**（连 VTS-RL/AP-AC；VICES 20Hz/1kHz 分层 = EvoControl 双层 impedance 版）。
+**累计范本级：38 篇**。impedance 簇剩：`FACET`/`MCC`/`Data-Driven VIC`/`Path-Constrained`/`Residual LfD`。
+
+#### cron 第 35 轮（2026-06-20）— FACET
+升级 `FACET`：补 P2 + 修 tip 重复行 + 降级 ControlTheory/Dynamics/RL#2.5 断锚（裸链）。
+**新 insight——impedance RL "阻抗如何进入策略"的二分**：直接输出（VICES，阻抗 = action）vs 跟踪参考模型（FACET，阻抗 = reference）。FACET 力自适应隐式（无力传感器）+ 时间平滑（类 GAE 偏差-方差）。$K_p(s)$ 入 $m(s)$；多体 = EvoControl 双层 impedance 版。
+**累计范本级：39 篇**。impedance 簇 2/6，剩 `MCC`/`Data-Driven VIC`/`Path-Constrained`/`Residual LfD`。
+**$m(s)$ 家族（5 维）**：控制频率 $\Delta t(s)$ · 平滑度 $K(x)$ · 探索 $\lambda_{max}(s)$ · 安全裕度 · 阻抗刚度 $K(s)$。
+
+#### cron 第 36 轮（2026-06-20）— Residual LfD（🎉 40 篇里程碑）
+升级 `Residual LfD`：补 P2 + **删 §9 TODO 元注释** + 降级 ControlTheory/Dynamics/ContactMechanics/RL section 断锚（裸链，Bash 不可用时用 Edit+replace_all）。
+**新 insight——残差学习是 sim-to-real/LfD 通用修正范式 + 三设计维度**：基策略+RL残差贯穿 rLfD/RECAP/TRANSIC/DexNDM/GAT。残差三维度：① 作用空间（任务 vs 参数）；② **频率分离（DMP 100 / 残差 10 / 阻抗 500Hz = EvoControl 分层推广）**；③ 幅度限制（安全）。
+**累计范本级：40 篇** 🎉。impedance 簇 3/6，剩 `MCC`/`Data-Driven VIC`/`Path-Constrained`。
 **⚠️ 注**：IDE 报 PDDM/DexNDM wikilink "ambiguous"——`Backups/` 有同名副本致歧义（非断链，Obsidian 同目录优先，低优先级）；可能广泛影响指向 PapersRecap 文件的 wikilink，待评估是否需 Backups 排除。
 **下一步建议**：① 建**探索/稳定性簇**（`Stability-Certified RL`、`Exploration versus Exploitation`、`Reachability Constrained RL`、`Safe Model-based RL`、`On Robust RL with Lipschitz-Bounded Policy`、`LipsNet`、`Off-Policy Interval Estimation with Lipschitz` 等——Lyapunov/Lipschitz/safe-RL 主题，很适合领域级综述）；或 ② 最裸小文件（<7.5KB：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation/Deep Dynamics Models）。
 
