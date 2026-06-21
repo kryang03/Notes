@@ -131,7 +131,7 @@ def dexhil_loss(v_theta, batch):
 
 ## 5. 核心洞见 (Insights)
 
-1. **干预数据的高信息密度**: 人类纠正性演示携带的梯度信号远高于重复性成功数据 → 与 [[ReinforcementLearning#2.3 深度强化学习的奠基：从 DQN 到连续控制|DQN]] 中 prioritized replay 的思想类似
+1. **干预数据的高信息密度**: 人类纠正性演示携带的梯度信号远高于重复性成功数据 → 与 [[ReinforcementLearning|DQN]] 中 prioritized replay 的思想类似
 2. **Flow Matching 适配灵巧操作**: 比 diffusion policy 在灵巧手高维空间中更自然 — 速度场预测框架 $v_\theta$ 直接学习噪声到动作的映射
 3. **模块化手指重定向**: 上下独立网络降低了 DOF 映射维度，回避了高维联合重定向的困难
 4. **Loss spike 是学习信号**: 每轮 HiL 后 loss 出现尖峰表明引入了关键的 OOD 纠正状态

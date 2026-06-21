@@ -34,7 +34,7 @@ related:
 
 ## 0. 阅读定位与范本价值
 
-PLR 是知识库里 **最直接的 "task scheduler" 先例**。库内其它"scheduler"是**空间上**选技能（[[From Simple to Complex Skills- The Case of In-Hand Object Reorientation|From-Simple]]/[[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]/[[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]]），而 PLR 是**训练时间上**选任务（哪个 level 现在最值得练）——这正是 WMTS "World Model as Task **Scheduler**" 的字面含义：一个调度器决定训练流里下一个练什么任务。读它要抓**调度准则**：TD-error = 学习潜力，高潜力优先 → 涌现课程。它与 [[Paired Open-Ended Trailblazer (POET)|POET]]（共演化任务）、curiosity 探索、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]（自动课程）同属课程/探索基。
+PLR 是知识库里 **最直接的 "task scheduler" 先例**。库内其它"scheduler"是**空间上**选技能（[[From Simple to Complex Skills- The Case of In-Hand Object Reorientation|From-Simple]]/[[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]/[[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]]），而 PLR 是**训练时间上**选任务（哪个 level 现在最值得练）——这正是 WMTS "World Model as Task **Scheduler**" 的字面含义：一个调度器决定训练流里下一个练什么任务。读它要抓**调度准则**：TD-error = 学习潜力，高潜力优先 → 涌现课程。它与 [[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]（共演化任务）、curiosity 探索、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]（自动课程）同属课程/探索基。
 
 ## 1. 问题设定与价值（逻辑与价值）
 
@@ -89,7 +89,7 @@ PCG 环境每个 level 是一个任务实例（factors of variation 的配置）
 - 任务不共享结构 → 课程无迁移。
 
 ## 5. 替代方案与局限（未来与结合）
-- 课程/探索族：[[Paired Open-Ended Trailblazer (POET)|POET]]（共演化任务+智能体）、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]（自动扩随机化）、curiosity 探索。
+- 课程/探索族：[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]（共演化任务+智能体）、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]（自动扩随机化）、curiosity 探索。
 - PLR 是 level-replay 式（选已有 level）；POET 生成新任务。
 - 局限：PCG 游戏、TD-error 代理、需共享结构。
 
@@ -129,6 +129,6 @@ WMTS task scheduler 的调度准则（学习潜力选任务、涌现课程）；
 
 ## References
 - 原始 PDF：[[Prioritized Level Replay.pdf]]（FAIR/UCL，ICML 2021，arXiv 2010.03934）
-- 课程/探索族：[[Paired Open-Ended Trailblazer (POET)|POET]]、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]
+- 课程/探索族：[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]
 - 可行性/能力：[[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]]、[[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger]]
 - 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

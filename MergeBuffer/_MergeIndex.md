@@ -23,7 +23,7 @@ status: active
 | `____TD______-2026-04-30-00-58-07.md` | TD(0)、SARSA、Q-Learning、TD($\lambda$) | [[ReinforcementLearning]] | ✅ 新增 TD 学习家族小节 |
 | `__________-2026-04-30-00-58-14.md` | Policy Gradient 手推与高斯/GMM 讨论 | [[ReinforcementLearning]] | ✅ 与既有策略梯度/PPO 单峰高斯章节合并强化 |
 | `机器人力-位混合控制解析.md` | Unified Policy vs FACET，阻抗/导纳因果性、硬件非理想破坏 | [[ControlTheory]] / [[FOC_Control]] | ✅ 新增阻抗/导纳校准与仿真 PD vs 真机级联环 |
-| `_____________-2026-04-30-00-58-30.md` | 分析动力学微振动、Lagrange 方程直觉 | [[Dynamics]] / Quiz | ✅ 新增 [[Dynamics#3.1.6 小振动线性化：平衡点附近的二阶动力学|小振动线性化]] |
+| `_____________-2026-04-30-00-58-30.md` | 分析动力学微振动、Lagrange 方程直觉 | [[Dynamics]] / Quiz | ✅ 新增 [[Dynamics|小振动线性化]] |
 
 **处理结果**: 核心内容已整合至 Foundations、Projects、Quiz 与 Canvas；原 Markdown 文件已清理（2026-05-01）。
 
@@ -712,7 +712,7 @@ status: active
 |---------|---------|---------|
 | PDF 归档 | Papers/ | ✅ 已移动 |
 | 主库论文精读 | [[Deep Dynamics Models for Learning Dexterous Manipulation]] | ✅ 新建 |
-| WMTS 项目补强 | [[Deep Dynamics Models Recap]] | ✅ 增加算法颗粒度补强 |
+| WMTS 项目补强 | [[Deep Dynamics Models for Learning Dexterous Manipulation]] | ✅ 增加算法颗粒度补强 |
 | Foundation 反链 | [[Dynamics]], [[ReinforcementLearning]], [[ContactMechanics]] | ✅ 新增相关论文入口 |
 
 ### 24. GenDexGrasp: Generalizable Dexterous Grasping.pdf
@@ -734,7 +734,7 @@ status: active
 |---------|---------|---------|
 | PDF 归档 | Papers/ | ✅ 已移动 |
 | 主库论文精读 | [[Learning Agile and Dynamic Motor Skills for Legged Robots]] | ✅ 新建 |
-| WMTS 项目补强 | [[ANYmal Parkour Recap]] | ✅ Actuator Network 颗粒度补强 |
+| WMTS 项目补强 | [[ANYmal parkour Learning agile navigation for quadrupedal robots]] | ✅ Actuator Network 颗粒度补强 |
 | Foundation 反链 | [[Dynamics]], [[ControlTheory]] | ✅ 新增相关论文入口 |
 
 ### 26. Learning Quadrupedal Locomotion over Challenging Terrain.pdf

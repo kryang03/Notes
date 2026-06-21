@@ -244,9 +244,9 @@ done
 ## 7. 知识库关联
 
 ### 与 Foundations 的联系
-- [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]] — Risk Aversion 问题的理论刻画
+- [[ReinforcementLearning]] — Risk Aversion 问题的理论刻画
 - [[StochasticProcess]] — AR-p 过程的数学定义和平稳性分析
-- [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] — 接触切换对探索的影响
+- [[ContactMechanics]] — 接触切换对探索的影响
 - [[SignalProcessing]] — $\Delta c_t$ 的接触事件检测本质上是信号处理问题
 
 ### 与已有论文的联系

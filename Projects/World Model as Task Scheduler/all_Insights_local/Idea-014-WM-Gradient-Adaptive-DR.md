@@ -8,9 +8,9 @@ novelty: A
 target-venue: CoRL / RSS
 related:
   - "[[Final_WMTS]]"
-  - "[[Solving Rubiks Cube Recap]]"
-  - "[[DeXtreme Recap]]"
-  - "[[Sim-to-Real Agile Locomotion Recap]]"
+  - "[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND]]"
+  - "[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality]]"
+  - "[[Sim-to-Real: Learning Agile Locomotion For Quadruped Robots]]"
 ---
 
 # Idea-014: WM-Gradient-Driven Adaptive Domain Randomization
@@ -23,7 +23,7 @@ related:
 ## 1. 问题定义与动机
 
 ### 1.1 大背景引入
-[[Solving Rubiks Cube Recap|ADR]] 与 [[DeXtreme Recap|DeXtreme]] 用全局成功率作为 DR 范围调整信号，造成"摩擦系数已经够鲁棒了，但 mass 还在猛涨"。每个 DR 维度对最终性能的边际收益完全不同。
+[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]] 与 [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]] 用全局成功率作为 DR 范围调整信号，造成"摩擦系数已经够鲁棒了，但 mass 还在猛涨"。每个 DR 维度对最终性能的边际收益完全不同。
 
 ### 1.2 现有方法的局限
 - ADR：scalar fitness 全局调整，维度无关。
@@ -102,8 +102,8 @@ $S_i$ 是 [[Optimization|Lipschitz constant]] 的 finite-sample estimate。在 r
 
 ## 5. 知识库关联
 
-- [[Final_WMTS#4. Ensemble World Model|§4 WM]] — 提供 gradient
-- [[Solving Rubiks Cube Recap|ADR]] — baseline
+- [[Final_WMTS|§4 WM]] — 提供 gradient
+- [[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]] — baseline
 - 与 Idea-003 互补：失败模式聚类 → 修复哪些类失败；WG-ADR → 修复哪些 DR 维度
 
 ---

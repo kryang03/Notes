@@ -23,9 +23,9 @@ related:
 > 提出 MimicGen 系统，从**少量人类演示**（~10-200 条）自动合成**大规模多样化数据集**（50K+），通过将演示分解为物体中心片段并空间变换适应新场景，实现数据高效的模仿学习。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - Behavioral Cloning
-> - [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] - 末端执行器轨迹变换
-> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 多模态策略输入
+> - [[ReinforcementLearning]] - Behavioral Cloning
+> - [[Dynamics]] - 末端执行器轨迹变换
+> - [[RepresentationLearning]] - 多模态策略输入
 >
 > **核心技术**: Object-Centric Segmentation, Spatial Transformation, Trajectory Stitching
 
@@ -211,7 +211,7 @@ def mimicgen_stitch_segments(
 ```
 
 > [!note] SE(3) 变换的数学本质
-> MimicGen 的空间变换本质是利用了刘群 SE(3) 的左作用不变性——拉开抽屉的"技能"在 SE(3) 下的相对运动是不变的，仅需改变参考系。这与 [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] 中末端空间描述的思想一致。
+> MimicGen 的空间变换本质是利用了刘群 SE(3) 的左作用不变性——拉开抽屉的"技能"在 SE(3) 下的相对运动是不变的，仅需改变参考系。这与 [[Dynamics]] 中末端空间描述的思想一致。
 
 ## 4.1 消融与因果分析 (Ablation)
 
@@ -229,7 +229,7 @@ def mimicgen_stitch_segments(
 ### 因果分析
 
 1. **MimicGen ≈ 人类数据**: 10 + 190 生成 ≈ 200 人类 → 证明 SE(3) 变换保留了技能的核心结构，多样性而非"明星演示"是关键。
-2. **规模红利显著**: 1000 条生成 > 200 条人类 → 生成数据的多样性补偿了变换引入的小偏差，与 [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] 中分布覆盖的重要性一致。
+2. **规模红利显著**: 1000 条生成 > 200 条人类 → 生成数据的多样性补偿了变换引入的小偏差，与 [[ReinforcementLearning]] 中分布覆盖的重要性一致。
 3. **轨迹过滤不可缺**: 去掉过滤 → 成功率降 17% → SE(3) 变换会产生质量低的轨迹（碰撞、不可达），必须在仿真中回放验证。
 4. **重平衡提升消除偏差**: 无重平衡 → 近似变换的场景过多，导致分布偏斜。
 

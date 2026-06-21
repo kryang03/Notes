@@ -165,7 +165,7 @@ class TactileTranslator(nn.Module):
 ## 4. 核心洞见 (Insights)
 
 1. **几何抽象胜过光学模拟**: 通过 deform map 解耦传感器光学特性 → sim-to-real gap 的本质是接触几何而非视觉外观
-2. **穿透深度作为通用表征**: 与 SDF（[[ComputationalGeometry#4. 有向距离场 (SDF)：连续操作优化的基石|签名距离场]]）思想类似 — 用标量场描述接触状态
+2. **穿透深度作为通用表征**: 与 SDF（[[ComputationalGeometry|签名距离场]]）思想类似 — 用标量场描述接触状态
 3. **法线空间投影**: 支持曲面指尖的关键创新 → 对拟人灵巧手至关重要（现有方法多假设平面传感器）
 4. **效率-保真平衡**: 射线投射介于解析着色器和 FEM 之间 → 实现了 RL 可用的触觉仿真
 
@@ -184,7 +184,7 @@ class TactileTranslator(nn.Module):
 - Hertz 接触理论中，法向力与穿透量的关系为:
 $$F_n = \frac{4}{3}E^*\sqrt{R^*}\,\delta^{3/2}$$
 其中 $E^*$ 为等效弹性模量，$R^*$ 为等效曲率半径。Tacmap 的 $d(u,v)$ 即对应空间化的 $\delta(u,v)$，将标量穿透量泛化为 2D 穿透深度场
-- 与 [[ContactMechanics#3.3 超越Hertz理论：大变形与软体抓取|Hertz 理论]] 的穿透量 $\delta$ 概念直接对接
+- 与 [[ContactMechanics|Hertz 理论]] 的穿透量 $\delta$ 概念直接对接
 - Deform IoU > 85% 意味着仿真接触流形与真实世界高度一致
 
 ### 与 [[SignalProcessing]] 的联系
@@ -193,7 +193,7 @@ $$F_n = \frac{4}{3}E^*\sqrt{R^*}\,\delta^{3/2}$$
 
 ### 与 [[ComputationalGeometry]] 的联系
 - 射线投射 + 法线投影 → 经典的 ray-mesh intersection 优化
-- Deform map 与 [[ComputationalGeometry#4. 有向距离场 (SDF)：连续操作优化的基石|SDF]] 的数学关联：对传感器表面点 $\mathbf{p}$，穿透深度等价于 SDF 负值区域的截断:
+- Deform map 与 [[ComputationalGeometry|SDF]] 的数学关联：对传感器表面点 $\mathbf{p}$，穿透深度等价于 SDF 负值区域的截断:
 $$d(u,v) = \max\!\left(0,\, -\phi_{\text{obj}}\bigl(\mathbf{p}(u,v)\bigr)\right)$$
 其中 $\phi_{\text{obj}}$ 为物体 SDF。梯度 $\nabla d = -\nabla\phi_{\text{obj}}$ 在接触区域指向法向外侧，可直接用于基于梯度的操作优化
 - Deform map 作为 2.5D 表征 → 与深度图、SDF 同族

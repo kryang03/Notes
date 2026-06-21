@@ -22,7 +22,7 @@ related:
 
 > [!tip] 理论基础关联
 > - [[Dynamics]] - 多体动力学与惯性项建模
-> - [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]] - 动态交互控制策略
+> - [[ControlTheory]] - 动态交互控制策略
 > - [[ReinforcementLearning]] - 基于 RL 的策略学习 (Isaac Gym)
 > - [[ContactMechanics]] - 接触切换与摩擦锥约束
 >

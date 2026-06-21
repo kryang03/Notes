@@ -27,7 +27,7 @@ related:
 # Reinforcement Learning for Optimal Primary Frequency Control: A Lyapunov Approach
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性|ControlTheory §7]] — Lyapunov 稳定性、无源性 $\omega u(\omega)\ge0$；本文把稳定性嵌入网络结构
+> - [[ControlTheory|ControlTheory §7]] — Lyapunov 稳定性、无源性 $\omega u(\omega)\ge0$；本文把稳定性嵌入网络结构
 > - [[Optimization]] — 单调性约束（$\alpha_k>0$）；Stacked-ReLU 的凸结构
 > - [[ReinforcementLearning]] — RL 训练框架（策略结构设计 + RNN 展开动力学）
 >
@@ -157,7 +157,7 @@ $$u_i(\omega_i) = \sum_{k=1}^K \alpha_k \cdot \text{ReLU}(\omega_i - \beta_k)$$
 
 $$\begin{bmatrix} \theta^{t+1} \\ \omega^{t+1} \end{bmatrix} = f_{cell}\left(\begin{bmatrix} \theta^t \\ \omega^t \end{bmatrix}, u^t\right)$$
 
-![[lyapunov_rnn_framework.png]]
+**图示说明**：RNN 展开摇摆方程，将长时域频率动态作为可反传的训练轨迹。
 
 ### 3.4 核心代码逻辑 (PyTorch)
 

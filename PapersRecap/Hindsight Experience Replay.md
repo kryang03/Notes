@@ -21,8 +21,8 @@ related:
 > 提出 **Hindsight Experience Replay (HER)**——一种从失败轨迹中学习的技术，将稀疏奖励问题转化为隐式课程学习，使得在二值奖励下也能高效学习机器人操作策略。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - HER 解决稀疏奖励下的探索困难
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - HER 策略可直接 Sim-to-Real 部署
+> - [[ReinforcementLearning]] - HER 解决稀疏奖励下的探索困难
+> - [[ReinforcementLearning]] - HER 策略可直接 Sim-to-Real 部署
 > - [[Optimization]] - 目标重标注作为隐式课程优化
 >
 > **核心技术**: Goal-conditioned RL, Experience Replay, Implicit Curriculum
@@ -268,7 +268,7 @@ def compute_reward(achieved_goal, desired_goal, threshold=0.05):
 
 ### 与 [[ReinforcementLearning]] 的联系
 
-HER 的目标条件框架定义了增广 Q 函数 $Q(s, a, g)$，这是 [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC|DDPG]] 的直接扩展。重标注的数学本质是在 off-policy buffer 中构造新的 $(s, a, r', s', g')$ 元组，保持 Bellman 方程一致性：
+HER 的目标条件框架定义了增广 Q 函数 $Q(s, a, g)$，这是 [[ReinforcementLearning|DDPG]] 的直接扩展。重标注的数学本质是在 off-policy buffer 中构造新的 $(s, a, r', s', g')$ 元组，保持 Bellman 方程一致性：
 
 $$
 Q(s, a, g') = r(s, a, g') + \gamma \max_{a'} Q(s', a', g')

@@ -24,7 +24,7 @@ related:
 > 针对"标准 RL 的探索靠外部各向同性噪声 $\epsilon\sim\mathcal{N}(0,\sigma)$、与动作生成割裂、不顾状态结构"这一瓶颈，提出 **Dynamic RL**：把探索**内嵌**进 Actor RNN 的混沌动力学（正 Lyapunov 指数），用 TD error 符号在线调控网络敏感度（局部 Lyapunov 指数）实现状态依赖的定向探索。结构性洞见：**探索不必是外加噪声，而可以是网络自身动力学的内生属性——好动作降敏感度(收敛/利用)、坏区域升敏感度(发散/探索)。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现|ReinforcementLearning §2.8]] — 探索机制：从外部噪声到内生混沌
+> - [[ReinforcementLearning|ReinforcementLearning §2.8]] — 探索机制：从外部噪声到内生混沌
 > - [[StochasticProcess]] — 混沌（确定性、$\lambda_{max}>0$）vs 真随机过程的区分；混沌自相关衰减更慢 → 探索有时间结构
 > - [[Dynamics]] — RNN 隐状态 $h_{t+1}=\tanh(W_{hh}h_t+W_{ih}x_t+b)$ 作为离散动力系统；SAL 调控 $\|W_{hh}\|_{spectral}$ 维持 edge-of-chaos
 >

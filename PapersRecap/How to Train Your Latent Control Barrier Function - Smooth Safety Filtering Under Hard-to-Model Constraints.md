@@ -31,9 +31,9 @@ related:
 # How to Train Your Latent Control Barrier Function
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性|ControlTheory §7]] — CBF 形式化（安全集、Lie 导数、CBF-QP）；HJ 可达性构造 CBF
-> - [[ReinforcementLearning#2.6 Model-Based RL (MBRL): 样本效率与世界模型|ReinforcementLearning §2.6]] — World Model (DINO-WM) 预测 + Actor-Critic 求 HJ 值
-> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)|RepresentationLearning §5]] — 视觉运动策略的潜空间
+> - [[ControlTheory|ControlTheory §7]] — CBF 形式化（安全集、Lie 导数、CBF-QP）；HJ 可达性构造 CBF
+> - [[ReinforcementLearning|ReinforcementLearning §2.6]] — World Model (DINO-WM) 预测 + Actor-Critic 求 HJ 值
+> - [[RepresentationLearning|RepresentationLearning §5]] — 视觉运动策略的潜空间
 > - [[StochasticProcess]] — Hamilton-Jacobi 可达性与值函数
 >
 > **核心技术**: Latent-space CBF, WGAN-GP 光滑 Margin, 混合策略采样, 采样优化安全过滤
@@ -101,8 +101,7 @@ $$a^* = \argmin_{a \in \mathcal{A}} \|a - \pi^{\text{nom}}(s)\|, \quad \text{s.t
 > 
 > **推论**：值函数的光滑性**线性依赖**于 margin function 的光滑性。
 
-![[latent_cbf_smoothness.png]]
-*左：分类器 margin → 饱和 CBF，所有采样动作安全值相似；右：光滑 margin → 有区分度的 CBF*
+**图示说明**：左：分类器 margin → 饱和 CBF，所有采样动作安全值相似；右：光滑 margin → 有区分度的 CBF。
 
 ### 2.2 Challenge 2: 分布失配
 

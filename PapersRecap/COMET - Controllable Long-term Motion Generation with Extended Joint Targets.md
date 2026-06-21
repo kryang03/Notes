@@ -166,7 +166,7 @@ $$f_{i+1} = \hat{f}_{i+1} + \alpha (\mu_{k^*} - \hat{f}_{i+1})$$
 ## 6. 与知识体系的联系
 
 ### 与 [[RepresentationLearning]] 的联系
-- CVAE 架构与 [[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|Diffusion Policy]] 同属生成式策略族，但选择了实时性更优的 VAE 路线
+- CVAE 架构与 [[RepresentationLearning|Diffusion Policy]] 同属生成式策略族，但选择了实时性更优的 VAE 路线
 - 增量预测 $\delta$ 的设计思想与 Action Chunking 的动作表示有关
 
 ### 与 [[StochasticProcess]] 的联系

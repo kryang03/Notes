@@ -220,7 +220,7 @@ $$\mathbf{x}_{act,t} = \Big[\underbrace{a_{t-H:t}}_{\text{指令}},\; \underbrac
 **输出**：$\hat{\tau}_{link,t} = f_{act}(\mathbf{x}_{act,t};\theta_{act}) \in \mathbb{R}^{N_{joints}}$
 
 > [!tip] 数据驱动鲁棒证书
-> Actuator Model 的真机适配不应只看 one-step MSE。可将短真机轨迹写成 $X_+=AX_-+BU_-+W_-$，用 [[ControlTheory#9.3.2 带噪声数据的鲁棒镇定|噪声数据鲁棒镇定]] 的 LMI 检查是否存在共同 Lyapunov 证书。若证书不可行，说明当前 5 分钟数据没有充分覆盖 latency / 温度 / stick-slip 模式，需要补采激励轨迹而不是直接扩大网络。
+> Actuator Model 的真机适配不应只看 one-step MSE。可将短真机轨迹写成 $X_+=AX_-+BU_-+W_-$，用 [[ControlTheory|噪声数据鲁棒镇定]] 的 LMI 检查是否存在共同 Lyapunov 证书。若证书不可行，说明当前 5 分钟数据没有充分覆盖 latency / 温度 / stick-slip 模式，需要补采激励轨迹而不是直接扩大网络。
 
 ### 4.B Rigid Dynamic Model：力矩 → 状态演进
 

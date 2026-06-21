@@ -8,10 +8,10 @@ novelty: A
 target-venue: NeurIPS / RSS
 related:
   - "[[Final_WMTS]]"
-  - "[[STORM Recap]]"
-  - "[[CMA-ES Tutorial Recap]]"
-  - "[[Latent Space Survey Recap]]"
-  - "[[FLD Recap]]"
+  - "[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning]]"
+  - "[[The CMA Evolution Strategy: A Tutorial]]"
+  - "[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook]]"
+  - "[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning]]"
 ---
 
 # Idea-009: VQ-Discrete Task Tokens for Real-Robot Re-Plan Safety
@@ -27,8 +27,8 @@ related:
 连续 latent space 的优势是平滑插值，但缺陷是**任意一点都可能映射到不可执行任务**。真机 replan 时连续 latent 漂移可能瞬间跨入硬件不可行区域。
 
 ### 1.2 现有方法的局限
-- [[CMA-ES Tutorial Recap]]：CMA-ES 在连续空间演化，每个候选都需要长 rollout 验证。
-- [[STORM Recap]]：用 discrete tokens 但只用于 dynamics 表达，未用于任务调度。
+- [[The CMA Evolution Strategy: A Tutorial]]：CMA-ES 在连续空间演化，每个候选都需要长 rollout 验证。
+- [[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning]]：用 discrete tokens 但只用于 dynamics 表达，未用于任务调度。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight
@@ -107,9 +107,9 @@ Real Robot:
 ## 5. 知识库关联
 
 - [[Final_WMTS#一、 仿真隐空间任务生成器 (Latent Task Generator)|§一]] — 替换 CVAE
-- [[STORM Recap]] — discrete tokenization 经验
+- [[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning]] — discrete tokenization 经验
 - [[WMTS_Reliability_Extensions#1.1 三类风险量|Reliability §1.1]] — feasibility 项
-- [[CMA-ES Tutorial Recap]] — 连续 CMA-ES 仍可用于 token 字典内的微调
+- [[The CMA Evolution Strategy: A Tutorial]] — 连续 CMA-ES 仍可用于 token 字典内的微调
 
 ---
 

@@ -149,7 +149,7 @@ def quality_gate(task_code, n_trials=10, threshold=0.8):
 ## 4. 核心洞见 (Insights)
 
 1. **Clean sim data 无用**: VLA 在无 DR 的仿真数据微调后，真实世界提升可忽略 → 域随机化是必要条件而非锦上添花
-2. **DR 预训练具有后续迁移性**: 即使下游任务用 clean data 训练，DR 预训练的 backbone 仍保持鲁棒性 → 与 [[ReinforcementLearning#5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)|DR]] 理论一致
+2. **DR 预训练具有后续迁移性**: 即使下游任务用 clean data 训练，DR 预训练的 backbone 仍保持鲁棒性 → 与 [[ReinforcementLearning|DR]] 理论一致
 3. **MLLM→仿真代码闭环**: 用大语言模型生成操作代码 + simulation 验证，可扩展性远超人工编程
 4. **10 real demo 即足够**: 10 条真实数据 + 1000 合成 → 367% 相对提升，暗示仿真数据的多样性比真实数据量更重要
 
@@ -163,7 +163,7 @@ def quality_gate(task_code, n_trials=10, threshold=0.8):
 
 ## 5. 与知识体系的联系
 
-### 与 [[ReinforcementLearning#5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)|Domain Randomization]] 的联系
+### 与 [[ReinforcementLearning|Domain Randomization]] 的联系
 - 5 轴 DR 是系统性的 DR 实践 → 桌高随机化尤为独特（物理+感知双重影响）
 - 验证了 DR 预训练的"保护"效应 — 下游 clean 训练不会丧失 DR 带来的鲁棒性
 

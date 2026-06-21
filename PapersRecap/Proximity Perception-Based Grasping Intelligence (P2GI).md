@@ -27,7 +27,7 @@ paper-year: 2025
 > 首次将 16 个近距离传感器阵列嵌入假肢手掌侧实时构建目标点云，结合 PCA 形状特征与 MLP 分类器从手-物空间关系推断抓握意图，实现 97.8% 分类准确率与 <25ms 实时推理，仅需单通道 EMG 触发即可直观控制多种抓握姿态。
 
 > [!note] Foundation 关联
-> - **[[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]]**: 实时点云处理
+> - **[[RepresentationLearning]]**: 实时点云处理
 > - **[[ComputationalGeometry]]**: 点云分割与3D感知
 > - **[[SignalProcessing]]**: EMG信号处理与近距离传感
 > - **[[EmbodiedAI]]**: 人机共享自主系统
@@ -329,7 +329,7 @@ $$
 
 ### 与 [[RepresentationLearning]] 的联系
 
-P2GI 的 $\mathbf{x} \in \mathbb{R}^{32}$ 是手工设计的几何特征向量，与 [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)|PointNet]] 的学习表征形成对比：
+P2GI 的 $\mathbf{x} \in \mathbb{R}^{32}$ 是手工设计的几何特征向量，与 [[RepresentationLearning|PointNet]] 的学习表征形成对比：
 
 $$
 \underbrace{[\bar{p},\; V,\; \Lambda]}_{\text{PCA (手工)}} \in \mathbb{R}^{15} \quad \text{vs.} \quad \underbrace{\max_i\{h_\theta(p_i)\}}_{\text{PointNet (学习)}} \in \mathbb{R}^{1024}
@@ -386,8 +386,8 @@ EMG 模式识别 → 视觉辅助共享自主 → 近距离感知(P2GI)
 ```
 
 **与本仓库相关主题**:
-- [[SignalProcessing#6. 近距离传感与接触力预处理 (Proximity Sensing and Contact Force Pre-processing)|近距离传感器信号处理]]: ToF 传感器距离 $d_i$ 的去噪与标定，满足 $d_i = \frac{c \cdot \Delta t}{2}$（飞行时间原理）
-- [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)|点云表征]]: PCA 特征 $\Sigma = \frac{1}{N}\sum(p_i - \bar{p})(p_i - \bar{p})^T$ 是点云全局描述符的线性近似，PointNet 学习的是其非线性推广
+- [[SignalProcessing|近距离传感器信号处理]]: ToF 传感器距离 $d_i$ 的去噪与标定，满足 $d_i = \frac{c \cdot \Delta t}{2}$（飞行时间原理）
+- [[RepresentationLearning|点云表征]]: PCA 特征 $\Sigma = \frac{1}{N}\sum(p_i - \bar{p})(p_i - \bar{p})^T$ 是点云全局描述符的线性近似，PointNet 学习的是其非线性推广
 - [[ContactMechanics]]: 接触点规划基于物体几何形心与抓握姿态的匹配
 
 ---

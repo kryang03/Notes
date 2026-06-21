@@ -29,8 +29,8 @@ related:
 # Safe Model-based Reinforcement Learning with Stability Guarantees
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.6 Model-Based RL (MBRL): 样本效率与世界模型|ReinforcementLearning §2.6]] — Model-based RL + GP 动力学；**价值函数天然是 Lyapunov 函数**（正定代价下 $V^\pi$）
-> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性|ControlTheory §7]] — Lyapunov 稳定性、吸引域 (RoA)、把长期收敛化为单步下降条件
+> - [[ReinforcementLearning|ReinforcementLearning §2.6]] — Model-based RL + GP 动力学；**价值函数天然是 Lyapunov 函数**（正定代价下 $V^\pi$）
+> - [[ControlTheory|ControlTheory §7]] — Lyapunov 稳定性、吸引域 (RoA)、把长期收敛化为单步下降条件
 > - [[StochasticProcess]] — GP 后验不确定性 $\sigma_n$ 随数据单调减 → RoA 单调扩大
 >
 > **核心技术**: Lyapunov RoA, Gaussian Process 动力学, Safe Exploration, 概率稳定性保证

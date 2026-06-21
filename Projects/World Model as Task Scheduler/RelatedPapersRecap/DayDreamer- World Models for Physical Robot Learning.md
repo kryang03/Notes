@@ -107,7 +107,7 @@ $$
 
 > **"The actor and critic gradients do not affect the world model, as this would lead to incorrect and overly optimistic model predictions."**
 
-即**梯度解耦**：策略/价值的梯度**不**回传进世界模型，否则 world model 会被"训练成对策略有利的乐观幻觉"。这正是 [[research-insight-critic]] 里 WMTS 默认原则"world model 应尊重物理因果、不要把任务/策略信号注入动力学模型"的出处级证据。其他陷阱：$z_t$ 是离散 code（straight-through 梯度，非连续高斯）；$s_t=(h_t,z_t)$ 是 latent 非物理状态；连续/离散动作用不同梯度估计器。
+即**梯度解耦**：策略/价值的梯度**不**回传进世界模型，否则 world model 会被"训练成对策略有利的乐观幻觉"。这正是 research-insight-critic skill 里 WMTS 默认原则"world model 应尊重物理因果、不要把任务/策略信号注入动力学模型"的出处级证据。其他陷阱：$z_t$ 是离散 code（straight-through 梯度，非连续高斯）；$s_t=(h_t,z_t)$ 是 latent 非物理状态；连续/离散动作用不同梯度估计器。
 
 ### 2.5 信息流/算法机制（异步系统，无代码）
 **学习者线程**：从 replay 采 128 步序列 → 更新 world model → 在 latent 内想象（batch 16K，不解码）→ 更新 actor/critic。**执行者线程**：用当前策略在真机以控制频率（A1 20Hz）取动作 → 轨迹入 replay。两线程并行，policy 每 20s 从 learner 同步到 actor——**解耦数据采集与学习更新**是真机高控制率下的关键工程。

@@ -173,7 +173,7 @@ def stage2_loss(model, obs, instruction, future_obs, actions, tau):
 - 与 World Action Model 和 Latent Action Model 形成三足鼎立
 
 ### 与 [[RepresentationLearning]] 的联系
-- DiT 动作头 + Rectified Flow 是 [[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|Diffusion Policy]] 的工程优化变体
+- DiT 动作头 + Rectified Flow 是 [[RepresentationLearning|Diffusion Policy]] 的工程优化变体
 - Q-Former 条件压缩与信息瓶颈理论相关（[[InformationTheory]]）
 
 ### 与 [[StochasticProcess]] 的数学联系

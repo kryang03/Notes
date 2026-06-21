@@ -8,10 +8,10 @@ novelty: A
 target-venue: NeurIPS / CoRL
 related:
   - "[[Final_WMTS]]"
-  - "[[Is Attention Required for ICL Recap]]"
-  - "[[Finetuning Offline WM Recap]]"
-  - "[[ANYmal Parkour Recap]]"
-  - "[[Learning to Walk in Minutes Recap]]"
+  - "[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY]]"
+  - "[[Finetuning Offline World Models in the Real World]]"
+  - "[[ANYmal parkour Learning agile navigation for quadrupedal robots]]"
+  - "[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models]]"
 ---
 
 # Idea-006: In-Context Hypernet Adapter for Per-Episode Real-Robot Adaptation
@@ -27,13 +27,13 @@ related:
 真机灵巧手在每个 episode 间状态会显著变化：(a) 温度爬升导致 $K_t$ 漂移，(b) 物体表面打磨/磨损，(c) 累积疲劳改变弹性。Idea-002 用 5 分钟数据微调 FiLM，但仍是离线 step。理想情况是每条 episode 自动校准。
 
 ### 1.2 现有方法的局限
-- [[ANYmal Parkour Recap|Actuator Network]]：参数固定。
-- [[Learning to Walk in Minutes Recap|Semi-structured Dynamics]]：3 分钟微调，但每次新环境都要重训。
-- [[Finetuning Offline WM Recap|FOWM]]：在线但仍需梯度更新。
+- [[ANYmal parkour Learning agile navigation for quadrupedal robots|Actuator Network]]：参数固定。
+- [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|Semi-structured Dynamics]]：3 分钟微调，但每次新环境都要重训。
+- [[Finetuning Offline World Models in the Real World|FOWM]]：在线但仍需梯度更新。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight
-> [[Is Attention Required for ICL Recap|ICL]] 已证明 Transformer 不需要参数更新就能"在 prompt 内"做 regression。把灵巧手 episode 起始 50 步当 prompt，Hypernet 输出 Actuator FiLM offset $\Delta\gamma, \Delta\beta$ 和 Diffusion guidance scale $\Delta\eta_{risk}$，整个 WMTS 主体冻结。这是 **真机零梯度在线适应** 的最优雅形式。
+> [[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL]] 已证明 Transformer 不需要参数更新就能"在 prompt 内"做 regression。把灵巧手 episode 起始 50 步当 prompt，Hypernet 输出 Actuator FiLM offset $\Delta\gamma, \Delta\beta$ 和 Diffusion guidance scale $\Delta\eta_{risk}$，整个 WMTS 主体冻结。这是 **真机零梯度在线适应** 的最优雅形式。
 
 ### 1.4 贡献声明
 1. 我们提出 **ICHA** — Transformer-based hypernet 输入触觉/proprio/温度 prompt，输出多个模块的 lightweight adapter 参数。
@@ -112,7 +112,7 @@ DR 配置训练 80% / 测试 20%，比较 (a) frozen, (b) full FT, (c) ICHA。�
 
 - [[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|§4.A]] — 注入点之一
 - [[Final_WMTS#3.3 Classifier-Free Guidance (CFG)|§3.3]] — 注入点之二
-- [[Is Attention Required for ICL Recap]] — Transformer ICL 理论支撑
+- [[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY]] — Transformer ICL 理论支撑
 - 与 Idea-002 互补：Idea-002 用真机数据离线微调 FiLM，ICHA 用 meta-trained 网络实现零梯度在线版
 
 ---

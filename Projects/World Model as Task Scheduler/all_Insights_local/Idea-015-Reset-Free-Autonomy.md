@@ -9,8 +9,8 @@ target-venue: RSS / CoRL
 related:
   - "[[Final_WMTS]]"
   - "[[WMTS_Reliability_Extensions]]"
-  - "[[ANYmal Parkour Recap]]"
-  - "[[Curiosity-Driven Exploration Recap]]"
+  - "[[ANYmal parkour Learning agile navigation for quadrupedal robots]]"
+  - "[[Curiosity-Driven Exploration via Latent Bayesian Surprise]]"
 ---
 
 # Idea-015: Reset-Free Real-Robot WMTS via WM-Estimated Recovery Policies
@@ -27,7 +27,7 @@ related:
 
 ### 1.2 现有方法的局限
 - 工业机器人 reset：固定挡板/夹具，无法用于 in-hand reorientation。
-- [[ANYmal Parkour Recap|locomotion]]：用恢复 controller 自动起立——可移植思想但 manipulation 没有等价物。
+- [[ANYmal parkour Learning agile navigation for quadrupedal robots|locomotion]]：用恢复 controller 自动起立——可移植思想但 manipulation 没有等价物。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight

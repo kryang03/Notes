@@ -24,10 +24,10 @@ related:
 > 针对"深度 RL 策略是黑盒、缺物理系统所需的稳定性证明"这一瓶颈，在**鲁棒控制**与 **RL** 间搭数学桥：把策略网络 $\kappa$ 视为反馈回路中的非线性算子，用**结构感知的偏导数界** $\underline{\xi}_{ij}\le\partial\kappa_i/\partial s_j\le\bar{\xi}_{ij}$（而非粗糙的全局 Lipschitz）构造一个新型二次约束，经 KYP/S-procedure 化为 **SDP 可行性问题**，为闭环系统提供 $\mathcal{L}_2$ 增益有界（输入-输出稳定）的证书。结构性洞见：**安全约束不必各向同性——按系统物理结构（哪个状态影响哪个动作）逐分量限制灵敏度，能把"安全笼"从球撑成盒子，认证的可行策略空间扩大 3×。**
 
 > [!note] 教科书背景
-> TRPO/PPO 理论基础见 [[ReinforcementLearning#3. Implementation: 核心算法细节分析]]。LMI/SDP 稳定性证书可从 [[ControlTheory#9.3.3 Matrix S-lemma：从无限多个模型到一个 LMI|Matrix S-lemma]] 理解：偏导数界给一个二次约束、KYP/IQC 给另一个，二者的蕴含关系经 S-procedure 化为有限维 SDP。
+> TRPO/PPO 理论基础见 [[ReinforcementLearning]]。LMI/SDP 稳定性证书可从 [[ControlTheory|Matrix S-lemma]] 理解：偏导数界给一个二次约束、KYP/IQC 给另一个，二者的蕴含关系经 S-procedure 化为有限维 SDP。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#7. 鲁棒控制：对抗模型不确定性|ControlTheory §7]] — Lyapunov 与输入-输出稳定性、IQC、小增益定理（本文证书是小增益的推广）
+> - [[ControlTheory|ControlTheory §7]] — Lyapunov 与输入-输出稳定性、IQC、小增益定理（本文证书是小增益的推广）
 > - [[ReinforcementLearning]] — Safe RL 算法框架；在 TRPO/PPO 更新中加偏导数约束
 > - [[Optimization]] — SDP/LMI；S-procedure 把非凸二次约束松弛为半正定锥
 >

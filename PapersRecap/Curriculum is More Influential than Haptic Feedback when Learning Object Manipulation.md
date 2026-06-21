@@ -21,7 +21,7 @@ related:
 # Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#4. Advanced State Space & Reward Engineering]]**: 课程设计对学习的影响
+> - **[[ReinforcementLearning]]**: 课程设计对学习的影响
 > - **[[ContactMechanics]]**: 触觉反馈与接触建模
 > - **[[SignalProcessing#5. 状态估计：从局部触觉到全局语义]]**: 触觉信号处理与融合
 
@@ -347,7 +347,7 @@ class TactileObsWrapper:
 
 ### [[ReinforcementLearning]] — 课程对策略梯度方向的影响
 
-课程策略 $\mathcal{C}$ 决定了 PPO 策略梯度的方向（[[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]]）：
+课程策略 $\mathcal{C}$ 决定了 PPO 策略梯度的方向（[[ReinforcementLearning]]）：
 
 $$\nabla_\theta J_{\mathcal{C}}(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\sum_t \nabla_\theta \log\pi_\theta(a_t|s_t) \cdot \hat{A}^{\mathcal{C}}_t\right]$$
 
@@ -355,7 +355,7 @@ $$\nabla_\theta J_{\mathcal{C}}(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left
 
 ### [[ContactMechanics]] — 本体感知的接触信息冗余
 
-关节力矩 $\tau \in \mathbb{R}^n$ 通过 [[ContactMechanics#2.3 接触雅可比矩阵 (Contact Jacobian)]] 与接触力建立映射：
+关节力矩 $\tau \in \mathbb{R}^n$ 通过 [[ContactMechanics]] 与接触力建立映射：
 
 $$\tau = J_c(q)^T f_c + g(q)$$
 

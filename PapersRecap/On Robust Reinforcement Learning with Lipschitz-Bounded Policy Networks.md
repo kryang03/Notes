@@ -189,7 +189,7 @@ class LipschitzBoundedPolicy(nn.Module):
 
 ### 3.1 Pendulum Swing-up
 
-![[lipschitz_pendulum_policy.png]]
+**图示说明**：Lipschitz-bounded policy 在扰动下输出变化更平滑，对应更稳的 pendulum 控制响应。
 
 | 策略 | 无约束 MLP | Lipschitz-bounded ($\gamma=4$) |
 |------|-----------|-------------------------------|

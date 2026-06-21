@@ -11,7 +11,7 @@ related:
   - "[[WMTS_Reliability_Extensions]]"
   - "[[ContactMechanics]]"
   - "[[InformationTheory]]"
-  - "[[Curiosity-Driven Exploration Recap]]"
+  - "[[Curiosity-Driven Exploration via Latent Bayesian Surprise]]"
   - "[[GenDexGrasp - Generalizable Dexterous Grasping]]"
   - "[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]]"
 ---
@@ -29,9 +29,9 @@ related:
 真机灵巧操作 RL 的核心瓶颈不是策略表达力，而是**真机 reward 的可观测性**。仿真中可直接读取 $P_{obj}, R_{obj}$，真机端要么依赖外置 Mocap（侵入实验、丢失泛化）要么依赖 RGB-D + 实时位姿估计（受遮挡、物体外观变化、光照影响极大）。
 
 ### 1.2 现有方法的局限
-- [[DeXtreme Recap|DeXtreme]] 真机依赖 Tracker + 8 路相机阵列；硬件成本高、移植困难。
+- [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]] 真机依赖 Tracker + 8 路相机阵列；硬件成本高、移植困难。
 - [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]] 用触觉做策略观测但 reward 仍来自仿真侧。
-- [[DexterityGen Recap|DexterityGen]] 依赖人类演示 BC，无法在真机闭环优化。
+- [[DEXTERITYGEN- Foundation Controller for Unprecedented Dexterity|DexterityGen]] 依赖人类演示 BC，无法在真机闭环优化。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight
@@ -117,7 +117,7 @@ GPU: 27 configs × 3 seeds × 50M steps = ~3 days × 8 A100。
 - [[Final_WMTS#5.4 通才微调策略|§5.4 AWAC]] — 直接替换 reward 来源
 - [[WMTS_Reliability_Extensions#1.1 三类风险量|Reliability §1.1]] — γ 项与 dynamics epistemic uncertainty 同源
 - [[GenDexGrasp - Generalizable Dexterous Grasping]] — Contact map decoder 设计参考
-- [[Curiosity-Driven Exploration Recap]] — 信息增益项的理论依据
+- [[Curiosity-Driven Exploration via Latent Bayesian Surprise]] — 信息增益项的理论依据
 
 ---
 

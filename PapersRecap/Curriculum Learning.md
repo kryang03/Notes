@@ -23,11 +23,11 @@ related:
 > 提出**课程学习**范式：像人类教育一样，从简单样本开始训练，逐渐增加难度。这是一种**延续方法 (Continuation Method)** 的实例，能帮助非凸优化找到更好的局部极小值，并加速收敛。
 
 > [!tip] 与理论基础的关联
-> - [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] - 课程学习与非凸景观的深层联系
-> - [[Optimization#2.4 凸优化基础与对偶性理论 (Convex Optimization Foundations & Duality)]] - 课程从凸子问题开始，渐进引入非凸性；这正是 continuation method 的精髓
-> - [[Optimization#3. 技术演进脉络与深度洞察 (Evolution & Insights)]] - 课程学习与优化的 continuation 方法
+> - [[Optimization]] - 课程学习与非凸景观的深层联系
+> - [[Optimization]] - 课程从凸子问题开始，渐进引入非凸性；这正是 continuation method 的精髓
+> - [[Optimization]] - 课程学习与优化的 continuation 方法
 > - [[ReinforcementLearning]] - RL中的课程学习应用
-> - [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] - 分布偏移问题
+> - [[RepresentationLearning]] - 分布偏移问题
 >
 > **核心技术**: Continuation Methods, Non-convex Optimization, Training Distribution Scheduling
 
@@ -340,17 +340,17 @@ LLM-based Curriculum (EUREKA, 2023)
 
 ### [[Optimization]] — Continuation Method
 
-课程学习的核心数学对应是 [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] 中的非凸景观理论：
+课程学习的核心数学对应是 [[Optimization]] 中的非凸景观理论：
 
 $$C_\lambda(\theta) = \mathbb{E}_{z \sim Q_\lambda}[\ell(\theta, z)]$$
 
-- $\lambda=0$: $Q_0$ 集中在简单样本 → $C_0$ 接近凸函数（对应 [[Optimization#2.4 凸优化基础与对偶性理论 (Convex Optimization Foundations & Duality)]]）
+- $\lambda=0$: $Q_0$ 集中在简单样本 → $C_0$ 接近凸函数（对应 [[Optimization]]）
 - $\lambda \to 1$: $Q_\lambda \to P$ → $C_\lambda$ 逐渐引入非凸性
 - Continuation 保证：若 $\theta^*(\lambda)$ 在 $C_\lambda$ 的局部极小 basin 中，则小步推进 $\lambda$ 后 $\theta^*(\lambda+\delta)$ 仍在"好"的 basin 中
 
 ### [[ReinforcementLearning]] — 课程 RL
 
-在 RL 中，课程学习对应奖励/环境的渐进调度（[[ReinforcementLearning#4. Advanced State Space & Reward Engineering]]）：
+在 RL 中，课程学习对应奖励/环境的渐进调度（[[ReinforcementLearning]]）：
 
 $$R_\lambda(s,a) = (1-\lambda) R_{\text{easy}}(s,a) + \lambda R_{\text{target}}(s,a)$$
 
@@ -358,7 +358,7 @@ $$R_\lambda(s,a) = (1-\lambda) R_{\text{easy}}(s,a) + \lambda R_{\text{target}}(
 
 $$p_\lambda(s'|s,a) \text{ with } p_0 \text{ (simplified dynamics)} \to p_1 \text{ (full dynamics)}$$
 
-这与 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] 中的域随机化调度直接对应。
+这与 [[ReinforcementLearning]] 中的域随机化调度直接对应。
 
 ---
 

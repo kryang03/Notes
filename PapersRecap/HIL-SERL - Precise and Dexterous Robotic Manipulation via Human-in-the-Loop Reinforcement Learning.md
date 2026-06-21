@@ -25,10 +25,10 @@ related:
 > 在 SERL 基础上引入**人在回路校正 (Human Corrections)**，实现对**动态操作、精密装配、双臂协调**等前所未有复杂任务的学习，1-2.5 小时训练达到**超人类水平**性能，成功率比模仿学习提升 101%。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - RLPD 核心算法
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 演示 + 校正数据利用
+> - [[ReinforcementLearning]] - RLPD 核心算法
+> - [[ReinforcementLearning]] - 演示 + 校正数据利用
 > - [[ControlTheory]] - 双臂协调控制
-> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 预训练视觉骨干
+> - [[RepresentationLearning]] - 预训练视觉骨干
 >
 > **核心技术**: Human Corrections, Pretrained Vision Backbone, Dual-Arm Coordination
 
@@ -370,13 +370,13 @@ $$
 $$
 校正数据作为高质量先验，等效于在策略梯度中引入信任区域约束，加速收敛。
 
-**[[ControlTheory#3. Technical Evolution: From Rigid Position Control to Compliant Force Control]]** — 阻抗控制器提供安全探索的物理保障:
+**[[ControlTheory]]** — 阻抗控制器提供安全探索的物理保障:
 $$
 F = K_p(x_d - x) + K_d(\dot{x}_d - \dot{x})
 $$
 低 $K_p$ 使末端在接触时表现为弹簧而非刚体，允许 RL 策略安全试错。
 
-**[[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]]** — 预训练视觉编码器 $f_\phi: \mathcal{I} \to \mathbb{R}^d$ 将高维图像压缩到低维特征空间，使 RL 在 $\mathbb{R}^d \times \mathbb{R}^{\text{proprio}}$ 上学习，避免端到端样本复杂度爆炸。
+**[[RepresentationLearning]]** — 预训练视觉编码器 $f_\phi: \mathcal{I} \to \mathbb{R}^d$ 将高维图像压缩到低维特征空间，使 RL 在 $\mathbb{R}^d \times \mathbb{R}^{\text{proprio}}$ 上学习，避免端到端样本复杂度爆炸。
 
 ## 7. 演进脉络定位 (Evolution Context)
 

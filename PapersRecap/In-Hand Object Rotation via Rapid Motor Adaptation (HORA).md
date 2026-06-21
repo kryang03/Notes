@@ -26,9 +26,9 @@ related:
 > 针对"手内操作要么依赖易受遮挡/光照影响的外部视觉、要么靠域随机化牺牲性能换鲁棒"这一瓶颈，把腿足机器人的 **快速电机适应 (Rapid Motor Adaptation, RMA)** 迁移到手内：两阶段训练一个以物体属性压缩表征 $z$ (extrinsics) 为条件的策略，再用本体感觉历史在线估计 $\hat{z}$，实现**仅用本体感觉**零样本旋转 30+ 种未见物体，无需视觉或触觉。结构性洞见：**物体物理属性无需显式传感，可作为动力学参数的低维充分统计量从交互历史中隐式辨识——"域随机化解决鲁棒性，适应解决最优性"。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - PPO 策略学习
-> - [[Dynamics#7. Operational Space Dynamics: 操作空间动力学 (Khatib Framework)]] - 物体动力学隐式学习
-> - [[RepresentationLearning#3. Implementation: 核心算法实现与物理逻辑 (Core Algorithmic Implementation and Physical Logic)]] - 物理属性编码器
+> - [[ReinforcementLearning]] - PPO 策略学习
+> - [[Dynamics]] - 物体动力学隐式学习
+> - [[RepresentationLearning]] - 物理属性编码器
 > - [[ControlTheory]] - 自适应控制思想
 >
 > **核心技术**: Extrinsics Encoding, Adaptation Module, Proprioception-only Control
@@ -227,7 +227,7 @@ $$
 
 **第 2 步——真机里 $\psi$ 不可观 ⇒ POMDP。** 仅本体观测 $o_t$ 不含 $\psi$，系统是 POMDP，最优策略依赖 belief $b_t=p(\psi\mid o_{1:t},a_{1:t-1})$。直接维护高维 belief 在灵巧手上不现实。
 
-**第 3 步——低维充分统计量假设。** 对"旋转"任务，$\psi$ 只通过物体动力学影响轨迹（[[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)|Dynamics §5]]）：
+**第 3 步——低维充分统计量假设。** 对"旋转"任务，$\psi$ 只通过物体动力学影响轨迹（[[Dynamics|Dynamics §5]]）：
 $$M_o(q_o)\ddot{q}_o + C_o(q_o,\dot{q}_o)\dot{q}_o + g_o(q_o) = J_c^T f_c.$$
 $(M_o,C_o,g_o)$ 中的物体参数可被一个低维 $z=\mu(\psi)\in\mathbb{R}^d$ 概括，使 $\pi^*(a\mid o,b)\approx\pi(a\mid o,z)$。**$z$ 就是 $\psi$ 对该任务的充分统计量**——这是 extrinsics 的数学定义，而非"压缩表征"这种含糊说法。
 
@@ -361,7 +361,7 @@ $$
 \max_\theta\ \mathbb{E}_{(o,z) \sim \mathcal{D}} \left[ \min\left( \frac{\pi_\theta(a|o,z)}{\pi_{\theta_\text{old}}(a|o,z)} \hat{A}, \text{clip}(\cdot, 1\pm\epsilon) \hat{A} \right) \right]
 $$
 
-关键区别于标准 PPO：策略以 $z$ 为条件 → 不同物体属性下学到不同子策略（策略空间的隐式分区）。这与 [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] 中的上下文条件策略理论直接对应。
+关键区别于标准 PPO：策略以 $z$ 为条件 → 不同物体属性下学到不同子策略（策略空间的隐式分区）。这与 [[ReinforcementLearning]] 中的上下文条件策略理论直接对应。
 
 ### 与 [[Dynamics]] 的数学对应
 
@@ -370,15 +370,15 @@ $$
 M_o(q_o) \ddot{q}_o + C_o(q_o, \dot{q}_o) \dot{q}_o + g_o(q_o) = J_c^T f_c
 $$
 
-HORA 的 extrinsics $z$ 本质上是对 $(M_o, C_o, g_o)$ 中的物体参数 (质量 $m$、惯量 $I$、CoM 偏移 $\Delta r$) 的**低维充分统计量**。适应模块从关节力矩历史 $\tau_{t-H:t} = K_p(a - q) + K_d\dot{q}$ 中反推这些量——这是 [[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)]] 中接触力观测器的数据驱动替代。
+HORA 的 extrinsics $z$ 本质上是对 $(M_o, C_o, g_o)$ 中的物体参数 (质量 $m$、惯量 $I$、CoM 偏移 $\Delta r$) 的**低维充分统计量**。适应模块从关节力矩历史 $\tau_{t-H:t} = K_p(a - q) + K_d\dot{q}$ 中反推这些量——这是 [[Dynamics]] 中接触力观测器的数据驱动替代。
 
 ### 与 [[RepresentationLearning]] 的联系
 
-Extrinsics 编码器 $\mu$ 学习的是物体属性空间到 $\mathbb{R}^d$ 的**嵌入映射**。论文验证了该嵌入具有语义结构（质量、尺寸解耦），这与 [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] 中的解耦表征学习理论一致——好的表征应具有轴对齐的可解释维度。
+Extrinsics 编码器 $\mu$ 学习的是物体属性空间到 $\mathbb{R}^d$ 的**嵌入映射**。论文验证了该嵌入具有语义结构（质量、尺寸解耦），这与 [[RepresentationLearning]] 中的解耦表征学习理论一致——好的表征应具有轴对齐的可解释维度。
 
 ### 与 [[ContactMechanics]] 的联系
 
-HORA 的成功间接验证了 [[ContactMechanics#6. 仿真到现实 (Sim2Real) 与工程实现]] 的核心假设：尽管仿真接触模型不精确，但通过足够的域随机化 + 在线适应，策略可以桥接 Sim-to-Real gap。扭矩惩罚 $r_{\text{torque}}$ 则是对仿真接触力不可靠性的工程补偿。
+HORA 的成功间接验证了 [[ContactMechanics]] 的核心假设：尽管仿真接触模型不精确，但通过足够的域随机化 + 在线适应，策略可以桥接 Sim-to-Real gap。扭矩惩罚 $r_{\text{torque}}$ 则是对仿真接触力不可靠性的工程补偿。
 
 ### 具体应用
 1. **腿足-操作统一**: Rapid Adaptation 框架可跨任务复用

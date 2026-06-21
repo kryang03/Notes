@@ -184,6 +184,6 @@ WMTS 的 model-free DR 对照基线与 PPO Oracle 起点；其 sim→real 落差
 
 ## References
 - 原始 PDF：[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality.pdf]]（NVIDIA，ICRA 2023，arXiv 2210.13702）
-- 前作：OpenAI Dactyl / [[SOLVING RUBIK'S CUBE WITH A ROBOT HAND|Rubik's Cube]]（ADR 源头）
+- 前作：OpenAI Dactyl / [[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik's Cube]]（ADR 源头）
 - 闭 gap 路线：[[Finetuning Offline World Models in the Real World|FOWM]]、[[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]
 - 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

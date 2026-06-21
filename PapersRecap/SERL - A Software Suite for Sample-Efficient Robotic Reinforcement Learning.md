@@ -25,10 +25,10 @@ related:
 > 提供一个**开箱即用的真实世界机器人 RL 软件框架**，集成高效 off-policy 算法 (RLPD)、自动奖励推断、自动重置学习和阻抗控制器，在 PCB 装配、线缆布线等任务上实现 **25-50 分钟训练**达到近乎完美成功率。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - SAC/RLPD 算法
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - Demo-augmented learning
+> - [[ReinforcementLearning]] - SAC/RLPD 算法
+> - [[ReinforcementLearning]] - Demo-augmented learning
 > - [[ControlTheory]] - 接触任务安全控制
-> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 图像观测处理
+> - [[RepresentationLearning]] - 图像观测处理
 >
 > **核心技术**: RLPD, Classifier-based Rewards, Forward-Backward Reset, Impedance Control
 
@@ -294,19 +294,19 @@ SERL 是 **HIL-SERL** 的基础，后者加入人在回路校正处理更复杂�
 
 ### 与 Foundation 的数学联系
 
-**[[ReinforcementLearning#3. Implementation: 核心算法细节分析]]** — RLPD 的先验数据注入等价于在 SAC 目标函数中增加 off-policy 纠偏项:
+**[[ReinforcementLearning]]** — RLPD 的先验数据注入等价于在 SAC 目标函数中增加 off-policy 纠偏项:
 $$
 \mathcal{L}_Q = \mathbb{E}_{\mathcal{B}_{\text{demo}} \cup \mathcal{B}_{\text{online}}}\left[(Q_\phi(s,a) - y)^2\right]
 $$
 demo 数据的包含等效于对策略施加了一个软行为克隆约束，缓解冷启动问题。
 
-**[[ControlTheory#3. Technical Evolution: From Rigid Position Control to Compliant Force Control]]** — 阻抗控制器是 SERL 安全探索的物理基础:
+**[[ControlTheory]]** — 阻抗控制器是 SERL 安全探索的物理基础:
 $$
 \tau = K_p(x_d - x) + K_d(\dot{x}_d - \dot{x}) + J^T f_{\text{ext}}
 $$
 低 $K_p$ 使末端在接触时顺应外力，避免策略探索时产生破坏性力。
 
-**[[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]]** — SERL 的高 UTD ratio 可视为在策略空间做局部轨迹优化：每步环境交互后，重复优化 Q 曲面 20 次，等效于对当前轨迹进行多步 Newton 迭代。
+**[[Optimization]]** — SERL 的高 UTD ratio 可视为在策略空间做局部轨迹优化：每步环境交互后，重复优化 Q 曲面 20 次，等效于对当前轨迹进行多步 Newton 迭代。
 
 ## 7. 演进脉络定位 (Evolution Context)
 

@@ -8,10 +8,10 @@ novelty: A
 target-venue: NeurIPS / CoRL
 related:
   - "[[Final_WMTS]]"
-  - "[[Diffusion Policy Recap]]"
-  - "[[DiWA- Diffusion Policy Adaptation with World Models Recap]]"
-  - "[[Beyond Human Demonstrations Recap]]"
-  - "[[Finetuning Offline WM Recap]]"
+  - "[[Diffusion Policy: Visuomotor Policy]]"
+  - "[[DiWA- Diffusion Policy Adaptation with World Models]]"
+  - "[[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training]]"
+  - "[[Finetuning Offline World Models in the Real World]]"
 ---
 
 # Idea-011: WM-Importance-Weighted Off-Policy Diffusion RL on Real Robot
@@ -24,7 +24,7 @@ related:
 ## 1. 问题定义与动机
 
 ### 1.1 大背景引入
-真机数据每条都极昂贵，浪费历史数据是不可接受的。但 [[Diffusion Policy Recap|Diffusion Policy]] 没有显式 likelihood，标准 IS weight 不可用。WMTS 当前在 AWAC 与 Dream RL 之间二选一，未充分利用两者优势。
+真机数据每条都极昂贵，浪费历史数据是不可接受的。但 [[Diffusion Policy: Visuomotor Policy|Diffusion Policy]] 没有显式 likelihood，标准 IS weight 不可用。WMTS 当前在 AWAC 与 Dream RL 之间二选一，未充分利用两者优势。
 
 ### 1.2 现有方法的局限
 - AWAC：只用 advantage 加权 BC，bias 可控但 sample efficiency 一般。

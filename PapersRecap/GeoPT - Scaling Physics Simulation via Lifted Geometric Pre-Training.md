@@ -46,7 +46,7 @@ related:
 
 ### 现有方法的局限
 1. **从零训练**: 每个物理任务独立训练，无法利用跨域几何共性；单样本 $6.1 \times 10^4$ CPU-hours 的标注成本不可扩展
-2. **原生几何预训练 ([[ComputationalGeometry#4.1 SDF的数学定义与梯度属性 (Mathematical Definition & Gradient Properties)|SDF]]/Occupancy)**: 学习纯几何特征与下游物理空间正交 → 微调时产生**负迁移**，性能反而低于从零训练
+2. **原生几何预训练 ([[ComputationalGeometry|SDF]]/Occupancy)**: 学习纯几何特征与下游物理空间正交 → 微调时产生**负迁移**，性能反而低于从零训练
 3. **物理数据预训练 (DPOT/Poseidon)**: 预训练仍依赖昂贵的 [[Dynamics|物理仿真数据]]，未解决根本的数据瓶颈
 4. **辅助几何特征 (Hunyuan3D 方式)**: 仅将冻结几何 encoder 作为辅助特征，不改变物理 backbone，迁移深度有限
 
@@ -71,7 +71,7 @@ related:
 
 **原生几何预训练** (失败方案):
 $$\mathcal{L}_{native}^{pre} = \mathbb{E}_{x,G} \| F_{\theta_b}(x; G) - h_G(x) \|_2^2$$
-其中 $h_G(x)$ 是纯几何特征 ([[ComputationalGeometry#4.1 SDF的数学定义与梯度属性 (Mathematical Definition & Gradient Properties)|SDF]]/occupancy/vector distance)。
+其中 $h_G(x)$ 是纯几何特征 ([[ComputationalGeometry|SDF]]/occupancy/vector distance)。
 
 **核心失败原因**: 下游物理仿真需要 $(G, S)$ 联合表征（几何+动力学条件），而原生预训练仅学习 $G \to H$，与物理空间存在不可弥合的维度缺口。
 
@@ -89,7 +89,7 @@ $$\mathcal{L}_{lifted}^{pre} = \mathbb{E}_{x, G, V} \| F_{\theta_b}(x, V; G) - h
 ### 3.2 关键理论保证
 
 > [!theorem] Remark 4.1 — 与传输方程的等价性
-> Eq.(4) 的轨迹演化等价于带粘壁边界的传输方程 $\partial_t f + v \cdot \nabla_x f = 0$（参见 [[Dynamics#3.1 The Classical Era: Lagrangian Formulation|拉格朗日守恒律框架]]）。
+> Eq.(4) 的轨迹演化等价于带粘壁边界的传输方程 $\partial_t f + v \cdot \nabla_x f = 0$（参见 [[Dynamics|拉格朗日守恒律框架]]）。
 > 在随机采样速度场 $v \in V$ 下预训练，等价于学习在**任意动力学**下服从守恒律的通用先验。
 
 **几何-物理关键耦合结构**:

@@ -8,10 +8,10 @@ novelty: A
 target-venue: NeurIPS / RSS
 related:
   - "[[Final_WMTS]]"
-  - "[[Diffusion Policy Recap]]"
-  - "[[DiWA- Diffusion Policy Adaptation with World Models Recap]]"
-  - "[[SafeDreamer Recap]]"
-  - "[[Beyond Human Demonstrations Recap]]"
+  - "[[Diffusion Policy: Visuomotor Policy]]"
+  - "[[DiWA- Diffusion Policy Adaptation with World Models]]"
+  - "[[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL]]"
+  - "[[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training]]"
 ---
 
 # Idea-004: WM-Guided Diffusion Refinement at Test-Time (No Retraining)
@@ -27,9 +27,9 @@ related:
 [[Final_WMTS#5.1 Look-ahead Safety Filter|当前 Safety Filter]] 是 reject-and-replan 模式：动作生成后做 WM 推演，不通过则丢弃。这种二值放行有两个问题：(1) 拒绝率高时真机执行频率掉到不可用；(2) 完全浪费了已生成的 sample 信息。
 
 ### 1.2 现有方法的局限
-- [[Diffusion Policy Recap|Diffusion Policy]]：原生没有 reward / safety guidance。
-- [[DiWA- Diffusion Policy Adaptation with World Models Recap|DiWA]]：用 WM 在 dream MDP 中 PPO 微调 diffusion，但需要梯度回传与离线训练，无法 on-the-fly 调整。
-- [[SafeDreamer Recap|SafeDreamer]]：在 dream 内做约束 RL，未应用到 diffusion 反向过程。
+- [[Diffusion Policy: Visuomotor Policy|Diffusion Policy]]：原生没有 reward / safety guidance。
+- [[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]：用 WM 在 dream MDP 中 PPO 微调 diffusion，但需要梯度回传与离线训练，无法 on-the-fly 调整。
+- [[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL|SafeDreamer]]：在 dream 内做约束 RL，未应用到 diffusion 反向过程。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight

@@ -31,10 +31,10 @@ template-note: Example/Rodrigues Network for Learning Robot Actions.md
 > 本文把经典正运动学中的 Rodrigues 旋转公式从固定解析算子改造成可学习的 Neural Rodrigues Operator，并以此构建 RodriNet，使动作网络在处理关节/连杆特征时天然遵循铰接体的树状拓扑和旋转运动学模板；在运动学拟合、笛卡尔运动预测、ManiSkill 模仿学习和 3D 手重建中均显示出比 MLP/GCN/Transformer/Body Transformer 更强的参数效率与泛化能力。
 
 > [!tip] 与理论基础的关联
-> - [[Dynamics#2.4 刚体变换与指数坐标 (Rigid Body Transformations & Exponential Coordinates)|Dynamics §2.4]] — $SO(3)$、$SE(3)$、轴角表示、Rodrigues 公式和前向运动学递推是本文的数学根。
-> - [[RepresentationLearning#4.3 几何不变性的编码 (Encoding Geometric Invariance)|RepresentationLearning §4.3]] — 本文不是通用 SE(3) 等变网络，而是把机器人自身运动学结构编码为动作特征网络的归纳偏置。
-> - [[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|Diffusion Policy]] — 本文在模仿学习实验中只替换 Diffusion Policy 的 denoising backbone，用于检验“动作网络架构”本身的价值。
-> - [[EmbodiedAI#2.3 模仿学习 (Imitation Learning)|EmbodiedAI §2.3]] — 方法服务于具身结构化动作生成，而不是只从视觉/语言模型迁移现成架构。
+> - [[Dynamics|Dynamics §2.4]] — $SO(3)$、$SE(3)$、轴角表示、Rodrigues 公式和前向运动学递推是本文的数学根。
+> - [[RepresentationLearning|RepresentationLearning §4.3]] — 本文不是通用 SE(3) 等变网络，而是把机器人自身运动学结构编码为动作特征网络的归纳偏置。
+> - [[RepresentationLearning|Diffusion Policy]] — 本文在模仿学习实验中只替换 Diffusion Policy 的 denoising backbone，用于检验“动作网络架构”本身的价值。
+> - [[EmbodiedAI|EmbodiedAI §2.3]] — 方法服务于具身结构化动作生成，而不是只从视觉/语言模型迁移现成架构。
 >
 > **核心技术**: Neural Rodrigues Operator, Kinematics-Aware Inductive Bias, Articulated Action Backbone, Diffusion Policy Backbone
 
@@ -702,7 +702,7 @@ $$
 
 ### 与 [[Dynamics]] 的联系
 
-本文直接落在 [[Dynamics#2.4 刚体变换与指数坐标 (Rigid Body Transformations & Exponential Coordinates)|刚体变换与指数坐标]]。经典链条是：
+本文直接落在 [[Dynamics|刚体变换与指数坐标]]。经典链条是：
 
 $$
 \mathfrak{so}(3)\xrightarrow{\exp}SO(3)\xrightarrow{\text{homogeneous lift}}SE(3)\xrightarrow{\text{tree composition}}\text{Forward Kinematics}.
@@ -712,7 +712,7 @@ RodriNet 的创新在于把这个链条中的“tree composition + Rodrigues bas
 
 ### 与 [[RepresentationLearning]] 的联系
 
-RodriNet 是物理结构化表征学习。它与 [[RepresentationLearning#4.3 几何不变性的编码 (Encoding Geometric Invariance)|SE(3) 等变网络]] 的区别是：
+RodriNet 是物理结构化表征学习。它与 [[RepresentationLearning|SE(3) 等变网络]] 的区别是：
 
 - SE(3)-equivariant network 关心外部世界坐标变换后输出如何变换。
 - RodriNet 关心同一个机器人内部，joint/link 特征如何沿运动学树传播。

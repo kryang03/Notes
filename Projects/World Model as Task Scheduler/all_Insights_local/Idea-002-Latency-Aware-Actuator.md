@@ -10,27 +10,27 @@ related:
   - "[[Final_WMTS]]"
   - "[[Actuator2RigidDynamicsModel_gap]]"
   - "[[FOC_Control]]"
-  - "[[ANYmal Parkour Recap]]"
+  - "[[ANYmal parkour Learning agile navigation for quadrupedal robots]]"
   - "[[Learning Agile and Dynamic Motor Skills for Legged Robots]]"
-  - "[[Finetuning Offline WM Recap]]"
+  - "[[Finetuning Offline World Models in the Real World]]"
 ---
 
 # Idea-002: CAN-Latency-Conditioned Actuator Network for Online Real-Robot Adaptation
 
 > [!abstract] 核心贡献（一句话）
-> 我们将 [[Actuator2RigidDynamicsModel_gap#2.5 ms 指间相位差|CAN bus 指间相位差 (5–20 ms)]] 显式建模为一个**可观测的随机延迟变量**，让 Actuator Network 以 latency token 为条件进行 FiLM 调制，使真机 Actuator Model 能在不重训 Rigid 部分的前提下，用 ≤5 分钟真机数据完成在线适应。
+> 我们将 [[Actuator2RigidDynamicsModel_gap|CAN bus 指间相位差 (5–20 ms)]] 显式建模为一个**可观测的随机延迟变量**，让 Actuator Network 以 latency token 为条件进行 FiLM 调制，使真机 Actuator Model 能在不重训 Rigid 部分的前提下，用 ≤5 分钟真机数据完成在线适应。
 
 ---
 
 ## 1. 问题定义与动机
 
 ### 1.1 大背景引入
-[[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|WMTS Actuator Model]] 与 [[ANYmal Parkour Recap|ANYmal Actuator Network]] 都假设指令到力矩的映射是 deterministic 的延迟函数。但灵巧手的 CAN 1Mbps 总线在 16 路并行写入下，延迟方差极大（[[Actuator2RigidDynamicsModel_gap#4.1 高频感知的总线瓶颈|2.5 ms 指间相位差]] + 仲裁不确定 5–20 ms）。仿真完全忽略此源，是 Actuator sim-to-real gap 的隐藏元凶。
+[[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|WMTS Actuator Model]] 与 [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Actuator Network]] 都假设指令到力矩的映射是 deterministic 的延迟函数。但灵巧手的 CAN 1Mbps 总线在 16 路并行写入下，延迟方差极大（[[Actuator2RigidDynamicsModel_gap#4.1 高频感知的总线瓶颈|2.5 ms 指间相位差]] + 仲裁不确定 5–20 ms）。仿真完全忽略此源，是 Actuator sim-to-real gap 的隐藏元凶。
 
 ### 1.2 现有方法的局限
-- [[ANYmal Parkour Recap|ANYmal Actuator Network]]：固定 30 ms 历史窗口，假设延迟 stationary。
+- [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Actuator Network]]：固定 30 ms 历史窗口，假设延迟 stationary。
 - [[Learning Agile and Dynamic Motor Skills for Legged Robots]]：测量延迟均值后做常量补偿。
-- [[Finetuning Offline WM Recap|FOWM]]：真机微调整个 WM，破坏已学好的 Rigid 部分。
+- [[Finetuning Offline World Models in the Real World|FOWM]]：真机微调整个 WM，破坏已学好的 Rigid 部分。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight
@@ -118,11 +118,11 @@ FiLM 调制等价于在每层学习一个 latency-conditioned linear transform�
 - [[ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation|ViserDex]] — **轻量先例**：用"随机化 α 的 EMA 动作平滑" $\bar a_t=(1-\alpha)\bar a_{t-1}+\alpha a_t$ 做**隐式延迟 DR**，验证了"训练期延迟随机化 → 真机鲁棒"。本 Idea 是其**显式升级**：把不可观测的盲目平滑换成**可观测 CAN latency $\delta_t$ 条件化的 FiLM**，并支持 frozen-rigid 在线适应。
 - [[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|§4.A]] — 直接扩展输入定义
 - [[Actuator2RigidDynamicsModel_gap#三、 L25 灵巧手 CAN 协议与可读取量分析|L25 CAN 分析]] — latency 物理来源
-- [[FOC_Control#5.2 电流环带宽|FOC §5.2]] — 电流环带宽与延迟的耦合关系
+- [[FOC_Control|FOC §5.2]] — 电流环带宽与延迟的耦合关系
 - 与 [[WMTS_Reliability_Extensions#2.4 Ensemble WM：Actuator-Rigid counterfactual loss|Reliability §2.4]] 互补：本 Idea 解决 Actuator 的 sim-to-real gap，counterfactual loss 解决两 head 互相背锅
-- [[RepresentationLearning#6.3.7 神经正切核 (Neural Tangent Kernel, NTK)|NTK lazy training]] — 为“大 WM + < 1h 真机数据 + frozen-rigid + 5min 适配”提供严格理论依据：在 NTK 邻域内微调等价于固定 kernel 核回归，防止灾难性遗忘
-- [[ControlTheory#12. 自适应控制与确定性等价原理 (Adaptive Control & Certainty Equivalence)|经典自适应控制]] — FiLM 隐变量 $z(t)$ 是 MRAC $\hat\theta(t)$ 的深度学习版；PE 条件（[[ControlTheory#12.4 PE 与参数收敛的桥梁|§12.4]]）给出了"采集多少分布的激励轨迹才能保证 5min 适配收敛"的理论判据
-- [[ControlTheory#9.3.2 带噪声数据的鲁棒镇定|噪声数据鲁棒镇定]] — 把真机短轨迹视为 $X_+=AX_-+BU_-+W_-$，用 LMI 检查所有一致 actuator 模型是否共享稳定性证书；作为 Stage B 适配成功的安全判据
+- [[RepresentationLearning|NTK lazy training]] — 为“大 WM + < 1h 真机数据 + frozen-rigid + 5min 适配”提供严格理论依据：在 NTK 邻域内微调等价于固定 kernel 核回归，防止灾难性遗忘
+- [[ControlTheory|经典自适应控制]] — FiLM 隐变量 $z(t)$ 是 MRAC $\hat\theta(t)$ 的深度学习版；PE 条件（[[ControlTheory|§12.4]]）给出了"采集多少分布的激励轨迹才能保证 5min 适配收敛"的理论判据
+- [[ControlTheory|噪声数据鲁棒镇定]] — 把真机短轨迹视为 $X_+=AX_-+BU_-+W_-$，用 LMI 检查所有一致 actuator 模型是否共享稳定性证书；作为 Stage B 适配成功的安全判据
 
 ---
 

@@ -24,10 +24,10 @@ related:
 > 针对"手内旋转大多只在 palm-up 验证、回避重力破坏抓取稳定，且触觉多为二值/端到端图像迁移 gap 大"两个瓶颈，提出 AnyRotate：用 **Auxiliary Goal Formulation** 把连续多轴旋转转成移动目标重定向（化解角速度奖励的探索困难），用**稠密触觉特征**（接触姿态 $(R_x,R_y)$ + 力幅度 $\|F\|$）替代二值接触并经 CNN 实现 zero-shot sim-to-real，再用**随机化手朝向**学出重力不变策略，实现任意手方向、任意轴的统一旋转。结构性洞见：**sim-to-real 的可迁移单元不是原始触觉图像、而是物理可解释的接触中间表征；连续旋转的可学习形式不是角速度、而是移动子目标。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 教师-学生策略蒸馏
+> - [[ReinforcementLearning]] - 教师-学生策略蒸馏
 > - [[ContactMechanics]] - 稠密接触特征表示
 > - [[SignalProcessing]] - 触觉感知模型预测接触姿态与力
-> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 触觉图像到接触特征的表征
+> - [[RepresentationLearning]] - 触觉图像到接触特征的表征
 >
 > **核心技术**: Dense Featured Tactile Representation, Gravity-Invariant RL, Auxiliary Goal Formulation
 
@@ -226,7 +226,7 @@ current_goal[goal_reached] = quat_mul(new_goal_quat, current_goal)[goal_reached]
 4. $\delta\theta$ 的 sweet spot（§4.5 ~15°）：太小→目标切换过频、塑形项抖动；太大→单步不可达、退化回稀疏。
 
 **(B) 重力不变 = 对重力方向的边际化。**
-1. 物体在手内的动力学含重力项（[[ContactMechanics#3.2 软指接触模型 (Soft Finger Contact)|软指接触]] + 刚体）：
+1. 物体在手内的动力学含重力项（[[ContactMechanics|软指接触]] + 刚体）：
 $$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
 重力在**手坐标系**的投影 $R_{hand}^T g$ 随手朝向 $R_{hand}$ 改变——palm-up 时重力把物体压向指尖（稳），palm-down 时把物体拉离指尖（易掉）。
 2. 暴力枚举 6 朝向 = 对 $R_{hand}$（从而 $R_{hand}^T g$）采样，训练目标变成在重力方向分布上的期望回报 $\mathbb{E}_{R_{hand}}[J(\pi)]$——策略被迫学到**不依赖特定重力方向**的抓取力调度。
@@ -249,7 +249,7 @@ $$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
 
 ### 训练细节
 - **仿真器**: IsaacGym, 4096 并行环境
-- **算法**: [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|PPO]]，学习率 $5 \times 10^{-4}$，Horizon 16，Mini-batches 4
+- **算法**: [[ReinforcementLearning|PPO]]，学习率 $5 \times 10^{-4}$，Horizon 16，Mini-batches 4
 - **训练规模**: Teacher ~5000 iterations，Student ~2000 iterations
 - **域随机化**: 物体质量 ±50%，摩擦系数 0.4–1.5，重力方向扰动 ±5°
 - **触觉 CNN 训练**: 仿真中收集 ~50k 对 (触觉图像, 接触姿态+力) 配对，监督学习预训练
@@ -303,7 +303,7 @@ $$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
 
 ### 算法层面局限
 - Teacher-Student 两阶段训练引入信息瓶颈：Student 的 TCN 编码能力限制了可迁移的特权信息量
-- [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|PPO]] 的 on-policy 采样效率低，4096 环境并行仍需数千 iteration
+- [[ReinforcementLearning|PPO]] 的 on-policy 采样效率低，4096 环境并行仍需数千 iteration
 - 触觉 CNN 需要仿真中的监督数据对，假设仿真触觉渲染足够真实
 
 ### 工程层面局限
@@ -327,24 +327,24 @@ $$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
 ## 6. 与知识体系的联系 (Knowledge Graph Links)
 
 ### 与 [[ReinforcementLearning]] 的联系
-- **Auxiliary Goal Formulation** 对应 [[ReinforcementLearning#4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)|奖励塑形]]思想：将稀疏的"持续旋转"奖励转化为密集的"子目标到达"奖励
-- **Teacher-Student Distillation** 对应 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|Sim-to-Real]]中的特权学习范式：
+- **Auxiliary Goal Formulation** 对应 [[ReinforcementLearning|奖励塑形]]思想：将稀疏的"持续旋转"奖励转化为密集的"子目标到达"奖励
+- **Teacher-Student Distillation** 对应 [[ReinforcementLearning|Sim-to-Real]]中的特权学习范式：
   $$\mathcal{L}_{\text{distill}} = \underbrace{\|z_s - z_t\|^2}_{\text{latent alignment}} + \underbrace{-\log \pi_t(a_s | z_t)}_{\text{action NLL}}$$
 - **自适应课程** $\lambda_{\text{rew}}$ 是[[Curriculum Learning|课程学习]]在奖励权重维度的实例化
 
 ### 与 [[ContactMechanics]] 的联系
-- 稠密触觉特征 $(P, F)$ 是 [[ContactMechanics#3.2 软指接触模型 (Soft Finger Contact)|软指接触模型]]的简化参数化：
+- 稠密触觉特征 $(P, F)$ 是 [[ContactMechanics|软指接触模型]]的简化参数化：
   $$\text{Full Contact State} = (p_c, n_c, f_n, f_t, \tau) \xrightarrow{\text{降维}} (R_x, R_y, \|F\|)$$
   接触姿态 $(R_x, R_y)$ 编码了接触法线方向，力幅度 $\|F\|$ 是法向力 $f_n$ 的标量近似
-- 关键点距离度量 $K(\|k_o^i - k_g^i\|)$ 与 [[ContactMechanics#2.6 抓取品质度量 (Grasp Quality Metrics)|抓取品质度量]]在精神上一致
+- 关键点距离度量 $K(\|k_o^i - k_g^i\|)$ 与 [[ContactMechanics|抓取品质度量]]在精神上一致
 
 ### 与 [[SignalProcessing]] 的联系
-- 触觉图像 → 接触特征的 CNN 是 [[SignalProcessing#3.1 光度立体视觉（Photometric Stereo）：从光影到微米级形貌|光度立体视觉]]的学习版本：从 marker 变形图像反演接触几何
-- TCN 编码历史观测对应 [[SignalProcessing#4.1 早期滑移（Incipient Slip）检测算法|滑移检测]]的时序推理：通过力幅度的时间变化趋势判断滑移风险
+- 触觉图像 → 接触特征的 CNN 是 [[SignalProcessing|光度立体视觉]]的学习版本：从 marker 变形图像反演接触几何
+- TCN 编码历史观测对应 [[SignalProcessing|滑移检测]]的时序推理：通过力幅度的时间变化趋势判断滑移风险
 
 ### 与 [[RepresentationLearning]] 的联系
-- 稠密触觉表征是 [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)|多模态触觉智能]]的实例化：从高维触觉图像提取低维但物理可解释的接触特征
-- 这种"先提取显式特征再输入策略"的范式体现了 [[RepresentationLearning#1.3 学习目标的物理重构 (Physical Reconstruction of Learning Objectives)|物理重构]]原则
+- 稠密触觉表征是 [[RepresentationLearning|多模态触觉智能]]的实例化：从高维触觉图像提取低维但物理可解释的接触特征
+- 这种"先提取显式特征再输入策略"的范式体现了 [[RepresentationLearning|物理重构]]原则
 
 ### 启发总结
 1. **稠密触觉很重要**: 不要过早将触觉信息降维到二值接触
@@ -388,7 +388,7 @@ $$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
 ## 8. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
 
 **直接可迁移的思想**：
-1. **Gravity-Invariant Framework**: 转笔任务中手的姿态变化导致重力对笔的作用方向不断变化，可借鉴本文的重力不变性训练策略，在[[ReinforcementLearning#5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)|域随机化]]中加入手部姿态随机化
+1. **Gravity-Invariant Framework**: 转笔任务中手的姿态变化导致重力对笔的作用方向不断变化，可借鉴本文的重力不变性训练策略，在[[ReinforcementLearning|域随机化]]中加入手部姿态随机化
 2. **Auxiliary Goal Formulation**: 将「转笔角速度维持」和「接触力稳定」作为辅助目标而非直接的奖励信号，可能比精心设计的 dense reward 更鲁棒。具体地，转笔可分解为："指1→指2传递"、"aerial phase"、"指2 catch" 三个子目标
 3. **触觉信号处理**: 本文将触觉抽象为姿态+力的稠密特征，对于转笔中指腹触觉传感器的 sim-to-real 对齐有参考价值。关键洞察：**不迁移原始触觉图像，而是迁移物理可解释的接触中间表征**
 4. **自适应课程 $\lambda_{\text{rew}}$**: 转笔训练中可类似地设计——初期重点学习稳定抓持，平均旋转数达标后逐步增加旋转速度奖励权重
@@ -396,4 +396,4 @@ $$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
 **局限性对比**:
 - AnyRotate 处理的是**准静态旋转**（20Hz 控制 + 低角速度），转笔是**动态高速操作**（需 ≥50Hz + 惯性效应显著）
 - AnyRotate 的 Auxiliary Goal 假设每个子目标间有充分的控制余量，但转笔 aerial phase 中手指完全脱离物体，子目标范式需本质性修改
-- AnyRotate 的触觉特征在持续接触场景有效，但转笔涉及频繁的接触-脱离切换，[[ContactMechanics#5.1 梯度的不连续性挑战|接触不连续性]]更严重
+- AnyRotate 的触觉特征在持续接触场景有效，但转笔涉及频繁的接触-脱离切换，[[ContactMechanics|接触不连续性]]更严重

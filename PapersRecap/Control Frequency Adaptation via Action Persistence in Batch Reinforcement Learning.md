@@ -30,8 +30,8 @@ related:
 # Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|ReinforcementLearning §5]] — Batch RL / FQI 算法基础；persistence $k$ 等价于 $\gamma\to\gamma^k$ 的有效视野改变
-> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制|ControlTheory §3]] — $k$-persistent 转移核 = 零阶保持器(ZOH)离散化，采样周期 $T_s=k\Delta t_0$
+> - [[ReinforcementLearning|ReinforcementLearning §5]] — Batch RL / FQI 算法基础；persistence $k$ 等价于 $\gamma\to\gamma^k$ 的有效视野改变
+> - [[ControlTheory|ControlTheory §3]] — $k$-persistent 转移核 = 零阶保持器(ZOH)离散化，采样周期 $T_s=k\Delta t_0$
 > - [[SignalProcessing]] — 动作持续 = 截止频率 $f_c=f_s/2k$ 的低通滤波；性能损失界对应 Shannon 采样定理
 >
 > **核心技术**: Action Persistence, Persistent Bellman Operator, PFQI (Persistent Fitted Q-Iteration), Configurable MDP

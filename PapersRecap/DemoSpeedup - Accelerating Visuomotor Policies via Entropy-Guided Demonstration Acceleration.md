@@ -23,7 +23,7 @@ venue: arXiv 2025
 # DemoSpeedup: Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]]**: 模仿学习基础
+> - **[[ReinforcementLearning]]**: 模仿学习基础
 > - **[[InformationTheory]]**: 熵作为不确定性度量
 > - **[[SignalProcessing]]**: 时序信号的采样与加速
 
@@ -240,7 +240,7 @@ def accelerate_demo(demo, entropy, P_set, C_set, speedup_C):
 
 **技术相关**:
 - [[InformationTheory]]
-- [[SignalProcessing#4. 时序信号处理：滑移检测与摩擦估计]]
+- [[SignalProcessing]]
 
 ---
 
@@ -291,7 +291,7 @@ DemoSpeedup: 短视野 + 快动作 → 低复合误差 → 高/持平成功率
 
 - [[InformationTheory]]: 熵估计、核密度估计
 - [[ReinforcementLearning]]: 行为克隆、策略学习
-- [[ReinforcementLearning#6.3 RL Scaling Laws: 计算最优的训练资源分配]]: 熵作为 easy/hard 区分标准，与 DemoSpeedup 的熵引导加速思想一脉相承
+- [[ReinforcementLearning]]: 熵作为 easy/hard 区分标准，与 DemoSpeedup 的熵引导加速思想一脉相承
 - [[SignalProcessing]]: 时间序列聚类、异常检测
 - [[Optimization]]: 轨迹下采样策略
 

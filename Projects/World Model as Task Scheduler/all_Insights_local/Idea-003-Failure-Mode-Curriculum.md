@@ -9,10 +9,10 @@ target-venue: CoRL / RSS
 related:
   - "[[Final_WMTS]]"
   - "[[WMTS_Reliability_Extensions]]"
-  - "[[Curiosity-Driven Exploration Recap]]"
-  - "[[Curious Exploration via Structured WM Recap]]"
-  - "[[Prioritized Level Replay Recap]]"
-  - "[[CMA-ES Tutorial Recap]]"
+  - "[[Curiosity-Driven Exploration via Latent Bayesian Surprise]]"
+  - "[[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation]]"
+  - "[[Prioritized Level Replay]]"
+  - "[[The CMA Evolution Strategy: A Tutorial]]"
 ---
 
 # Idea-003: Real-Robot Failure-Mode Clustering for Closed-Loop Sim Curriculum
@@ -28,9 +28,9 @@ related:
 真机 RL 的根本困境：**真机失败数据极其昂贵**，每次掉落代价高（物理损伤 + 重置开销 + 手动复位时间），但失败本身蕴含的 sim-to-real gap 信息却最丰富。WMTS 当前的 [[Final_WMTS#一、 仿真隐空间任务生成器 (Latent Task Generator)|CMA-ES task generator]] 仅在仿真中演化，对真机失败模式无感。
 
 ### 1.2 现有方法的局限
-- [[Solving Rubiks Cube Recap|ADR]]：失败时整体放大 DR 范围，无法定位具体 sim-to-real gap 维度。
-- [[Prioritized Level Replay Recap|PLR]]：在 sim level 上做优先级，未考虑真机反馈。
-- [[Curious Exploration via Structured WM Recap|Plan2Explore]]：只在 WM 内做好奇心驱动，未连接真机失败诊断。
+- [[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]：失败时整体放大 DR 范围，无法定位具体 sim-to-real gap 维度。
+- [[Prioritized Level Replay|PLR]]：在 sim level 上做优先级，未考虑真机反馈。
+- [[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation|Plan2Explore]]：只在 WM 内做好奇心驱动，未连接真机失败诊断。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight
@@ -113,7 +113,7 @@ GMM 在残差空间是**MAP-style 故障归因**。每簇的仿真增强可视�
 
 - [[Final_WMTS#一、 仿真隐空间任务生成器 (Latent Task Generator)|§一]] — 输入新增 cluster failure rate
 - [[WMTS_Reliability_Extensions#2.1 Latent Task Generator：双队列而非单队列|Reliability §2.1]] — Reject Queue 与失败簇可共享 backbone
-- [[Curious Exploration via Structured WM Recap|Plan2Explore]] — Curiosity 在仿真侧, 本方案补真机侧诊断回路
+- [[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation|Plan2Explore]] — Curiosity 在仿真侧, 本方案补真机侧诊断回路
 
 ---
 

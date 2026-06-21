@@ -209,7 +209,7 @@ class HSTCN(nn.Module):
 
 ### 与 [[ReinforcementLearning]] 的联系
 - **Options Framework**: HSTCN 的高层策略 $\pi^{\text{high}}$ 类似 option 的 initiation/termination 机制，决策间隔 $c$ 对应 option 的持续时间
-- **内在奖励**: 与 [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] 中 curiosity-driven exploration 同源，通过 $r^{\text{int}}$ 解决稀疏奖励
+- **内在奖励**: 与 [[ReinforcementLearning]] 中 curiosity-driven exploration 同源，通过 $r^{\text{int}}$ 解决稀疏奖励
 
 ### 与 [[RepresentationLearning]] 的联系
 - **GNN 的 Message Passing** 实质上是在学习智能体之间的关系表征，与 [[RepresentationLearning]] 中图表征学习一致

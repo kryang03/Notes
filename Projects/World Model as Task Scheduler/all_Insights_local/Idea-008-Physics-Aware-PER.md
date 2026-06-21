@@ -9,8 +9,8 @@ target-venue: ICRA / NeurIPS workshop
 related:
   - "[[Final_WMTS]]"
   - "[[ReinforcementLearning]]"
-  - "[[Prioritized Level Replay Recap]]"
-  - "[[Finetuning Offline WM Recap]]"
+  - "[[Prioritized Level Replay]]"
+  - "[[Finetuning Offline World Models in the Real World]]"
 ---
 
 # Idea-008: Physics-Informativeness Replay Prioritization for Real-Robot WM Updates
@@ -27,8 +27,8 @@ related:
 
 ### 1.2 现有方法的局限
 - 经典 PER：用 TD-error，不适用 WM 的 likelihood loss。
-- [[Prioritized Level Replay Recap|PLR]]：在 task level prioritize，未到 transition level。
-- [[Finetuning Offline WM Recap|FOWM]]：uniform replay。
+- [[Prioritized Level Replay|PLR]]：在 task level prioritize，未到 transition level。
+- [[Finetuning Offline World Models in the Real World|FOWM]]：uniform replay。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight
@@ -101,8 +101,8 @@ PA-PER 等价于 importance-weighted maximum likelihood with uncertainty-driven 
 
 ## 5. 知识库关联
 
-- [[Final_WMTS#4. Ensemble World Model|§4]] — 三 head 联合 priority
-- [[Prioritized Level Replay Recap]] — task-level vs transition-level
+- [[Final_WMTS|§4]] — 三 head 联合 priority
+- [[Prioritized Level Replay]] — task-level vs transition-level
 - 与 Idea-003 互补：失败模式 → 课程；PA-PER → 样本优先级
 
 ---

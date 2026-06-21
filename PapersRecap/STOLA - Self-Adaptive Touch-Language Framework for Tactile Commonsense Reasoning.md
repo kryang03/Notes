@@ -210,12 +210,12 @@ class MoELayer(nn.Module):
 ### 与 [[SignalProcessing]] 的联系
 - 触觉信号的时空编码 → GelSight 时序数据包含丰富的接触动态信息
 - 信号→语义的映射本质是触觉信号处理的终极形式
-- 数学关联：触觉图像 $I(x,y,t)$ 经 encoder 映射为 $z_\text{touch} = f_\theta(I)$，本质是 [[SignalProcessing#3. 视觉触觉传感（VTS）：几何重建的计算摄影学|光度立体视觉]] 的学习版本——从法向场 $\hat{n}(x,y)$ 到语义空间 $\mathbb{R}^d$ 的端到端映射
+- 数学关联：触觉图像 $I(x,y,t)$ 经 encoder 映射为 $z_\text{touch} = f_\theta(I)$，本质是 [[SignalProcessing|光度立体视觉]] 的学习版本——从法向场 $\hat{n}(x,y)$ 到语义空间 $\mathbb{R}^d$ 的端到端映射
 
 ### 与 [[RepresentationLearning]] 的联系
 - MoE 实现模态特定的表征路由 → 与 multi-task representation learning 中 task-specific head 的思想类似
 - 触觉-语言对齐 → 跨模态表征学习
-- 数学关联：MoE 路由 $g(h) = \text{TopK}(\text{softmax}(W_r h))$ 可视为 [[RepresentationLearning#2.4 表征学习：从视觉特征到物理属性 (Representation Learning: From Visual Features to Physical Properties)|表征解耦]] 的动态版——每个 expert 学习模态子流形上的局部表征
+- 数学关联：MoE 路由 $g(h) = \text{TopK}(\text{softmax}(W_r h))$ 可视为 [[RepresentationLearning|表征解耦]] 的动态版——每个 expert 学习模态子流形上的局部表征
 
 ### 与 [[EmbodiedAI]] 的联系
 - Touch-Language Model 是 VLA 范式在触觉维度的延伸

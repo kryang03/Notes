@@ -24,7 +24,7 @@ related:
 > 提出 DemoStart，一种仅需少量仿真演示 + 稀疏二值奖励的自动课程 RL 方法。通过将演示轨迹分段作为不同难度的初始化状态，结合 Zero-Variance Filtering (ZVF) 选择高训练信号的任务参数，实现了多指灵巧手在复杂操作任务上 98%+ 成功率，并通过策略蒸馏和域随机化实现 zero-shot sim-to-real 迁移。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] — 课程学习与自动难度调节
+> - [[ReinforcementLearning]] — 课程学习与自动难度调节
 > - [[ControlTheory]] — 7自由度臂 + 12自由度三指灵巧手的关节控制
 > - [[RepresentationLearning]] — 特权信息到视觉策略的蒸馏
 > - [[Optimization]] — 稀疏奖励下的探索效率优化
@@ -267,7 +267,7 @@ $$
 \nabla_\theta J = \mathbb{E}_{\psi \sim p(\psi)}\left[\mathbb{E}_{\tau \sim \pi_\theta(\cdot|\psi)}\left[\nabla_\theta \log \pi_\theta(\tau|\psi) \cdot R(\tau)\right]\right]
 $$
 
-当 $R(\tau) \in \{0, 1\}$（稀疏二值）时，$\hat{p}(\psi) = 0$ 使内层期望为零（无梯度），$\hat{p}(\psi) = 1$ 使 $R$ 无方差（无学习信号）。ZVF 通过过滤掉这两种情况，等价于对 $p(\psi)$ 进行**重要性采样**，将训练集中在梯度信息量最大的区域。这与 [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] 中课程学习的核心动机一致：控制学习信号的有效带宽。
+当 $R(\tau) \in \{0, 1\}$（稀疏二值）时，$\hat{p}(\psi) = 0$ 使内层期望为零（无梯度），$\hat{p}(\psi) = 1$ 使 $R$ 无方差（无学习信号）。ZVF 通过过滤掉这两种情况，等价于对 $p(\psi)$ 进行**重要性采样**，将训练集中在梯度信息量最大的区域。这与 [[ReinforcementLearning]] 中课程学习的核心动机一致：控制学习信号的有效带宽。
 
 ### 与 [[Optimization]] 的数学对应
 

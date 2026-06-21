@@ -1,37 +1,20 @@
-import os, re, glob
+#!/usr/bin/env python3
+"""Compatibility wrapper for file-level wikilink checks."""
 
-BASE = "/Users/yang/Notes/Notes"
+from scanlink import VAULT, scan
 
-# Collect all existing note names (without extensions)
-all_notes = set()
-for folder in ['Foundations', 'PapersRecap', 'Projects/Dynamic Non-Prehensile Manipulation']:
-    full = os.path.join(BASE, folder)
-    for f in glob.glob(os.path.join(full, '*.md')):
-        all_notes.add(os.path.splitext(os.path.basename(f))[0])
 
-# Scan all markdown files for wikilinks
-broken = []
-for folder in ['Foundations', 'PapersRecap', 'Projects/Dynamic Non-Prehensile Manipulation']:
-    full = os.path.join(BASE, folder)
-    for filepath in glob.glob(os.path.join(full, '*.md')):
-        with open(filepath, 'r') as f:
-            content = f.read()
-        links = re.findall(r'\[\[([^\]|#]+?)(?:#[^\]|]*)?(?:\|[^\]]*?)?\]\]', content)
-        for link in links:
-            link = link.strip()
-            if link.endswith(('.pdf', '.png', '.jpg', '.txt', '.base')):
-                continue
-            if link not in all_notes:
-                broken.append((os.path.basename(filepath), link))
-
-seen = set()
-for src, target in sorted(broken):
-    key = (src, target)
-    if key not in seen:
-        seen.add(key)
-        print(f"BROKEN: [{src}] -> [[{target}]]")
-
-if not seen:
+def main() -> int:
+    result = scan()
+    for item in sorted(result.broken_files, key=lambda x: (x.source.as_posix(), x.target)):
+        src = item.source.relative_to(VAULT).as_posix()
+        print(f"BROKEN: [{src}] -> [[{item.raw}]]")
+    if result.broken_files:
+        print(f"\nTotal: {len(result.broken_files)} broken links")
+        return 1
     print("No broken wikilinks found!")
-else:
-    print(f"\nTotal: {len(seen)} broken links")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

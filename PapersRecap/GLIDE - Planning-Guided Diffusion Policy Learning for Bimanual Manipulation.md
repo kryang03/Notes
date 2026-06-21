@@ -259,7 +259,7 @@ class GLIDEDiffusionPolicy(nn.Module):
 #### 消融因果分析
 
 1. **残差动作 (+28%)**: 绝对关节位置在不同物体/位姿下偏移量变化大 → 扩散模型需要学习高方差分布 → 残差表示消除全局偏移，仅建模相对运动 → 方差降低 → 学习更稳定。这与 [[StochasticProcess]] 中差分序列降低非平稳性的原理一致。
-2. **Flying Point Aug (+48%)**: Real 世界点云包含传感器噪声、反射伪影、遮挡伪点 → 仿真训练的策略对这些"飞点"毫无免疫力 → 0.5% 概率 + 大方差高斯噪声精确模拟了真实传感器的长尾噪声分布 → 策略学会忽略离群点。本质是对观测空间的 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|域随机化]]，但仅作用于点云而非物理参数。
+2. **Flying Point Aug (+48%)**: Real 世界点云包含传感器噪声、反射伪影、遮挡伪点 → 仿真训练的策略对这些"飞点"毫无免疫力 → 0.5% 概率 + 大方差高斯噪声精确模拟了真实传感器的长尾噪声分布 → 策略学会忽略离群点。本质是对观测空间的 [[ReinforcementLearning|域随机化]]，但仅作用于点云而非物理参数。
 3. **两者缺失 → 0%**: 说明 Sim-to-Real gap 的两个正交维度（动作空间偏移 + 观测空间噪声）都是致命的，必须同时解决。
 4. **$T_a$ 非单调**: $T_a=20$ 在 Random 任务最优。$T_a$ 过小 → 无法表达多阶段接触序列；$T_a$ 过大 → 累积开环误差主导，闭环频率过低。最优 $T_a$ 取决于任务视野与闭环需求的 trade-off。
 
@@ -278,7 +278,7 @@ class GLIDEDiffusionPolicy(nn.Module):
 
 | 维度 | 局限 | 根因 | 替代方案 |
 |-----|------|------|--------|
-| **理论** | 接触规划器依赖局部线性近似 $f_{local}$ | 真实接触为非光滑互补问题 → 线性化在大变形/滑动下误差大 | 可微仿真直接优化 ([[ContactMechanics#4. 计算动力学与求解器：从LCP到凸优化]]) |
+| **理论** | 接触规划器依赖局部线性近似 $f_{local}$ | 真实接触为非光滑互补问题 → 线性化在大变形/滑动下误差大 | 可微仿真直接优化 ([[ContactMechanics]]) |
 | **理论** | 扩散策略无最优性保证 | BC 目标为似然最大化而非回报最大化 | RL 微调扩散策略 (DPPO) |
 | **算法** | Hard 任务 (90°-150°旋转) 成功率仅 18% | 多阶段接触需长视野规划，行为克隆的复合误差 $\epsilon_{compound} \sim O(T^2 \epsilon_{single})$ | 层次化策略: 高层选择接触模式 + 低层执行 |
 | **算法** | 仅限盒状物体训练 → OOD 泛化有限 | 接触规划器需已知几何，训练分布窄 | 引入物体形状随机化或基于 [[ComputationalGeometry]] 的 SDF 泛化 |
@@ -312,9 +312,9 @@ class GLIDEDiffusionPolicy(nn.Module):
 - [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]（人在环微调）
 
 **技术相关**:
-- [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]]
-- [[ContactMechanics#4. 计算动力学与求解器：从LCP到凸优化]]
-- [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]]
+- [[Optimization]]
+- [[ContactMechanics]]
+- [[RepresentationLearning]]
 
 ---
 

@@ -22,8 +22,8 @@ related:
 > 提出在仿真中收集人类演示，通过大规模数据增强（视觉+物理+几何）生成多样化数据集，用课程学习训练策略后仅需少量真实数据微调即可实现 sim-to-real 迁移。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - 行为克隆 + 课程学习
-> - [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] - R3M 等预训练表征对比
+> - [[ReinforcementLearning]] - 行为克隆 + 课程学习
+> - [[RepresentationLearning]] - R3M 等预训练表征对比
 >
 > **核心技术**: Simulation Data Augmentation, Auto Curriculum Learning, Minimal Real Fine-tuning
 
@@ -286,7 +286,7 @@ class CyberDemoTrainer:
 
 ### 与 Foundations 的数学关联
 
-**[[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移|Behavioral Cloning]]**: BC 优化目标为最小化动作回归损失:
+**[[ReinforcementLearning|Behavioral Cloning]]**: BC 优化目标为最小化动作回归损失:
 $$\mathcal{L}_{BC} = \mathbb{E}_{(o_t,a_t)\sim\mathcal{D}}\left[\|a_t - \pi_\theta(o_t)\|^2\right]$$
 CyberDemo 的核心在于扩大 $\mathcal{D}$ 的分布覆盖: $\text{supp}(\mathcal{D}_{\text{aug}}) \gg \text{supp}(\mathcal{D}_{\text{real}})$，使得 $p_\mathcal{D}(o)$ 更接近部署时的真实分布 $p_{\text{deploy}}(o)$，缓解分布漂移。
 

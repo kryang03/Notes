@@ -480,7 +480,7 @@ $$f_{\text{contact}} = J_c(q)^{-T} \tau_{\text{joint}}$$
 
 ### [[RepresentationLearning]] — 特征选择与表征瓶颈
 
-CSR 本质上是在学习一个 [[RepresentationLearning#2.4 表征学习：从视觉特征到物理属性 (Representation Learning: From Visual Features to Physical Properties)]] 中讨论的信息瓶颈：在保持任务性能的前提下，最小化策略所需的输入信息量。
+CSR 本质上是在学习一个 [[RepresentationLearning]] 中讨论的信息瓶颈：在保持任务性能的前提下，最小化策略所需的输入信息量。
 
 ---
 

@@ -27,7 +27,7 @@ related:
 
 ### 1.2 现有方法的局限
 - [[ControlTheory|阻抗控制]]：手工切换策略，无 RL 探索能力。
-- [[Diffusion Policy Recap|Diffusion Policy]]：单策略 multimodal 表达，但 burst 模式数据少，被均值化。
+- [[Diffusion Policy: Visuomotor Policy|Diffusion Policy]]：单策略 multimodal 表达，但 burst 模式数据少，被均值化。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight

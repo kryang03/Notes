@@ -49,7 +49,7 @@ related:
 1. **单运动专家 ([[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills|DeepMimic]] 等)**: 每个运动训练独立策略，无法扩展到大规模运动库，部署需维护数十个独立模型
 2. **From-scratch multi-motion RL**: 运动多样性增加时遭遇 fidelity-scalability trade-off — 策略质量随运动数量增加而系统性退化
 3. **MLP 蒸馏**: 模型容量有限，无法编码高动态运动的多模态分布，运动数量超过阈值后性能饱和
-4. **标准域随机化**: 未建模真实联接器的 [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系|力矩-速度耦合约束]] 和非线性摩擦 → 高动态运动的 sim-to-real gap 不可弥合
+4. **标准域随机化**: 未建模真实联接器的 [[ControlTheory|力矩-速度耦合约束]] 和非线性摩擦 → 高动态运动的 sim-to-real gap 不可弥合
 
 ## 2. 核心创新与贡献 (Contributions & Novelty)
 
@@ -229,16 +229,16 @@ def torque_speed_clip(tau_cmd, vel, tau_max0, vx1, vx2, mu_s, mu_d, v_act):
 
 ## 与知识体系的数学联系
 
-### 与 [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|PPO 策略优化]] 的联系
+### 与 [[ReinforcementLearning|PPO 策略优化]] 的联系
 Stage 2 残差策略通过 PPO 优化 $\pi_\phi$，核心在于 clipped surrogate objective:
 $$\mathcal{L}^{CLIP} = \mathbb{E}_t\left[\min\left(r_t(\phi)\hat{A}_t,\ \text{clip}(r_t(\phi), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]$$
 PPO 的信赖域约束确保残差 $a_{res}$ 在 frozen FM 基础上的稳定微调。与标准 PPO 的关键差异：这里的动作空间是残差空间 $\mathcal{A}_{res} \subset \mathcal{A}$，有效降低了策略搜索维度。
 
-### 与 [[StochasticProcess#2.1 随机微分方程 (SDEs) 的物理图景|随机过程 (Flow ODE)]] 的联系
+### 与 [[StochasticProcess|随机过程 (Flow ODE)]] 的联系
 Flow Matching 的速度场 ODE $\frac{da_t}{dt} = v_\theta(a_t, t, o)$ 是 [[StochasticProcess]] 中 SDE $da_t = \mu\,dt + \sigma\,dW_t$ 在 $\sigma \to 0$ 时的确定性极限。训练目标 $\|v_\theta(a_t, t, o) - u\|^2$ 对应条件概率路径上的速度场回归，与 score matching $\nabla_x \log p_t(x)$ 通过连续性方程 $\partial_t p_t + \nabla \cdot (v_\theta p_t) = 0$ 关联。
 
-### 与 [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系|阻抗/执行器建模]] 的联系
-力矩-速度包络 $\tau_{clipped}(v)$ 本质上是联接器的**物理阻抗边界**建模。[[ControlTheory]] 中阻抗关系 $F = Z(s) \cdot V(s)$ 描述力-速度的频域耦合；OmniXtreme 的分段线性裁剪是这一关系在联接器饱和区的时域近似。非线性摩擦项 $\mu_s \tanh(v/v_{act}) + \mu_d v$ 对应 [[ContactMechanics#3. 接触建模演变：从点模型到软体模型|库仑+粘滞摩擦模型]] 的正则化版本。
+### 与 [[ControlTheory|阻抗/执行器建模]] 的联系
+力矩-速度包络 $\tau_{clipped}(v)$ 本质上是联接器的**物理阻抗边界**建模。[[ControlTheory]] 中阻抗关系 $F = Z(s) \cdot V(s)$ 描述力-速度的频域耦合；OmniXtreme 的分段线性裁剪是这一关系在联接器饱和区的时域近似。非线性摩擦项 $\mu_s \tanh(v/v_{act}) + \mu_d v$ 对应 [[ContactMechanics|库仑+粘滞摩擦模型]] 的正则化版本。
 
 ## 7. 演进脉络定位 (Evolution Context)
 

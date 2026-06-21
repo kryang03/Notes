@@ -23,7 +23,7 @@ related:
 ## 1. 问题定义与动机
 
 ### 1.1 大背景引入
-真机部署时，"何时知道自己已经偏离 sim distribution" 是个根本难题。Ensemble disagreement（[[Final_WMTS#4. Ensemble World Model|WM 已有]]）只对 dynamics 敏感，对静态分布漂移（如新物体表面、磨损）反应迟钝。
+真机部署时，"何时知道自己已经偏离 sim distribution" 是个根本难题。Ensemble disagreement（[[Final_WMTS|WM 已有]]）只对 dynamics 敏感，对静态分布漂移（如新物体表面、磨损）反应迟钝。
 
 ### 1.2 现有方法的局限
 - Ensemble disagreement：只看 epistemic uncertainty 上的预测分歧。

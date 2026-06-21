@@ -24,7 +24,7 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ControlTheory]] - 可变频率控制与阻抗调节的关联
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 频率自适应改善 Sim-to-Real 迁移
+> - [[ReinforcementLearning]] - 频率自适应改善 Sim-to-Real 迁移
 > - [[Dynamics]] - 动力学时间尺度与控制频率的匹配
 >
 > **核心技术**: Action Duration Learning, Variable Control Frequency, Sim-to-Real

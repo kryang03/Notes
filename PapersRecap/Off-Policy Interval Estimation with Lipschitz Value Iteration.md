@@ -28,7 +28,7 @@ related:
 # Off-Policy Interval Estimation with Lipschitz Value Iteration
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|ReinforcementLearning §5]] — Off-Policy Evaluation (OPE)；与 CQL 的值函数下界思想相通
+> - [[ReinforcementLearning|ReinforcementLearning §5]] — Off-Policy Evaluation (OPE)；与 CQL 的值函数下界思想相通
 > - [[Optimization]] — Lipschitz 函数空间上的约束优化；Bellman **不等式**约束 + 上下包络线
 >
 > **核心技术**: Lipschitz Value Iteration, OPE 区间估计, 上下包络线, 可证明上下界
@@ -136,7 +136,7 @@ $$Q^t(x) = \max_{j \in [n]} \left(q^{t,j} - \eta \cdot d(x, x_j)\right)$$
 > [!tip] 直观理解
 > $Q^t(x)$ 是所有经过数据点 $(x_i, q^{t,i})$ 的 Lipschitz 函数的**上/下包络线**
 
-![[lipschitz_envelope.png]]
+**图示说明**：Lipschitz VI 用经过数据点的上/下包络线来构造可证明的值函数区间。
 
 ### 3.2 算法特性
 

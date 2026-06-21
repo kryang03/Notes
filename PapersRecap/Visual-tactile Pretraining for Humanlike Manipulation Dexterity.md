@@ -26,8 +26,8 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[RepresentationLearning]] - 视觉-触觉自监督预训练
-> - [[SignalProcessing#4. 时序信号处理：滑移检测与摩擦估计]] - 简化触觉（二值信号）的有效利用
-> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - 在线模仿学习解决分布漂移
+> - [[SignalProcessing]] - 简化触觉（二值信号）的有效利用
+> - [[ReinforcementLearning]] - 在线模仿学习解决分布漂移
 > - [[ContactMechanics]] - 接触状态的多模态感知
 >
 > **核心技术**: Self-Supervised Pretraining, Visual-Tactile Fusion, Unified Multitask Policy
@@ -124,7 +124,7 @@ $$
 > - 视觉已包含形状、位置等丰富信息
 > - 二值触觉作为**接触开关信号**，触发视觉注意力切换
 > 
-> 参见 [[SignalProcessing#4.1 早期滑移（Incipient Slip）检测算法]] 中的降维与特征提取
+> 参见 [[SignalProcessing]] 中的降维与特征提取
 
 ### 3.5 核心代码逻辑
 
@@ -241,7 +241,7 @@ $$
 I(Z_v; Z_t) \geq \log N - \mathcal{L}_{\text{InfoNCE}}
 $$
 
-其中 $N$ 为 batch 中的负样本数。当 batch size 增大时，互信息估计的下界更紧。这解释了预训练对 batch size 的敏感性（详见 [[RepresentationLearning#5.1.3 跨模态对比学习 (Cross-Modal Contrastive Learning)]]）。
+其中 $N$ 为 batch 中的负样本数。当 batch size 增大时，互信息估计的下界更紧。这解释了预训练对 batch size 的敏感性（详见 [[RepresentationLearning]]）。
 
 ### 与 [[ReinforcementLearning]] 的联系
 
@@ -251,7 +251,7 @@ $$
 \nabla_\theta \mathcal{L}_{\text{total}} = \underbrace{\nabla_\theta \mathcal{L}_{\text{RL}}}_{\text{高方差, 探索驱动}} + \lambda \underbrace{\nabla_\theta \mathcal{L}_{\text{IL}}}_{\text{低方差, 专家先验}}
 $$
 
-λ 的衰减策略本质上是从模仿到探索的课程切换（[[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]]），初期依赖专家避免危险探索，后期释放探索自由度发现更优策略。
+λ 的衰减策略本质上是从模仿到探索的课程切换（[[ReinforcementLearning]]），初期依赖专家避免危险探索，后期释放探索自由度发现更优策略。
 
 ### 与 [[ContactMechanics]] 的联系
 

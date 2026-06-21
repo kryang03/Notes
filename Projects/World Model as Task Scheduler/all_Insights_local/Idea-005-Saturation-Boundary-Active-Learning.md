@@ -10,8 +10,8 @@ related:
   - "[[Final_WMTS]]"
   - "[[WMTS_Reliability_Extensions]]"
   - "[[FOC_Control]]"
-  - "[[Curiosity-Driven Exploration Recap]]"
-  - "[[Curious Exploration via Structured WM Recap]]"
+  - "[[Curiosity-Driven Exploration via Latent Bayesian Surprise]]"
+  - "[[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation]]"
 ---
 
 # Idea-005: Active Real-Robot Data Collection at Actuator Saturation Boundary
@@ -24,11 +24,11 @@ related:
 ## 1. 问题定义与动机
 
 ### 1.1 大背景引入
-真机数据稀缺。现有 Sim-to-Real 工作（[[ANYmal Parkour Recap]]、[[Learning Agile and Dynamic Motor Skills for Legged Robots]]）真机数据收集策略基本是 (a) 随机摆动或 (b) 用最终任务策略。前者数据无关，后者数据冗余（多在 actuator 线性区）。
+真机数据稀缺。现有 Sim-to-Real 工作（[[ANYmal parkour Learning agile navigation for quadrupedal robots]]、[[Learning Agile and Dynamic Motor Skills for Legged Robots]]）真机数据收集策略基本是 (a) 随机摆动或 (b) 用最终任务策略。前者数据无关，后者数据冗余（多在 actuator 线性区）。
 
 ### 1.2 现有方法的局限
-- [[Curiosity-Driven Exploration Recap|Latent Bayesian Surprise]]：只在状态空间做 curiosity，不知 actuator 物理边界。
-- [[ANYmal Parkour Recap|Actuator Network]]：原始训练数据是 quasi-static 摆动，高动态区域 OOD 严重。
+- [[Curiosity-Driven Exploration via Latent Bayesian Surprise|Latent Bayesian Surprise]]：只在状态空间做 curiosity，不知 actuator 物理边界。
+- [[ANYmal parkour Learning agile navigation for quadrupedal robots|Actuator Network]]：原始训练数据是 quasi-static 摆动，高动态区域 OOD 严重。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight

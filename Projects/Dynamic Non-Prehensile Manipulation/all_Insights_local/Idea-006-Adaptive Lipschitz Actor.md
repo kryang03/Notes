@@ -43,7 +43,7 @@ related:
 
 **局限 1：动作平滑正则化是全局的。** 现有方法（如动作变化率惩罚 $\|a_t - a_{t-1}\|^2$）对所有状态施加相同的平滑约束。但在 Thumbaround 中，snap 阶段**需要**急剧的动作变化（食指弹射笔），而 spin 阶段**需要**超平滑的动作（维持脆弱接触）。全局正则化无法兼顾两者。
 
-**局限 2：固定 PD 参数隐式限制了力矩模式。** 如 [[ControlTheory#3.1.1 从 PID 到计算力矩：精确线性化的诱惑与局限 (From PID to Computed Torque)]] 所析，固定 $K_p$, $K_d$ 的 PD 控制器无法产生"先硬后软"的力矩序列。但 Idea-001 (PAI) 的解决路径是修改控制层——这需要大量工程改动并引入新的超参数搜索空间。
+**局限 2：固定 PD 参数隐式限制了力矩模式。** 如 [[ControlTheory]] 所析，固定 $K_p$, $K_d$ 的 PD 控制器无法产生"先硬后软"的力矩序列。但 Idea-001 (PAI) 的解决路径是修改控制层——这需要大量工程改动并引入新的超参数搜索空间。
 
 **局限 3：LipsNet ([[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]]) 证明了自适应 Lipschitz 的价值，但仅在低维单体控制中验证。** LipsNet 的 Monotone Gradient Network (MGN) 在 CartPole 和机械臂任务上消除了动作抖动，但未在高维多指灵巧操作中应用，且其状态依赖的 $K(s)$ 机制未与接触模式对齐。
 
@@ -294,9 +294,9 @@ ALA 约束的是**均值** $\mu_\theta(s)$ 的平滑性，CA-ARP 控制的是**�
 ## 7. 知识库关联
 
 ### 与 Foundations 的联系
-- [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]] — Lipschitz 约束与阻抗的联系：低 $K(s)$ 等价于高柔顺性（低等效刚度）
-- [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)]] — Lipschitz 约束改善 loss landscape 的平滑性，有利于优化
-- [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] — 谱归一化与 PPO 的 trust region 机制兼容性分析
+- [[ControlTheory]] — Lipschitz 约束与阻抗的联系：低 $K(s)$ 等价于高柔顺性（低等效刚度）
+- [[Optimization]] — Lipschitz 约束改善 loss landscape 的平滑性，有利于优化
+- [[ReinforcementLearning]] — 谱归一化与 PPO 的 trust region 机制兼容性分析
 
 ### 与已有论文的联系
 - [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control]] — **直接理论先驱**，本文将其从低维单体控制扩展到高维多指操作，并引入接触模式感知

@@ -354,7 +354,7 @@ for i in range(num_dofs):
 
 本文档的硬件级分析构成了 Sim-to-Real Gap 的**底层物理来源**，与以下 RL 层面的迁移方法形成互补：
 
-- [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|RL Sim-to-Real 方法综述]] — Domain Randomization、System ID、Online Adaptation 理论框架
+- [[ReinforcementLearning|RL Sim-to-Real 方法综述]] — Domain Randomization、System ID、Online Adaptation 理论框架
 - [[A Survey of Sim-to-Real Methods in RL]] — MDP 四要素分类法：本文档侧重 Action 和 Transition 层面的 Gap
 - [[Reinforcement Learning in Robotic Systems - A Review on Sim-to-Real Transfer]] — 执行器级建模视角，与本文 §2-§4 直接对应
 - [[Grounded Action Transformation]] — 学习 $a_{real} = h(s, a_{sim})$ 映射修正仿真中的执行器非理想性

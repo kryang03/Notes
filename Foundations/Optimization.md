@@ -209,7 +209,7 @@ $$
 
 $$0\le\phi(q)\ \perp\ \lambda_n\ge0,$$
 
-三条逻辑合一：① 非穿透 $\phi(q)\ge0$（$\phi$ 是 SDF，见 [[ComputationalGeometry#4. 有向距离场 (SDF)：连续操作优化的基石|SDF]]）；② 单边力 $\lambda_n\ge0$（只能推不能拉）；③ 互补 $\phi\cdot\lambda_n=0$（**要么分离 $\phi>0,\lambda=0$，要么接触 $\phi=0,\lambda\ge0$**）。加摩擦后是库伦锥 $\mathcal K(\mu)=\{(\lambda_n,\lambda_t)\mid\|\lambda_t\|\le\mu\lambda_n\}$，且最大耗散原理要求滑动时 $\lambda_t$ 反平行于切向速度。
+三条逻辑合一：① 非穿透 $\phi(q)\ge0$（$\phi$ 是 SDF，见 [[ComputationalGeometry|SDF]]）；② 单边力 $\lambda_n\ge0$（只能推不能拉）；③ 互补 $\phi\cdot\lambda_n=0$（**要么分离 $\phi>0,\lambda=0$，要么接触 $\phi=0,\lambda\ge0$**）。加摩擦后是库伦锥 $\mathcal K(\mu)=\{(\lambda_n,\lambda_t)\mid\|\lambda_t\|\le\mu\lambda_n\}$，且最大耗散原理要求滑动时 $\lambda_t$ 反平行于切向速度。
 
 > [!warning] 为什么这是梯度优化的噩梦（端杯瞬间发生了什么）
 > - **非凸**：互补可行域是"坐标轴的并集"（$\phi=0$ **或** $\lambda=0$），不是凸集——§2.1 的全部好处此刻失效。
@@ -240,7 +240,7 @@ $$0\le\phi(q)\ \perp\ \lambda_n\ge0,$$
 > **跨原理联系**：[[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 的熵正则]] $-\alpha H(\pi)$ 在策略优化里正是**隐式的扰动注入**，帮助逃离对称抓取造成的鞍点——RL 的"探索"与优化的"鞍点逃逸"是同一件事的两种说法。
 
 > [!tip] 一个可处理的特例：NTK 区间下的"凸化"（跨域链接）
-> 网络足够宽时，训练动力学退化为关于预测向量的**线性 ODE**，损失对预测是凸二次、全局收敛有保证——非凸景观里一个 tractable subclass。严格推导（特征分解收敛速率、Rademacher 泛化界）见 [[RepresentationLearning#6.3.7 神经正切核 (Neural Tangent Kernel, NTK)|RepresentationLearning §6.3.7]]。它解释了"为何过参数化世界模型能从 <1h 真机数据稳定微调"。
+> 网络足够宽时，训练动力学退化为关于预测向量的**线性 ODE**，损失对预测是凸二次、全局收敛有保证——非凸景观里一个 tractable subclass。严格推导（特征分解收敛速率、Rademacher 泛化界）见 [[RepresentationLearning|RepresentationLearning §6.3.7]]。它解释了"为何过参数化世界模型能从 <1h 真机数据稳定微调"。
 
 ### 3.3 接触优化的复杂度困境与平滑化权衡
 
@@ -432,7 +432,7 @@ def forward_pass(model, x_seq, u_seq, k_seq, K_seq, alpha=1.0):
 | **C 随机平滑** | 状态/参数加噪取期望，把非光滑 Cost 抹平 | 可用不可微/黑盒 Cost | 开销高，用于 MPPI / ES |
 
 > [!note] 跨原理联系
-> 方案 B 的隐函数定理梯度，与 [[ContactMechanics#6.2 实现可微的三条路径|可微接触物理]] 是同一套数学；方案 C 的随机平滑，与 [[StochasticProcess#6. 核心算法详解：Model Predictive Path Integral Control (MPPI)|MPPI]]、[[ReinforcementLearning#5.4.1 时间一致探索：从白噪声到自回归过程|RL 的探索噪声]] 同源。三个领域在"如何对不可微对象求可用梯度"上殊途同归。
+> 方案 B 的隐函数定理梯度，与 [[ContactMechanics#6.2 实现可微的三条路径|可微接触物理]] 是同一套数学；方案 C 的随机平滑，与 [[StochasticProcess|MPPI]]、[[ReinforcementLearning#5.4.1 时间一致探索：从白噪声到自回归过程|RL 的探索噪声]] 同源。三个领域在"如何对不可微对象求可用梯度"上殊途同归。
 
 ---
 
@@ -462,7 +462,7 @@ $$u_t^*=\frac{\sum_k w_k u_t^{(k)}}{\sum_k w_k},\qquad w_k=\exp\!\big(-\tfrac1\l
 | **MPPI** | ① 不需梯度（可用二值成功率等不可微 Cost）；② 天然处理多模态；③ 对模型误差不敏感 | **维数灾难**：24-DoF 手纯随机采样几乎采不到"指尖正好捏住杯沿"这种低概率高精度事件 |
 
 > [!tip] 混合方案与跨域联系
-> 实践常用 **iLQR 生成 nominal 轨迹 + 在其附近做 MPPI 采样**：iLQR 是精准的"手术刀"、MPPI 是鲁棒的"大锤"。MPPI 的重要性采样权重 $w_k=\exp(-S/\lambda)$ 与 [[StochasticProcess#6.2 物理直觉：自由能最小化与重要性采样|自由能最小化]] 同形，其温度 $\lambda$ 与 [[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 温度]]、§10 的 test-time RL 是同一探索-利用旋钮。MPC 正是 Optimization 与 [[ControlTheory#8. 接触隐式模型预测控制 (Contact-Implicit MPC)|ControlTheory 的接触隐式 MPC]] 的交界面。
+> 实践常用 **iLQR 生成 nominal 轨迹 + 在其附近做 MPPI 采样**：iLQR 是精准的"手术刀"、MPPI 是鲁棒的"大锤"。MPPI 的重要性采样权重 $w_k=\exp(-S/\lambda)$ 与 [[StochasticProcess|自由能最小化]] 同形，其温度 $\lambda$ 与 [[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 温度]]、§10 的 test-time RL 是同一探索-利用旋钮。MPC 正是 Optimization 与 [[ControlTheory#8. 接触隐式模型预测控制 (Contact-Implicit MPC)|ControlTheory 的接触隐式 MPC]] 的交界面。
 
 ---
 
@@ -483,7 +483,7 @@ $$
 L(q)=w_{dist}\sum_i\|p_i(q)-p_{obj}\|^2+w_{force}\,E_{FC}(n_i,p_i)+w_{pen}\,E_{pen}(q),
 $$
 
-- **接触引导项**：用 [[ComputationalGeometry#4. 有向距离场 (SDF)：连续操作优化的基石|SDF]] 把指尖拉向杯壁；
+- **接触引导项**：用 [[ComputationalGeometry|SDF]] 把指尖拉向杯壁；
 - **力闭合项** $E_{FC}$：惩罚接触法向无法张成整个力空间（近似：最小化法向均值模长、最大化法向夹角方差）；
 - **穿透惩罚** $E_{pen}=\sum\mathrm{ReLU}(-\phi(q))$。
 

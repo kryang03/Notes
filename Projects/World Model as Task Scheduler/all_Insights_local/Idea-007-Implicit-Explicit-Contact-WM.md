@@ -10,8 +10,8 @@ related:
   - "[[Final_WMTS]]"
   - "[[ContactMechanics]]"
   - "[[Dynamics]]"
-  - "[[Deep Dynamics Models Recap]]"
-  - "[[DexNDM- Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]]"
+  - "[[Deep Dynamics Models for Learning Dexterous Manipulation]]"
+  - "[[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]]"
   - "[[GenDexGrasp - Generalizable Dexterous Grasping]]"
 ---
 
@@ -28,9 +28,9 @@ related:
 灵巧操作的核心难点在 contact mode switching。当前 WMTS Rigid Net 是 monolithic MLP，把 free-flight 与 contact-rich 混在同一网络学，其表达力被均摊。
 
 ### 1.2 现有方法的局限
-- [[Deep Dynamics Models Recap|PDDM]]：纯神经，未利用解析先验。
-- [[DexNDM- Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]：joint-wise 但仍 monolithic。
-- [[Learning to Walk in Minutes Recap|Semi-structured Dynamics]]：解析+残差但用于 legged，未做 contact-mode 分流。
+- [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]：纯神经，未利用解析先验。
+- [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]：joint-wise 但仍 monolithic。
+- [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|Semi-structured Dynamics]]：解析+残差但用于 legged，未做 contact-mode 分流。
 
 ### 1.3 我们的洞见
 > [!tip] Key Insight

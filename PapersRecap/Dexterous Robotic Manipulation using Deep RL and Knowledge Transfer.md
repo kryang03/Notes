@@ -23,8 +23,8 @@ related:
 > 提出**知识迁移 (Knowledge Transfer)** 方法解决复杂灵巧操作任务：先在简化任务（仅位置控制）上学习策略，再通过 KT 迁移到完整任务（位置+姿态控制），赢得 Real Robot Challenge 2021 Phase 1。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - HER 处理稀疏奖励
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - Sim-to-Real 迁移验证
+> - [[ReinforcementLearning]] - HER 处理稀疏奖励
+> - [[ReinforcementLearning]] - Sim-to-Real 迁移验证
 > - [[Optimization]] - 从简单到复杂的优化策略
 >
 > **核心技术**: DDPG + HER, Knowledge Transfer, TriFinger Manipulation
@@ -246,7 +246,7 @@ def her_relabel(episode, k_future=4):
 
 ### 与 [[ReinforcementLearning]] 的联系
 
-本文使用的 DDPG 是 Off-Policy Actor-Critic 演进线（[[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC]]）的起点。其 Bellman 更新：
+本文使用的 DDPG 是 Off-Policy Actor-Critic 演进线（[[ReinforcementLearning]]）的起点。其 Bellman 更新：
 
 $$
 y_t = r_t + \gamma Q_{\theta'}(s_{t+1}, \mu_{\phi'}(s_{t+1}))

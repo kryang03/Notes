@@ -23,7 +23,7 @@ related:
 > 结合参考运动数据与强化学习，训练物理模拟角色执行高动态技能（翻跟斗、武术等），同时保持自然外观并能响应扰动。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - PPO 优化策略
+> - [[ReinforcementLearning]] - PPO 优化策略
 > - [[Dynamics]] - 物理模拟角色的关节扭矩控制
 > - [[ControlTheory]] - PD 控制器将策略输出映射到扭矩
 >
@@ -239,9 +239,9 @@ $$
 
 **与 [[ReinforcementLearning]] 的联系**：RSI 本质上改变了 MDP 初始状态分布，从 $\rho_0 = \delta(s_0)$ 变为 $\rho_0 = \mathcal{U}(\hat{s}_{0:T})$，这等效于降低策略梯度方差 $\text{Var}[\nabla_\theta J] \propto 1/|\text{supp}(\rho_0)|$
 
-**与 [[Dynamics]] 的联系**：PD 控制器 $\tau = K_p(q^* - q) - K_d \dot{q}$ 是操作空间动力学 $M(q)\ddot{q} + C\dot{q} + g = \tau$ 的线性化近似控制律（[[Dynamics#4. Implementation: 核心算法详解 (Algorithmic Core)]]），DeepMimic 将策略输出映射到 $q^*$ 而非直接 $\tau$，利用了 PD 的被动稳定性
+**与 [[Dynamics]] 的联系**：PD 控制器 $\tau = K_p(q^* - q) - K_d \dot{q}$ 是操作空间动力学 $M(q)\ddot{q} + C\dot{q} + g = \tau$ 的线性化近似控制律（[[Dynamics]]），DeepMimic 将策略输出映射到 $q^*$ 而非直接 $\tau$，利用了 PD 的被动稳定性
 
-**与 [[ControlTheory]] 的联系**：30 Hz 策略 + 1200 Hz PD 构成双速率控制架构，类似 [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] 中的内外环设计——内环 PD 保证稳定性，外环策略负责任务规划
+**与 [[ControlTheory]] 的联系**：30 Hz 策略 + 1200 Hz PD 构成双速率控制架构，类似 [[ControlTheory]] 中的内外环设计——内环 PD 保证稳定性，外环策略负责任务规划
 
 ## 7. 演进脉络定位 (Evolution Context)
 

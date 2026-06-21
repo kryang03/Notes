@@ -29,7 +29,7 @@ related:
 
 > [!note] Foundation 关联
 > - **[[ReinforcementLearning]]**: PPO + 课程学习
-> - **[[ContactMechanics#3. 接触建模演变：从点模型到软体模型]]**: 动态接触与手指步态
+> - **[[ContactMechanics]]**: 动态接触与手指步态
 > - **[[Dynamics]]**: 多体动力学与物体平衡
 > - **[[EmbodiedAI]]**: 仿人手操作系统
 
@@ -214,7 +214,7 @@ def waypoint_reward(obj_angle, waypoint_angles, threshold=0.1):
 
 本文最核心的 insight（细长仿人指尖催生 gaiting、宽指尖只会 balancing）不是经验观察，可从旋转动力学 + 摩擦锥 + 工作空间推出，并与 [[Lessons from Learning to Spin Pens|Spin Pens §2.2]] 的 finger gaiting 推导统一。
 
-**第 1 步——持续旋转的力矩需求。** 笔绕轴 $\hat{z}$ 持续旋转需净力矩长期为正：$\sum_i(r_i\times \mathbf{f}_i)\cdot\hat{z}>0$，且各接触力受摩擦锥约束 $\|\mathbf{f}_{i,t}\|\le\mu f_{i,n},\ f_{i,n}\ge0$（[[ContactMechanics#3. 接触建模演变：从点模型到软体模型|ContactMechanics §3]]）。
+**第 1 步——持续旋转的力矩需求。** 笔绕轴 $\hat{z}$ 持续旋转需净力矩长期为正：$\sum_i(r_i\times \mathbf{f}_i)\cdot\hat{z}>0$，且各接触力受摩擦锥约束 $\|\mathbf{f}_{i,t}\|\le\mu f_{i,n},\ f_{i,n}\ge0$（[[ContactMechanics|ContactMechanics §3]]）。
 
 **第 2 步——宽指尖/低 DoF 为何只能 balancing。** 宽指尖接触面同质、可调的接触点少，手指工作空间小：它能提供稳定法向支撑（让 $\sum f_{i,n}$ 抵消重力），却无法把接触点"挪动"以持续供矩。于是最优策略退化为**静态平衡**——把物体稳在指尖，旋转靠极小幅度抖动，难以持续（这正是 Spin Pens 低 DoF 手观察到的 fingertip balancing）。
 
@@ -370,8 +370,8 @@ def waypoint_reward(obj_angle, waypoint_angles, threshold=0.1):
 - [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References|DexTrack]]（人类参考轨迹追踪）
 
 **技术相关**:
-- [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]]
-- [[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)]]
+- [[ReinforcementLearning]]
+- [[Dynamics]]
 
 ---
 
@@ -420,7 +420,7 @@ vs Fingertip Balancing: 静态稳定 vs 动态控制
 
 ### 与 [[ReinforcementLearning]] 的联系
 
-本文使用 [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|PPO]] 作为核心算法。路径点引导初始化本质上是 [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现|探索引导]] 的实例——通过偏置初始状态分布 $\rho_0$ 改变探索方向：
+本文使用 [[ReinforcementLearning|PPO]] 作为核心算法。路径点引导初始化本质上是 [[ReinforcementLearning|探索引导]] 的实例——通过偏置初始状态分布 $\rho_0$ 改变探索方向：
 
 $$\rho_0(s) = \sum_{i=1}^{N_{wp}} \frac{1}{N_{wp}} \mathcal{N}(s \mid s_{wp,i}, \sigma^2 I)$$
 
@@ -428,7 +428,7 @@ $$\rho_0(s) = \sum_{i=1}^{N_{wp}} \frac{1}{N_{wp}} \mathcal{N}(s \mid s_{wp,i}, 
 
 ### 与 [[ContactMechanics]] 的联系
 
-Finger gaiting 的核心是 [[ContactMechanics#3. 接触建模演变：从点模型到软体模型|接触力建模]]。本文将五指净接触力 $\mathbf{f}_{tip,i} = (F_x, F_y, F_z)_i \in \mathbb{R}^3$ 作为特权信息，归一化后输入策略网络。这与接触力学中的力平衡方程直接对应：
+Finger gaiting 的核心是 [[ContactMechanics|接触力建模]]。本文将五指净接触力 $\mathbf{f}_{tip,i} = (F_x, F_y, F_z)_i \in \mathbb{R}^3$ 作为特权信息，归一化后输入策略网络。这与接触力学中的力平衡方程直接对应：
 
 $$\sum_{i=1}^{5} \mathbf{f}_{tip,i} + m\mathbf{g} = m\ddot{\mathbf{x}}_{obj}$$
 
@@ -436,7 +436,7 @@ $$\sum_{i=1}^{5} \mathbf{f}_{tip,i} + m\mathbf{g} = m\ddot{\mathbf{x}}_{obj}$$
 
 ### 与 [[Dynamics]] 的联系
 
-转笔涉及 [[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)|接触动力学]] 中的多体系统。手-笔系统的运动方程为：
+转笔涉及 [[Dynamics|接触动力学]] 中的多体系统。手-笔系统的运动方程为：
 
 $$M(q)\ddot{q} + C(q,\dot{q})\dot{q} + g(q) = \tau + J_c^T \mathbf{f}_c$$
 
@@ -444,7 +444,7 @@ $$M(q)\ddot{q} + C(q,\dot{q})\dot{q} + g(q) = \tau + J_c^T \mathbf{f}_c$$
 
 ### 与 [[Optimization]] 的联系
 
-路径点筛选过程可视为一个鲁棒优化问题——对候选路径点施加扰动 $\delta \sim \mathcal{U}(-\epsilon, \epsilon)$，评估扰动下的稳定性得分 $S(q_{wp} + \delta)$，保留 $\mathbb{E}_\delta[S(q_{wp}+\delta)] > \theta$ 的路径点。这与 [[Optimization#2.4 凸优化基础与对偶性理论 (Convex Optimization Foundations & Duality)|鲁棒优化]] 中的最坏情况思想一致。
+路径点筛选过程可视为一个鲁棒优化问题——对候选路径点施加扰动 $\delta \sim \mathcal{U}(-\epsilon, \epsilon)$，评估扰动下的稳定性得分 $S(q_{wp} + \delta)$，保留 $\mathbb{E}_\delta[S(q_{wp}+\delta)] > \theta$ 的路径点。这与 [[Optimization|鲁棒优化]] 中的最坏情况思想一致。
 
 ---
 

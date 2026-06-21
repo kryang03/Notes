@@ -25,10 +25,10 @@ https://www.pi.website/research/rlt
 > 提出 **RL Tokens (RLT)**——在 VLA 中训练一个编码器-解码器 Transformer 提取 **紧凑 RL token** 作为信息瓶颈表征，然后用轻量级 actor-critic 在真实机器人上进行 **高效在线 RL**，仅需 15 分钟真实数据即可将精密操作任务加速 3×，甚至超越人类遥操作速度。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5.2 真实世界高效 RL: SERL 与 Human-in-the-Loop]] — 真实世界在线 RL
-> - [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC]] — Off-policy actor-critic 用于高效学习
-> - [[EmbodiedAI#2.5 VLA Post-Training: 从模仿到强化]] — VLA 的 RL 后训练范式
-> - [[EmbodiedAI#1.3 VLA 的动作输出范式]] — Action chunk 与 VLA 集成
+> - [[ReinforcementLearning]] — 真实世界在线 RL
+> - [[ReinforcementLearning]] — Off-policy actor-critic 用于高效学习
+> - [[EmbodiedAI]] — VLA 的 RL 后训练范式
+> - [[EmbodiedAI]] — Action chunk 与 VLA 集成
 > - [[RepresentationLearning]] — 信息瓶颈表征
 >
 > **核心技术**: VLA RL Token + Lightweight Off-Policy Actor-Critic + Residual Action Editing

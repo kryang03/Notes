@@ -25,7 +25,7 @@ related:
 > 提出 **自回归策略 (Autoregressive Policy, ARP)**：用**平稳自回归高斯过程**替代白噪声探索，实现**时间一致**的探索轨迹。保持边缘分布为标准正态，同时提供可调的时间相关性，适用于真实机器人的安全探索。
 
 > [!note] 教科书背景
-> **时间一致探索的理论意义**：本文对标 SAC 的熵正则化（见 [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC|SAC 理论分析]]），但指出 SAC 的 Gaussian 探索在时间维度上是**不一致**的——这与 Deep RL 教科书中"最大熵 RL 鼓励探索"的理论相矛盾。
+> **时间一致探索的理论意义**：本文对标 SAC 的熵正则化（见 [[ReinforcementLearning|SAC 理论分析]]），但指出 SAC 的 Gaussian 探索在时间维度上是**不一致**的——这与 Deep RL 教科书中"最大熵 RL 鼓励探索"的理论相矛盾。
 > 
 > **Deep RL 教科书中的最大熵目标**：
 > $$J(\pi) = \sum_t \mathbb{E}\left[r_t + \alpha H(\pi(\cdot|s_t))\right]$$
@@ -35,8 +35,8 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[StochasticProcess]] - AR 过程的数学基础
-> - [[ReinforcementLearning#2.4 Off-Policy 演进线：从 DDPG 到 SAC]] - SAC 熵正则化理论
-> - [[SignalProcessing#4. 时序信号处理：滑移检测与摩擦估计]] - 时间平滑的信号处理视角
+> - [[ReinforcementLearning]] - SAC 熵正则化理论
+> - [[SignalProcessing]] - 时间平滑的信号处理视角
 > - [[ControlTheory]] - 高频动作的物理影响
 >
 > **核心技术**: AR-p Process, Stationary Gaussian, Temporal Coherence

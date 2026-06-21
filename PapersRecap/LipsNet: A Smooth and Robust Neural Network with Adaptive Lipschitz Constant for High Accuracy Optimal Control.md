@@ -27,7 +27,7 @@ related:
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] — 即插即用替换 TD3/SAC/TRPO 的 Actor MLP，不改算法逻辑
 > - [[ControlTheory]] — 平滑控制与抖动抑制；Lipschitz 常数 = 控制信号对状态的最大变化率
-> - [[RepresentationLearning#1. Core Concepts: 物理交互的计算本质与挑战 (The Computational Nature and Challenges of Physical Interaction)|RepresentationLearning §1]] — 雅可比正则化与 Lipschitz 连续性
+> - [[RepresentationLearning|RepresentationLearning §1]] — 雅可比正则化与 Lipschitz 连续性
 >
 > **核心技术**: Multi-dimensional Gradient Normalization (MGN), Adaptive Local Lipschitz $K(x)$, Jacobian Spectral Norm
 

@@ -24,7 +24,7 @@ related:
 > 针对"高频控制要么用 direct torque RL（长 horizon → 信用分配指数衰减、难学）、要么用固定 PD（需手调、不灵活）"这一两难，提出 EvoControl 双层框架：高层 PPO 低频(30Hz)给目标、低层 **Neuroevolution** 高频(500Hz)学力矩控制器。结构性洞见：**高频控制的难点是信用分配 $\gamma^{T-t}\to0$；与其降低频率来回避它（簇内其它工作的路线），不如保留高频、改用无梯度的进化搜索学低层——绕开 BPTT 穿越长轨迹的梯度消失。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|ReinforcementLearning §2.5]] — 高层 PPO 策略；高频长 horizon 的信用分配 $\gamma^{T-t}$ 指数衰减是核心困难
+> - [[ReinforcementLearning|ReinforcementLearning §2.5]] — 高层 PPO 策略；高频长 horizon 的信用分配 $\gamma^{T-t}$ 指数衰减是核心困难
 > - [[ControlTheory]] — 双层 = 级联控制，内/外环带宽比 $\approx16.7\ge5$ 满足稳定性条件
 > - [[SignalProcessing]] — 500Hz 对接触瞬态(~100Hz)提供 2.5× Nyquist 采样裕度
 >

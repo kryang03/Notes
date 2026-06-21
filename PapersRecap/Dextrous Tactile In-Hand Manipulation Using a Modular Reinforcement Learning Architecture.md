@@ -26,7 +26,7 @@ related:
 > 提出**模块化深度 RL 架构**，将策略学习与状态估计**解耦**：用可微分粒子滤波器从纯触觉（关节扭矩+位置）估计立方体状态，实现手朝下情况下的 **24 种目标方位重定向**，零样本 Sim2Real 迁移成功。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - SAC 策略学习
+> - [[ReinforcementLearning]] - SAC 策略学习
 > - [[SignalProcessing#5. 状态估计：从局部触觉到全局语义]] - 可微分粒子滤波器
 > - [[StochasticProcess]] - 状态估计
 > - [[ControlTheory]] - 扭矩控制 DLR-Hand II
@@ -281,13 +281,13 @@ $$
 
 ### 与 Foundations 的数学关联
 
-**[[ReinforcementLearning#3.1 Soft Actor-Critic (SAC) Core Logic|SAC]]**: 策略优化目标为最大熵 RL:
+**[[ReinforcementLearning|SAC]]**: 策略优化目标为最大熵 RL:
 $$J(\pi) = \sum_t \mathbb{E}_{(s_t,a_t)\sim\rho_\pi}\left[r(s_t,a_t) + \alpha \mathcal{H}(\pi(\cdot|s_t))\right]$$
 模块化架构中 $s_t = (\hat{x}_t, \hat{R}_t, q_t, R_\text{goal})$ 由 DPF 估计器提供。
 
 **[[SignalProcessing|粒子滤波]]**: 贝叶斯递推中，后验 $p(x_t|z_{1:t})$ 通过粒子集合 $\{x_t^{(i)}, w_t^{(i)}\}_{i=1}^N$ 近似。DPF 用神经网络参数化运动/观测模型使整个滤波过程可微，梯度可反传至编码器。
 
-**[[StochasticProcess#4.1 从 EKF 到粒子滤波：非连续性的挑战|非连续性]]**: 接触状态切换导致状态转移非光滑 → EKF 线性化失效 → 粒子滤波天然适配多模态分布 → DPF 进一步通过软重采样保持梯度。
+**[[StochasticProcess|非连续性]]**: 接触状态切换导致状态转移非光滑 → EKF 线性化失效 → 粒子滤波天然适配多模态分布 → DPF 进一步通过软重采样保持梯度。
 
 ## 7. 演进脉络定位 (Evolution Context)
 

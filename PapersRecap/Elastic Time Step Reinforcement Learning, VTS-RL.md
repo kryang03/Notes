@@ -26,7 +26,7 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] — SAC 最大熵框架的扩展；把 MDP 推广到 **Semi-MDP**（动作带持续时间 $\tau$，折扣变 $\gamma^\tau$）
-> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制|ControlTheory §3]] — 变频控制 = 自适应采样率；低复杂度段降频、高动态段升频以满足 Nyquist 约束
+> - [[ControlTheory|ControlTheory §3]] — 变频控制 = 自适应采样率；低复杂度段降频、高动态段升频以满足 Nyquist 约束
 > - [[Optimization]] — 多目标奖励的加权和标量化 + Lyapunov 候选函数 $L(\alpha_m)=(\alpha_m-\alpha_m^*)^2$ 证明非平稳权重不发散
 >
 > **核心技术**: SEAC (Soft Elastic Actor-Critic), MOSEAC (Multi-Objective, 自适应奖励缩放), Lyapunov 收敛证明, Semi-MDP

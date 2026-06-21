@@ -26,8 +26,8 @@ related:
 > 针对"纯本体策略只能绕阻力最小的 z 轴旋转、无法处理多轴与复杂形状"这一瓶颈，提出 **Visuotactile Transformer**：把视觉(深度)+触觉(接触位置)+本体的历史序列融合，在线推断物体形状 $z^{shape}$ 与物理属性 $z^{phys}$ 这组 extrinsics，用单一策略实现 x/y/z 多轴手内旋转。结构性洞见：**多轴旋转的真正瓶颈是"几何可观测性"——非 z 轴旋转强依赖物体形状，必须显式编码而非寄望隐式适应。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 从特权信息到 extrinsics 编码
-> - [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]] - PointNet 编码物体形状
+> - [[ReinforcementLearning]] - 从特权信息到 extrinsics 编码
+> - [[RepresentationLearning]] - PointNet 编码物体形状
 > - [[SignalProcessing#5. 状态估计：从局部触觉到全局语义]] - Transformer 融合多模态时序信息
 > - [[RepresentationLearning]] - 前景物体深度作为视觉表示
 >
@@ -166,7 +166,7 @@ $\tau$ 是各手指接触力矩之和。
 
 **第 4 步——$r_{\text{rotp}}$ 的物理含义。** $r_{\text{rotp}}=-\|\omega\times k\|_1$ 惩罚角速度对指令轴 $k$ 的偏离，本质是**抑制陀螺进动导致的轴漂移**；没有它策略会滑向阻力最小的主轴（通常 z 轴），即 §4 消融"去 $r_{\text{rotp}}$→非目标轴严重偏离"。
 
-**第 5 步——extrinsics 即隐式系统辨识。** $z^{phys}$（质量/摩擦/质心）真机不可观测，Visuotactile Transformer 从历史 $(q,a,o^{depth},o^{touch})$ 序列回归出 $\hat{z}_t$，等价于在线 system ID。这与 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 的 RMA 同源（[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|RL §5]] 特权学习），差别是 RotateIt 加了视触觉输入、用 Transformer 做时序辨识。
+**第 5 步——extrinsics 即隐式系统辨识。** $z^{phys}$（质量/摩擦/质心）真机不可观测，Visuotactile Transformer 从历史 $(q,a,o^{depth},o^{touch})$ 序列回归出 $\hat{z}_t$，等价于在线 system ID。这与 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 的 RMA 同源（[[ReinforcementLearning|RL §5]] 特权学习），差别是 RotateIt 加了视触觉输入、用 Transformer 做时序辨识。
 
 **退化情形（解释 HORA 为何 z 轴够用）。** 球/立方体惯性张量近各向同性、主轴退化，无显著形状依赖——故 HORA 纯本体在 z 轴 RotR 99.83 已够好，但一到 x/y 轴（79–82）就被 RotateIt（118–125）拉开。
 
@@ -240,7 +240,7 @@ $\tau$ 是各手指接触力矩之和。
 ## 6. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-- PPO + Teacher-Student：Oracle 在特权信息 $z_t$ 下训练 → Student 通过 Transformer 从历史观测推断 $\hat{z}_t$，对应 [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|Sim-to-Real 特权学习]]
+- PPO + Teacher-Student：Oracle 在特权信息 $z_t$ 下训练 → Student 通过 Transformer 从历史观测推断 $\hat{z}_t$，对应 [[ReinforcementLearning|Sim-to-Real 特权学习]]
 - 奖励工程：$r = r_{\text{rotr}} + \lambda_{\text{rotp}} r_{\text{rotp}} + ...$ 是典型多目标奖励分解
 
 ### 与 [[SignalProcessing]] 的联系

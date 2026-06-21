@@ -25,8 +25,8 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] - Real→Sim→Real 流程
-> - [[RepresentationLearning#3. Implementation: 核心算法实现与物理逻辑 (Core Algorithmic Implementation and Physical Logic)]] - 3D 场景重建
-> - [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]] - 点云策略
+> - [[RepresentationLearning]] - 3D 场景重建
+> - [[RepresentationLearning]] - 点云策略
 >
 > **核心技术**: Digital Twin Construction, Inverse Distillation, RL Fine-tuning in Sim
 

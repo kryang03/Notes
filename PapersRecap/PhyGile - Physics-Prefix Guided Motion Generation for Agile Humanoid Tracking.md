@@ -25,9 +25,9 @@ related:
 > 提出 PhyGile 框架，通过 **physics-prefix 引导** 将机器人原生扩散运动生成与敏捷通用运动跟踪 (GMT) 闭环耦合：(1) 课程 MoE 训练实现长尾敏捷运动的鲁棒跟踪；(2) 262D 机器人骨骼空间的 TP-MoE 扩散模型实现细粒度文本-运动对齐；(3) 物理前缀引导微调弥合生成-执行鸠沟，实现真机 cartwheel、breakdance 等高难度全身运动。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] — PPO 用于 GMT controller 微调
-> - [[ReinforcementLearning#5.1 域随机化 (Domain Randomization, DR) 与 自适应 (Adaptive DR)]] — 课程学习策略
-> - [[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础]] — 条件去噪扩散生成
+> - [[ReinforcementLearning]] — PPO 用于 GMT controller 微调
+> - [[ReinforcementLearning]] — 课程学习策略
+> - [[RepresentationLearning]] — 条件去噪扩散生成
 > - [[Dynamics]] — 262D 机器人骨骼空间动力学表示
 > - [[ControlTheory]] — 运动跟踪控制器
 >
@@ -283,7 +283,7 @@ def physics_prefix_generate(diffusion, tracker, sim_env, text,
 **理论维度**:
 - 扩散模型的 physics prefix 条件在理论上等价于修改了去噪过程的初始分布支撑，但缺乏收敛性保证
 - MoE 路由的级别监督是启发式的（LLM-based difficulty annotation），可能引入标注噪声
-- **替代方案**: 使用 [[Optimization#3.4 阶段四：可微物理与平滑化 (The Differentiable Physics & Smoothing Era)|可微物理]] 对 prefix 条件施加显式收敛约束；用自动课程发现（如 PLR）替代 LLM 难度标注
+- **替代方案**: 使用 [[Optimization|可微物理]] 对 prefix 条件施加显式收敛约束；用自动课程发现（如 PLR）替代 LLM 难度标注
 
 **算法维度**:
 - Freeze-and-drop 机制依赖人为设定的阈值 ($\tau_{\text{err}}$, $\tau_{\text{succ}}$, $n_{\min}$)，对不同运动类型的适应性未验证
@@ -293,7 +293,7 @@ def physics_prefix_generate(diffusion, tracker, sim_env, text,
 **工程维度**:
 - 262D 运动空间需要大量 retargeted MoCap 数据，对新机器人形态的泛化成本高
 - TP-MoE 增加了推理时的计算量（每 token 需混合 K 个专家）
-- **替代方案**: 通用骨骼表示（如 UniHSI 的 language-conditioned joint mapping）减少重定向成本；[[RepresentationLearning#2.2 深度解析：扩散策略 (Diffusion Policy) 的物理与数学基础|一致性蒸馏]] 压缩多步去噪
+- **替代方案**: 通用骨骼表示（如 UniHSI 的 language-conditioned joint mapping）减少重定向成本；[[RepresentationLearning|一致性蒸馏]] 压缩多步去噪
 
 ### 6.1.1 跨方法对比
 
@@ -301,10 +301,10 @@ def physics_prefix_generate(diffusion, tracker, sim_env, text,
 |------|---------|------------|--------|-----------|----------|
 | 运动空间 | 262D 机器人原生 | 机器人关节 | 机器人原生 | SMPL→retarget | 人体关节 |
 | 生成-执行耦合 | 闭环 (physics prefix) | 残差后训练 | 松耦合 | 松耦合 | 无生成 |
-| 多运动扩展 | Curriculum MoE | [[StochasticProcess#2.1 随机微分方程 (SDEs) 的物理图景|Flow Matching]] | 单策略 | 单策略 | 单运动专家 |
+| 多运动扩展 | Curriculum MoE | [[StochasticProcess|Flow Matching]] | 单策略 | 单策略 | 单运动专家 |
 | 文本条件 | TP-MoE token 级对齐 | 无 | 全局 | 无 | 无 |
 | 敏捷运动 | ✅ cartwheel, breakdance | ✅ 后空翻, 武术 | 有限 | 有限 | 单运动 |
-| Sim-to-Real | Physics prefix + [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO|PPO]] | 残差 + 执行器建模 | DR | DR | 基础 DR |
+| Sim-to-Real | Physics prefix + [[ReinforcementLearning|PPO]] | 残差 + 执行器建模 | DR | DR | 基础 DR |
 | 扩展瓶颈 | MoCap + retarget 成本 | MoCap 获取 | MoCap | 动态运动不足 | 单运动限制 |
 
 ### 6.2 与灵巧操作研究的启发

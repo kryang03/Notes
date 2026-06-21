@@ -11,14 +11,14 @@ aliases:
 date: 2026-04-26
 related:
   - "[[Final_WMTS]]"
-  - "[[Deep Dynamics Models Recap]]"
-  - "[[DiWA- Diffusion Policy Adaptation with World Models Recap]]"
-  - "[[ANYmal Parkour Recap]]"
-  - "[[Diffusion Policy Recap]]"
-  - "[[CMA-ES Tutorial Recap]]"
+  - "[[Deep Dynamics Models for Learning Dexterous Manipulation]]"
+  - "[[DiWA- Diffusion Policy Adaptation with World Models]]"
+  - "[[ANYmal parkour Learning agile navigation for quadrupedal robots]]"
+  - "[[Diffusion Policy: Visuomotor Policy]]"
+  - "[[The CMA Evolution Strategy: A Tutorial]]"
   - "[[GenDexGrasp - Generalizable Dexterous Grasping]]"
   - "[[Learning Quadrupedal Locomotion over Challenging Terrain]]"
-  - "[[SafeDreamer Recap]]"
+  - "[[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL]]"
   - "[[ReinforcementLearning]]"
   - "[[Dynamics]]"
   - "[[ContactMechanics]]"
@@ -49,7 +49,7 @@ related:
 
 ### 1.1 三类风险量
 
-**1. Dynamics epistemic uncertainty**（来自 [[Deep Dynamics Models Recap|PDDM]]）：
+**1. Dynamics epistemic uncertainty**（来自 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]）：
 
 $$
 U_{dyn}(\xi)=\sum_{t=1}^{H}\mathrm{tr}\,\mathrm{Cov}\left(\{\hat{s}_{t}^{m}\}_{m=1}^{M}\right)
@@ -57,7 +57,7 @@ $$
 
 反映世界模型是否理解该任务区域。
 
-**2. Actuator feasibility**（来自 [[ANYmal Parkour Recap|Actuator Network]] 与 [[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|WMTS Actuator Model]]）：
+**2. Actuator feasibility**（来自 [[ANYmal parkour Learning agile navigation for quadrupedal robots|Actuator Network]] 与 [[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|WMTS Actuator Model]]）：
 
 $$
 \rho_{act,t}=\frac{\|\hat{\tau}_{link,t}\|_2}{\|\tau_{cmd,t}\|_2+\epsilon},\quad U_{act,t}=\mathrm{tr}\,\mathrm{Cov}\left(\{f_{act}^{m}(x_{act,t})\}_{m=1}^{M_a}\right).
@@ -154,7 +154,7 @@ $$
 \mathcal{L}_{diff}^{act}=\|\epsilon-\epsilon_\theta(A_k,k,c_t)\|_2^2+\lambda_{sat}\sum_t\max(0,\|\hat{\tau}_{link,t}\|-\tau_{max}(\dot{\phi}_t,T_t))^2.
 $$
 
-这把 [[Diffusion Policy Recap|Diffusion Policy]] 的多模态动作优势与 [[ANYmal Parkour Recap|Actuator Network]] 的可执行性约束连起来。
+这把 [[Diffusion Policy: Visuomotor Policy|Diffusion Policy]] 的多模态动作优势与 [[ANYmal parkour Learning agile navigation for quadrupedal robots|Actuator Network]] 的可执行性约束连起来。
 
 ### 2.4 Ensemble WM：Actuator-Rigid counterfactual loss
 
@@ -188,7 +188,7 @@ $$
 \mathrm{LCB}_{succ}>\eta_{safe},\quad \rho_{act}>\eta_{act},\quad \max_t T_{motor,t}<T_{limit}.
 $$
 
-这对应 [[SafeDreamer Recap|SafeDreamer]] 的安全约束思想，但更加贴合灵巧手执行器与接触风险。
+这对应 [[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL|SafeDreamer]] 的安全约束思想，但更加贴合灵巧手执行器与接触风险。
 
 ---
 
@@ -228,7 +228,7 @@ $$
 
 ## 5. 为什么这个方案足够值得做
 
-1. **不是单点 trick**：它把 [[Deep Dynamics Models Recap|PDDM]] 的 ensemble uncertainty、[[ANYmal Parkour Recap|Actuator Network]]、[[GenDexGrasp - Generalizable Dexterous Grasping|contact map]]、[[Diffusion Policy Recap|Diffusion Policy]] 与 [[SafeDreamer Recap|safe dream]] 统一成一个可实验验证的调度层。
+1. **不是单点 trick**：它把 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] 的 ensemble uncertainty、[[ANYmal parkour Learning agile navigation for quadrupedal robots|Actuator Network]]、[[GenDexGrasp - Generalizable Dexterous Grasping|contact map]]、[[Diffusion Policy: Visuomotor Policy|Diffusion Policy]] 与 [[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL|safe dream]] 统一成一个可实验验证的调度层。
 2. **服务真机可靠性**：它把“任务新奇性”从单一目标降级为多目标之一，避免 WMTS 变成会主动寻找硬件不可执行任务的系统。
 3. **有清晰论文叙事**：核心 story 是 **World Model should schedule not only by novelty, but by calibrated feasibility under contact and actuation constraints**。
 4. **可渐进落地**：Stage A 完全离线，Stage B 仿真闭环，Stage C 才低速真机，不要求一次性推翻当前实现。

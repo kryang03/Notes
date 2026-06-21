@@ -40,7 +40,7 @@ related:
 
 ### 1.2 现有方法的局限
 
-**局限 1：固定 PD 的力矩表达上限严重受限。** 在 Thumbaround 的训练后力矩图中（见 RSS26.pdf 第15页），关节实际位移极小，策略的 "位置控制" 实质上是在通过 PD 间接输出力矩。然而，固定 $K_p$, $K_d$ 无法表达 "先硬后软"、"振荡式" 等动力学任务所需的力矩模式——这正是 [[ControlTheory#3.1.1 从 PID 到计算力矩：精确线性化的诱惑与局限 (From PID to Computed Torque)]] 中指出的 PD 的本质缺陷。
+**局限 1：固定 PD 的力矩表达上限严重受限。** 在 Thumbaround 的训练后力矩图中（见 RSS26.pdf 第15页），关节实际位移极小，策略的 "位置控制" 实质上是在通过 PD 间接输出力矩。然而，固定 $K_p$, $K_d$ 无法表达 "先硬后软"、"振荡式" 等动力学任务所需的力矩模式——这正是 [[ControlTheory]] 中指出的 PD 的本质缺陷。
 
 **局限 2：频率-动力学缩放的混淆。** HDC 通过 $\alpha$ 缩放让物理世界变慢，但 reviewer 质疑其优势是否仅来自等效更高的控制频率。这一混淆的根源在于：在当前框架中，控制频率和动力学参数是耦合的——改变频率同时改变了 PD 控制器的响应特性。
 
@@ -259,9 +259,9 @@ done
 ## 7. 知识库关联
 
 ### 与 Foundations 的联系
-- [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]] — PAI 的理论根基：阻抗控制将环境交互建模为弹簧-质量-阻尼系统
-- [[ControlTheory#3.1.1 从 PID 到计算力矩：精确线性化的诱惑与局限 (From PID to Computed Torque)]] — 解释为什么固定 PD 在动态任务中力矩表达受限
-- [[Dynamics#2.2 Coriolis & Centrifugal Forces (科里奥利力与离心力)]] — 高惯性状态中 $C(q, \dot{q})\dot{q}$ 项需要时变阻抗来适应
+- [[ControlTheory]] — PAI 的理论根基：阻抗控制将环境交互建模为弹簧-质量-阻尼系统
+- [[ControlTheory]] — 解释为什么固定 PD 在动态任务中力矩表达受限
+- [[Dynamics]] — 高惯性状态中 $C(q, \dot{q})\dot{q}$ 项需要时变阻抗来适应
 - [[ContactMechanics]] — 接触切换时刻的阻抗需求突变
 
 ### 与已有论文的联系

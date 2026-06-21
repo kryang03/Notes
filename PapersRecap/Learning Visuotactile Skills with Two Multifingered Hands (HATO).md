@@ -26,8 +26,8 @@ related:
 > 提出 HATO（Hands-Arms Tele-Operation）系统，首次实现双多指手 + 视触觉感知 + 模仿学习的组合，用 VR 控制器实现直观的双手多指遥操作。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - Diffusion Policy 行为克隆
-> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 视觉+触觉+本体感觉融合
+> - [[ReinforcementLearning]] - Diffusion Policy 行为克隆
+> - [[RepresentationLearning]] - 视觉+触觉+本体感觉融合
 > - [[SignalProcessing]] - FSR 触觉传感器信号
 > - [[ContactMechanics]] - 多指手 vs 夹爪的接触优势
 >
@@ -265,7 +265,7 @@ $$
 I(A;\, Z_{\text{vis}}, Z_{\text{tactile}}, Z_{\text{proprio}}) \geq I(A;\, Z_{\text{vis}}) + I(A;\, Z_{\text{tactile}} \mid Z_{\text{vis}})
 $$
 
-Ablation 证实去掉触觉后 MSE 增大 6.4 倍，说明条件互信息 $I(A;\, Z_{\text{tactile}} \mid Z_{\text{vis}})$ 不可忽略。视觉遮挡时（手掌包裹物体），触觉成为唯一的接触状态观测源（详见 [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]]）。
+Ablation 证实去掉触觉后 MSE 增大 6.4 倍，说明条件互信息 $I(A;\, Z_{\text{tactile}} \mid Z_{\text{vis}})$ 不可忽略。视觉遮挡时（手掌包裹物体），触觉成为唯一的接触状态观测源（详见 [[RepresentationLearning]]）。
 
 ### 与 [[StochasticProcess]] 的联系
 

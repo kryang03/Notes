@@ -24,8 +24,8 @@ related:
 > 利用 GPT-4 的代码生成能力进行**进化式奖励函数搜索**，在 29 个 RL 环境（含 10 种机器人形态）上实现了超越人类专家的奖励设计，并首次实现了仿真灵巧手的高速转笔技能。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] - 奖励设计是 RL 的核心瓶颈
-> - [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]] - 奖励塑形与轨迹优化的关系
+> - [[ReinforcementLearning]] - 奖励设计是 RL 的核心瓶颈
+> - [[Optimization]] - 奖励塑形与轨迹优化的关系
 > - [[ControlTheory]] - 稳定性约束下的奖励设计
 >
 > **核心技术**: LLM Code Generation, Evolutionary Search, Reward Reflection, Curriculum Learning
@@ -226,9 +226,9 @@ but 'orientation_error' plateaued. Consider increasing its weight."
 
 ### 与知识库其他内容的连接
 - [[ContactMechanics]] - EUREKA 可自动发现力闭合相关的奖励项
-- [[ReinforcementLearning#3. Implementation: 核心算法细节分析]] - EUREKA 生成的奖励用于 PPO 训练
-- [[ReinforcementLearning#4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)]] - Mediator-based surrogate reward 提供因果推断视角补充 LLM 奖励搜索
-- [[Optimization#5. 实时控制：模型预测控制 (Real-Time Control: MPC)]] - 进化搜索思想与 MPPI 类似
+- [[ReinforcementLearning]] - EUREKA 生成的奖励用于 PPO 训练
+- [[ReinforcementLearning]] - Mediator-based surrogate reward 提供因果推断视角补充 LLM 奖励搜索
+- [[Optimization]] - 进化搜索思想与 MPPI 类似
 
 ### 对转笔 / Sim-to-Real 的具体启发
 
@@ -238,11 +238,11 @@ but 'orientation_error' plateaued. Consider increasing its weight."
 
 ### 与 Foundation 的数学联系
 
-**与 [[ReinforcementLearning]] 的联系**：EUREKA 外层进化等价于奖励函数空间 $\mathcal{R}$ 上的零阶优化：$R^{(k+1)} = R^{(k)} + \text{LLM\_mutation}(\text{Reflect}(F(A_M(R^{(k)}))))$，与 [[ReinforcementLearning#2. Evolution & Insights: 技术演进脉络 (Problem-Solution Chain)]] 中 CMA-ES 等进化策略在结构上同构
+**与 [[ReinforcementLearning]] 的联系**：EUREKA 外层进化等价于奖励函数空间 $\mathcal{R}$ 上的零阶优化：$R^{(k+1)} = R^{(k)} + \text{LLM\_mutation}(\text{Reflect}(F(A_M(R^{(k)}))))$，与 [[ReinforcementLearning]] 中 CMA-ES 等进化策略在结构上同构
 
-**与 [[Optimization]] 的联系**：适应度 $F(\pi) = \mathbb{E}[\sum_t r_{task}]$ 的外层优化是双层优化：$\max_R F(A_M(R))$，内层是标准 RL，外层是 LLM 进化。这与 [[Optimization#4. 核心算法实现：轨迹优化 (Implementation: Trajectory Optimization)]] 中 bi-level optimization 形式一致
+**与 [[Optimization]] 的联系**：适应度 $F(\pi) = \mathbb{E}[\sum_t r_{task}]$ 的外层优化是双层优化：$\max_R F(A_M(R))$，内层是标准 RL，外层是 LLM 进化。这与 [[Optimization]] 中 bi-level optimization 形式一致
 
-**与 [[StochasticProcess]] 的联系**：$K=16$ 的批量采样本质是蒙特卡洛采样，进化选择是 importance sampling 的变体——高适应度候选被赋予更高权重，这与 [[StochasticProcess#6. 核心算法详解：Model Predictive Path Integral Control (MPPI)]] 中 MPPI 的轨迹加权思想完全一致
+**与 [[StochasticProcess]] 的联系**：$K=16$ 的批量采样本质是蒙特卡洛采样，进化选择是 importance sampling 的变体——高适应度候选被赋予更高权重，这与 [[StochasticProcess]] 中 MPPI 的轨迹加权思想完全一致
 
 ---
 

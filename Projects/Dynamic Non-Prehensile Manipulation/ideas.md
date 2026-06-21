@@ -65,7 +65,7 @@ $$g(q) = F$$
 
 $$M(q)\ddot{q} + C(q, \dot{q})\dot{q} + g(q) = \tau$$
 
-惯性项不可忽视，科里奥利力和离心力项（详见 [[Dynamics#2.2 Coriolis & Centrifugal Forces (科里奥利力与离心力)]]）成为系统行为的主导因素。
+惯性项不可忽视，科里奥利力和离心力项（详见 [[Dynamics]]）成为系统行为的主导因素。
 
 **本研究的定位：Dynamic $\times$ Non-Prehensile**
 
@@ -87,7 +87,7 @@ $$M(q)\ddot{q} + C(q, \dot{q})\dot{q} + g(q) = \tau$$
 更重要的是，动态非紧握操作拓展的不仅是动作空间（action space），而是**任务空间（task space）**——系统一旦具备了这样的能力，能解锁一整类在准静态框架下根本不可能完成的任务：
 
 - **颠锅（Wok Tossing）**：锅与锅内食物（如煎蛋）之间是非紧握关系——锅在此任务中近似等价于末端执行器。如果不主动注入速度和加速度让食物进入高惯性状态（飞行相），食物就**无法实现翻转**——这在准静态框架下逻辑上不可能实现，因为锅只能从下方支撑食物，缺乏翻转食物所需的对称力。
-- **旋转陀螺（Top Spinning）**：一个更极端的例子。在旋转的过程中，陀螺不仅仅是非紧握——它**根本不受末端执行器的控制**。在这样的状态下，必须在之前的阶段就给陀螺注入一个高惯性状态，利用转动惯量实现陀螺的动态平衡（进动与章动, 详见 [[Dynamics#2.2 Coriolis & Centrifugal Forces (科里奥利力与离心力)]]）。
+- **旋转陀螺（Top Spinning）**：一个更极端的例子。在旋转的过程中，陀螺不仅仅是非紧握——它**根本不受末端执行器的控制**。在这样的状态下，必须在之前的阶段就给陀螺注入一个高惯性状态，利用转动惯量实现陀螺的动态平衡（进动与章动, 详见 [[Dynamics]]）。
 - **Thumbaround 和 Triangle Pass**：花式转笔动作。在笔绕拇指旋转的 Spin 阶段，笔与手指的接触是单边的、非力闭合的。系统必须先给笔注入足够的角动量，使笔能够利用惯性力产生接触力、再通过接触力产生摩擦力来对抗重力，同时完成预期的旋转轨迹。
 
 > [!note] 意义分类对照
@@ -109,7 +109,7 @@ $$M(q)\ddot{q} + C(q, \dot{q})\dot{q} + g(q) = \tau$$
 
 1. **拇指的支持力不足以抗衡重力**：由于非紧握状态下接触点的几何限制，拇指背侧的法向力方向无法直接提供竖直向上的分量来平衡重力。
 2. **系统必须利用惯性力**：高速旋转产生的离心力将笔压向拇指侧，产生法向接触力。
-3. **接触力再产生摩擦力**：这个法向接触力通过摩擦（[[ContactMechanics#3. 接触建模演变：从点模型到软体模型|接触建模演变]]）产生一个切向摩擦力分量。
+3. **接触力再产生摩擦力**：这个法向接触力通过摩擦（[[ContactMechanics|接触建模演变]]）产生一个切向摩擦力分量。
 4. **摩擦力对抗重力**：正是这个摩擦力分量最终平衡了重力，使笔不坠落。
 
 因此，系统需要学习的动力学因果链条是：
@@ -122,8 +122,8 @@ $$\boxed{\text{主动发力} \rightarrow \text{高惯性状态} \rightarrow \tex
 
 由于因果链条长且高度非线性，一个核心困难随之浮现：**很难用一个通用的（非 task-specific 的）标准来评判怎样的高惯性状态是"好的"、怎样的是"坏的"。**
 
-- 对于 **model-based 方法**：动力学方程的高非线性使得多步前向预测误差呈指数级增长，尤其在接触切换点。即使精确地知道所有物理参数，多步链式因果关系的解析表达也是 intractable 的（详见 [[Dynamics#5. Contact Dynamics: 灵巧操作的深水区 (The Deep Waters of Contact)]]中关于 LCP 求解的讨论）。
-- 对于 **learning-based 方法**：强化学习需要通过试错来发现好的策略。但当因果链条长到一定程度后，credit assignment（信用分配）变得极其困难——系统在 $t_0$ 时刻发力的"好坏"可能要在 $t_0 + \Delta t$ 之后才能通过最终的成功/失败来判断，而中间经过的所有高惯性状态都是混淆因素（详见 [[ReinforcementLearning#2.8 Exploration 理论：从信息论到技能发现]]）。
+- 对于 **model-based 方法**：动力学方程的高非线性使得多步前向预测误差呈指数级增长，尤其在接触切换点。即使精确地知道所有物理参数，多步链式因果关系的解析表达也是 intractable 的（详见 [[Dynamics]]中关于 LCP 求解的讨论）。
+- 对于 **learning-based 方法**：强化学习需要通过试错来发现好的策略。但当因果链条长到一定程度后，credit assignment（信用分配）变得极其困难——系统在 $t_0$ 时刻发力的"好坏"可能要在 $t_0 + \Delta t$ 之后才能通过最终的成功/失败来判断，而中间经过的所有高惯性状态都是混淆因素（详见 [[ReinforcementLearning]]）。
 
 #### 1.3.3 对各任务的动力学难度解析
 
@@ -182,10 +182,10 @@ Sparse reward 指的是系统只在极少数状态获得非零奖励。Delayed r
 2. **Reward Hacking（奖励黑客）**：策略进入高惯性状态后，收敛到 hacking plateau 而非真正的成功。
 
 > [!note] 与 [[ReinforcementLearning]] 的联系
-> 这里的 value landscape 崎岖性可以用 [[Optimization#2.6 非凸优化景观理论 (Nonconvex Optimization Landscapes)|非凸优化景观理论]] 中的框架来分析：
+> 这里的 value landscape 崎岖性可以用 [[Optimization|非凸优化景观理论]] 中的框架来分析：
 > - Risk Aversion 对应虚假局部极小值（spurious local minimum）
 > - Hacking Plateau 对应鞍点区域
-> - 稀疏踏脚石对应 PL 不等式（[[Optimization#2.6.2 良好景观的特征：无虚假局部极小|良好景观特征]]）不成立的区域
+> - 稀疏踏脚石对应 PL 不等式（[[Optimization|良好景观特征]]）不成立的区域
 
 ### 2.2 方法：Homotopic Dynamics Curriculum（HDC）
 
@@ -205,7 +205,7 @@ HDC 的核心思想是：**创造一个与真实物理空间同构但速度放�
 原始动力学方程：
 $$M(q)\ddot{q} + C(q, \dot{q})\dot{q} + g(q) = \tau$$
 
-速度缩放后，科里奥利/离心力项变为（利用 $C$ 的双线性性质, 详见 [[Dynamics#2.2 Coriolis & Centrifugal Forces (科里奥利力与离心力)]]）：
+速度缩放后，科里奥利/离心力项变为（利用 $C$ 的双线性性质, 详见 [[Dynamics]]）：
 $$C(q, \dot{q}')\dot{q}' = C(q, \alpha\dot{q}) \cdot (\alpha\dot{q}) = \alpha^2 [C(q, \dot{q})\dot{q}]$$
 
 因此加速度项和重力项也需要同步缩放为 $\alpha^2$ 倍，才能保持方程的平衡。这意味着在缩放空间中：
@@ -305,7 +305,7 @@ Control Frequency Curriculum（CFC）通过改变 Decimation（策略观察和�
 > - **优势**: 用 $\tilde{R}(m, s) = \mathbb{E}[R|M=m, S=s]$ 替代最终的 sparse success reward，可显著降低 credit assignment 方差
 > - **与 HDC 的协同**: HDC 通过拉伸 value landscape 改善探索，mediator reward 通过降低方差改善梯度信号质量，两者互补
 > - **实验设计**: 可在 Light reward 组中对比 (a) pure sparse, (b) sparse + HER, (c) sparse + mediator surrogate, (d) HDC + mediator
-> - 参见 [[ReinforcementLearning#4.2 奖励工程：稀疏 vs. 密集 vs. 塑形 (Sparse vs. Dense vs. Shaping)]]
+> - 参见 [[ReinforcementLearning]]
 
 #### 2.5.4 课程迁移判据的优化
 
@@ -332,7 +332,7 @@ Control Frequency Curriculum（CFC）通过改变 Decimation（策略观察和�
 > - Easy 问题存在明确的"饱和点"（reward 不再随 $n$ 增加而显著提升）
 > - 可用类似的饱和检测作为 $\alpha$ 递增的触发条件，替代当前的固定 70% success threshold
 >
-> 参见 [[ReinforcementLearning#6.3 RL Scaling Laws: 计算最优的训练资源分配]]
+> 参见 [[ReinforcementLearning]]
 
 ### 2.6 探索阶段的关键参数分析
 
@@ -430,8 +430,8 @@ PD Controller 起到的最大作用是在探索初期**简化了 credit assignme
 
 #### 3.1.4 知识库关联
 
-- [[ControlTheory#3.2 解决方案 I：阻抗控制 (Impedance Control) —— 调节动态关系]] — 阻抗控制的理论基础
-- [[ControlTheory#3.3 解决方案 II：导纳控制 (Admittance Control) —— 位置内环的策略]] — 另一种因果性的控制范式
+- [[ControlTheory]] — 阻抗控制的理论基础
+- [[ControlTheory]] — 另一种因果性的控制范式
 - [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks]] — VICES 框架（方案 1）
 - [[FACET - Force-Adaptive Control via Impedance Reference Tracking]] — ⭐ **阻抗参考模型跟踪**（方案 2），时变 $K_p$ 直接匹配 snap/spin/catch 相位
 - [[Elastic Time Step Reinforcement Learning, VTS-RL]] — 弹性时间步 RL

@@ -38,11 +38,11 @@ related:
 > 首个实现**连续旋转无自然支撑笔状物体**的学习系统。核心不是某个新网络，而是一条 **特权 Oracle (PPO) → Open-loop Replay 数据引擎 → 纯本体 Student fine-tune** 的三阶段 sim-to-real 流程：用人类启发的 6 种 Canonical Grasp 把 finger gaiting 的关键帧塞进初始状态分布，用 $r_z$ 水平约束把"仿真花哨但真机不稳"的解从策略空间里剔除，最后用开环回放自动产出 **<50 条** 真机成功轨迹完成微调，在 10+ 种不同质量/摩擦/尺寸的笔上实现多圈旋转。
 
 > [!tip] 与理论基础的关联
-> - [[Dynamics#2.3 Contact Constraints (接触约束)|Dynamics §2.3]] — finger gaiting 的纯滚动/非完整 (Pfaffian) 约束与接触反力，是"手指交替接触维持持续旋转"的数学根；笔旋转是 open-chain↔closed-chain 反复切换的混合系统。
-> - [[ContactMechanics#3. 接触建模演变：从点模型到软体模型|ContactMechanics §3]] — 二值触觉 $c_t$ 对应硬指点接触模型的退化观测；摩擦锥 $\|f_t\|\le\mu f_n$ 决定笔倾斜后何时滑落。
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|ReinforcementLearning §5]] — 三阶段流程用 Open-loop Replay **替代** zero-shot Domain Randomization 的迁移路线。
-> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制|ControlTheory §3]] — 30 Hz PD 位置控制 + "真机降增益容错"是刚度-柔顺权衡的具体落点。
-> - [[EmbodiedAI#2.3 模仿学习 (Imitation Learning)|EmbodiedAI §2.3]] — Oracle→Student 蒸馏与真机演示 fine-tune 是 RL+IL 混合的模仿学习范式。
+> - [[Dynamics|Dynamics §2.3]] — finger gaiting 的纯滚动/非完整 (Pfaffian) 约束与接触反力，是"手指交替接触维持持续旋转"的数学根；笔旋转是 open-chain↔closed-chain 反复切换的混合系统。
+> - [[ContactMechanics|ContactMechanics §3]] — 二值触觉 $c_t$ 对应硬指点接触模型的退化观测；摩擦锥 $\|f_t\|\le\mu f_n$ 决定笔倾斜后何时滑落。
+> - [[ReinforcementLearning|ReinforcementLearning §5]] — 三阶段流程用 Open-loop Replay **替代** zero-shot Domain Randomization 的迁移路线。
+> - [[ControlTheory|ControlTheory §3]] — 30 Hz PD 位置控制 + "真机降增益容错"是刚度-柔顺权衡的具体落点。
+> - [[EmbodiedAI|EmbodiedAI §2.3]] — Oracle→Student 蒸馏与真机演示 fine-tune 是 RL+IL 混合的模仿学习范式。
 >
 > **核心技术**: Privileged Oracle (PPO, 特权信息) · Canonical Grasp 初始状态分布 · $r_z$ 水平约束 · Open-loop Replay 数据引擎 · Proprioceptive Student Fine-tune
 
@@ -125,7 +125,7 @@ $$f_{i,n}\ge 0,\qquad \|f_{i,t}\|\le \mu\, f_{i,n}.$$
 
 **第 4 步——这是一个受控切换（混合）系统。** 设接触集 $\sigma(t)\subseteq\{1,2,3,4\}$，则系统动力学是分段的
 $$\dot{x} = f_{\sigma(t)}(x,u),\qquad \sigma(t)\in 2^{\{1,\dots,4\}}.$$
-每次手指接触/脱离，系统在 open-chain 与 closed-chain 之间切换，质量矩阵 $M(q)$ 的秩突变（[[Dynamics#2.1 Configuration Space Manifold (构型空间流形)|Dynamics §2.1]]）。gaiting = **一段受控的模式切换序列**。这正是 [[Dynamics#2.3 Contact Constraints (接触约束)|Dynamics §2.3]] 里 finger gaiting 作为非完整重定位机动的动力学版本。
+每次手指接触/脱离，系统在 open-chain 与 closed-chain 之间切换，质量矩阵 $M(q)$ 的秩突变（[[Dynamics|Dynamics §2.1]]）。gaiting = **一段受控的模式切换序列**。这正是 [[Dynamics|Dynamics §2.3]] 里 finger gaiting 作为非完整重定位机动的动力学版本。
 
 **第 5 步——两个设计的物理必然性，与退化情形。**
 - **Canonical Grasp 的必然性**：模式序列 $\sigma(t)$ 是周期的，存在几个关键相位（哪几指供矩、哪几指复位）。若初始状态只采一个相位，策略永远探索不到完整循环 → 必须用 6 个 canonical grasp 覆盖周期上的关键切换点（这把 §3.3 "单 pose 不稳定"的消融解释为**覆盖不到切换流形**，而非"数据不够"）。
@@ -220,7 +220,7 @@ $$r = r_{rot} + \lambda_z\, r_z + \lambda_{energy}\, r_{energy}$$
 - **Canonical Grasp 验证**：每种 grasp 须经物理验证（仿真 1000 步不掉落），无效初始态浪费 rollout。
 - **$\lambda_z$ 区间**：$[0.5,1.0]$ 最佳——过小则倾斜（真机不鲁棒），过大则限制旋转自由度。
 - **开环轨迹长度阈值 >800 步**：更短轨迹初始化误差累积，真机易失败。
-- **PD 增益 sim-to-real 调整**：真机增益略低于仿真，补偿关节摩擦与腱弹性（对应 [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制|降虚拟刚度容错]]）。
+- **PD 增益 sim-to-real 调整**：真机增益略低于仿真，补偿关节摩擦与腱弹性（对应 [[ControlTheory|降虚拟刚度容错]]）。
 - **Temporal Transformer 历史 30 步（~1s@30Hz）**：性能与推理延迟的折中。
 - **PointNet 100 点**：足以捕获笔形状，更多点不提升性能。
 
@@ -280,10 +280,10 @@ $$r = r_{rot} + \lambda_z\, r_z + \lambda_{energy}\, r_{energy}$$
 ## 7. 与知识体系的联系 ← 未来与结合
 
 ### 7.1 各 Foundation 的数学链
-- **[[Dynamics#2.3 Contact Constraints (接触约束)|Dynamics §2.3]]**：finger gaiting = 受控的接触模式切换 $\dot x=f_{\sigma(t)}(x,u)$；纯滚动是非完整 (Pfaffian) 约束，限制瞬时速度方向但不降 C-space 维数。
-- **[[ContactMechanics#3. 接触建模演变：从点模型到软体模型|ContactMechanics §3]]**：$r_z$ 的物理本质——倾斜时 $\tau_g=mgl\sin\theta$ 增大，所需切向力超出摩擦锥 $\|f_t\|\le\mu f_n$ 即滑落。
-- **[[ReinforcementLearning#3. Implementation: 核心算法细节分析|PPO §3]]**：4096 并行环境降低 $\hat A_t$ 方差，clip $\epsilon$ 保证长 horizon 多模态 gaiting 策略的更新稳定；[[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL|RL §5]]：用 Open-loop Replay 替代 DR 的 sim-to-real 路线。
-- **[[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制|ControlTheory §3]]**：30 Hz PD + 真机降增益 = 刚度-柔顺权衡。
+- **[[Dynamics|Dynamics §2.3]]**：finger gaiting = 受控的接触模式切换 $\dot x=f_{\sigma(t)}(x,u)$；纯滚动是非完整 (Pfaffian) 约束，限制瞬时速度方向但不降 C-space 维数。
+- **[[ContactMechanics|ContactMechanics §3]]**：$r_z$ 的物理本质——倾斜时 $\tau_g=mgl\sin\theta$ 增大，所需切向力超出摩擦锥 $\|f_t\|\le\mu f_n$ 即滑落。
+- **[[ReinforcementLearning|PPO §3]]**：4096 并行环境降低 $\hat A_t$ 方差，clip $\epsilon$ 保证长 horizon 多模态 gaiting 策略的更新稳定；[[ReinforcementLearning|RL §5]]：用 Open-loop Replay 替代 DR 的 sim-to-real 路线。
+- **[[ControlTheory|ControlTheory §3]]**：30 Hz PD + 真机降增益 = 刚度-柔顺权衡。
 - **[[Dynamic Non-Prehensile Manipulation]]**：转笔是依赖惯性/动量的动态非抓取操作的代表 benchmark。
 
 ### 7.2 in-hand rotation 领域级综述（本篇的横向坐标）

@@ -43,7 +43,7 @@ related:
 2. **涌现 meta-learning（最深洞见）**：循环策略在多样 DR 上训练，会在隐状态里**测试时隐式适应当前动力学**——这是 [[DyWA: Dynamics-adaptive World Action Model|DyWA]]/RMA 显式适配、[[Finetuning Offline World Models in the Real World|FOWM]] 不确定性适配之外的**第三条适应路线**（隐式、无需显式模块）。
 3. **诚实隔离**：标题"solving Rubik's cube"部分夸大——cube 的解法序列由 **Kociemba 经典求解器**给出，RL 只执行手内子目标；且需 **mocap 指尖 + Giiker 传感魔方**、全解成功率有限。
 
-它与 [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]（ADR 民主化）、探索/课程簇（[[Prioritized Level Replay]]/[[Paired Open-Ended Trailblazer (POET)|POET]]）相通。
+它与 [[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]（ADR 民主化）、探索/课程簇（[[Prioritized Level Replay]]/[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]）相通。
 
 ## 1. 问题设定与动机（逻辑与价值）
 
@@ -173,7 +173,7 @@ mocap/传感魔方依赖、天价算力、经典求解器外包、全解率有�
 sim-only 训练 + ADR 迁移真机；视觉状态估计与控制分离；灵巧手内操作标杆。
 
 ### 与 [[Optimization]] 的联系
-ADR 是性能驱动 curriculum（自动扩 randomization 范围，ADR entropy 度量分布宽度）——与 [[Prioritized Level Replay]]/[[Paired Open-Ended Trailblazer (POET)|POET]] 的课程思想相通。
+ADR 是性能驱动 curriculum（自动扩 randomization 范围，ADR entropy 度量分布宽度）——与 [[Prioritized Level Replay]]/[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]] 的课程思想相通。
 
 ### 与 [[Final_WMTS]] 的联系
 ADR 源头（DeXtreme 继承）；涌现 meta-learning = WMTS LAAA 的隐式适应路线（与显式 DyWA/WM 互补）；ADR curriculum 可入 scheduler。
@@ -182,5 +182,5 @@ ADR 源头（DeXtreme 继承）；涌现 meta-learning = WMTS LAAA 的隐式适�
 - 原始 PDF：[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND.pdf]]（OpenAI，arXiv 1910.07113）
 - 后继（ADR 民主化）：[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]]
 - 适应路线对照：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]（显式）、[[Finetuning Offline World Models in the Real World|FOWM]]（WM 不确定性）
-- 课程相关：[[Prioritized Level Replay]]、[[Paired Open-Ended Trailblazer (POET)|POET]]
+- 课程相关：[[Prioritized Level Replay]]、[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]
 - 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

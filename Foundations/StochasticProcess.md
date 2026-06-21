@@ -375,7 +375,7 @@ $$
 J=\sum_t\Big[(\mu_t-x_{goal})^TQ(\mu_t-x_{goal})+u_t^TRu_t+\alpha\,\mathrm{Tr}(\Sigma_t)\Big].
 $$
 
-$\mathrm{Tr}(\Sigma_t)$ 项**逼规划器选信息丰富的路径**，自动产生"轻推试探""指尖滑动触摸"等主动感知行为（这正是 [[InformationTheory#4. 信念空间规划 (Belief Space Planning)|信息论的主动感知]] 的控制版）。
+$\mathrm{Tr}(\Sigma_t)$ 项**逼规划器选信息丰富的路径**，自动产生"轻推试探""指尖滑动触摸"等主动感知行为（这正是 [[InformationTheory|信息论的主动感知]] 的控制版）。
 
 > [!note] MLO 假设：把随机规划"确定性化"
 > 规划时刻不知道未来观测 $z_{t+1}$（它是随机变量），对所有 $z$ 积分会爆炸。**最大似然观测 (MLO)** 假设未来观测正好等于预测值 $z_{t+1}^{exp}=h(f(\mu_t,u_t))$，于是可用标准 iLQR/MPPI 在信念空间规划。虽忽略了观测随机性，实践中已证明能产生高效鲁棒的主动感知策略。

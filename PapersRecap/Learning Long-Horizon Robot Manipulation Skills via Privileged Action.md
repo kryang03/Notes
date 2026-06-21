@@ -24,7 +24,7 @@ related:
 > 提出**特权动作 (Privileged Action)** 概念——在仿真中使用真实世界不可能的动作（如禁用碰撞、施加虚拟力）来简化探索，配合课程学习逐步恢复真实约束，实现长时程接触丰富任务的端到端学习。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#4. Advanced State Space & Reward Engineering]] - 特权信息从状态扩展到动作空间
+> - [[ReinforcementLearning]] - 特权信息从状态扩展到动作空间
 > - [[ContactMechanics]] - 通过特权动作绕过接触边界导致的探索困难
 > - [[Optimization]] - 课程学习作为约束松弛→收紧的优化策略
 >
@@ -106,7 +106,7 @@ $$
 > - 未接触 → 接触: 动力学突变
 > - 特权动作的核心是**平滑化这一边界**
 > 
-> 参见 [[ContactMechanics#3. 接触建模演变：从点模型到软体模型]] 中软接触模型的思想
+> 参见 [[ContactMechanics]] 中软接触模型的思想
 
 ### 3.5 核心伪代码
 

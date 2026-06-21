@@ -24,18 +24,18 @@ related:
 > 针对"视触觉多在特征级拼接、异质模态难自然融合，且 RGB/深度的 sim-to-real gap 大"这一瓶颈，提出 Robot Synesthesia：把触觉信号经 FK 投影成 3D **触觉点云**，与视觉点云、机器人增强点云在**同一坐标系输入级合并**后送单一 PointNet。结构性洞见：**把异质模态都抽象为几何点云，既让 PointNet 的置换不变聚合自然融合三种来源（靠 one-hot 区分），又因几何表示不含纹理/光照/力幅值而天然缩小 sim-to-real gap。** 由此实现双球同时旋转等复杂多物体操作。
 
 > [!note] 教科书背景
-> **接触信息的几何本质**：触觉点云实际上是 [[ContactMechanics#2. 接触几何运动学：流形上的演化|Montana 接触运动学方程]] 中“接触点在表面演化”的离散化观测。每个触觉点的 3D 坐标隐式编码了：
+> **接触信息的几何本质**：触觉点云实际上是 [[ContactMechanics|Montana 接触运动学方程]] 中“接触点在表面演化”的离散化观测。每个触觉点的 3D 坐标隐式编码了：
 > - **接触位置** $u_1, u_2$：在物体/手指表面的局部坐标
 > - **接触力分布**：通过点的密度/强度表示法向压力
 > 
 > 参见 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Ch.5 关于**抓取几何**的讨论——本文将这些几何关系嵌入到神经网络的隐式表示中。
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning#4. Point Cloud Representation: 3D 几何的深度学习基础 (Deep Learning on 3D Geometry)]] - PointNet 统一处理视觉和触觉点云
+> - [[RepresentationLearning]] - PointNet 统一处理视觉和触觉点云
 > - [[ComputationalGeometry]] - 增强点云与触觉点云融合
-> - [[ContactMechanics#2. 接触几何运动学：流形上的演化]] - 触觉点云是表面几何的离散采样
+> - [[ContactMechanics]] - 触觉点云是表面几何的离散采样
 > - [[ContactMechanics]] - 接触点到物体力的映射
-> - [[ReinforcementLearning#5. Bridging the Gap: Sim-to-Real & Offline RL]] - 教师-学生训练框架
+> - [[ReinforcementLearning]] - 教师-学生训练框架
 >
 > **核心技术**: Tactile Point Cloud, Unified 3D Representation, Teacher-Student RL
 
@@ -167,7 +167,7 @@ $$
 把"点云统一视触觉"从优雅直觉提升到几何 + 置换不变性。
 
 **(A) 触觉点云 = 接触运动学的笛卡尔离散化。**
-1. 接触点在物体/手指表面演化由 Montana 接触运动学描述（[[ContactMechanics#2. 接触几何运动学：流形上的演化|Montana 方程]]），接触状态含表面局部坐标 $(u_1,u_2)$。
+1. 接触点在物体/手指表面演化由 Montana 接触运动学描述（[[ContactMechanics|Montana 方程]]），接触状态含表面局部坐标 $(u_1,u_2)$。
 2. 当传感器 $i$ 触发，其在连杆系的位置 $u_{sensor,i}$ 经 FK 投影到世界系：
 $$p_i = FK(q) + R_{link}(q)\, u_{sensor,i}\ \in\mathbb{R}^3.$$
 3. 这一步把"接触发生在哪个传感器(离散 id)"翻译成"接触发生在世界系哪个 3D 点"——与视觉点云**进入同一坐标系**。关键：触觉与视觉本是异质模态(电压 vs 像素)，但接触的**几何位置**是二者共同的物理底座，FK 投影正是把触觉拉到这个共同底座上。
@@ -279,7 +279,7 @@ $$f(\{x_1, \ldots, x_n\}) \approx g(MAX_{i=1}^n h(x_i)))$$
 
 #### 与 [[ContactMechanics]] 的联系
 
-触觉点云是 [[ContactMechanics#2. 接触几何运动学：流形上的演化|Montana 接触运动学方程]] 中接触点的离散化观测。传感器 $i$ 被触发时，采样点 $p_i \in \mathbb{R}^3$ 隐式编码：
+触觉点云是 [[ContactMechanics|Montana 接触运动学方程]] 中接触点的离散化观测。传感器 $i$ 被触发时，采样点 $p_i \in \mathbb{R}^3$ 隐式编码：
 $$p_i \approx FK(q) + R_{link} \cdot u_{sensor,i}$$
 其中 $FK(q)$ 是前向运动学，$u_{sensor,i}$ 是传感器在连杆坐标系中的位置。将接触点提升到笛卡尔空间使网络能直接推理力-几何关系。
 
@@ -287,7 +287,7 @@ $$p_i \approx FK(q) + R_{link} \cdot u_{sensor,i}$$
 
 Teacher-Student 框架中 DAgger 校正的数学本质：Student 策略 $\pi_S$ 在自身分布 $d^{\pi_S}$ 下收集数据，但标签来自 Teacher $\pi_T$：
 $$\mathcal{L}_{DAgger} = \mathbb{E}_{s \sim d^{\pi_S}} \| \pi_S(s) - \pi_T(s) \|^2$$
-这消除了纯 BC 的分布漂移 $d^{\pi_S} \neq d^{\pi_T}$，是 [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] 的直接应用。
+这消除了纯 BC 的分布漂移 $d^{\pi_S} \neq d^{\pi_T}$，是 [[ReinforcementLearning]] 的直接应用。
 
 ```
 前置工作:

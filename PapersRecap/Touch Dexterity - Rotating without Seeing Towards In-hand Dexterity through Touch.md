@@ -25,8 +25,8 @@ related:
 > 针对"高精度触觉(GelSight)局部、昂贵、且连续力值仿真难对齐 → sim-to-real gap 大"这一瓶颈，提出 Touch Dexterity：用 16 个廉价**二值**力传感器(FSR)覆盖 palm+指节+指尖，纯触觉(无视觉)学手内旋转。结构性洞见：**把触觉降到 1-bit 反而消除了 sim-to-real gap——只要仿真力与真机力落在阈值同侧，二值读数就完全一致；信息损失靠"全手 16 空间通道 + 时间过采样"补回（类 Sigma-Delta）。** 训练于简单几何体，零样本泛化到 10+ 未见物体。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning#2.5 On-Policy 演进线：从 TRPO 到 PPO]] - PPO 策略学习
-> - [[RepresentationLearning#5. Multimodal Fusion & Tactile Intelligence: 触觉与视觉的交响 (Symphony of Vision and Touch in Multimodal Fusion)]] - 触觉表征的隐式学习
+> - [[ReinforcementLearning]] - PPO 策略学习
+> - [[RepresentationLearning]] - 触觉表征的隐式学习
 > - [[SignalProcessing]] - 二值化触觉信号处理
 > - [[ContactMechanics]] - 接触状态感知
 >

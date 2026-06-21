@@ -25,10 +25,10 @@ related:
 > 提出 **DexTrack**：通用神经跟踪控制器，从人类手-物交互参考轨迹学习，实现灵巧手操作。核心创新是**数据飞轮**（data flywheel）+ **同伦优化**（homotopy optimization），迭代提升控制器性能和演示质量。在 ICLR 2025 发表。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#4. 操作空间公式化 (Operational Space Formulation)]] - 参考轨迹跟踪的控制理论基础
-> - [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] - RL + IL 的结合
-> - [[RepresentationLearning#2. Evolution & Insights: 学习范式的演变与深层洞察 (Evolution of Learning Paradigms and Deep Insights)]] - 人类到机器人的运动重定向
-> - [[Optimization#3. 技术演进脉络与深度洞察 (Evolution & Insights)]] - 从简单到复杂的优化路径
+> - [[ControlTheory]] - 参考轨迹跟踪的控制理论基础
+> - [[ReinforcementLearning]] - RL + IL 的结合
+> - [[RepresentationLearning]] - 人类到机器人的运动重定向
+> - [[Optimization]] - 从简单到复杂的优化路径
 >
 > **核心技术**: Data Flywheel, Homotopy Optimization, RL-IL Integration
 
@@ -470,7 +470,7 @@ $$e_n = \hat{s}_n^{robot} - s_n^{actual}, \quad \min_\pi \sum_{n=0}^N \|e_n\|^2$
 ### 与 [[ReinforcementLearning]] 的联系
 
 RL + IL 联合损失 $\mathcal{L}_{total} = \mathcal{L}_{RL} + \lambda \mathcal{L}_{IL}$ 中：
-- $\mathcal{L}_{RL}$ 对应 [[ReinforcementLearning#2.2 Imitation Learning (IL): 数据饥渴与分布漂移]] 中 DAgger 的在线校正
+- $\mathcal{L}_{RL}$ 对应 [[ReinforcementLearning]] 中 DAgger 的在线校正
 - $\mathcal{L}_{IL}$ 的 $\lambda$ 衰减机制等价于从 IL 分布 $\rho_{expert}$ 向 RL 分布 $\rho_\pi$ 的渐进迁移
 
 ### 与 [[Optimization]] 的联系
