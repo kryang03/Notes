@@ -5,7 +5,7 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-06-17 (Session #41 — PapersRecap 范本级升级 loop：in-hand rotation 簇 Spin Pens/RotateIt/HORA 升级 + 领域综述互链 ✅)
+**最后更新**: 2026-06-21 (Session #41 — PapersRecap 范本级升级 loop：impedance/compliance 簇收官 + Path-Constrained phase-admittance 升级 ✅)
 
 ## 🟡 Session #41 进行中 (2026-06-17) — PapersRecap 范本级升级 loop
 
@@ -267,13 +267,20 @@
 **新 insight——impedance 簇学习程度谱完成 + 凸优化甜点**：零学习 MCC → 凸优化 Data-Driven VIC（全局最优保证）→ RL VICES/FACET（局部）。**凸优化是"够用结构 + 全局保证"中点**（呼应 MCC "模型 > RL"——不是所有问题都要 RL）。相位驱动调度 $K(\phi)$ = $m(s)$ 的结构化实现（$\phi$ 作 $s$ 低维替代），连 Spin Pens / AnyRotate 相位。
 **累计范本级：42 篇**。impedance 簇 5/6，剩 `Path-Constrained`。
 **⚠️ 注**：IDE 报 PDDM/DexNDM wikilink "ambiguous"——`Backups/` 有同名副本致歧义（非断链，Obsidian 同目录优先，低优先级）；可能广泛影响指向 PapersRecap 文件的 wikilink，待评估是否需 Backups 排除。
-**下一步建议**：① 建**探索/稳定性簇**（`Stability-Certified RL`、`Exploration versus Exploitation`、`Reachability Constrained RL`、`Safe Model-based RL`、`On Robust RL with Lipschitz-Bounded Policy`、`LipsNet`、`Off-Policy Interval Estimation with Lipschitz` 等——Lyapunov/Lipschitz/safe-RL 主题，很适合领域级综述）；或 ② 最裸小文件（<7.5KB：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation/Deep Dynamics Models）。
+
+#### cron 第 39 轮（2026-06-21）— Path-Constrained，🎉 impedance/compliance 簇收官
+升级 `Path-Constrained Haptic Motion Guidance via Admittance Control`：回读 PDF（20 页，render-check page 14 / virtual mechanism 对比图），**全文重写**为范本级；删除旧版代码伪实现和占位式实验表；补 P2（变量来源追踪表 + phase-domain admittance 从零推导 + manipulability/tank 符号陷阱）；校准真实实验证据链（Franka、5 组实验、20 人 pyrography user study、18J vs 3J tank、virtual mechanism 对比）。
+**新 insight——几何约束导纳 + $m_a(s)$ 元控制**：本文把导纳控制从 Cartesian 空间搬到 phase 空间，路径由 $x_d(\phi)$ 结构保证，易推性由 $m_a,d_a$ 调，稳定性由 energy tank 管。它补齐 impedance 簇 HRI/几何约束分支。**$m(s)$ 家族新增导纳质量 $m_a(s)$**：VICES/FACET/Data-Driven VIC 主要调"多硬/多软" $K(s)$，本文调"人推一下系统走多快" $m_a(s)$，柔顺控制形成二维旋钮。
+**🎉 impedance/compliance 簇收官（6 篇）**：VICES / FACET / MCC / Data-Driven VIC / Residual LfD / Path-Constrained。簇内两条谱固定为：① 学习程度谱（零学习模型→凸优化→RL→HRI 在线调参）；② 阻抗/导纳进入系统的位置谱（action space→reference model→physical estimator→phase generator→demonstration residual）。
+**验证**：`scan_links.py` 0 broken；`scan_sections.py` 0 broken section；目标文件 `git diff --check` 通过；目标文件无 TODO/code dump/断锚。
+**累计范本级：43 篇**。
+**下一步建议**：转入 `VLA/diffusion/world-model` 簇（DexHiL / RL-100 / WMPO / WoG / COMET / GLIDE / LaST0 / RLT / GeoPT），或 `demonstration/data-gen` 簇（MimicGen / RoboTwin / CyberDemo / Physics-Driven / DemoStart）。前者更贴 WMTS，后者更适合建立数据飞轮/示教生成谱系。
 
 ### 待办队列（下一轮接续）
-1. ✅ **in-hand rotation 簇已收官**（7 篇全部范本级并互链）。**下一步转新簇**，建议优先：① **control frequency / time-step / action-persistence 簇**（与 WMTS task scheduling 强相关 → 最适合做下一个领域级综述；含 `Control Frequency Adaptation via Action Persistence`、`Elastic Time Step (VTS-RL)`、`RL for Control with Multiple Frequencies`、`EvoControl`、`TARC`、`Dynamic RL for Actors`、`Reinforcement Learning for Optimal Primary Frequency Control`）；或 ② 最裸小文件（见第 2 项）。
-2. **最裸的小文件**（<7.5KB，几乎肯定缺 P2，且 P1/P3/P4 可能也薄）：`The Sampling Theorem`(5.4KB)、`Learning Agile and Dynamic Motor Skills for Legged Robots`(5.9KB)、`GenDexGrasp`(6.2KB)、`Learning Quadrupedal Locomotion`(6.2KB)、`RECAP - A VLA that Learns from Experience`(6.9KB)、`Unified Policy Evaluation and Improvement`(7.1KB)、`Deep Dynamics Models`(7.4KB)。
-3. **全量扫描**（Bash 分类器恢复后）：扫描 86 篇四支柱标志，建完整 EXEMPLAR/TODO 清单；并跑 `.github/scan_links.py` + `.github/scan_sections.py` 校验本 Session 三篇新增链接/锚点。
-4. 其它主题簇（control frequency/time-step、impedance/compliance、curriculum、diffusion/VLA/world model、RL theory）待评估。
+1. ✅ **已收官簇**：in-hand rotation(7) · control frequency(5) · 探索/稳定性(10) · sim-to-real(8) · 最裸小文件批次(7) · impedance/compliance(6)。
+2. **下一优先簇候选**：`VLA/diffusion/world-model`（DexHiL / RL-100 / WMPO / WoG / COMET / GLIDE / LaST0 / RLT / GeoPT）——最贴 WMTS 与 VLA post-training。
+3. **另一候选**：`demonstration/data-gen`（MimicGen / RoboTwin / CyberDemo / Physics-Driven / DemoStart / HIL-SERL）——可建立"数据飞轮/示教生成/人类纠正"谱系。
+4. **低优先级健康项**：IDE 报 PDDM/DexNDM wikilink ambiguous，疑似 `Backups/` 同名副本导致；非断链，可另开任务评估是否排除 Backups。
 
 ### ⚠️ 本 Session 环境注记
 Anthropic API 间歇 429 + **Bash 安全分类器持续不可用**（read/edit/write 正常），故全量扫描与 scan_links 校验未能执行；新增链接已手工核对（Foundation 锚点多来自原文 verified 或 Dynamics.md 直接确认）。**下一轮 Bash 恢复后务必补跑链接校验。**
