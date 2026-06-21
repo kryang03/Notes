@@ -24,9 +24,9 @@ related:
 > 提出**数据驱动的可变阻抗控制器**用于下肢假肢：从健康人步态数据通过**凸优化**学习阻抗参数（刚度、阻尼、平衡角）作为步态相位、速度、坡度的连续函数。消除人工调参，实现多任务自适应行走。IEEE TRO。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory#3. 技术演进：从刚性位置控制到柔顺力控制]] - 阻抗控制的理论基础
-> - [[Dynamics]] - 人体步态的生物力学
-> - [[Optimization]] - 阻抗参数的凸优化辨识
+> - [[ControlTheory]] - 阻抗控制理论；LPV（线性参数变化）系统
+> - [[Dynamics]] - 人体步态生物力学
+> - [[Optimization]] - 阻抗参数的凸优化辨识（QP，全局最优）
 >
 > **核心技术**: Phase-based Control, Convex Impedance Identification, Task Adaptation
 
@@ -96,6 +96,19 @@ Phase-variable Control
 ---
 
 ## 3. 理论原理深度解析 (Theoretical Deep Dive)
+
+### 3.0 变量来源追踪
+
+枢纽：**阻抗参数是相位/速度/坡度的连续函数 $K(\phi,v,\alpha)$**（B-spline×多项式），**固定 $\theta_{eq}$ 后辨识是凸的**（两步法保凸）。
+
+| 变量 | 类型/空间 | 来源阶段 | 物理/算法意义 | 符号陷阱 |
+|------|-----------|----------|----------------|----------|
+| $\phi=\phi(\theta_{thigh},\int\theta_{thigh})$ | $[0,1]$ | 构造 | 相位变量 | **单调、时间无关**（速度自适应） |
+| $K,B,\theta_{eq}$ | $\phi,v,\alpha$ 的函数 | 凸优化辨识 | 阻抗参数 | 连续函数（非 FSM 分段常数） |
+| $c^K,c^B$ | 系数 | 凸优化变量 | B-spline 系数 | 决策变量 |
+| $v,\alpha$ | 速度/坡度 | IMU 估计（低通 2Hz） | 任务变量 | 实时查表自适应 |
+| $\theta_{eq}$ | 平衡角 | **先估**（运动学） | 平衡位置 | 固定它才保凸（否则双线性非凸） |
+| $\tau=-K(\theta-\theta_{eq})-B\dot\theta$ | 力矩 | 控制律 | 输出 | 线性阻抗，无非线性接触 |
 
 ### 3.1 阻抗控制基础
 
@@ -174,6 +187,14 @@ $$\min_{c} \sum_{n} \| \tau_n^{data} - \tau_n^{model}(c) \|^2$$
 ```
 
 ---
+
+### 3.6 概念边界与符号陷阱
+
+- **固定 $\theta_{eq}$ 后 $\tau$ 关于 $K,B$ 线性 → 凸**（两步法保凸；联合优化 $K,B,\theta_{eq}$ 是双线性非凸）。
+- **相位变量（非时间）**：速度自适应，避免变速行走相位不匹配。
+- **依赖健康人数据金标准**：无参考的新任务不适用（§5 理论局限）。
+- **线性阻抗模型**：无法表达非线性接触力学。
+- **支撑相阻抗 / 摆动相位置控制分离**：接触 vs 自由任务。
 
 ## 4. 实验与验证 (Experiments)
 
@@ -374,10 +395,14 @@ def identify_impedance_convex(gait_data):
 | 在线适应 | ❌ (离线) | ✅ (策略实时输出) | ✅ | ✅ (实时估计) |
 | 任务域 | 假肢行走 | 单臂接触 | 腿式行走 | 多平台力控 |
 
-## 10. 与 Foundation 的链接更新
+## 10. impedance 簇综述：学习程度谱的"凸优化甜点" + 相位驱动调度
 
-### 需要添加到 ControlTheory.md
-在"阻抗控制"部分添加"数据驱动阻抗辨识"作为免调参的新方法。
-
-### 需要添加到 Optimization.md
-添加"阻抗参数凸辨识"作为机器人控制的凸优化应用案例。
+> [!note] Data-Driven VIC 填补凸优化辨识极，完成 impedance 簇学习程度谱
+> | 学习程度 | 代表 | 参数获取 | 全局最优? |
+> |---------|------|---------|----------|
+> | 零学习 | [[Minimalist Compliance Control\|MCC]] | 硬件标定（电流） | N/A |
+> | **凸优化** | **本文** | 凸辨识（人类数据） | ✅ 保证 |
+> | RL | [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks\|VICES]] / [[FACET - Force-Adaptive Control via Impedance Reference Tracking\|FACET]] | 策略学习 | ✗ 局部 |
+>
+> **insight——凸优化是"够用结构 + 全局保证"的甜点**：本文在零学习（MCC，无适应）与 RL（VICES/FACET，无全局保证）之间——用凸优化换全局最优 + 连续任务适应，代价是线性阻抗假设。这是"方法复杂度阶梯"的中间最优选择，呼应 [[Minimalist Compliance Control|MCC]] 的"模型 > RL"——**不是所有问题都要 RL，凸优化常是更优中点**。
+> **相位驱动参数调度是接触操作通用结构**：本文 $K(\phi,v,\alpha)$ 用操作相位 $\phi$ 调度阻抗，与 [[Lessons from Learning to Spin Pens\|Spin Pens]] 的 finger gaiting 相位、[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]] 的 auxiliary goal 相位同构——**"相位 → 参数调度"是 $m(s)$ 的结构化实现**（$\phi$ 作 $s$ 的低维替代），§5.2/§6 提议用于转笔 snap→旋转→收手 的相位阻抗调度。

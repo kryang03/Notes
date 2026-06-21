@@ -261,6 +261,11 @@
 升级 `MCC`：补 tip + P2 + 降级 Dynamics 断锚。
 **新 insight——impedance 簇两条谱 + 模型>RL 反例**：① **学习程度谱**（零学习 MCC → 凸优化 Data-Driven VIC → RL VICES/FACET）；② **力感知来源谱**（力传感器 → 电流物理映射 MCC → 本体历史学习 DexNDM/Learning Agile）。**MCC 物理模型(15.9mm)全面超 RL(FACET 22.4mm)——"RL 万能"的反例**：问题有清晰物理结构时物理模型优于黑盒。"方向>幅值"连 Touch Dexterity"二值够用"（低精度但对的信息够用）。
 **累计范本级：41 篇**。impedance 簇 4/6，剩 `Data-Driven VIC`/`Path-Constrained`。
+
+#### cron 第 38 轮（2026-06-20）— Data-Driven VIC
+升级 `Data-Driven VIC`：补 tip + P2 + **删 §10 TODO** + 降级 ControlTheory 断锚。
+**新 insight——impedance 簇学习程度谱完成 + 凸优化甜点**：零学习 MCC → 凸优化 Data-Driven VIC（全局最优保证）→ RL VICES/FACET（局部）。**凸优化是"够用结构 + 全局保证"中点**（呼应 MCC "模型 > RL"——不是所有问题都要 RL）。相位驱动调度 $K(\phi)$ = $m(s)$ 的结构化实现（$\phi$ 作 $s$ 低维替代），连 Spin Pens / AnyRotate 相位。
+**累计范本级：42 篇**。impedance 簇 5/6，剩 `Path-Constrained`。
 **⚠️ 注**：IDE 报 PDDM/DexNDM wikilink "ambiguous"——`Backups/` 有同名副本致歧义（非断链，Obsidian 同目录优先，低优先级）；可能广泛影响指向 PapersRecap 文件的 wikilink，待评估是否需 Backups 排除。
 **下一步建议**：① 建**探索/稳定性簇**（`Stability-Certified RL`、`Exploration versus Exploitation`、`Reachability Constrained RL`、`Safe Model-based RL`、`On Robust RL with Lipschitz-Bounded Policy`、`LipsNet`、`Off-Policy Interval Estimation with Lipschitz` 等——Lyapunov/Lipschitz/safe-RL 主题，很适合领域级综述）；或 ② 最裸小文件（<7.5KB：The Sampling Theorem/Learning Agile/GenDexGrasp/Learning Quadrupedal/RECAP/Unified Policy Evaluation/Deep Dynamics Models）。
 
