@@ -1,0 +1,826 @@
+                                       This CVPR paper is the Open Access version, provided by the Computer Vision Foundation.
+                                                    Except for this watermark, it is identical to the accepted version;
+                                              the final published version of the proceedings is available on IEEE Xplore.
+
+
+
+
+                           CyberDemo: Augmenting Simulated Human Demonstration
+                                   for Real-World Dexterous Manipulation
+
+                  Jun Wang1*           Yuzhe Qin1*        Kaiming Kuang1 Yigit Korkmaz2 Akhilan Gurumoorthy1
+                                                            Hao Su1 Xiaolong Wang1
+                                                1
+                                                  UC San Diego 2 University of Southern California
+                  Sim Data                                                                                        Real Deployment
+                  Collection                           Sim Data Augmentation                                      Normal       Disturbance
+
+
+
+
+ Pick and Place
+
+
+
+                                    Data Aug.                                                Imitation Learning
+
+ Rotate                             Light                                                    Few Real Demo
+                                    Object                                                     Fine Tuning
+                                     Pose
+
+
+
+
+  Pour
+
+
+
+
+Figure 1. We propose CyberDemo, a novel pipeline for learning real-world dexterous manipulation by using simulation data. First, we
+collect human demos in a simulated environment (blue region), followed by extensive data augmentation within the simulator (yellow
+region). Then, the imitation learning model, trained on augmented data and fine-tuned on a few real data, can be deployed on a real robot.
+
+                                       Abstract                                1 . Introduction
+    We introduce CyberDemo, a novel approach to robotic
+                                                                               Imitation learning has been a promising approach in robot
+imitation learning that leverages simulated human demon-
+                                                                               manipulation, facilitating the acquisition of complex skills
+strations for real-world tasks. By incorporating extensive
+                                                                               from human demonstration. However, the effectiveness of
+data augmentation in a simulated environment, CyberDemo
+                                                                               this approach is critically dependent on the availability of
+outperforms traditional in-domain real-world demonstra-
+                                                                               high-quality demonstration data, which often necessitates
+tions when transferred to the real world, handling diverse
+                                                                               substantial human effort for data collection [6, 9, 48]. This
+physical and visual conditions. Regardless of its affordabil-
+                                                                               challenge is further amplified in the context of manipulation
+ity and convenience in data collection, CyberDemo outper-
+                                                                               with a multi-finger dexterous hand, where the complexity
+forms baseline methods in terms of success rates across var-
+                                                                               and intricacy of the tasks require highly detailed and precise
+ious tasks and exhibits generalizability with previously un-
+                                                                               demonstrations.
+seen objects. For example, it can rotate novel tetra-valve
+and penta-valve, despite human demonstrations only in-                            In imitation learning, in-domain demonstrations, which
+volving tri-valves. Our research demonstrates the signifi-                     refer to the data collected directly from the deployment
+cant potential of simulated human demonstrations for real-                     environment, are commonly used for robot manipulation
+world dexterous manipulation tasks. More details can be                        tasks [43]. It is generally believed that the most effective
+found at https://cyber-demo.github.io/                                         way to solve a specific task is to collect demonstrations di-
+                                                                               rectly from the real robot on that task. This belief has been
+                                                                               upheld as the gold standard, but we wish to challenge it. We
+           * Equal contributions.                                              argue that collecting human demonstrations in simulation
+
+
+
+                                                                           17952
+can yield superior results for real-world tasks, not only be-       will make our code and human demonstration dataset pub-
+cause it does not require real hardware and can be executed         licly available.
+remotely and in parallel, but also due to its potential to en-
+hance final task performance by employing simulator-only            2 . Related Work
+data augmentation [34, 37, 42, 44, 53, 58]. This allows the
+generation of a dataset that is hundreds of times larger than       Data for Learning Robot Manipulation. Imitation learn-
+the initial demonstration set. However, while existing stud-        ing has been proven to be an effective approach to robotic
+ies employ the generated dataset to train in-domain policies        manipulation, enabling policy training with a collection of
+within the simulation, the sim2real challenge of transferring       demonstrations. Many works have focused on building
+policies to the real world remains an unresolved problem.           large datasets using pre-programmed policies [17, 23, 31,
+                                                                    33, 83], alternative data sources such as language [30, 66–
+    In this paper, we study the problem of how to utilize           68] and human video [5, 47, 54, 63, 64] or extensive real-
+simulated human demos for real-world robot manipulation             world robot teleoperation [2, 3, 6, 9, 20, 32, 39, 43, 48].
+tasks. We introduce CyberDemo, a novel framework de-                However, such works predominantly targeted parallel grip-
+signed for robotic imitation learning from visual observa-          pers. Collecting large-scale demonstration datasets for
+tions, leveraging simulated human demos. We first collect           high-DoF dexterous hands continues to be a significant
+a modest amount of human demonstration data via teleop-             challenge. Meanwhile, data augmentation presents a viable
+eration using low-cost devices in a simulated environment.          strategy to improve policy generalization by increasing the
+Then, CyberDemo incorporates extensive data augmenta-               diversity of data distribution. Previous studies have applied
+tion into the original human demonstration. The augmented           augmentation in low-level visual space [16, 28, 56, 65],
+set covers a broad spectrum of visual and physical condi-           such as color jitter, blurring, and cropping, while more
+tions not encountered during data collection, thereby en-           recent works propose semantic-aware data augmentation
+hancing the robustness of the trained policy against these          with generative models [7, 14, 15, 40, 77, 85]. However,
+variations. These augmentation techniques are also de-              these augmentations operate at the image level and are not
+signed with the downstream sim2real transfer in mind. We            grounded in physical reality. CyberDemo extends data aug-
+employ a unique curriculum learning strategy to train the           mentation to the trajectory level using a physical simulator,
+policy on the augmented dataset, then fine-tune it using a          accounting for both visual and physical variations. Concur-
+few real-world demos (3-minute trajectories), facilitating          rent to our work, MimicGen [44] proposes a system to syn-
+effective transfer to real-world conditions. While policies         thesize demonstrations for long-horizon tasks by integrating
+trained on only real-world demonstrations may suffer from           multiple human trajectories. However, it confines demon-
+variations in lighting conditions, object geometry, and ob-         strations to in-domain learning, i.e., it only trains simulation
+ject initial pose, our policy is capable of handling these          policies with simulated demos without transferring to real
+without the need for additional human effort.                       robots. In contrast, our work aims to harness simulation for
+   Our system, which utilizes a low-cost motion capture             real-world problem-solving. We exploit the convenience of
+device for teleoperation (i.e., RealSense camera) and de-           simulators for collecting robot demonstrations and employ
+mands minimal human effort (i.e., a 30-minute demo tra-             a sim2real approach to transfer these demos to a dexterous
+jectory), can learn a robust imitation learning policy. De-         robot equipped with a multi-finger humanoid hand. Our re-
+spite its affordability and minimal human effort require-           search emphasizes a general framework that leverages sim-
+ments, CyberDemo can still achieve better performance on            ulated demonstrations for real-world robot manipulation.
+the real robot. Compared with pre-trained policies, e.g.            Pre-trained Visual Representation for Robotics Recent
+R3M [46] fine-tuned on real-world demonstrations, Cy-               progress in large-scale Self-Supervised Learning [10, 26,
+berDemo achieves a success rate that is 35% higher for              27] has enabled the development of visual representations
+quasi-static pick and place tasks, and 20% higher for non-          that are advantageous for downstream robotic tasks [62, 79,
+quasi-static rotate tasks. In the generalization test, while        82]. Several studies have focused on pretraining on non-
+baseline methods struggle to handle unseen objects during           robotic datasets, such as ImageNet [18] and Ego4D [22],
+testing, our method can rotate novel tetra-valve and penta-         and utilizing the static representations for downstream robot
+valve with 42.5% success rate, even though human demon-             control [46, 49, 74]. Other research has focused on pre-
+strations only cover tri-valve (second row of Figure 1). Our        training visual representations on robot datasets, using
+method can also manage significant light disturbances (last         action-supervised self-learning objectives that depend on
+column of Figure 1). In our ablation study, we observe that         actions [60, 64], or utilizing the temporal consistency of
+the use of data augmentation, coupled with an increased             video as a learning objective [59, 61, 69, 75]. These in-
+number of demonstrations in the simulator, results in su-           vestigations primarily aimed to learn features for effective
+perior performance compared to an equivalent increase in            training of vision-based robotic manipulation. In addition
+real-world demonstrations. To foster further research, we           to training visual representations on offline datasets, some
+
+
+
+                                                                 17953
+                                                                   Evaluation Settings
+                           Level 1                           Level 2                          Level 3                    Level 4
+                     Random Object Pose             Random Lightness & Texture         Random Target Pose       Largely Random Object Pose
+
+
+
+
+                                                                    Stronger Randomization
+
+                                                                                                                    Control
+                                                                           Evaluate                            Data Augmentation
+
+
+
+                                                                           Policy            imgs, qpos
+                                                                                               actions
+                                                    s
+                                             e   mo
+                                    tio   nD
+                                ula                                       Finetuning
+                           Sim
+                                                                                                                                    Aug Aug
+                                                                                                                 Original Dataset
+
+
+
+
+                                                        s
+                                                    mo
+                                             l De
+  Teleoperation                           Rea
+                                 Few
+                                                                                                            Auto Curriculum Learning
+                                                                             Real World Deployments
+
+
+Figure 2. CyberDemo Pipeline. First, we collect both simulated and real demonstrations via vision-based teleoperation. Following this,
+we train the policy on simulated data, incorporating the proposed data augmentation techniques. During training, we apply automatic
+curriculum learning, which incrementally enhances the randomness scale based on task performance. Finally, the policy is fine-tuned with
+a few real demos before being deployed to the real world.
+
+researchers have also explored learning the reward function                  tation (DA) refers to a set of transfer learning strategies
+to be used in reinforcement learning [4, 36, 41, 45, 81]. Un-                developed to align the data distribution between sim and
+like prior studies, our work diverges by utilizing simulation                real. Common techniques include domain adversarial train-
+data for pre-training rather than employing Self-Supervised                  ing [21, 71] and the use of generative models to make sim-
+Learning for representation learning. This not only en-                      ulated images resemble real ones [8, 28]. Most of these DA
+hances the learning of image representations but also incor-                 approaches focus on bridging the visual gap. However, the
+porates task priors into the neural network through the use                  challenge of addressing the dynamics gap remains signif-
+of action information. By pre-training in simulated environ-                 icant. The sim2real gap becomes even more pronounced
+ments, the manipulation policy can better generalize to new                  for dexterous robotic hands that have high-DoF actuation
+objects with novel geometries and contact patterns.                          and complex interaction patterns [24, 51, 76, 78]. In this
+                                                                             work, we extend the concept of domain randomization to
+Sim2Real Transfer The challenge of transferring skills
+                                                                             human demonstration collected in the simulator and focus
+from simulation to real-world scenarios, known as sim2real
+                                                                             on data augmentation techniques that can effectively utilize
+transfer, has been a key focus in robot learning. Some ap-
+                                                                             the simulation for transfer to a real robot. We demonstrate
+proaches have employed system identification to build a
+                                                                             that there can be a significant benefit in collecting human
+mathematical model of real systems and identify physical
+                                                                             demonstration in the simulator, despite the sim2real gap,
+parameters [12, 29, 35, 38, 52, 72]. Instead of calibrating
+                                                                             instead of solely relying on real data.
+real-world dynamics, domain randomization [50, 70] gen-
+erates simulated environments with randomized properties
+                                                                             3 . CyberDemo
+and trains a model function across all of them. Subsequent
+research demonstrated that the selection of randomization                    In CyberDemo, we initially gather human demonstrations
+parameters could be automated [1, 11, 24, 80]. However,                      of the same task in a simulator through teleoperation (Sec-
+due to the extensive sample requirements to learn robust                     tion 3 .1). Taking advantage of the simulator’s sampling
+policies, domain randomization is typically used with RL                     capabilities and oracle state information, we enhance the
+involving millions of interaction samples. Domain adap-                      simulated demonstration in various ways, increasing its vi-
+
+
+
+                                                                         17954
+   Random Camera Views                                Diverse         RGB images and robot proprioception, the simulation sys-
+                                                      Objects         tem enables us to record the ground-truth state and contact
+                                                                      information within the virtual environment. This unique
+                                                                      benefit of simulation provides a more comprehensive data
+                                                                      format for the simulated demonstrations compared to its
+                                                                      real-world counterparts. Thus, we can take advantage of
+                                                                      demonstration replay techniques on these simulated demon-
+                  Original
+                  Demos                                               strations, which are not feasible with real-world data.
+                                                                          When developing data augmentation techniques in the
+                                                                      simulator, it is essential to keep in mind that the ultimate
+                 Random
+                Object Pose
+                                                                      goal is to deploy the trained policy to a real robot. The
+                                                                      augmentation should accordingly focus on the visual and
+                                   Random Light
+                                                                      dynamical variations that are likely to be encountered in the
+                                     & Texture                        real world. Moreover, we aim for the manipulation pol-
+                                                                      icy to generalize to novel objects not encountered during
+                                                                      the data collection process. For example, manipulating the
+Figure 3. Data Augmentation. Our dataset augmentation encom-          tetra-valve when collecting data only on the tri-valve in Fig-
+passes four dimensions: (a) random camera views, (b) diverse ob-      ure 3. Specifically, we chose to augment the lighting con-
+jects, (c) random object pose, (d) random light and texture.          ditions, camera views, and object textures to enhance the
+                                                                      policy’s robustness against visual variations. In addition,
+                                                                      we modified the geometric shape of the objects and the ini-
+sual, kinematic, and geometric diversity, thereby enriching           tial poses of the robot and objects to improve the policy’s
+the simulated dataset (Section 3 .2). With this augmented             robustness against dynamical variations as follows:
+dataset, we train a manipulation policy with Automatic Cur-
+                                                                      Randomize Camera Views. Precisely aligning camera
+riculum Learning and Action Aggregation (Section 3 .3).
+                                                                      views between demo collection and final evaluation, not
+3 .1. Collecting Human Teleoperation Data                             to mention between simulation and reality, poses a signif-
+                                                                      icant challenge. To solve this problem, we randomize the
+For each dexterous manipulation task in this work, we col-            camera pose during training and replay the internal state
+lect human demonstrations using teleoperation in both sim-            of the simulator to render image sequences from new cam-
+ulated and real-world environments. For real-world data,              era views. Unlike standard image augmentation techniques
+we utilize the low-cost teleoperation system referenced in            such as cropping and shifting, our method respects the per-
+[55]. This vision-based teleoperation system solely needs             spective projection in a physically realistic manner.
+a camera to capture human hand motions as input, which                Random Light and Texture. To facilitate sim2real trans-
+are then translated into real-time motor commands for the             fer and improve the policy’s robustness against visual varia-
+robot arm and the dexterous hand. We record the observa-              tions, we randomize the visual properties of both lights and
+tion (RGB image, robot proprioception) and the action (6D             objects (Figure 3, lower right). Light properties include di-
+Cartesian velocity of robot end effector, finger joint posi-          rections, colors, shadow characteristics, and ambient illu-
+tion control target) for each frame at a rate of 30Hz. For            mination. Object properties include specularity, roughness,
+this work, we collect only three minutes of robot trajecto-           metallicity, and texture. Similar to camera view random-
+ries for each task on the real robot.                                 ization, we can simply replay the simulation state to render
+   For data in simulation, we build the real-world task en-           new image sequences.
+vironments within the SAPIEN [73] simulator to replicate              Add Diverse Objects. In this approach, we replace the
+the tables and objects used in real scenarios. It is worth not-       manipulated object in the original demos with novel ob-
+ing that, for teleoperation, there is no requirement of reward        jects (Figure 3 upper right). However, directly replaying
+design and observation spaces as in reinforcement learning            the same trajectory would not work as the object shape is
+settings, making the process of setting up new tasks in the           different. Instead, we perturb the action sequence from the
+simulator relatively simple. We employ the same teleoper-             original demo with Gaussian noises to generate new trajec-
+ation system [55] to collect human demonstrations in the              tories. These trajectories provide reasonable manipulation
+simulator.                                                            strategies but are slightly different from the original one.
+                                                                      With the highly cost-effective sampling in the simulator, we
+3 .2. Augmenting Human Demo in Simulator
+                                                                      can enumerate the perturbation until it is successful. It is
+Unlike real-world data collection, where we are limited to            important to note that this technique is feasible with real-
+recording observations of physical sensors, such as camera            world demonstrations.
+
+
+
+                                                                   17955
+Algorithm 1 Auto Curriculum Learning                                      (i) Sensitivity Analysis for Trajectory Segments. Sen-
+Input: human demo Dh , training set D, policy network                 sitivity pertains to the robustness against action noise. For
+    π, curriculum level L, evaluation function evalL (),              example, a pre-grasp state, when the hand is close to the
+    data aug. function augL (), success rate threshold rup ,          object, has higher sensitivity compared to a state where the
+    number of failure Nf ail , max number of failure Nmax             hand is far away. The critical insight is that it is simpler to
+Output: Trained policy π                                              modify the action of those states with lower sensitivity to
+                                                                                                                   Onew      Oold −1
+ 1: Initialize π and set L = 0, Nf ail = 0, D = {}                    handle the object pose variation ∆T = TW            (TW    ) .
+ 2: while L ≤ 4 do                                                    The robustness (the multiplicative inverse of sensitivity) of
+ 3:     Generate augmented data augL (Dh )                            a trajectory segment ψ can be mathematically defined as
+ 4:     Append into training set D ← D + augL (Dh )                   follows:
+ 5:     Train π on D                                                              ψseg = exp(maxδa )         s.t. eval(τ ′ ) = 1
+ 6:     Eval success rate rsucc = evalL (π)                                         τ ′ = {a1 , a2 , ..., a′n , ..., a′n+K−1 , ..., aN } (1)
+ 7:     if rsucc ≥ rup or Nf ail ≥ Nmax then
+ 8:          L = L + 1, Nf ail = 0                                     ∀i ∈ seg     a′i = ai + δa ϵi , ϵi ∼ N (0, 1)
+ 9:     else                                                          In this equation, we divide the original action trajectory τ
+10:          Generate more data D ← D + augL (Dh )                    with length N into M segments, each segment with size
+11:          Nf ail = Nf ail + 1                                      K = N/M . Then we perturb the action within a segment
+12:     end if                                                        seg by adding Gaussian noise of scale δa to the original ac-
+13: end while                                                         tion {am , an+1 , ..., an+k−1 } while keeping all the actions
+                                                                      outside of this segment unchanged to generate perturbed
+                                                                      trajectory τ ′ . We assume the action space is already nor-
+Randomize Object Pose. A common approach in rein-                     malized to [−1, 1] and eval is a binary function indicating
+forcement learning to enhance generalizability involves ran-          whether an action trajectory can successfully solve the task.
+domizing the object pose during reset. Augmenting imita-              Intuitively, a demonstration segment is more sensitive if a
+tion learning data to achieve a similar outcome, however, is          smaller perturbation can cause it to fail. This sensitivity
+less intuitive. Denote TAB ∈ SE(3) as the pose of frame               guides us on how to adjust the action to handle a new object
+                                                          Oold
+B relative to frame A. The original object pose is TW          ,      pose. In practice, we incrementally escalate the noise scale
+                                          Onew
+the newly randomized object pose is TW         , and the orig-        δa applied to the original action trajectory until the task fails
+                             Rold                                     to determine max δa
+inal end effector pose is TW      . The objective is to handle
+                          Onew
+the object pose change TW (TW       Oold −1
+                                        ) . A simple strategy             (ii) New End Effector Pose Trajectory. To accommo-
+can be first moving the robot end effector to a new initial           date the new object pose, the total pose change of the end
+pose, TW Rnew
+                = TW Onew
+                          (TWOold −1 Rold
+                                   ) TW . Then, the rela-             effector should be the same as the change in the object pose
+tive pose between the robot and the object aligns with the            ∆T . Each action contributes a small part to this change. We
+original demonstration, enabling us to replay the same ac-            distribute this ”task” to each step based on sensitivity:
+tion sequence to accomplish the task. Although this method                                     ψseg
+succeeds in generating new trajectories, it offers minimal                          ψ segj = PM j       ,         ∀segj
+assistance for downstream imitation learning. The new tra-                                    j=1 ψsegj
+                                                                                                                                        (2)
+jectory is always composed of two segments: a computed                               ∆Tj = exp(ψ segj log(∆T )/K)
+                                                         Rnew
+reaching trajectory to the new end effector pose TW            ,                    anew = ai fi (∆Tj )
+                                                                                     i
+and the original trajectory. Given that different augmented
+trajectories often share a significant portion of redundancy,         In this equation, ψ segj is the normalized robustness, ∆Tj
+they fail to provide substantial new information to learning          represents the pose modification for each step, with all
+algorithms.                                                           states in the same segment being responsible for the same
+    To address this, we propose Sensitivity-Aware Kine-               amount of modification ”task” to compute new action anewi  .
+matics Augmentation to randomize object poses for hu-                 fi is a similarity transformation in SE(3) space that con-
+man demonstrations. Instead of appending a new trajectory             verts the motion from the world frame to the current end
+ahead of the original one, this method amends the action for          effector frame. Intuitively, segments with higher robustness
+each step in the original demo to accommodate the change              are tasked with more significant changes.
+                  Onew    Oold −1
+in object pose TW      (TW    ) . The method includes two                Please note that all the actions discussed above pertain
+steps: (i) Divide the entire trajectory into several segments         solely to the 6D delta pose of the end effector and do not
+and compute the sensitivity of each segment; (ii) Modify              include the finger motion of the dexterous hand. For tasks
+the end effector pose trajectory based on the sensitivity to          such as pick-and-place or pouring, which also involve a tar-
+compute the new action.                                               get pose (e.g., the plate pose in pick-and-place or the bowl
+
+
+
+                                                                   17956
+pose in pouring), we can apply the same augmentation strat-         highlights the advantage of simulation data over real-world
+egy to the target pose (as illustrated in Level 3 of Fig. 2).       demonstrations.
+                                                                    Action Aggregation for Small Motion. Human demon-
+3 .3. Learning Sim2Real Policy                                      strations often include noise, especially during operations
+                                                                    involving a dexterous hand. For example, minor shaking
+Given an augmented simulation dataset, we train a visual
+                                                                    and unintentional halting can occur within the demonstra-
+manipulation policy that takes images and robot proprio-
+                                                                    tion trajectory, potentially undermining the training process.
+ception as input to predict the robot’s actions. In human
+                                                                    To solve this, we aggregate steps characterized by small mo-
+teleoperation demonstrations, robot movements are neither
+                                                                    tions, merging these actions into a single action. In prac-
+Moravian nor temporally correlated. To deal with this is-
+                                                                    tice, we set thresholds for both end-effector and finger mo-
+sue, our policy is trained to predict action chunks rather
+                                                                    tions to discern whether a given motion qualifies as small.
+than per-step actions, using Action Chunking with Trans-
+                                                                    Through the aggregation process, we can eliminate small
+formers(ACT) [84]. This approach produces smoother tra-
+                                                                    operational noises from human actions, enabling the imita-
+jectories and reduces compounding errors.
+                                                                    tion learning policy to extract meaningful information from
+    Despite our data augmentation’s capacity to accommo-
+                                                                    the state-action trajectory.
+date diverse visual and dynamic conditions, a sim2real gap
+remains for the robot controller. This gap becomes more             4 . Experiment Setups
+challenging in our tasks, where the end effector is a high-
+DoF multi-finger dexterous hand. This controller gap can            Our experimental design aims to address the following key
+significantly impact non-quasi-static tasks like rotating a         queries:
+valve, as shown in the second row of Figure 1. To close                 (i) How does simulation-based data augmentation com-
+this gap, we fine-tune our network using a small set of real-       pare to learning from real demonstrations in terms of both
+world demonstrations (3-minute trajectory). However, due            robustness and generalizability?
+to the discrepancies in data collection patterns of human de-           (ii) How does our automatic curriculum learning con-
+mos between simulation and reality, direct fine-tuning on           tribute to improved policy learning?
+real data risks overfitting. To ensure a smoother sim2real              (iii) What is the ideal ratio between simulated and real
+transfer, we employ several techniques, which will be dis-          data to train an effective policy for a real-world robot?
+cussed subsequently.
+                                                                    4 .1. Dexterous Manipulation Tasks
+Automatic Curriculum Learning. Curriculum learning
+and data augmentation techniques are often used together            We have designed three types of manipulation tasks in
+to provide a smoother training process. Following the spirit        both real-world and simulated environments, including two
+of curriculum design in previous reinforcement learning             quasi-static tasks (pick and place, pour) and one non-quasi-
+work [1, 24], we devise a curriculum learning strategy ap-          static task (rotate). For the experiments, we utilize an Al-
+plicable to our imitation learning context. Prior to training,      legro hand attached to an XArm6. The action space com-
+we group the augmentations in Section 3 .2 into four lev-           prises a 6-dim delta end effector pose of the robot arm and a
+els of increasing complexity, as depicted in Figure 2. As           16-dim finger joint position of the dexterous hand, with PD
+per Algorithm 1, we begin training from the simplest level,         control employed for both arm and hand.
+L = 0, signifying no augmentation, and then evaluate the                Pick and Place. This task requires the robot to lift an
+task success rate after several steps of training. The eval-        object from the table and position it on a plate (first row of
+uation difficulty aligns with the current level of L. When          Figure 1). Success is achieved when the object is properly
+the success rate surpasses a pre-defined threshold, we ad-          placed onto the red plate. We select two objects during data
+vance to the next level, which brings greater augmentation          collection and testing on multiple different objects.
+and harder evaluation. If the success rate fails to reach the           Rotate. This task requires the robot to rotate a valve on
+threshold, we create additional augmented training data and         the table (second row of Figure 1). The valve is constructed
+stays at the current level. We continue this iterative process      with a fixed base and a moving valve geometry, connected
+until all levels are completed. To prevent endless training,        via a revolute joint. The task is successful when the robot
+we introduce a fail-safe Nmax : if the policy repeatedly fails      rotates the valve to 720 degrees. We use a tri-valve in data
+during evaluation for Nmax times, we also progress to the           collection and test on tetra-valves and penta-valves.
+next level. This curriculum learning approach significantly             Pour. This task requires the robot to pour small boxes
+depends on data augmentation techniques to generate train-          from a bottle into a bowl (third row of Figure 1). It involves
+ing data dynamically with suitable levels of randomization.         three steps: (i) Lift the bottle; (ii) Move it close to the bowl;
+This concept stands in contrast to typical supervised learn-        (iii) Rotate the bottle to dispense the small boxes into the
+ing scenarios, where data is pre-established prior to train-        bowl. Success is achieved when all four boxes have been
+ing. This on-demand data generation and customization               poured into the bowl.
+
+
+
+                                                                 17957
+                    Pick and Place                          Pick and Place
+                   Mustard Bottle                         Tomato Soup Can                                               Pouring                                          Rotating
+                   (Single Object)                         (Single Object)
+        Level 1   Level 2 Level 3     Level 4   Level 1   Level 2 Level 3     Level 4      Level 1                  Level 2    Level 3   Level 4     Level 1     Level 2        Level 3      Level 4
+ R3M     2 / 20    0 / 20    0 / 20    0 / 20    7 / 20    3 / 20    4 / 20    0 / 20       3 / 20                   0 / 20     0 / 20    0 / 20     11 / 20      2 / 20         6 / 20       2 / 20
+ PVR     4 / 20    0 / 20    0 / 20    0 / 20    4 / 20    0 / 20    3 / 20    0 / 20       2 / 20                   0 / 20     1 / 20    0 / 20      8 / 20      3 / 20         5 / 20       1 / 20
+ MVP     2 / 20    0 / 20    3 / 20    1 / 20    7 / 20    2 / 20    4 / 20    2 / 20       1 / 20                   1 / 20     3 / 20    2 / 20      8 / 20      4 / 20        10 / 20       6 / 20
+ Ours    7 / 20    6 / 20    8 / 20    5 / 20   14 / 20   11 / 20 13 / 20     13 / 20       9 / 20                   4 / 20    10 / 20    7 / 20     15 / 20     10 / 20        17 / 20      13 / 20
+
+Table 1. Main Comparison on Real Robot. In our study, we compare the performance across four distinct tasks: (a) Pick and Place
+Bottle, (b) Pick and Place Can (exploring different grasping approaches), (c) Pouring (grasping a bottle and pouring its contents into a
+bowl), and (d) Rotating the tri-valve. We perform evaluations of the models in four levels of real-world scenarios. These levels included:
+(a) Level 1: In Domain, (b) Level 2: Out of Position, (c) Level 3: Random Light, and (d) Level 4: Out of Position and Random Light.
+
+   For each task, we have designed levels for both data aug-
+mentation ( Section 3 .2) and curriculum learning (Section 3                                                100.0
+.3). More details regarding the design of task levels can be                                                             In Domain
+                                                                                                                         Unseen Objects
+found in the supplementary material.                                                                         80.0        Unseen Objects + Random Light
+                                                                                                                         Unseen Objects + Random Light + Out of Position
+
+
+
+                                                                                        Success Rates (%)
+4 .2. Baselines                                                                                              60.0
+Our approach can be interpreted as an initial pretraining
+phase using augmented simulation demonstrations followed                                                     40.0
+by fine-tuning with a limited set of real data. It is natural                                                                                                                   65 60
+                                                                                                                                                                           55
+to compare our method with other pre-training models for                                                     20.0                                          35                           40
+robotic manipulation. We have chosen three representative                                                           20 25 20                15                  20
+vision pre-training models. For all of them, we utilize the                                                                    0     5 10        0
+                                                                                                                                                      10
+                                                                                                                                                                     0
+                                                                                                              0.0
+pre-trained model provided by the author and then fine-tune                                                            R3M               PVR               MVP                  Ours
+it using our real-world demonstration dataset.
+PVR is built on MoCo-v2 [13], using a ResNet50 back-                                    Figure 4. Generalization to Novel Objects for Pick and Place.
+bone [25] trained on ImageNet [57].                                                     We compare our approach with the baselines in scenarios involv-
+MVP employs self-supervised learning from a Masked Au-                                  ing novel objects, random light disturbances, and random object
+toencoder [27] to train visual representation on individual                             positions.
+frames from an extensive human interaction dataset com-
+                                                                                        does this approach bridge the sim2real gap and amplify
+piled from multiple existing datasets. MVP integrates a Vi-
+                                                                                        performance in in-domain real-world tasks, but it also sig-
+sion Transformer [19] backbone that segments frames into
+                                                                                        nificantly improves manipulations in out-of-domain real-
+16x16 patches.
+                                                                                        world scenarios. By integrating augmentation for both vi-
+R3M proposes a pre-training approach where a ResNet50
+                                                                                        sual and dynamic variations, our method successfully navi-
+backbone is trained using a mix of time-contrastive learn-
+                                                                                        gates challenges and delivers impressive results.
+ing, video-language alignment, and L1 regularization. This
+model is trained on a large-scale human interaction videos                              5 .2. Generalization to Novel Objects
+dataset from Ego4D [22].
+                                                                                        By incorporating data augmentation techniques, such as in-
+5 . Results                                                                             cluding diverse objects in simulation, our model can effec-
+                                                                                        tively manipulate unfamiliar objects, even when transition-
+5 .1. Main Comparison                                                                   ing to a real-world context. As shown in Figure 4 and 5,
+                                                                                        the baseline methods grapple with more complex real-world
+Augmented simulation data markedly boosts real-world
+                                                                                        situations. In the most challenging scenario, rotating novel
+dexterous manipulation. As depicted in Table 1, our
+                                                                                        objects under random light conditions and new object po-
+methodology outperforms the baselines trained exclusively
+                                                                                        sitions, only one baseline method manages to solve it by
+on real data in the in-domain setting (Level 1), exhibiting
+                                                                                        chance with a 2.5% success rate. In contrast, our method
+an average performance boost of 31.67% averaged on all
+                                                                                        still accomplishes the task with a success rate of 30%.
+tasks. Additionally, in other settings like random lighting
+(Level 2), out of position (Level 3), combined random light-
+                                                                                        5 .3. Ablation on Data Augmentation
+ing and out of position (Level 3) R3M, and MVP, the base-
+lines exhibit a significant drop in success rates. In contrast,                         To evaluate the effectiveness of the data augmentation tech-
+our method shows resilience to these variations, underscor-                             niques, we perform an ablation study where our policy is
+ing the efficacy of simulation data augmentation. Not only                              trained with four levels of augmentation. As depicted in Ta-
+
+
+
+                                                                                 17958
+                                                                          Test in Sim                                               Test in Real
+                                                                                                                                                               Out of Position
+   Set of Levels / Num of demos                           Level 1      Level 2     Level 3   Level 4    In Domain    Random Light        Out of Position
+                                                                                                                                                               + Random Light
+                               [1] / 100                   78%           0%          0%        0%          20%             5%                   0%                  0%
+                              [1, 2] / 330                 73%          75%        10.5%      7.5%         15%            25%                  0%                   0%
+                             [1,2,3] / 550                 58%         66.5%       43.5%      21%          15%            15%                  5%                   15%
+                            [1,2,3,4] / 810               92.5%         81%         63%       49%          35%            30%                  30%                  40%
+
+Table 2. Ablation on Data Augmentation. To demonstrate the benefits of data augmentation, we employed auto-curriculum learning on
+various sets of levels. We performed 200 simulations to test its impact in a simulated environment and conducted 20 real-world tests to
+evaluate its effectiveness in a practical setting.
+
+                                                                                                                                       Test in Sim                  Test in Real
+                    100.0
+                                    In Domain                                                               Method        Level 1   Level 2   Level 3   Level 4
+                                                                                                                                                                  Out of Position
+                                                                                                                                                                  + Random Light
+                                    Unseen Objects                                                        ACL (Task)       80%       61%      43.5%      57%           35%
+                     80.0           Unseen Objects + Random Light                                         ACL (Data)      19.5%      30%       75%       66%           20%
+                                    Unseen Objects + Random Light + Out of Position                     ACL wo CL(Data)    20%       22%      32.5%      15%            5%
+
+
+
+
+Success Rates (%)
+                     60.0
+                                                                                                       Table 3. Ablation on Auto-Curriculum Learning. We compare
+                                                                           85                          three different settings: (1) Auto Curriculum Learning based on
+                     40.0
+                                                                                                       the success rate. (2) Auto Curriculum Learning based on Data
+                            62.5
+                                             45                                    50                  Generation Rate(the ratio of successfully generated trajectories to
+                     20.0                                   40                 42.5                    the total number of attempts). (3) Automatic Domain Randomiza-
+                                                                                        30
+                                                                                                       tion only based on Data Generation Rate.
+                               7.5 2.5 2.5        5 0 0
+                      0.0                                        0 0 0
+                                   R3M            PVR            MVP             Ours
+                                                                                                       tions, a fact also supported by our experiments. One lim-
+Figure 5. Generalization to Novel Objects for Rotating. The                                            itation is the necessity to design a simulated environment
+experimental setup for this task mirrors that of the ”Generalization                                   for each real-world task, thereby increasing the human ef-
+to Novel Objects for Pick and Place” experiments.                                                      fort involved. However, since our method doesn’t demand
+                                                                                                       the design of specific rewards as in reinforcement learning
+ble 2, the policy performs better in both the simulation and                                           tasks, which is often the most challenging aspect, the over-
+real-world settings with increased data augmentation, and                                              all effort required is not as significant.
+the policy trained on all four levels excels in all metrics.
+Interestingly, the policy manages to solve simpler settings
+more effectively even in simulation when more randomness                                               7 . Acknowledgement
+is introduced in the training data. These experiments under-                                           We express our gratitude to Haichuan Che and Chengzhe
+score the importance of simulator-based data augmentation.                                             Jia for their insightful conversations regarding the repair of
+                                                                                                       the Allegro hand hardware. We also thank Nicklas Hansen
+5 .4. Ablation on Auto-Curriculum Learning
+                                                                                                       and Jiarui Xu for their valuable input on visual pretraining.
+In this experiment, we evaluate the policy’s effectiveness by                                          Special thanks to Tony Zhao for his generous contribution to
+testing it 200 times in simulations and conducting 20 real-                                            the community through his open-source projects on Action
+world tests. As shown in Table 3, employing curriculum                                                 Chunking with Transformers.
+learning with auto-domain randomization solely based on                                                   This work was supported, in part, by the Qualcomm In-
+the data generation rate yields inferior results compared to                                           novation Fellowship, Intel Rising Star Faculty Award, and
+the approach based on model performance.                                                               the Technology Innovation Program (20018112, Develop-
+                                                                                                       ment of autonomous manipulation and gripping technology
+6 . Discussion                                                                                         using imitation learning based on visual and tactile sens-
+                                                                                                       ing) funded by the Ministry of Trade, Industry & Energy
+We propose CyberDemo, a novel pipeline for imitation
+                                                                                                       (MOTIE), Korea.
+learning in robotic manipulation, leveraging demonstrations
+collected in simulation. While the common belief suggests
+that real-world demonstrations are the optimal way to solve                                            References
+real-world problems, we challenge this notion by demon-                                                 [1] Ilge Akkaya, Marcin Andrychowicz, Maciek Chociej, Ma-
+strating that extensive data augmentation can make simu-                                                    teusz Litwin, Bob McGrew, Arthur Petron, Alex Paino,
+lation data even more valuable than real-world demonstra-                                                   Matthias Plappert, Glenn Powell, Raphael Ribas, et al.
+
+
+
+
+                                                                                                 17959
+     Solving rubik’s cube with a robot hand. arXiv preprint              [14] Zoey Chen, Karl Van Wyk, Yu-Wei Chao, Wei Yang, Ar-
+     arXiv:1910.07113, 2019. 3, 6                                             salan Mousavian, Abhishek Gupta, and Dieter Fox. Learn-
+ [2] Sridhar Pandian Arunachalam, Irmak Güzey, Soumith Chin-                 ing robust real-world dexterous grasping policies via im-
+     tala, and Lerrel Pinto. Holo-dex: Teaching dexterity with im-            plicit shape augmentation. arXiv preprint arXiv:2210.13638,
+     mersive mixed reality. In 2023 IEEE International Confer-                2022. 2
+     ence on Robotics and Automation (ICRA), pages 5962–5969.            [15] Zoey Chen, Sho Kiami, Abhishek Gupta, and Vikash Ku-
+     IEEE, 2023. 2                                                            mar. Genaug: Retargeting behaviors to unseen situations via
+ [3] Sridhar Pandian Arunachalam, Sneha Silwal, Ben Evans, and                generative augmentation. arXiv preprint arXiv:2302.06671,
+     Lerrel Pinto. Dexterous imitation made easy: A learning-                 2023. 2
+     based framework for efficient dexterous manipulation. In            [16] Ekin D Cubuk, Barret Zoph, Dandelion Mane, Vijay Va-
+     2023 ieee international conference on robotics and automa-               sudevan, and Quoc V Le. Autoaugment: Learning aug-
+     tion (icra), pages 5954–5961. IEEE, 2023. 2                              mentation policies from data. arxiv 2018. arXiv preprint
+ [4] Yusuf Aytar, Tobias Pfaff, David Budden, Thomas Paine,                   arXiv:1805.09501, 1805. 2
+     Ziyu Wang, and Nando De Freitas. Playing hard exploration           [17] Murtaza Dalal, Ajay Mandlekar, Caelan Garrett, Ankur
+     games by watching youtube. Advances in neural information                Handa, Ruslan Salakhutdinov, and Dieter Fox. Imitating task
+     processing systems, 31, 2018. 3                                          and motion planning with visuomotor transformers. arXiv
+ [5] Homanga Bharadhwaj, Abhinav Gupta, and Shubham Tul-                      preprint arXiv:2305.16309, 2023. 2
+     siani. Visual affordance prediction for guiding robot explo-        [18] Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li,
+     ration. arXiv preprint arXiv:2305.17783, 2023. 2                         and Li Fei-Fei. Imagenet: A large-scale hierarchical image
+ [6] Homanga Bharadhwaj, Jay Vakil, Mohit Sharma, Abhinav                     database. In 2009 IEEE conference on computer vision and
+     Gupta, Shubham Tulsiani, and Vikash Kumar. Roboagent:                    pattern recognition, pages 248–255. Ieee, 2009. 2
+     Generalization and efficiency in robot manipulation via se-         [19] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov,
+     mantic augmentations and action chunking. arXiv preprint                 Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner,
+     arXiv:2309.01918, 2023. 1, 2                                             Mostafa Dehghani, Matthias Minderer, Georg Heigold, Syl-
+ [7] Kevin Black, Mitsuhiko Nakamoto, Pranav Atreya, Homer                    vain Gelly, et al. An image is worth 16x16 words: Trans-
+     Walke, Chelsea Finn, Aviral Kumar, and Sergey Levine.                    formers for image recognition at scale. arXiv preprint
+     Zero-shot robotic manipulation with pretrained image-                    arXiv:2010.11929, 2020. 7
+     editing diffusion models. arXiv preprint arXiv:2310.10639,          [20] Frederik Ebert, Yanlai Yang, Karl Schmeckpeper, Bernadette
+     2023. 2                                                                  Bucher, Georgios Georgakis, Kostas Daniilidis, Chelsea
+ [8] Konstantinos Bousmalis, Nathan Silberman, David Dohan,                   Finn, and Sergey Levine. Bridge data: Boosting general-
+     Dumitru Erhan, and Dilip Krishnan. Unsupervised pixel-                   ization of robotic skills with cross-domain datasets. arXiv
+     level domain adaptation with generative adversarial net-                 preprint arXiv:2109.13396, 2021. 2
+     works. In Proceedings of the IEEE conference on computer            [21] Yaroslav Ganin, Evgeniya Ustinova, Hana Ajakan, Pas-
+     vision and pattern recognition, pages 3722–3731, 2017. 3                 cal Germain, Hugo Larochelle, François Laviolette, Mario
+ [9] Anthony Brohan, Noah Brown, Justice Carbajal, Yevgen                     Marchand, and Victor Lempitsky. Domain-adversarial train-
+     Chebotar, Joseph Dabis, Chelsea Finn, Keerthana Gopalakr-                ing of neural networks. The journal of machine learning
+     ishnan, Karol Hausman, Alex Herzog, Jasmine Hsu, et al.                  research, 17(1):2096–2030, 2016. 3
+     Rt-1: Robotics transformer for real-world control at scale.         [22] Kristen Grauman, Andrew Westbury, Eugene Byrne,
+     arXiv preprint arXiv:2212.06817, 2022. 1, 2                              Zachary Chavis, Antonino Furnari, Rohit Girdhar, Jackson
+[10] Mathilde Caron, Hugo Touvron, Ishan Misra, Hervé Jégou,                Hamburger, Hao Jiang, Miao Liu, Xingyu Liu, et al. Ego4d:
+     Julien Mairal, Piotr Bojanowski, and Armand Joulin. Emerg-               Around the world in 3,000 hours of egocentric video. In Pro-
+     ing properties in self-supervised vision transformers. In Pro-           ceedings of the IEEE/CVF Conference on Computer Vision
+     ceedings of the IEEE/CVF international conference on com-                and Pattern Recognition, pages 18995–19012, 2022. 2, 7
+     puter vision, pages 9650–9660, 2021. 2                              [23] Jiayuan Gu, Fanbo Xiang, Xuanlin Li, Zhan Ling, Xiqiang
+[11] Yevgen Chebotar, Ankur Handa, Viktor Makoviychuk, Miles                  Liu, Tongzhou Mu, Yihe Tang, Stone Tao, Xinyue Wei,
+     Macklin, Jan Issac, Nathan Ratliff, and Dieter Fox. Clos-                Yunchao Yao, et al.         Maniskill2: A unified bench-
+     ing the sim-to-real loop: Adapting simulation randomization              mark for generalizable manipulation skills. arXiv preprint
+     with real world experience. In 2019 International Confer-                arXiv:2302.04659, 2023. 2
+     ence on Robotics and Automation (ICRA), pages 8973–8979.            [24] Ankur Handa, Arthur Allshire, Viktor Makoviychuk, Aleksei
+     IEEE, 2019. 3                                                            Petrenko, Ritvik Singh, Jingzhou Liu, Denys Makoviichuk,
+[12] Tao Chen, Megha Tippur, Siyang Wu, Vikash Kumar, Ed-                     Karl Van Wyk, Alexander Zhurkevich, Balakumar Sundar-
+     ward Adelson, and Pulkit Agrawal. Visual dexterity: In-hand              alingam, et al. Dextreme: Transfer of agile in-hand ma-
+     reorientation of novel and complex object shapes. Science                nipulation from simulation to reality. In 2023 IEEE Inter-
+     Robotics, 8(84):eadc9244, 2023. 3                                        national Conference on Robotics and Automation (ICRA),
+[13] Xinlei Chen, Haoqi Fan, Ross Girshick, and Kaiming He.                   pages 5977–5984. IEEE, 2023. 3, 6
+     Improved baselines with momentum contrastive learning.              [25] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun.
+     arXiv preprint arXiv:2003.04297, 2020. 7                                 Deep residual learning for image recognition. In Proceed-
+
+
+
+
+                                                                      17960
+     ings of the IEEE conference on computer vision and pattern        [38] Jacky Liang, Saumya Saxena, and Oliver Kroemer. Learning
+     recognition, pages 770–778, 2016. 7                                    active task-oriented exploration policies for bridging the sim-
+[26] Kaiming He, Haoqi Fan, Yuxin Wu, Saining Xie, and Ross                 to-real gap. arXiv preprint arXiv:2006.01952, 2020. 3
+     Girshick. Momentum contrast for unsupervised visual rep-          [39] Corey Lynch, Ayzaan Wahid, Jonathan Tompson, Tianli
+     resentation learning. In Proceedings of the IEEE/CVF con-              Ding, James Betker, Robert Baruch, Travis Armstrong, and
+     ference on computer vision and pattern recognition, pages              Pete Florence. Interactive language: Talking to robots in real
+     9729–9738, 2020. 2                                                     time. IEEE Robotics and Automation Letters, 2023. 2
+[27] Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr           [40] Zhao Mandi, Homanga Bharadhwaj, Vincent Moens, Shu-
+     Dollár, and Ross Girshick. Masked autoencoders are scalable           ran Song, Aravind Rajeswaran, and Vikash Kumar. Cacti: A
+     vision learners. In Proceedings of the IEEE/CVF conference             framework for scalable multi-task multi-scene visual imita-
+     on computer vision and pattern recognition, pages 16000–               tion learning. arXiv preprint arXiv:2212.05711, 2022. 2
+     16009, 2022. 2, 7                                                 [41] Priyanka Mandikal and Kristen Grauman. Dexvip: Learning
+[28] Daniel Ho, Kanishka Rao, Zhuo Xu, Eric Jang, Mohi                      dexterous grasping with human hand pose priors from video.
+     Khansari, and Yunfei Bai. Retinagan: An object-aware                   In Conference on Robot Learning, pages 651–661. PMLR,
+     approach to sim-to-real transfer. In 2021 IEEE Inter-                  2022. 3
+     national Conference on Robotics and Automation (ICRA),            [42] Ajay Mandlekar, Yuke Zhu, Animesh Garg, Jonathan
+     pages 10920–10926. IEEE, 2021. 2, 3                                    Booher, Max Spero, Albert Tung, Julian Gao, John Em-
+[29] Binghao Huang, Yuanpei Chen, Tianyu Wang, Yuzhe Qin,                   mons, Anchit Gupta, Emre Orbay, et al. Roboturk: A crowd-
+     Yaodong Yang, Nikolay Atanasov, and Xiaolong Wang. Dy-                 sourcing platform for robotic skill learning through imita-
+     namic handover: Throw and catch with bimanual hands.                   tion. In Conference on Robot Learning, pages 879–893.
+     arXiv preprint arXiv:2309.05655, 2023. 3                               PMLR, 2018. 2
+[30] Wenlong Huang, Chen Wang, Ruohan Zhang, Yunzhu Li,                [43] Ajay Mandlekar, Danfei Xu, Josiah Wong, Soroush Nasiri-
+     Jiajun Wu, and Li Fei-Fei. Voxposer: Composable 3d value               any, Chen Wang, Rohun Kulkarni, Li Fei-Fei, Silvio
+     maps for robotic manipulation with language models. arXiv              Savarese, Yuke Zhu, and Roberto Martı́n-Martı́n. What mat-
+     preprint arXiv:2307.05973, 2023. 2                                     ters in learning from offline human demonstrations for robot
+[31] Stephen James, Zicong Ma, David Rovick Arrojo, and An-                 manipulation. arXiv preprint arXiv:2108.03298, 2021. 1, 2
+     drew J Davison. Rlbench: The robot learning benchmark &           [44] Ajay Mandlekar, Soroush Nasiriany, Bowen Wen, Iretiayo
+     learning environment. IEEE Robotics and Automation Let-                Akinola, Yashraj Narang, Linxi Fan, Yuke Zhu, and Di-
+     ters, 5(2):3019–3026, 2020. 2                                          eter Fox. Mimicgen: A data generation system for scalable
+[32] Eric Jang, Alex Irpan, Mohi Khansari, Daniel Kappler, Fred-            robot learning using human demonstrations. arXiv preprint
+     erik Ebert, Corey Lynch, Sergey Levine, and Chelsea Finn.              arXiv:2310.17596, 2023. 2
+     Bc-z: Zero-shot task generalization with robotic imitation        [45] Oier Mees, Markus Merklinger, Gabriel Kalweit, and Wol-
+     learning. In Conference on Robot Learning, pages 991–                  fram Burgard. Adversarial skill networks: Unsupervised
+     1002. PMLR, 2022. 2                                                    robot skill learning from video. In 2020 IEEE Inter-
+[33] Yunfan Jiang, Agrim Gupta, Zichen Zhang, Guanzhi Wang,                 national Conference on Robotics and Automation (ICRA),
+     Yongqiang Dou, Yanjun Chen, Li Fei-Fei, Anima Anandku-                 pages 4188–4194. IEEE, 2020. 3
+     mar, Yuke Zhu, and Linxi Fan. Vima: General robot manip-          [46] Suraj Nair, Aravind Rajeswaran, Vikash Kumar, Chelsea
+     ulation with multimodal prompts. arXiv, 2022. 2                        Finn, and Abhinav Gupta. R3m: A universal visual
+[34] Amlan Kar, Aayush Prakash, Ming-Yu Liu, Eric Cameracci,                representation for robot manipulation.          arXiv preprint
+     Justin Yuan, Matt Rusiniak, David Acuna, Antonio Torralba,             arXiv:2203.12601, 2022. 2
+     and Sanja Fidler. Meta-sim: Learning to generate synthetic        [47] Anh Nguyen, Dimitrios Kanoulas, Luca Muratore, Darwin G
+     datasets. In Proceedings of the IEEE/CVF International                 Caldwell, and Nikos G Tsagarakis. Translating videos to
+     Conference on Computer Vision, pages 4551–4560, 2019. 2                commands for robotic manipulation with deep recurrent neu-
+[35] Manuel Kaspar, Juan D Muñoz Osorio, and Jürgen Bock.                 ral networks. In 2018 IEEE International Conference on
+     Sim2real transfer for reinforcement learning without dynam-            Robotics and Automation (ICRA), pages 3782–3788. IEEE,
+     ics randomization. In 2020 IEEE/RSJ International Confer-              2018. 2
+     ence on Intelligent Robots and Systems (IROS), pages 4383–        [48] Abhishek Padalkar, Acorn Pooley, Ajinkya Jain, Alex Bew-
+     4388. IEEE, 2020. 3                                                    ley, Alex Herzog, Alex Irpan, Alexander Khazatsky, Anant
+[36] Sateesh Kumar, Jonathan Zamora, Nicklas Hansen, Rishabh                Rai, Anikait Singh, Anthony Brohan, et al. Open x-
+     Jangir, and Xiaolong Wang. Graph inverse reinforcement                 embodiment: Robotic learning datasets and rt-x models.
+     learning from diverse videos. In Conference on Robot Learn-            arXiv preprint arXiv:2310.08864, 2023. 1, 2
+     ing, pages 55–66. PMLR, 2023. 3                                   [49] Simone Parisi, Aravind Rajeswaran, Senthil Purushwalkam,
+[37] Chengshu Li, Ruohan Zhang, Josiah Wong, Cem Gokmen,                    and Abhinav Gupta. The unsurprising effectiveness of pre-
+     Sanjana Srivastava, Roberto Martı́n-Martı́n, Chen Wang,                trained vision models for control. In International Con-
+     Gabrael Levine, Michael Lingelbach, Jiankai Sun, et al.                ference on Machine Learning, pages 17359–17371. PMLR,
+     Behavior-1k: A benchmark for embodied ai with 1,000 ev-                2022. 2
+     eryday activities and realistic simulation. In Conference on      [50] Xue Bin Peng, Marcin Andrychowicz, Wojciech Zaremba,
+     Robot Learning, pages 80–93. PMLR, 2023. 2                             and Pieter Abbeel. Sim-to-real transfer of robotic control
+
+
+
+
+                                                                    17961
+     with dynamics randomization. In 2018 IEEE international           [62] Rutav Shah and Vikash Kumar. Rrl: Resnet as rep-
+     conference on robotics and automation (ICRA), pages 3803–              resentation for reinforcement learning.      arXiv preprint
+     3810. IEEE, 2018. 3                                                    arXiv:2107.03380, 2021. 2
+[51] Haozhi Qi, Ashish Kumar, Roberto Calandra, Yi Ma, and Ji-         [63] Lin Shao, Toki Migimatsu, Qiang Zhang, Karen Yang, and
+     tendra Malik. In-hand object rotation via rapid motor adap-            Jeannette Bohg. Concept2robot: Learning manipulation con-
+     tation. In Conference on Robot Learning, pages 1722–1732.              cepts from instructions and human demonstrations. The In-
+     PMLR, 2023. 3                                                          ternational Journal of Robotics Research, 40(12-14):1419–
+[52] Haozhi Qi, Brent Yi, Sudharshan Suresh, Mike Lambeta,                  1434, 2021. 2
+     Yi Ma, Roberto Calandra, and Jitendra Malik. General in-          [64] Kenneth Shaw, Shikhar Bahl, and Deepak Pathak. Videodex:
+     hand object rotation with vision and touch. In Conference on           Learning dexterity from internet videos. In Conference on
+     Robot Learning, pages 2549–2564. PMLR, 2023. 3                         Robot Learning, pages 654–665. PMLR, 2023. 2
+[53] Yuzhe Qin, Hao Su, and Xiaolong Wang. From one hand               [65] Connor Shorten and Taghi M Khoshgoftaar. A survey on
+     to multiple hands: Imitation learning for dexterous manipu-            image data augmentation for deep learning. Journal of big
+     lation from single-camera teleoperation. RA-L, 7(4):10873–             data, 6(1):1–48, 2019. 2
+     10881, 2022. 2                                                    [66] Mohit Shridhar, Lucas Manuelli, and Dieter Fox. Cliport:
+[54] Yuzhe Qin, Yueh-Hua Wu, Shaowei Liu, Hanwen Jiang, Rui-                What and where pathways for robotic manipulation. In Con-
+     han Yang, Yang Fu, and Xiaolong Wang. Dexmv: Imitation                 ference on Robot Learning, pages 894–906. PMLR, 2022.
+     learning for dexterous manipulation from human videos. In              2
+     European Conference on Computer Vision, pages 570–587.            [67] Ishika Singh, Valts Blukis, Arsalan Mousavian, Ankit Goyal,
+     Springer, 2022. 2                                                      Danfei Xu, Jonathan Tremblay, Dieter Fox, Jesse Thomason,
+                                                                            and Animesh Garg. Progprompt: Generating situated robot
+[55] Yuzhe Qin, Wei Yang, Binghao Huang, Karl Van Wyk,
+                                                                            task plans using large language models. In 2023 IEEE In-
+     Hao Su, Xiaolong Wang, Yu-Wei Chao, and Dietor
+                                                                            ternational Conference on Robotics and Automation (ICRA),
+     Fox.      Anyteleop: A general vision-based dexterous
+                                                                            pages 11523–11530. IEEE, 2023.
+     robot arm-hand teleoperation system.          arXiv preprint
+                                                                       [68] Simon Stepputtis, Joseph Campbell, Mariano Phielipp, Ste-
+     arXiv:2307.04577, 2023. 4
+                                                                            fan Lee, Chitta Baral, and Heni Ben Amor. Language-
+[56] Kanishka Rao, Chris Harris, Alex Irpan, Sergey Levine, Ju-
+                                                                            conditioned imitation learning for robot manipulation tasks.
+     lian Ibarz, and Mohi Khansari. Rl-cyclegan: Reinforce-
+                                                                            Advances in Neural Information Processing Systems, 33:
+     ment learning aware simulation-to-real. In Proceedings of
+                                                                            13139–13150, 2020. 2
+     the IEEE/CVF Conference on Computer Vision and Pattern
+                                                                       [69] Adam Stooke, Kimin Lee, Pieter Abbeel, and Michael
+     Recognition, pages 11157–11166, 2020. 2
+                                                                            Laskin. Decoupling representation learning from reinforce-
+[57] Olga Russakovsky, Jia Deng, Hao Su, Jonathan Krause, San-              ment learning. In International Conference on Machine
+     jeev Satheesh, Sean Ma, Zhiheng Huang, Andrej Karpathy,                Learning, pages 9870–9879. PMLR, 2021. 2
+     Aditya Khosla, Michael Bernstein, et al. Imagenet large           [70] Josh Tobin, Rachel Fong, Alex Ray, Jonas Schneider, Woj-
+     scale visual recognition challenge. International journal of           ciech Zaremba, and Pieter Abbeel. Domain randomization
+     computer vision, 115:211–252, 2015. 7                                  for transferring deep neural networks from simulation to the
+[58] Manolis Savva, Abhishek Kadian, Oleksandr Maksymets,                   real world. In 2017 IEEE/RSJ international conference on
+     Yili Zhao, Erik Wijmans, Bhavana Jain, Julian Straub, Jia              intelligent robots and systems (IROS), pages 23–30. IEEE,
+     Liu, Vladlen Koltun, Jitendra Malik, et al. Habitat: A                 2017. 3
+     platform for embodied ai research. In Proceedings of              [71] Joanne Truong, Sonia Chernova, and Dhruv Batra. Bi-
+     the IEEE/CVF international conference on computer vision,              directional domain adaptation for sim2real transfer of em-
+     pages 9339–9347, 2019. 2                                               bodied navigation agents. IEEE Robotics and Automation
+[59] Karl Schmeckpeper, Oleh Rybkin, Kostas Daniilidis, Sergey              Letters, 6(2):2634–2641, 2021. 3
+     Levine, and Chelsea Finn. Reinforcement learning with             [72] Luobin Wang, Runlin Guo, Quan Vuong, Yuzhe Qin, Hao
+     videos: Combining offline observations with interaction.               Su, and Henrik Christensen. A real2sim2real method for ro-
+     arXiv preprint arXiv:2011.06507, 2020. 2                               bust object grasping with neural surface reconstruction. In
+[60] Max Schwarzer, Nitarshan Rajkumar, Michael Noukhovitch,                2023 IEEE 19th International Conference on Automation
+     Ankesh Anand, Laurent Charlin, R Devon Hjelm, Philip                   Science and Engineering (CASE), pages 1–8. IEEE, 2023.
+     Bachman, and Aaron C Courville. Pretraining representa-                3
+     tions for data-efficient reinforcement learning. Advances in      [73] Fanbo Xiang, Yuzhe Qin, Kaichun Mo, Yikuan Xia, Hao
+     Neural Information Processing Systems, 34:12686–12699,                 Zhu, Fangchen Liu, Minghua Liu, Hanxiao Jiang, Yifu Yuan,
+     2021. 2                                                                He Wang, et al. Sapien: A simulated part-based interactive
+[61] Pierre Sermanet, Corey Lynch, Yevgen Chebotar, Jasmine                 environment. In Proceedings of the IEEE/CVF Conference
+     Hsu, Eric Jang, Stefan Schaal, Sergey Levine, and Google               on Computer Vision and Pattern Recognition, pages 11097–
+     Brain. Time-contrastive networks: Self-supervised learn-               11107, 2020. 4
+     ing from video. In 2018 IEEE international conference on          [74] Tete Xiao, Ilija Radosavovic, Trevor Darrell, and Jitendra
+     robotics and automation (ICRA), pages 1134–1141. IEEE,                 Malik. Masked visual pre-training for motor control. arXiv
+     2018. 2                                                                preprint arXiv:2203.06173, 2022. 2
+
+
+
+
+                                                                    17962
+[75] Lin Yen-Chen, Andy Zeng, Shuran Song, Phillip Isola, and
+     Tsung-Yi Lin. Learning to see before learning to act: Vi-
+     sual pre-training for manipulation. In 2020 IEEE Inter-
+     national Conference on Robotics and Automation (ICRA),
+     pages 7286–7293. IEEE, 2020. 2
+[76] Zhao-Heng Yin, Binghao Huang, Yuzhe Qin, Qifeng Chen,
+     and Xiaolong Wang.          Rotating without seeing: To-
+     wards in-hand dexterity through touch. arXiv preprint
+     arXiv:2303.10880, 2023. 3
+[77] Tianhe Yu, Ted Xiao, Austin Stone, Jonathan Tompson,
+     Anthony Brohan, Su Wang, Jaspiar Singh, Clayton Tan,
+     Jodilyn Peralta, Brian Ichter, et al. Scaling robot learn-
+     ing with semantically imagined experience. arXiv preprint
+     arXiv:2302.11550, 2023. 2
+[78] Ying Yuan, Haichuan Che, Yuzhe Qin, Binghao Huang,
+     Zhao-Heng Yin, Kang-Won Lee, Yi Wu, Soo-Chul Lim, and
+     Xiaolong Wang. Robot synesthesia: In-hand manipulation
+     with visuotactile sensing. arXiv preprint arXiv:2312.01853,
+     2023. 3
+[79] Zhecheng Yuan, Zhengrong Xue, Bo Yuan, Xueqian Wang,
+     Yi Wu, Yang Gao, and Huazhe Xu. Pre-trained im-
+     age encoder for generalizable visual reinforcement learn-
+     ing. Advances in Neural Information Processing Systems,
+     35:13022–13037, 2022. 2
+[80] Sergey Zakharov, Wadim Kehl, and Slobodan Ilic. Decep-
+     tionnet: Network-driven domain randomization. In Proceed-
+     ings of the IEEE/CVF International Conference on Com-
+     puter Vision, pages 532–541, 2019. 3
+[81] Kevin Zakka, Andy Zeng, Pete Florence, Jonathan Tomp-
+     son, Jeannette Bohg, and Debidatta Dwibedi. Xirl: Cross-
+     embodiment inverse reinforcement learning. In Conference
+     on Robot Learning, pages 537–546. PMLR, 2022. 3
+[82] Yanjie Ze, Nicklas Hansen, Yinbo Chen, Mohit Jain, and
+     Xiaolong Wang. Visual reinforcement learning with self-
+     supervised 3d representations. IEEE Robotics and Automa-
+     tion Letters, 8(5):2890–2897, 2023. 2
+[83] Andy Zeng, Pete Florence, Jonathan Tompson, Stefan
+     Welker, Jonathan Chien, Maria Attarian, Travis Armstrong,
+     Ivan Krasin, Dan Duong, Vikas Sindhwani, et al. Transporter
+     networks: Rearranging the visual world for robotic manipu-
+     lation. In Conference on Robot Learning, pages 726–747.
+     PMLR, 2021. 2
+[84] Tony Z Zhao, Vikash Kumar, Sergey Levine, and Chelsea
+     Finn. Learning fine-grained bimanual manipulation with
+     low-cost hardware. arXiv preprint arXiv:2304.13705, 2023.
+     6
+[85] Zhengbang Zhu, Hanye Zhao, Haoran He, Yichao Zhong,
+     Shenyu Zhang, Yong Yu, and Weinan Zhang. Diffusion mod-
+     els for reinforcement learning: A survey. arXiv preprint
+     arXiv:2311.01223, 2023. 2
+
+
+
+
+                                                                   17963
+

@@ -1,0 +1,219 @@
+{
+  "pdf": "/Users/yang/Notes/Notes/Papers/DeepMimic Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills.pdf",
+  "out": "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic",
+  "tools": {
+    "pdfinfo": true,
+    "pdftotext": true,
+    "pdftoppm": true
+  },
+  "pdfinfo": {
+    "Title": "DeepMimic",
+    "Subject": "ACM Trans. Graph. 2018.37:1-14",
+    "Keywords": "physics-based character animation, motion control, reinforcement learning",
+    "Author": "Xue Bin Peng, Pieter Abbeel, Sergey Levine, and Michiel van de Panne",
+    "Creator": "LaTeX with acmart 2018/04/14 v1.53 Typesetting articles for the Association for Computing Machinery and hyperref 2016/06/24 v6.83q Hypertext links for LaTeX",
+    "Producer": "3-Heights(TM) PDF Security Shell 4.8.25.2 (http://www.pdf-tools.com) / pdcat (www.pdf-tools.com); modified using iText 4.2.0 by 1T3XT",
+    "CreationDate": "Wed May 16 06:25:17 2018 CST",
+    "ModDate": "Sun Mar 23 22:54:43 2025 CST",
+    "Custom Metadata": "yes",
+    "Metadata Stream": "yes",
+    "Tagged": "no",
+    "UserProperties": "no",
+    "Suspects": "no",
+    "Form": "none",
+    "JavaScript": "no",
+    "Pages": "14",
+    "Encrypted": "no",
+    "Page size": "612 x 792 pts (letter)",
+    "Page rot": "0",
+    "File size": "7046589 bytes",
+    "Optimized": "no",
+    "PDF version": "1.4"
+  },
+  "page_count": 14,
+  "pdftotext_layout": "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pdftotext-layout.txt",
+  "pdfplumber_pages": [
+    {
+      "page": 1,
+      "chars": 5964,
+      "tables": 0,
+      "keyword_hits": [
+        "abstract",
+        "introduction",
+        "method",
+        "approach",
+        "objective"
+      ]
+    },
+    {
+      "page": 2,
+      "chars": 7215,
+      "tables": 0,
+      "keyword_hits": [
+        "introduction",
+        "method",
+        "approach",
+        "model",
+        "objective",
+        "experiment",
+        "ablation",
+        "figure"
+      ]
+    },
+    {
+      "page": 3,
+      "chars": 7147,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "model",
+        "objective",
+        "table",
+        "limitation"
+      ]
+    },
+    {
+      "page": 4,
+      "chars": 6134,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "model",
+        "objective",
+        "experiment",
+        "figure"
+      ]
+    },
+    {
+      "page": 5,
+      "chars": 6919,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "objective"
+      ]
+    },
+    {
+      "page": 6,
+      "chars": 4927,
+      "tables": 1,
+      "keyword_hits": [
+        "method",
+        "model",
+        "objective",
+        "table"
+      ]
+    },
+    {
+      "page": 7,
+      "chars": 5638,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "model",
+        "objective",
+        "experiment",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 8,
+      "chars": 3830,
+      "tables": 1,
+      "keyword_hits": [
+        "objective",
+        "table"
+      ]
+    },
+    {
+      "page": 9,
+      "chars": 650,
+      "tables": 0,
+      "keyword_hits": []
+    },
+    {
+      "page": 10,
+      "chars": 6203,
+      "tables": 1,
+      "keyword_hits": [
+        "method",
+        "objective",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 11,
+      "chars": 6426,
+      "tables": 1,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "objective",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 12,
+      "chars": 5161,
+      "tables": 1,
+      "keyword_hits": [
+        "model",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 13,
+      "chars": 6646,
+      "tables": 1,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "experiment",
+        "evaluation",
+        "ablation",
+        "table",
+        "figure",
+        "limitation"
+      ]
+    },
+    {
+      "page": 14,
+      "chars": 10288,
+      "tables": 0,
+      "keyword_hits": [
+        "abstract",
+        "introduction",
+        "method",
+        "model",
+        "objective",
+        "table"
+      ]
+    }
+  ],
+  "selected_pages": [
+    1,
+    2,
+    3,
+    4,
+    7,
+    11,
+    13,
+    14
+  ],
+  "rendered_pages": [
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-1-01.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-2-02.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-3-03.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-4-04.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-7-07.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-11-11.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-13-13.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/deepmimic/pages/page-14-14.png"
+  ]
+}

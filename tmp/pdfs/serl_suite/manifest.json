@@ -1,0 +1,202 @@
+{
+  "pdf": "/Users/yang/Notes/Notes/Papers/SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning.pdf",
+  "out": "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite",
+  "tools": {
+    "pdfinfo": true,
+    "pdftotext": true,
+    "pdftoppm": true
+  },
+  "pdfinfo": {
+    "Title": "",
+    "Subject": "",
+    "Keywords": "",
+    "Author": "",
+    "Creator": "LaTeX with hyperref",
+    "Producer": "pdfTeX-1.40.25",
+    "CreationDate": "Wed Feb 14 09:52:44 2024 CST",
+    "ModDate": "Wed Feb 14 09:52:44 2024 CST",
+    "Custom Metadata": "yes",
+    "Metadata Stream": "no",
+    "Tagged": "no",
+    "UserProperties": "no",
+    "Suspects": "no",
+    "Form": "none",
+    "JavaScript": "no",
+    "Pages": "14",
+    "Encrypted": "no",
+    "Page size": "595.276 x 841.89 pts (A4)",
+    "Page rot": "0",
+    "File size": "16336882 bytes",
+    "Optimized": "no",
+    "PDF version": "1.5"
+  },
+  "page_count": 14,
+  "pdftotext_layout": "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pdftotext-layout.txt",
+  "pdfplumber_pages": [
+    {
+      "page": 1,
+      "chars": 3678,
+      "tables": 0,
+      "keyword_hits": [
+        "introduction",
+        "method",
+        "experiment",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 2,
+      "chars": 5352,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "model",
+        "limitation"
+      ]
+    },
+    {
+      "page": 3,
+      "chars": 5266,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "table"
+      ]
+    },
+    {
+      "page": 4,
+      "chars": 5208,
+      "tables": 0,
+      "keyword_hits": [
+        "method"
+      ]
+    },
+    {
+      "page": 5,
+      "chars": 4515,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "objective",
+        "figure"
+      ]
+    },
+    {
+      "page": 6,
+      "chars": 4751,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "objective",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 7,
+      "chars": 4280,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "model",
+        "experiment",
+        "evaluation",
+        "table",
+        "figure",
+        "appendix"
+      ]
+    },
+    {
+      "page": 8,
+      "chars": 3826,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "experiment",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 9,
+      "chars": 4462,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "evaluation",
+        "figure",
+        "appendix",
+        "limitation"
+      ]
+    },
+    {
+      "page": 10,
+      "chars": 4128,
+      "tables": 0,
+      "keyword_hits": [
+        "abstract",
+        "method",
+        "model",
+        "table"
+      ]
+    },
+    {
+      "page": 11,
+      "chars": 4320,
+      "tables": 0,
+      "keyword_hits": [
+        "model",
+        "table"
+      ]
+    },
+    {
+      "page": 12,
+      "chars": 4476,
+      "tables": 0,
+      "keyword_hits": []
+    },
+    {
+      "page": 13,
+      "chars": 4312,
+      "tables": 0,
+      "keyword_hits": [
+        "approach",
+        "model",
+        "table"
+      ]
+    },
+    {
+      "page": 14,
+      "chars": 2629,
+      "tables": 0,
+      "keyword_hits": [
+        "abstract",
+        "model",
+        "evaluation"
+      ]
+    }
+  ],
+  "selected_pages": [
+    1,
+    2,
+    6,
+    7,
+    8,
+    9,
+    10,
+    14
+  ],
+  "rendered_pages": [
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-1-01.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-2-02.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-6-06.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-7-07.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-8-08.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-9-09.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-10-10.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/serl_suite/pages/page-14-14.png"
+  ]
+}

@@ -23,418 +23,736 @@ related:
 # In-Hand Object Rotation via Rapid Motor Adaptation (HORA)
 
 > [!abstract] 核心贡献
-> 针对"手内操作要么依赖易受遮挡/光照影响的外部视觉、要么靠域随机化牺牲性能换鲁棒"这一瓶颈，把腿足机器人的 **快速电机适应 (Rapid Motor Adaptation, RMA)** 迁移到手内：两阶段训练一个以物体属性压缩表征 $z$ (extrinsics) 为条件的策略，再用本体感觉历史在线估计 $\hat{z}$，实现**仅用本体感觉**零样本旋转 30+ 种未见物体，无需视觉或触觉。结构性洞见：**物体物理属性无需显式传感，可作为动力学参数的低维充分统计量从交互历史中隐式辨识——"域随机化解决鲁棒性，适应解决最优性"。**
+> HORA 把 legged RMA 的“隐式在线系统辨识”迁移到 dexterous in-hand rotation：先在仿真中把 9 维物体属性 $e_t$ 编码成 8 维 task-relevant extrinsics $z_t=\mu(e_t)$，训练条件策略 $\pi(o_t,z_t)$；再训练 adaptation module $\phi$ 从 proprioception/action history 估计 $\hat z_t$，使真实 AllegroHand 在无视觉、无触觉、无真机微调的情况下，仅靠本体感觉旋转 30+ 个未见物体。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] - PPO 策略学习
-> - [[Dynamics]] - 物体动力学隐式学习
-> - [[RepresentationLearning]] - 物理属性编码器
-> - [[ControlTheory]] - 自适应控制思想
+> - [[ReinforcementLearning]] — context-conditioned PPO：策略不是学一个平均动作，而是学 $\pi(a_t\mid o_t,z_t)$ 这族按物体 context 切换的子策略。
+> - [[RepresentationLearning]] — learned extrinsics：$z_t$ 不是真实物理量，而是由任务监督塑造出的低维充分统计量。
+> - [[Dynamics]] — hidden object parameters：mass、friction、CoM、scale 通过接触动力学影响 proprioception/action history。
+> - [[ControlTheory]] — adaptive control / system identification：$\phi$ 是摊还式在线辨识器，但没有 classical adaptive control 的可辨识性/稳定性保证。
 >
-> **核心技术**: Extrinsics Encoding, Adaptation Module, Proprioception-only Control
+> **核心技术**: Rapid Motor Adaptation, learned extrinsics, proprioception-only adaptation, PPO, teacher/adaptation two-stage training
 
-## 1. 核心直觉与宏观定位 (The Big Picture)
+## 0. 阅读定位与范本价值
 
-### 一句话核心
-将**腿足机器人快速地形适应**的思想迁移到**手内操作**：学习物体物理属性的压缩表征，通过本体感觉历史在线估计，实现对未见物体的即时适应。
+HORA 是 in-hand rotation 这一簇的逻辑原点。后面的 RotateIt、Robot Synesthesia、Touch Dexterity、AnyRotate 都可以被读成对 HORA 的补洞：
 
-### 直观隐喻
-就像人类闭着眼睛也能通过手指"感觉"到物体的重量、大小、形状——HORA 让机器人从关节角度和扭矩的历史中"推断"物体属性并自适应。
+| 后续论文 | 补 HORA 的哪个洞 |
+|---|---|
+| [[RotateIt - General In-Hand Object Rotation with Vision and Touch]] | HORA 只靠 proprioception、主要 z-axis；RotateIt 加 vision/touch/shape 做多轴 |
+| [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]] | HORA 不知道接触点；Robot Synesthesia 把触觉投成 3D contact geometry |
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | HORA 无触觉；Touch Dexterity 证明 sparse contact 可显著改进 blind rotation |
+| [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | HORA 主要 z-axis；AnyRotate 走任意轴 + dense tactile |
 
-### 领域定位
-```
-OpenAI Dactyl (需要视觉追踪)
-         ↓
-HORA (仅本体感觉 + 快速适应)
-         ↓
-后续: Touch Dexterity (加入触觉), DexTrack (加入人类参考)
-```
+它最值得保留的核心判断是：
 
-### 现有方法的局限
+> Domain randomization 让策略“不要崩”，online adaptation 让策略“对当前物体更接近最优”。
 
-| 方法流派 | 核心问题 |
-|---------|--------|
-| **视觉追踪 ([[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation\|Dactyl 系]])** | 需外部相机系统，真实部署受遮挡和光照影响，且无法直接感知物体物理属性 |
-| **纯域随机化** | 以覆盖代替理解——随机化范围不够则失败，过大则策略保守 |
-| **系统辨识** | 需显式物体模型或力/扭矩传感器，无法泛化到未见物体 |
-| **[[ControlTheory\|MPC 方法]]** | 依赖精确接触模型，高维灵巧手中实时性不足 |
+这个判断对 WMTS 很重要。一个 world model / policy 如果只在随机化分布上学一个 average behavior，它会稳但慢；如果能在线估计当前 context，就能在保持鲁棒的同时更积极地利用物体属性。
 
-> [!warning] 根本困境
-> 传统方法将"感知物体属性"和"控制操作"解耦为两个独立问题。HORA 的核心洞察：**通过交互历史隐式估计即可，无需显式感知模块**——这与 [[ControlTheory]] 中数据驱动自适应控制的思想一脉相承。
+最低标准：
 
-## 2. 核心创新与贡献 (Contributions & Novelty)
+| 支柱 | 本文必须讲清的问题 | 本 recap 的位置 |
+|---|---|---|
+| 逻辑与价值 | HORA 相对纯 DR / SysID /视觉方法的 value add 是什么？ | §1, §4 |
+| 原理与理论 | $e_t\to z_t\to\hat z_t$ 为什么是 POMDP 下的摊还辨识？ | §2 |
+| 实验与验证 | Table 1 / Fig.3 / Fig.4 / appendix ablation 如何证明“adaptation beats robust average”？ | §3 |
+| 未来与结合 | 对转笔/LinkerHand/WMTS 哪些能迁移，哪些因接触点不可观测会失败？ | §5-§6 |
 
-### Delta 分析
-| 维度 | 前人工作 | HORA |
-|-----|---------|------|
-| 感知 | 视觉 + 触觉 | **仅本体感觉** |
-| 物体适应 | 域随机化覆盖 | **在线适应模块** |
-| 训练物体 | 特定物体 | 简单圆柱体 |
-| 测试物体 | 训练物体 | **30+ 未见物体** |
+## 1. 问题设定与动机
 
-### 关键贡献点
-1. **Extrinsics 概念**: 物体物理属性（质量、尺寸、摩擦）压缩为低维向量
-2. **Adaptation Module**: 从本体感觉历史监督学习估计 extrinsics
-3. **稳定指尖抓持**: 自动涌现的自然手指步态 (finger gaits)
+### 1.1 一句话核心
 
-## 3. 理论原理深度解析 (Theoretical Deep Dive)
+HORA 要做的是：
 
-### 3.0 变量来源追踪
+> 仅用 Allegro Hand 的 joint positions 和 previous actions，在没有视觉、没有 tactile array、没有真实在线学习的情况下，把多种真实物体用 fingertips 绕 hand/world z-axis 持续旋转。
 
-RMA 的全部精妙都压在 $z_t$（Stage 1 编码器真值）与 $\hat{z}_t$（Stage 2 估计、部署用）这一对区分上——这与 [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]] 的特权/预测 extrinsics 同构（§7 综述）。
+任务设置有三个关键信息：
+
+- 训练只用 simulation 中的 cylindrical objects；
+- 部署到真实世界时不做 fine-tuning；
+- 真实物体直径约 4.5-7.5 cm、质量 5g-200g，包括 porous / non-rigid / irregular objects。
+
+所以它的故事不是“仿真里学会旋转圆柱”，而是：
+
+> 能否把圆柱随机化中学到的交互响应，压缩成一个可从本体历史估计的 object context，从而迁移到看起来完全不同、但触觉/动力学上相似的真实物体。
+
+### 1.2 直观隐喻
+
+HORA 像闭眼捏着一个物体转：你不知道它的外观，也没有接触传感器告诉你具体接触点，但你能从“我刚才怎么动手指，它怎么反馈”推断它重不重、大不大、滑不滑。
+
+这个隐喻的可证伪点是：如果任务需要知道精确 contact patch 或 object pose，而这些不能从 proprioception/action history 推断，HORA 就会失败。论文自己的 failure analysis 正是：多数失败来自 incorrect contact points，因为纯本体 policy 不知道物体和指尖的精确接触位置。
+
+### 1.3 现有方法的局限
+
+| 方法范式 | 注入了什么先验 | 关键局限 |
+|---|---|---|
+| 外部视觉 / object tracking | 直接观测 object pose | 遮挡、光照、标定、部署复杂；不能直接测 mass/friction |
+| 纯 domain randomization | 学一个覆盖随机分布的 robust policy | 稳但慢；对当前物体无法最优，DR baseline 真实表里保守 |
+| 显式 SysID | 估计真实物理参数 $e_t$ | 参数精确估计困难且不必要；Table 1 / real results 都低于 learned extrinsics |
+| action replay / periodic gait | 复用 expert trajectory | 只能在极窄初始/物体条件下工作，无法适应对象变化 |
+| direct high-history policy | 把长历史直接喂给 PPO | appendix Table 4 显示 MLP/LSTM 长历史 DR 优化困难 |
+| 触觉/视觉多模态 | 可获得更直接 object/contact 信息 | 传感器成本和 sim-real gap 更高；HORA 选择最小感知路径 |
+
+### 1.4 Delta 分析
+
+HORA 的 delta 不是“用了一个 adaptation module”这么简单，而是三步：
+
+1. **学 task-relevant extrinsics**：不把真实物理参数直接给 policy，而是学 $z_t=\mu(e_t)\in\mathbb{R}^8$。
+2. **学 context-conditioned policy**：policy 变成 $\pi(o_t,z_t)$，不是一个平均策略。
+3. **部署时在线估计 context**：$\hat z_t=\phi(q_{t-k:t},a_{t-k-1:t-1})$，用 proprioception/action discrepancy 做摊还辨识。
+
+这个 design 的 insight 是：
+
+> 对一个具体任务来说，“真实物理参数”未必是最好的 adaptation target；更好的 target 是能让 policy 选对动作的低维 task-sufficient latent。
+
+SysID baseline 低于 HORA，正好证明这一点。
+
+## 2. 核心方法与理论
+
+### 2.1 变量来源追踪
 
 | 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
-|------|-----------|----------|------------|----------------|----------|
-| $o_t$ | $\mathbb{R}^{48}$ | 观测（本体） | 否（输入） | 关节角/角速度/上一动作 | **不含物体位姿**——actor 看不到 |
-| $a_t$ | $\mathbb{R}^{16}$ | 网络输出 | 是（策略） | PD 位置目标 | **非力矩**；部署经 EMA 平滑 |
-| 物体属性 | $\mathbb{R}^{prop}$ | **特权**（仿真参数） | 否 | mass/scale/friction/CoM | 真机不可观测——RMA 要隐式辨识的对象 |
-| $z_t$ | $\mathbb{R}^8$ | 编码器 $\mu$ 输出（特权） | Stage 1 是 / Stage 2 detach | extrinsics 真值 | base policy 的条件，Stage 2 须 frozen |
-| $\hat{z}_t$ | $\mathbb{R}^8$ | 适应模块 $\phi$ (TCN) 输出 | 是（Stage 2 监督） | 估计的 extrinsics | **部署用 $\hat{z}$ 代 $z$**；可辨识性无保证 |
-| $\mu$ | params | 网络（Stage 1） | 是 | 属性→extrinsics 编码器 | Stage 2 必须冻结，否则表征漂移 |
-| $\phi$ | params | 网络（Stage 2, TCN） | 是 | 历史→extrinsics 估计器 | TCN 无隐状态，部署比 RNN 稳 |
-| $H$ | =50 步 | 超参 | — | 历史窗口 | 太短估计方差大（§4 消融）；按旋转周期调 |
-| $\tau$ | $\mathbb{R}^{16}$ | PD 计算 | — | $K_p(a-q)+K_d\dot{q}$ | extrinsics 正是从 $\tau$/$q$ 历史反推 |
+|---|---:|---|---|---|---|
+| $q_t$ | $\mathbb{R}^{16}$ | Allegro joint positions | policy input | 当前手姿态 | actor 不看 object pose |
+| $a_{t-1}$ | $\mathbb{R}^{16}$ | previous policy command | policy input | 上一步 PD target | action 是 position target，不是 torque |
+| $o_t$ | $\mathbb{R}^{96}$ | computed history | policy input | $(q_{t-2:t},a_{t-3:t-1})$ | 3 帧 joint + 3 帧 action，提供 velocity/acceleration clues |
+| $e_t$ | $\mathbb{R}^9$ | simulator privileged object properties | encoder input | position, size/scale, mass, friction, CoM 等 | 真实部署不可观测 |
+| $\mu$ | MLP $[256,128,8]$ | learned encoder | Stage 1 learned | $e_t\to z_t$ | 和 policy jointly optimized，不是独立物理编码 |
+| $z_t$ | $\mathbb{R}^8$ | $z_t=\mu(e_t)$ | Stage 1 policy input / Stage 2 label | task-relevant extrinsics | 不是 exact physical parameters |
+| $\hat z_t$ | $\mathbb{R}^8$ | adaptation module output | Stage 2 learned / deployment input | estimated extrinsics | 部署时替代 $z_t$ |
+| $\phi$ | MLP pair encoder + 1D conv | adaptation module | supervised learned | history → extrinsics | 最终用 30-step history |
+| $k$ / $\hat{k}$ | unit z-axis | reward definition | fixed | desired rotation axis | 本文主任务只用 z-axis |
+| $\omega$ | object angular velocity | simulation privileged | reward/eval | rotation speed | real world 难准确测，改用 net rotations |
+| $\tau$ | commanded torque | PD controller | penalty/eval | energy/effort | 由 20 Hz position target 经 300 Hz PD 产生 |
+| $v$ | object linear velocity | simulation privileged | reward/eval | object stability | real world 不直接测 |
+| TTF | normalized duration | eval | metric | time-to-fall | sim max 20s, real max 30s |
 
-### 3.1 两阶段训练框架
+### 2.2 Hidden-context MDP：为什么需要 extrinsics
 
-#### Stage 1: 基础策略训练 (Teacher)
-
-**带特权信息的策略**:
-$$
-a_t = \pi(o_t, z_t)
-$$
-
-其中：
-- $o_t$: 本体感觉观测（关节角度、角速度、上一动作）
-- $z_t = \mu(\text{mass}, \text{scale}, \text{friction}, ...)$: 物体属性编码
-
-**Extrinsics 编码器** $\mu$:
-$$
-z = \mu(\text{object\_position}, \text{scale}, \text{mass}, \text{CoM}, \text{friction}) \in \mathbb{R}^d
-$$
-
-#### Stage 2: 适应模块训练 (Student)
-
-**从历史估计 extrinsics**:
-$$
-\hat{z}_t = \phi(q_{t-H:t}, a_{t-H:t-1})
-$$
-
-其中：
-- $\phi$: 适应模块（MLP 或 TCN）
-- $H$: 历史窗口长度（~50 步）
-- 训练目标: $\mathcal{L} = \|z_t - \hat{z}_t\|^2$
-
-### 3.2 完整部署架构
-
-```
-┌─────────────────────────────────────────────┐
-│                 Deployment                  │
-├─────────────────────────────────────────────┤
-│  Proprioception History → Adaptation Module │
-│         ↓                        ↓          │
-│       ẑ_t ────────────→ Base Policy → a_t  │
-│                              ↓              │
-│                    PD Controller → τ        │
-└─────────────────────────────────────────────┘
-```
-
-### 3.3 核心代码逻辑
-
-```python
-# HORA 核心架构 (简化 PyTorch)
-import torch, torch.nn as nn, torch.nn.functional as F
-from torch.distributions import Normal
-
-class ExtrinsicsEncoder(nn.Module):
-    """Stage 1: 物体属性 → 低维 extrinsics"""
-    def __init__(self, prop_dim=8, z_dim=8):
-        super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(prop_dim, 64), nn.ELU(),
-            nn.Linear(64, 64), nn.ELU(),
-            nn.Linear(64, z_dim)
-        )
-    def forward(self, obj_props):  # [B, prop_dim]
-        return self.mlp(obj_props)  # [B, z_dim]
-
-class AdaptationModule(nn.Module):
-    """Stage 2: 本体感觉历史 → 估计 extrinsics (TCN)"""
-    def __init__(self, obs_dim=48, act_dim=16, H=50, z_dim=8):
-        super().__init__()
-        self.tcn = nn.Sequential(
-            nn.Conv1d(obs_dim + act_dim, 64, kernel_size=8, stride=4), nn.ELU(),
-            nn.Conv1d(64, 32, kernel_size=5, stride=1), nn.ELU(),
-            nn.AdaptiveAvgPool1d(1), nn.Flatten(),
-        )
-        self.head = nn.Linear(32, z_dim)
-
-    def forward(self, obs_hist, act_hist):
-        # obs_hist: [B, H, obs_dim], act_hist: [B, H, act_dim]
-        x = torch.cat([obs_hist, act_hist], dim=-1).transpose(1, 2)  # [B, C, H]
-        return self.head(self.tcn(x))  # [B, z_dim] ≈ ẑ_t
-
-class BasePolicy(nn.Module):
-    """条件策略: (观测, extrinsics) → 动作"""
-    def __init__(self, obs_dim=48, z_dim=8, act_dim=16):
-        super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(obs_dim + z_dim, 256), nn.ELU(),
-            nn.Linear(256, 128), nn.ELU(),
-        )
-        self.mu = nn.Linear(128, act_dim)
-        self.log_std = nn.Parameter(torch.zeros(act_dim))
-
-    def forward(self, obs, z):
-        feat = self.mlp(torch.cat([obs, z], dim=-1))
-        return Normal(self.mu(feat), self.log_std.exp())
-
-# --- Stage 2 训练: 监督学习对齐 extrinsics ---
-for obs_hist, act_hist, z_gt in adaptation_loader:
-    z_pred = adaptation_module(obs_hist, act_hist)
-    loss = F.mse_loss(z_pred, z_gt.detach())  # z_gt 来自冻结的 Stage 1 encoder
-    optimizer.zero_grad(); loss.backward(); optimizer.step()
-```
-
-> [!note] 关键设计选择
-> - Adaptation Module 用 **TCN (时序卷积)** 而非 RNN：无隐状态依赖，部署时更稳定
-> - Stage 2 是纯**监督学习**（非端到端 RL）：训练稳定、收敛快
-> - `z_gt.detach()` 确保 Stage 1 encoder 冻结，避免表征漂移
-
-### 3.4 奖励设计
+设物体属性为 hidden context：
 
 $$
-r = r_{\text{rotation}} + r_{\text{fingertip}} + r_{\text{torque}} + r_{\text{work}}
+e=(\text{mass},\text{scale},\text{friction},\text{CoM},\ldots).
 $$
 
-- $r_{\text{rotation}}$: 绕 z 轴旋转角速度
-- $r_{\text{fingertip}}$: 鼓励指尖接触（非掌心）
-- $r_{\text{torque}}$: 关节扭矩惩罚
-- $r_{\text{work}}$: 能量惩罚
-
-### 3.5 Extrinsics 的可解释性
-
-训练后分析发现 extrinsics 空间具有语义结构：
-- 某些维度与**质量**高度相关
-- 某些维度与**尺寸**高度相关
-- 低维流形结构确实存在
-
-### 3.6 前置理论从零推导：为什么 extrinsics 是"充分统计量"
-
-把 RMA 从工程 trick 提升到理论：它是 POMDP 下用**低维充分统计量 + 摊还推断**替代显式 belief 滤波。
-
-**第 1 步——完全可观 MDP 的最优策略。** 若物体参数 $\psi$（质量/摩擦/CoM/尺寸）已知，问题是标准 MDP，最优策略 $\pi^*(a\mid o,\psi)$。
-
-**第 2 步——真机里 $\psi$ 不可观 ⇒ POMDP。** 仅本体观测 $o_t$ 不含 $\psi$，系统是 POMDP，最优策略依赖 belief $b_t=p(\psi\mid o_{1:t},a_{1:t-1})$。直接维护高维 belief 在灵巧手上不现实。
-
-**第 3 步——低维充分统计量假设。** 对"旋转"任务，$\psi$ 只通过物体动力学影响轨迹（[[Dynamics|Dynamics §5]]）：
-$$M_o(q_o)\ddot{q}_o + C_o(q_o,\dot{q}_o)\dot{q}_o + g_o(q_o) = J_c^T f_c.$$
-$(M_o,C_o,g_o)$ 中的物体参数可被一个低维 $z=\mu(\psi)\in\mathbb{R}^d$ 概括，使 $\pi^*(a\mid o,b)\approx\pi(a\mid o,z)$。**$z$ 就是 $\psi$ 对该任务的充分统计量**——这是 extrinsics 的数学定义，而非"压缩表征"这种含糊说法。
-
-**第 4 步——摊还推断替代贝叶斯滤波。** Stage 2 的 $\phi$ 用历史 $(o,a)_{t-H:t}$ 直接回归 $\hat{z}\approx z$，监督来自冻结的 $\mu$：$\min_\phi\|\mu(\psi)-\phi(\text{hist})\|^2$。这把"在线 belief 更新"换成一次**前馈估计 (amortized inference)**；为什么能行：力矩历史 $\tau=K_p(a-q)+K_d\dot{q}$ 编码了 $\psi$ 对运动的影响，$H=50$ 步足以让这个反问题良置。
-
-**第 5 步——退化与失败边界（对应 §5 理论局限）。**
-- **不可辨识**：若 $\psi\mapsto$ (力矩历史) 非单射（不同质量+摩擦给相同 $\tau$ 历史），则 $z$ 不可辨识、$\hat{z}$ 收敛到混淆解——正是 §5"无可辨识性保证"的数学根。
-- **充分性失效**：若任务需精确位姿控制（装配），$\psi$ 不再只通过低维 $z$ 影响最优动作，充分统计量假设破裂，RMA 范式失效。
-
-### 3.7 概念边界与符号陷阱
-
-- **$z_t$（Stage 1 真值）vs $\hat{z}_t$（Stage 2 估计、部署用）**：性能上界由用真值 $z$ 的 Oracle 决定，真机 gap 由 $\hat{z}$ 估计质量决定。
-- **动作是 PD 位置目标、非力矩**：$\tau=K_p(a-q)+K_d\dot{q}$；部署再经 EMA 平滑 $a^{smooth}=\alpha a_t+(1-\alpha)a_{t-1}$。
-- **extrinsics 可辨识性无保证**：见 §3.6 第 5 步。
-- **Asymmetric Actor-Critic**：critic 可看特权物体位姿、actor 只用本体——critic 的特权 $\neq$ 部署可用信息，只为降 value 方差、加速 PPO。
-- **$H=50$ 是"属性辨识窗口"非控制 horizon**：长度由物体参数可辨识所需激励时长决定，不是任务时长。
-
-## 4. 实验与验证 (Experiments)
-
-### 实验设置
-- **硬件**: Allegro Hand (16 DoF)
-- **任务**: 指尖上绕 z 轴旋转物体
-- **训练**: IsaacGym, 仅圆柱体物体
-- **测试**: 30+ 真实物体
-
-### 关键结果
-
-| 物体特性 | 范围 | 测试数量 |
-|---------|------|---------|
-| 质量 | 5g - 200g | 30+ |
-| 尺寸 | 4.5cm - 7.5cm | 30+ |
-| 形状 | 橡皮鸭、球、工具等 | 30+ |
-| 材质 | 刚性、软性、可变形 | ✅ |
-
-### 泛化能力
-- ✅ 未见形状（非凸、不规则）
-- ✅ 未见材质（变形物体）
-- ✅ 未见质量分布
-- ✅ 无需任何真实世界微调
-
-### 训练细节
-
-| 参数 | 值 |
-|-----|-----|
-| 仿真器 | IsaacGym (GPU 并行) |
-| 并行环境数 | 4096 |
-| Stage 1 训练 | ~5000 iterations ([[ReinforcementLearning\|PPO]]) |
-| Stage 2 训练 | ~1000 iterations (监督学习, MSE loss) |
-| 训练用物体 | 圆柱体 (随机化质量/尺寸/摩擦) |
-| Extrinsics 维度 $d$ | 8 |
-| 历史窗口 $H$ | 50 步 |
-| 控制频率 | 20 Hz |
-| PD 增益 | $K_p = 3.0,\ K_d = 0.1$ |
-| 域随机化范围 | 质量 [5g, 200g], 尺寸 [4.5, 7.5] cm, 摩擦 [0.5, 1.5] |
-
-### Ablation Study 因果链分析
-
-| 消融条件 | 效果 | 因果机制 |
-|---------|------|---------|
-| 移除 Adaptation Module (仅域随机化) | 旋转速度 ↓~40%, 大物体频繁掉落 | 无法在线推断物体属性 → 策略只能用"平均"行为 → 对极端属性鲁棒性差 |
-| 减小历史窗口 $H: 50 \to 10$ | 适应精度 ↓, 初始阶段抖动增加 | 短窗口信息不足 → extrinsics 估计方差大 → PD 控制目标不稳 |
-| Extrinsics 维度 $d: 8 \to 2$ | 轻物体正常, 重/大物体性能 ↓ | 低维瓶颈 → 无法区分质量-尺寸耦合效应 → 策略无法差异化响应 |
-| 移除指尖奖励 $r_{\text{fingertip}}$ | 策略退化为掌心滚动 | 无指尖偏好 → 策略选择能量最低的掌心接触 → 丧失精细操控能力 |
-| 移除扭矩惩罚 $r_{\text{torque}}$ | 仿真中学会旋转但真实迁移失败 | 无扭矩正则 → 过度依赖仿真中的大扭矩 → [[ContactMechanics\|Sim-to-Real gap]] 增大 |
-
-## 5. 批判性分析 (Critical Analysis)
-
-### 工程关键细节 (Engineering Tricks)
-
-1. **PD 控制器做动作接口**: 策略输出目标关节角度而非扭矩 → 天然限制动作空间 + 提升 Sim-to-Real 迁移性（PD 增益吸收了部分动力学误差）
-2. **动作平滑**: 指数移动平均 $a_t^{\text{smooth}} = \alpha a_t + (1-\alpha) a_{t-1}$ → 抑制高频抖动，保护 Allegro Hand 关节
-3. **域随机化覆盖关键物理量**: 质量、CoM 偏移、摩擦系数、关节阻尼均随机化 → 确保 extrinsics 编码的物理可辨识性
-4. **观测归一化**: Running mean/std 对本体感觉观测在线归一化 → 训练稳定性
-5. **初始状态随机化**: 物体初始位姿在手掌上随机偏移 → 避免策略过拟合到特定初始抓取构型
-6. **Asymmetric Actor-Critic**: Critic 可访问特权信息（精确物体位姿），Actor 仅用本体感觉 → Critic 提供更准确的 value 估计，加速 [[ReinforcementLearning\|PPO]] 收敛
-
-### 优势
-- **传感器极简**: 无需视觉、触觉，仅关节编码器
-- **训练高效**: 仅需简单圆柱体训练
-- **泛化强大**: 30+ 物体零样本成功
-
-### 局限性
-
-#### 理论维度
-- **Extrinsics 的可辨识性无理论保证**: 从本体感觉历史到物体属性的映射是否唯一？不同 (质量, 摩擦) 组合可能产生相同的关节力矩历史（参数不可辨识），但论文未分析此退化条件
-- **无收敛性分析**: 适应模块的在线估计在非平稳环境下（如物体属性连续变化）是否收敛？缺乏类似 [[ControlTheory]] 中自适应控制的 Lyapunov 稳定性证明
-
-#### 算法维度
-- **任务受限**: 仅 z 轴旋转（非 6-DoF 重定向）——extrinsics 概念是否能扩展到需要精确位控的任务（如装配）？
-- **两阶段训练的信息瓶颈**: Stage 2 只能恢复 Stage 1 编码的信息，若 $\mu$ 丢弃了关键属性，适应模块无法弥补
-- **与端到端方法的对比缺失**: 未与直接学习 (obs_history → action) 的端到端基线比较
-
-#### 工程维度
-- **无外部支撑**: 必须保持指尖动态闭合——物体一旦滑到非指尖区域即不可恢复
-- **依赖仿真质量**: 需要合理的 [[ContactMechanics]] 模拟；IsaacGym 的接触模型(spring-damper)与真实摩擦锥有差距
-- **Allegro Hand 特化**: PD 增益和观测空间针对 Allegro 设计，迁移到其他灵巧手需重新调参
-
-#### 替代方案对比
-
-| 替代路线 | 优势 | 劣势 |
-|---------|------|------|
-| 端到端历史策略 (直接 obs_history → action) | 架构更简单，无需两阶段 | 缺乏可解释的中间表征，泛化能力可能更差 |
-| 显式系统辨识 + 自适应控制 | 有理论收敛保证 | 维度灾难——灵巧手+物体联合参数空间过大 |
-| [[RepresentationLearning\|多模态感知]] (视觉+触觉) | 直接测量也可获取物体属性 | 传感器成本高、标定困难，且增加了 Sim-to-Real gap |
-
-### 未来方向
-- 扩展到任意轴旋转和 6-DoF 重定向
-- 结合触觉增强适应精度
-- 探索更复杂的操作技能（装配、工具使用）
-
-### 核心洞见：对笔旋转 (Pen Spinning) / Sim-to-Real 的启发
-
-> [!important] 对灵巧手转笔研究的直接启示
->
-> 1. **Extrinsics 概念可直接迁移**: 笔的质量分布极不均匀（笔帽端 vs 笔尖端），且不同笔差异大 → HORA 的属性编码 + 在线适应框架天然适用于"一个策略转所有笔"
-> 2. **仅本体感觉可能不够**: 笔旋转需要精确的相位感知（笔转到哪个角度了），纯关节角度可能无法提供足够的笔姿态可观测性 → 考虑加入最少量触觉（如 [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]] 的方案）
-> 3. **Sim-to-Real 关键瓶颈**: 笔旋转涉及高速动态接触(>10 rad/s) + 线接触(笔是圆柱)，IsaacGym 的 spring-damper 接触模型误差在此工况下会被放大 → 需要 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]] 式的残差动力学补偿
-> 4. **奖励设计参考**: HORA 的 $r_{\text{fingertip}}$ 奖励可改造为"鼓励三指尖夹持"以匹配笔旋转的 tripod grasp 需求
-> 5. **历史窗口 $H$ 需调整**: 笔旋转周期 ~0.3-0.5s，20Hz 控制下约 6-10 步 → $H=50$ 可能过长，应根据旋转频率调整
-
-## 6. 与知识体系的联系 (Foundations Correspondence)
-
-> [!important] 核心启发
-> **物理属性可以从交互历史中隐式估计**——不需要显式传感器测量物体属性。
-
-### 与 [[ReinforcementLearning]] 的数学对应
-
-HORA 的 Base Policy 训练本质是 **条件 PPO**：状态空间被 extrinsics $z$ 增广
+如果 $e$ 已知，transition 可以写成：
 
 $$
-\max_\theta\ \mathbb{E}_{(o,z) \sim \mathcal{D}} \left[ \min\left( \frac{\pi_\theta(a|o,z)}{\pi_{\theta_\text{old}}(a|o,z)} \hat{A}, \text{clip}(\cdot, 1\pm\epsilon) \hat{A} \right) \right]
+s_{t+1}\sim P_e(s_{t+1}\mid s_t,a_t).
 $$
 
-关键区别于标准 PPO：策略以 $z$ 为条件 → 不同物体属性下学到不同子策略（策略空间的隐式分区）。这与 [[ReinforcementLearning]] 中的上下文条件策略理论直接对应。
+最优策略是 context-conditioned：
 
-### 与 [[Dynamics]] 的数学对应
-
-物体在手中的动力学：
 $$
-M_o(q_o) \ddot{q}_o + C_o(q_o, \dot{q}_o) \dot{q}_o + g_o(q_o) = J_c^T f_c
+\pi^*(a_t\mid o_t,e).
 $$
 
-HORA 的 extrinsics $z$ 本质上是对 $(M_o, C_o, g_o)$ 中的物体参数 (质量 $m$、惯量 $I$、CoM 偏移 $\Delta r$) 的**低维充分统计量**。适应模块从关节力矩历史 $\tau_{t-H:t} = K_p(a - q) + K_d\dot{q}$ 中反推这些量——这是 [[Dynamics]] 中接触力观测器的数据驱动替代。
+但真实部署时 $e$ 不可观测，只能看到 history：
 
-### 与 [[RepresentationLearning]] 的联系
+$$
+h_t=(q_{1:t},a_{1:t-1}).
+$$
 
-Extrinsics 编码器 $\mu$ 学习的是物体属性空间到 $\mathbb{R}^d$ 的**嵌入映射**。论文验证了该嵌入具有语义结构（质量、尺寸解耦），这与 [[RepresentationLearning]] 中的解耦表征学习理论一致——好的表征应具有轴对齐的可解释维度。
+这就是 POMDP / hidden-parameter MDP。原则上应维护 belief：
 
-### 与 [[ContactMechanics]] 的联系
+$$
+b_t(e)=p(e\mid h_t).
+$$
 
-HORA 的成功间接验证了 [[ContactMechanics]] 的核心假设：尽管仿真接触模型不精确，但通过足够的域随机化 + 在线适应，策略可以桥接 Sim-to-Real gap。扭矩惩罚 $r_{\text{torque}}$ 则是对仿真接触力不可靠性的工程补偿。
+HORA 不显式做贝叶斯滤波，而是假设存在一个低维任务充分统计量：
 
-### 具体应用
-1. **腿足-操作统一**: Rapid Adaptation 框架可跨任务复用
-2. **在线适应**: 处理物体属性变化（如倒水时质量变化）
-3. **压缩表征**: Extrinsics 是有效的物体不变性表征
+$$
+z=\mu(e)\in\mathbb{R}^8
+$$
 
-### 与其他方法的互补与对比
+使得：
 
-#### 跨方法结构性对比
+$$
+\pi^*(a_t\mid o_t,e)\approx \pi_\theta(a_t\mid o_t,z).
+$$
 
-| 维度 | HORA | [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]] | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] |
-|-----|------|-----------|-----------|--------|
-| **适应机制** | 在线 extrinsics 估计 | Curriculum auto-reset | 触觉反馈 | 残差动力学模型 |
-| **感知模态** | 仅本体感觉 | 本体感觉 + 触觉 | 本体 + 触觉 | 本体感觉 |
-| **RL 算法** | PPO | PPO + Demo curriculum | PPO | PPO + 动力学学习 |
-| **Sim-to-Real 策略** | 域随机化 + 适应 | 域随机化 + 课程 | 域随机化 + 触觉 | 学习残差动力学 |
-| **泛化目标** | 多物体属性 | 多任务 | 重力不变性 | 精确轨迹追踪 |
+这句话是理解 HORA 的理论核心：$z$ 不是“真实物理参数”，而是“对 z-axis fingertip rotation 这个任务足够的 context code”。
 
-#### 与纯 PPO 基线的对比
+### 2.3 为什么 learned $z$ 比 exact SysID 更合理
 
-纯 PPO（无 Adaptation Module）本质上靠域随机化的"最大公约数策略"生存：
-- **物体属性在训练分布中心**: 性能差距不大（域随机化已覆盖）
-- **物体属性在分布边缘**: HORA 显著优于纯 PPO（~40% 旋转速度提升），因为 Adaptation Module 提供了在线校正
-- **分布外物体**: HORA 仍可适应，纯 PPO 完全失败
+显式 SysID 试图估计：
 
-这揭示了一个核心 insight：**域随机化解决的是"鲁棒性"，Adaptation 解决的是"最优性"**——前者保证不崩溃，后者保证性能接近为特定物体专门训练的策略。
+$$
+\hat e_t\approx e_t.
+$$
 
-## 7. 演进脉络定位 (Evolution Context)
+HORA 估计：
 
-```
-前置工作:
-├── OpenAI Dactyl (2018): 视觉主导手内重定向
-├── RMA for Locomotion (2021): 腿足快速适应
-└── Allegro Hand RL (多项工作): Sim2Real 基础
-    ↓
-本论文 (2022 CoRL):
-├── 核心突破: 将 RMA 迁移到 manipulation
-├── 关键洞察: 本体感觉历史 → 物体属性估计
-└── 验证: 30+ 物体零样本成功
-    ↓
-后续发展:
-├── Touch Dexterity (2023): 加入触觉
-├── DexNDM (2024): 关节级神经动力学
-├── DexTrack (2024): 人类参考 + 同伦优化
-└── General In-Hand Rotation (2024): 视触觉联合
-```
+$$
+\hat z_t\approx z_t=\mu(e_t).
+$$
 
-> [!note] 领域级 insight（in-hand rotation 簇的理论中心）
-> HORA 是这条线的**原点**：它把"物体属性隐式辨识"确立为范式，后续 [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]]（加视触觉、多轴）、[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]]（任意轴+稠密触觉）、[[Lessons from Learning to Spin Pens|Spin Pens]]（无支撑笔）都在补 HORA 没覆盖的维度。沿 [[RotateIt - General In-Hand Object Rotation with Vision and Touch#7.2 演进脉络|RotateIt §7.2]] / [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2]] 的三轴坐标，HORA 占据"⟨有支撑⟩×⟨z 轴⟩×⟨纯本体⟩"的原点格——它最简，也因此成为衡量"多加一种模态/换一个任务带来多少增益"的基线。其 §6 insight"DR 解决鲁棒性、适应解决最优性"是整个簇评估实验的共同尺子。
+两者差异很大：
 
----
+- exact $e_t$ 包含对控制不重要的细节；
+- 不同 $e_t$ 可能对当前任务产生相同最优动作；
+- 有些参数组合不可辨识，例如 mass/friction 可能在短期 proprio history 中产生相似响应；
+- learned $z$ 可以把“对动作等价”的物体压到一起。
 
-## 参考信息
+这解释了为什么 SysID baseline 在 Table 1 和真实实验中都不如 HORA。HORA 学的是 task-equivalence class，而不是物理实验室里的参数表。
 
-- **作者**: Haozhi Qi, Ashish Kumar, Roberto Calandra, Yi Ma, Jitendra Malik
-- **机构**: UC Berkeley, Meta AI
-- **会议**: CoRL 2022
-- **项目页**: https://haozhi.io/hora/
-- **ArXiv**: 2210.04887
+### 2.4 Stage 1：Base policy learning
+
+privileged vector：
+
+$$
+e_t\in\mathbb{R}^{9}.
+$$
+
+extrinsics encoder：
+
+$$
+z_t=\mu(e_t)\in\mathbb{R}^{8}.
+$$
+
+base policy：
+
+$$
+a_t=\pi(o_t,z_t),
+\qquad
+o_t=(q_{t-2:t},a_{t-3:t-1})\in\mathbb{R}^{96}.
+$$
+
+policy output：
+
+$$
+a_t\in\mathbb{R}^{16}
+$$
+
+是 PD controller target，不是 torque。硬件/仿真执行：
+
+- position command at 20 Hz；
+- PD controller at 300 Hz；
+- $K_p=3.0,\ K_d=0.1$。
+
+Stage 1 用 PPO joint optimize policy $\pi$ 和 encoder $\mu$。这意味着 $\mu$ 不是预定义物理编码器，而是被 PPO reward 反向塑造出的 control-useful representation。
+
+### 2.5 Reward：为什么不是“越快转越好”
+
+reward：
+
+$$
+r=
+r_{\text{rot}}
+\lambda_{\text{pose}}r_{\text{pose}}
+\lambda_{\text{linvel}}r_{\text{linvel}}
+\lambda_{\text{work}}r_{\text{work}}
+\lambda_{\text{torque}}r_{\text{torque}}.
+$$
+
+各项：
+
+$$
+r_{\text{rot}}=
+\max(\min(\omega\cdot\hat{k},r_{\max}),r_{\min}),
+\quad
+r_{\max}=0.5,\ r_{\min}=-0.5,
+$$
+
+$$
+r_{\text{pose}}=-\|q-q_{\text{init}}\|_2^2,
+\qquad
+r_{\text{torque}}=-\|\tau\|_2^2,
+$$
+
+$$
+r_{\text{work}}=-\tau^\top \dot q,
+\qquad
+r_{\text{linvel}}=-\|v\|_2^2.
+$$
+
+appendix 给出权重：
+
+$$
+\lambda_{\text{pose}}=-0.3,\quad
+\lambda_{\text{torque}}=-0.1,\quad
+\lambda_{\text{work}}=-2.0,\quad
+\lambda_{\text{linvel}}=-0.3.
+$$
+
+论文文字的语义是：pose、torque、work、linear velocity 都作为 penalty/regularizer，避免策略为了旋转速度把物体甩飞或用过大 torque 过拟合仿真。
+
+两个关键设计：
+
+- rotation reward 被 clipping，否则 policy 会只追求快转而破坏稳定；
+- 没有显式 fingertip contact heuristic，stable finger gait 从 pose/energy/stability constraint 中涌现。
+
+### 2.6 Stage 2：Adaptation module as amortized inference
+
+部署时没有 $e_t$，也没有 $z_t$。adaptation module 估计：
+
+$$
+\hat z_t=\phi(q_{t-k:t},a_{t-k-1:t-1}).
+$$
+
+训练过程不是一次性 offline regression，而是迭代：
+
+1. 用当前 $\phi$ 预测 $\hat z_t$；
+2. rollout policy：
+
+$$
+a_t=\pi(o_t,\hat z_t);
+$$
+
+3. 同时存 ground-truth $z_t$；
+4. 用 Adam 最小化：
+
+$$
+\mathcal{L}_\phi=\|\hat z_t-z_t\|_2^2.
+$$
+
+最终 history length：
+
+$$
+T=30\ \text{steps}=1.5\text{ s at 20 Hz}.
+$$
+
+architecture：
+
+- 每个 timestep 的 $(q,a)$ pair 先经 two-layer MLP $[32,32]$ 编成 32-d；
+- 时间维上用三层 1D conv：
+  - $[32,32,9,2]$；
+  - $[32,32,5,1]$；
+  - $[32,32,5,1]$；
+- flatten CNN output 后 linear projection 到 $\hat z_t$；
+- Adam learning rate $3\times10^{-4}$。
+
+从理论上看，$\phi$ 是摊还式推断器：
+
+$$
+\phi(h_t)\approx \mathbb{E}_{p(z\mid h_t)}[z],
+$$
+
+但它没有显式 uncertainty，也没有可辨识性证明。这一点对转笔非常重要。
+
+### 2.7 为什么 proprioception history 里有物体属性信息
+
+低层 PD 近似：
+
+$$
+\tau_t\approx K_p(a_t-q_t)-K_d\dot q_t.
+$$
+
+同样的 action $a_t$，如果物体更重、更滑、CoM 更偏，实际 $q_{t+1}$ 和接触反馈会不同。也就是说，history：
+
+$$
+(q_{t-k:t},a_{t-k-1:t-1})
+$$
+
+包含“我施加了什么命令，手和物体如何响应”的 input-output relation。adaptation module 正是从这个 relation 中读出 object context。
+
+这和 classical system identification 的关系是：
+
+- SysID 估计 exact physical parameters；
+- HORA 估计 control-useful latent；
+- 两者都利用 input-output history，但 HORA 的 target 是被 policy reward 学出来的。
+
+### 2.8 Domain randomization 与 adaptation 的关系
+
+HORA 不是不用 DR。相反，它依赖 DR 生成足够多的 object contexts：
+
+| Parameter | Train Range | Test Range |
+|---|---:|---:|
+| Object Shape | Cylindrical | Cylindrical, Cube, Sphere |
+| Object Scale | $[0.70,0.86]$ | $[0.66,0.90]$ |
+| Mass | $[0.01,0.25]$ kg | $[0.01,0.30]$ kg |
+| Center of Mass | $[-1.00,1.00]$ cm | $[-1.25,1.25]$ cm |
+| Friction | $[0.3,3.0]$ | $[0.2,3.5]$ |
+| External Disturbance | $(2,0.25)$ | $(4,0.25)$ |
+| PD Stiffness | $[2.9,3.1]$ | $[2.6,3.4]$ |
+| PD Damping | $[0.09,0.11]$ | $[0.08,0.12]$ |
+
+DR 的作用是让训练分布覆盖变化；adaptation 的作用是让 policy 知道当前 episode 落在分布哪里。
+
+所以最准确的表述是：
+
+> HORA = domain randomization supplies variation; extrinsics learning organizes variation; adaptation estimates current variation online.
+
+### 2.9 概念边界与符号陷阱
+
+- **$e_t$ vs $z_t$**：$e_t$ 是 9 维 simulator property vector；$z_t$ 是 learned 8 维 extrinsics，不是 exact parameter。
+- **$z_t$ vs $\hat z_t$**：Stage 1 用 $z_t$；部署用 $\hat z_t$。
+- **history length**：最终是 30 steps / 1.5s，不是 50。
+- **actor observation**：actor 不看 object pose；critic/teacher/encoder 的 privileged info 不能当部署输入。
+- **主任务是 z-axis**：appendix 只给 multi-axis preliminary qualitative，不能把 HORA 写成完整 SO(3) reorientation。
+
+## 3. 训练、数据与实验
+
+### 3.1 实验设置
+
+| 项目 | 设置 |
+|---|---|
+| Robot | Wonik Allegro Hand, 16 DoF |
+| Command frequency | 20 Hz position control |
+| Low-level PD | 300 Hz, $K_p=3.0$, $K_d=0.1$ |
+| Simulator | IsaacGym |
+| Parallel environments | 16,384 |
+| Simulation frequency | 120 Hz |
+| Control frequency | 20 Hz |
+| Episode length | 400 control steps = 20 s |
+| PPO per iteration | 16,384 envs × 8 agent steps = 0.4 s |
+| PPO optimization | 5 epochs, batch 32,768, LR $5\times10^{-3}$ |
+| Total training | 100,000 gradient updates, about 500M agent steps |
+| Equivalent real time | about 7,000 hours |
+| Adaptation LR | $3\times10^{-4}$ |
+
+Training objects are cylinders with radius 8 cm and discretized height list:
+
+$$
+[0.8,0.85,0.9,0.95,1.0,1.05,1.1,1.15,1.2]\text{ cm}
+$$
+
+then scaled by object scale randomization.
+
+### 3.2 Table 1：simulation baseline comparison
+
+| Method | WTD RotR | WTD TTF | WTD ObjVel | WTD Torque | OOD RotR | OOD TTF | OOD ObjVel | OOD Torque |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Expert | $233.71\pm25.24$ | $0.85\pm0.01$ | $0.28\pm0.05$ | $1.24\pm0.19$ | $165.07\pm15.65$ | $0.71\pm0.04$ | $0.42\pm0.06$ | $1.24\pm0.16$ |
+| Periodic | $43.62\pm2.52$ | $0.44\pm0.12$ | $0.72\pm0.21$ | $1.77\pm0.49$ | $22.45\pm0.59$ | $0.34\pm0.08$ | $1.11\pm0.19$ | $1.41\pm0.54$ |
+| NoAdapt | $90.89\pm4.85$ | $0.65\pm0.07$ | $0.44\pm0.11$ | $1.34\pm0.12$ | $54.50\pm3.91$ | $0.51\pm0.06$ | $0.63\pm0.13$ | $1.34\pm0.11$ |
+| DR | $176.12\pm26.47$ | $0.81\pm0.02$ | $0.34\pm0.05$ | $1.42\pm0.06$ | $140.80\pm17.51$ | $0.63\pm0.02$ | $0.64\pm0.06$ | $1.48\pm0.20$ |
+| SysID | $174.42\pm23.31$ | $0.81\pm0.02$ | $0.32\pm0.03$ | $1.29\pm0.72$ | $132.56\pm17.42$ | $0.62\pm0.09$ | $0.50\pm0.09$ | $1.26\pm0.17$ |
+| Ours | $222.27\pm21.20$ | $0.82\pm0.02$ | $0.29\pm0.05$ | $1.20\pm0.19$ | $160.60\pm10.22$ | $0.68\pm0.07$ | $0.47\pm0.07$ | $1.20\pm0.17$ |
+
+因果解释：
+
+- Ours 接近 Expert：说明 $\hat z$ 能恢复大部分 privileged context 的控制价值；
+- DR 稳但慢，且 OOD ObjVel 高：说明 robust average policy 无法对当前物体选择最优 gait；
+- SysID 不如 Ours：说明 exact physical parameter prediction 比 learned task latent 更难、更没必要；
+- NoAdapt 低：说明必须 continuous online update，不是一开始估一次就够；
+- Periodic 失败：说明任务不是固定 gait replay，而是 object/context-dependent control。
+
+### 3.3 Real heavy objects：Figure 3
+
+真实 heavy objects：6 个物体，质量都大于 100g，20 initial grasps，每 episode 最大 30 s。
+
+| Method | Rotations | TTF | Torque |
+|---|---:|---:|---:|
+| DR | $9.67\pm4.33$ | $0.72\pm0.34$ | $2.03\pm0.36$ |
+| SysID | $10.36\pm2.32$ | $0.61\pm0.33$ | $1.88\pm0.38$ |
+| NoAdapt | N.A. | $0.35\pm0.20$ | N.A. |
+| Ours | $23.96\pm3.16$ | $0.98\pm0.08$ | $1.84\pm0.24$ |
+
+因果解释：
+
+- Ours rotation 是 DR 的约 2.5 倍，同时 TTF 也更高；
+- SysID 转得比 DR 略多但更不稳定；
+- NoAdapt 真实部署失败，说明 online update 是真机必要条件；
+- Ours torque 低于 DR，说明 adaptation 不是靠更大力硬转，而是更合适地调 gait。
+
+### 3.4 Real irregular objects：Figure 4
+
+irregular set 包含 moving COM container、concave objects、cylindrical kiwi、shuttlecock、holes、cube toy 等。
+
+| Method | Rotations | TTF | Torque |
+|---|---:|---:|---:|
+| DR | $6.59\pm3.71$ | $0.66\pm0.41$ | $1.85\pm0.37$ |
+| SysID | $8.16\pm3.39$ | $0.46\pm0.36$ | $1.70\pm0.40$ |
+| NoAdapt | N.A. | $0.12\pm0.05$ | N.A. |
+| Ours | $19.22\pm4.08$ | $0.78\pm0.27$ | $1.48\pm0.30$ |
+
+因果解释：
+
+- Ours 在 irregular objects 上仍明显优于 DR/SysID；
+- DR 的 TTF 还可以但 Rotations 低，说明它通过保守动作换稳定；
+- SysID 角速度更积极但掉得更快；
+- HORA 的优势是“既转得动，又不靠高 torque 乱推”。
+
+### 3.5 33-object qualitative / per-object analysis
+
+论文网站和 appendix 报告 33 个真实物体：
+
+- 直径 4.5-7.5 cm；
+- 质量 5g-200g；
+- 包含 porous、non-rigid、high CoM、irregular objects；
+- 22/33 个物体实现几乎完美的稳定连续 rotation；
+- cube、large aspect ratio heavy objects、small objects 可以维持约 10-20 s；
+- failure 主要来自 object falling from fingertips due to incorrect contact positions。
+
+这里最关键的反面证据是：
+
+> HORA 的失败不是“没估出 mass/scale”，而是“不知道精确接触点”。
+
+这直接解释为什么后续 Touch Dexterity / Robot Synesthesia / RotateIt 要引入 tactile/vision。
+
+### 3.6 Extrinsics analysis：Figure 5 / 6 / 7
+
+Figure 5：连续 run 中每 30 s 换一个物体，虽然训练时从不在 episode 中换物体，$\hat z$ 仍会随物体变化：
+
+- $z_{t,0}$ 响应 object diameter，小直径值更低，大直径值更高；
+- $z_{t,2}$ 响应 object mass，轻物体更高，重物体更低。
+
+Figure 6：t-SNE 显示不同 size/weight objects 的 estimated extrinsics 分布在不同区域。
+
+Figure 7：commanded torque 与 object mass 近似线性相关；更轻的物体，policy command smaller torque for energy efficiency。
+
+这三者共同证明：
+
+- $\hat z$ 不是任意 latent；
+- 它确实编码了与控制相关的 object properties；
+- 但它是 coarse/task-relative 的，不是 exact SysID。
+
+### 3.7 Ablation：No randomization
+
+| Method | WTD RotR | WTD TTF | WTD ObjVel | WTD Torque | OOD RotR | OOD TTF | OOD ObjVel | OOD Torque |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| No Rand | $171.96\pm20.63$ | $0.63\pm0.07$ | $0.48\pm0.07$ | $1.94\pm0.32$ | $88.02\pm14.27$ | $0.37\pm0.06$ | $0.98\pm0.16$ | $2.26\pm0.29$ |
+| Ours | $222.27\pm21.20$ | $0.82\pm0.02$ | $0.29\pm0.05$ | $1.20\pm0.19$ | $160.60\pm10.22$ | $0.68\pm0.07$ | $0.47\pm0.07$ | $1.20\pm0.17$ |
+
+因果链：
+
+`remove physical randomization → OOD RotR 160.60→88.02, TTF 0.68→0.37 → adaptation module never sees enough context variation → learned z cannot organize unseen physical properties.`
+
+### 3.8 Ablation：history length
+
+| Method | WTD RotR | WTD TTF | OOD RotR | OOD TTF |
+|---|---:|---:|---:|---:|
+| Ours-T10 | $215.81\pm17.55$ | $0.80\pm0.02$ | $150.58\pm7.07$ | $0.61\pm0.05$ |
+| Ours-T20 | $220.46\pm19.72$ | $0.82\pm0.02$ | $157.22\pm8.11$ | $0.64\pm0.04$ |
+| Ours-T30 | $222.27\pm21.20$ | $0.82\pm0.02$ | $160.60\pm10.22$ | $0.68\pm0.07$ |
+
+因果链：
+
+`longer history → better OOD performance until T=30 → because object properties require enough action-response evidence → but saturates, so longer history is not automatically better.`
+
+### 3.9 Ablation：long-history DR is not adaptation
+
+Appendix Table 4 tests whether simply feeding longer history to a robust DR policy can replace HORA. It cannot.
+
+Key trend:
+
+- DR-MLP-T3 OOD RotR = 140.80；
+- DR-MLP-T20 OOD RotR = 60.21；
+- DR-MLP-T30 OOD RotR = 36.33；
+- DR-LSTM-T10 OOD RotR = 73.60；
+- Ours OOD RotR = 160.60。
+
+结论：
+
+> 给 PPO 一个长历史，不等于它会学出好的在线辨识；显式把 history regression target 设成 $z_t$，把“辨识”和“控制”分开，是 HORA 的关键。
+
+这也是为什么 old-style “just use recurrent policy” 不是足够严肃的 baseline。
+
+## 4. 核心洞见
+
+### 4.1 真正的 insight：低维 latent 不是压缩物理，而是压缩控制需求
+
+HORA 最深的 insight 是：
+
+$$
+e_t\to z_t
+$$
+
+这一步不是 autoencoder 式压缩，也不是 system identification。它是把物理参数按“对当前控制任务是否等价”重新编码。
+
+两个真实物体外观完全不同，但如果在 fingertip rotation 中呈现类似 mass/diameter/contact response，它们可以有相近 $z$。论文 §5.3 明说：real objects seemingly different may look similar in extrinsics space。
+
+这就是为什么只用 cylinders 训练却能泛化到 irregular objects：不是 policy 理解了外观，而是它学到了 fingertips perceived dynamics 的低维组织方式。
+
+### 4.2 为什么它有效
+
+它有效需要四个条件：
+
+1. **任务不需要精确 object pose**：z-axis continuous rotation 可以靠接触响应闭环。
+2. **object context 可从 proprio history 辨识**：mass/size/friction 会影响 action-response。
+3. **仿真 randomization 覆盖了 relevant dynamics**：否则 $\mu$ 和 $\phi$ 没见过足够 variation。
+4. **低层 PD 接口稳定**：position target + PD controller 缓和 sim-real torque gap。
+
+如果任务变成 peg insertion、tool use、pen catching 或 arbitrary SO(3) pose tracking，这些条件会被破坏。
+
+### 4.3 什么时候会失效
+
+论文自己给出的 failure modes：
+
+- incorrect contact points → unstable force closure；
+- object diameter < 4.0 cm → fingers collide, grasp balance difficult；
+- more extreme/sophisticated shapes harder；
+- no real experience used for improvement。
+
+抽象成机制：
+
+> HORA 可以估计“这个物体像什么动力学 context”，但它不知道“此刻到底在哪里接触”。当 contact geometry 变成 bottleneck，纯 proprioception 就不够。
+
+## 5. 替代方案与理论局限
+
+### 5.1 理论维度
+
+| 局限 | 根因 | 影响 |
+|---|---|---|
+| 可辨识性无保证 | 不同 $e$ 可能产生相同 proprio/action history | $\phi$ 可能输出混淆 latent |
+| $z$ 只对当前任务充分 | 学于 z-axis rotation reward | 不能保证迁移到 precision pose/control |
+| 没有 uncertainty | $\hat z$ 是 point estimate | policy 不知道自己是否估错 context |
+| no contact location | 纯本体历史间接反映 contact | contact point 错时无法纠正 |
+| no stability proof | 非 classical adaptive control | 只能靠实验验证在线 adaptation 稳定性 |
+
+### 5.2 算法维度
+
+| 替代路线 | 优势 | 相对 HORA 的风险 |
+|---|---|---|
+| pure DR policy | 简单、部署稳定 | robust average，慢且保守 |
+| exact SysID | 物理解释强 | 参数难估、没必要、实验更差 |
+| recurrent policy | 端到端，无两阶段 | PPO 长历史优化困难，appendix 已显示 |
+| DPF/belief filter | 可表达 uncertainty/multimodal | 需要定义 state 和 likelihood，更复杂 |
+| visuotactile policy | 可直接知道 contact/shape | sensor gap、标定、latency 更高 |
+
+### 5.3 工程/实验维度
+
+- 主任务只绕 z-axis；multi-axis 只在 appendix/project website 做 preliminary qualitative。
+- 训练消耗 500M agent steps，相当于 7000 hours real time，依赖 GPU simulation。
+- 真实评估无 real fine-tuning。
+- policy 依赖 initial stable precision grasp；不是从任意抓取启动。
+- 使用 Allegro/PD settings，迁移到 LinkerHand 要重做 action interface 和 actuator randomization。
+- 对 tiny / extreme shapes / precise contact geometry 失败。
+
+## 6. 对用户研究的启发
+
+### 6.1 对 LinkerHand / 转笔的直接迁移
+
+HORA 给转笔的最大启发是：
+
+> 不必把所有笔的物理属性显式测出来；可以学习一个“对转笔控制足够”的 pen extrinsics latent，并从动作-本体-触觉历史中在线估计。
+
+可能的转笔 extrinsics：
+
+| HORA object context | 转笔 context |
+|---|---|
+| mass | 笔总质量 |
+| scale/diameter | 笔长度、半径、握持位置 |
+| CoM | 笔帽/笔尖造成的重心偏移 |
+| friction | 笔身材料与手指摩擦 |
+| hidden shape response | 是否有笔帽、橡胶 grip、非对称段 |
+| action-response history | 给定拨动后角速度/滑移/接触持续时间 |
+
+但转笔比 HORA 难：
+
+- 需要 pen phase / angular velocity；
+- 接触位置和滑移非常关键；
+- 可能有 aerial phase；
+- 高速动态下 1.5s history 可能太慢；
+- 纯本体可能无法辨识笔的相位。
+
+因此推荐的迁移不是 “HORA-only”，而是：
+
+$$
+\hat z_t=\phi(q,\dot q,a,\text{motor current},\text{tactile contact/shear},\text{optional vision history})
+$$
+
+再给 PPO Oracle / diffusion generalist 使用。
+
+### 6.2 对 WMTS 的结合
+
+| WMTS 模块 | HORA 启发 | 具体做法 |
+|---|---|---|
+| latent task generation | task context 不只来自指令，也来自 object/dynamics latent | scheduler 根据 $\hat z$ 选择 skill difficulty / subgoal |
+| PPO Oracle | privileged context-conditioned training | sim 中用 true pen state/physics 训 $\pi(o,z)$ |
+| Diffusion/Flow generalist | distill context-conditioned trajectories | condition on estimated extrinsics, not raw object ID |
+| Ensemble World Model | model uncertainty over $z$ and dynamics | ensemble disagreement 判断 adaptation 是否可靠 |
+| real fine-tuning | HORA 没做，需要补 | 收集 real failure 更新 $\phi$ 或 residual dynamics |
+
+关键设计判断：
+
+> WMTS 不应该只做 one-size-fits-all generalist。先训练 context-conditioned specialists/oracles，再学 deployable context estimator，是更稳的路径。
+
+### 6.3 可验证实验建议
+
+| 实验 | Baselines | 指标 | 证伪标准 |
+|---|---|---|---|
+| Pen extrinsics 是否可从 history 辨识 | pure DR vs HORA-style latent | spin duration, phase error, drop rate | latent 不提升则 pen context 不可从 history 估计 |
+| exact SysID vs learned latent | predict true mass/CoM/friction vs learned $z$ | control success, latent probe | exact SysID 更好则 learned latent 非必要 |
+| tactile 是否必要 | proprio-only $\phi$ vs proprio+tactile $\phi$ | contact phase recovery | tactile 不提升则 proprio 足够 |
+| history length | 5/10/20/30 steps | early adaptation speed | 长 history 拖慢高速控制则需短窗/多尺度 |
+| uncertainty-aware adaptation | point $\hat z$ vs ensemble/variance $\hat z$ | recovery after slip | uncertainty 无提升则 point estimate 足够 |
+
+### 6.4 不应过度外推的点
+
+- HORA 成功不代表“视觉/触觉不需要”；它失败模式正指向 contact point 不可观测。
+- HORA z-axis 不等于 arbitrary SO(3) manipulation。
+- Learned extrinsics 可解释但不是可证明物理参数。
+- 纯本体适应在高速转笔中可能无法观测 phase。
+- DR 仍是 HORA 的基础；没有 broad randomization，adaptation 没有组织对象差异的材料。
+
+## 7. 与知识体系的联系
+
+### 7.1 与 [[ReinforcementLearning]] 的联系
+
+HORA 是 conditional PPO：
+
+$$
+\pi_\theta(a_t\mid o_t,z_t),
+\qquad
+z_t=\mu(e_t).
+$$
+
+PPO 不再学一个平均 policy，而是学一个 context-indexed policy family。adaptation module 负责部署时提供 context estimate。
+
+### 7.2 与 [[Dynamics]] 的联系
+
+物体参数通过接触动力学影响响应：
+
+$$
+M_o(e)\ddot q_o+C_o(e,q_o,\dot q_o)\dot q_o+g_o(e,q_o)
+=
+J_c^\top f_c.
+$$
+
+HORA 不显式建模 $M,C,g$，而是通过动作-本体历史估计一个控制有用的 latent $z$。这是 dynamics-aware representation learning。
+
+### 7.3 与 [[ControlTheory]] 的联系
+
+HORA 类似 adaptive control：
+
+$$
+\text{estimate context}\ \hat z_t
+\quad\to\quad
+\text{adapt controller}\ \pi(o_t,\hat z_t).
+$$
+
+但它缺少 classical adaptive control 的 persistent excitation / parameter convergence / Lyapunov stability 证明。因此它是工程上有效的 learned adaptive control，而不是有证明的自适应控制器。
+
+### 7.4 与 [[RepresentationLearning]] 的联系
+
+$\mu(e)$ 学到的是 task-aligned representation。Figure 5/6/7 说明它和 diameter/mass/torque 有相关结构，但不是完全解耦。好的分析方式不是问“每个维度对应哪个物理量”，而是问：
+
+> 这个 latent 是否把对控制等价的物体放近，把需要不同 gait 的物体分开？
+
+### 7.5 与 in-hand rotation 簇的联系
+
+HORA 占据：
+
+$$
+\langle\text{有支撑/指尖保持},\ z\text{-axis},\ \text{pure proprioception}\rangle
+$$
+
+这个原点格。后续论文基本都在扩展某个维度：
+
+- RotateIt：多轴 + vision/touch shape/extrinsics；
+- Robot Synesthesia：contact geometry point cloud；
+- Touch Dexterity：binary tactile blind rotation；
+- AnyRotate：dense tactile arbitrary-axis；
+- Spin Pens：无支撑、动态笔。
+
+因此 HORA 是评估新方法的基准线：新方法必须说明它相对 HORA 到底解决了哪个不可观测变量，而不是只说“更强感知”。
+
+## 8. 应主动追问的颗粒度
+
+| 用户式追问 | Agent 应主动补充 |
+|---|---|
+| “extrinsics 是真实物理参数吗？” | 不是，是 $e_t$ 经 $\mu$ 学出的 task-relevant 8-d latent |
+| “为什么 SysID 更差？” | exact parameter 难估且不一定控制相关；learned latent 聚合任务等价物体 |
+| “HORA 和 DR 的本质区别？” | DR 学 robust average；HORA 估当前 context 并切换子策略 |
+| “为什么 NoAdapt 失败？” | object/contact context episode 内会变化，初始估计不能持续有效 |
+| “真实实验最强证据？” | heavy objects: 23.96 rotations / TTF 0.98；irregular: 19.22 / 0.78 |
+| “最大 limitation？” | 纯本体不知道 precise contact points，tiny/extreme shapes 容易失败 |
+| “对转笔能直接用吗？” | 不能直接；应作为 latent adaptation template，并补 tactile/phase/shear |
+
+## References
+
+- Haozhi Qi, Ashish Kumar, Roberto Calandra, Yi Ma, Jitendra Malik. *In-Hand Object Rotation via Rapid Motor Adaptation*. CoRL 2022.
+- Ashish Kumar et al. *RMA: Rapid Motor Adaptation for Legged Robots*. RSS 2021.

@@ -1,0 +1,728 @@
+                                             Physics-Driven Data Generation for Contact-Rich
+                                                Manipulation via Trajectory Optimization
+                                                         Lujie Yang1,2 , H.J. Terry Suh∗1 , Tong Zhao∗2 , Bernhard Paus Græsdal1 , Tarik Kelestemur2 ,
+                                                                                Jiuguang Wang2 , Tao Pang2 , and Russ Tedrake1
+
+                                                                                                                                    Human Demonstration                    Dynamically Feasible Trajectory
+                                            Abstract—We present a low-cost data generation pipeline
+                                         that integrates physics-based simulation, human demonstra-                                                          Trajectory
+                                         tions, and model-based planning to efficiently generate large-                                                     Optimization
+                                         scale, high-quality datasets for contact-rich robotic manipulation
+
+
+
+
+arXiv:2502.20382v1 [cs.RO] 27 Feb 2025
+                                         tasks. Starting with a small number of embodiment-flexible
+                                         human demonstrations collected in a virtual reality simulation
+                                         environment, the pipeline refines these demonstrations using
+                                                                                                                                                                                             Different
+                                         optimization-based kinematic retargeting and trajectory opti-                                                                                      Parameters
+                                         mization to adapt them across various robot embodiments and
+                                         physical parameters. This process yields a diverse, physically
+                                         consistent, contact-rich dataset that enables cross-embodiment                                                    Robust Policy
+                                         data transfer, and offers the potential to reuse legacy datasets
+                                         collected under different hardware configurations or physical
+                                         parameters. We validate the pipeline’s effectiveness by training
+                                         diffusion policies from the generated datasets for challenging
+                                         long-horizon contact-rich manipulation tasks across multiple                               Hardware Deployment                    Generated Contact-Rich Data
+                                         robot embodiments, including a floating Allegro hand and bi-                              Fig. 1: Physics-driven data generation overview. Leveraging trajec-
+                                         manual robot arms. The trained policies are deployed zero-                                tory optimization, our framework automatically generates thousands
+                                         shot on hardware for bimanual iiwa arms, achieving high                                   of dynamically feasible contact-rich trajectories across a range of em-
+                                         success rates with minimal human input. Project website:                                  bodiments and physical parameters from only 24 human demonstra-
+                                         https://lujieyang.github.io/physicsgen/.                                                  tions. The policy trained with imitation learning from the generated
+                                                                                                                                   dataset is more robust and performant.
+                                                                       I. I NTRODUCTION
+
+                                            The emergence of foundation models has transformed fields                              and embodiment [7, 10], but such data is costly and time-
+                                         such as natural language processing and computer vision,                                  consuming to collect, as it requires human teleoperation with
+                                         where models trained on massive, internet-scale datasets                                  specialized hardware. At the opposite end of the spectrum,
+                                         demonstrate remarkable generalization across diverse reason-                              there is a wealth of lower-quality data in the form of internet
+                                         ing tasks [1, 2, 3, 4, 5]. Motivated by this success, the                                 videos showing humans and robots performing manipulation
+                                         robotics community is currently pursuing foundation models                                tasks [13, 14, 15, 16]. However, the significant embodiment
+                                         for generalist robot policies capable of flexible and robust                              gap and limited action labeling make this data difficult to
+                                         decision-making across a wide range of tasks [6, 7, 8], lead-                             transfer effectively to robot policies. Simulation data offers
+                                         ing to significant industrial investments in large-scale robot                            a middle ground, providing the potential to generate large,
+                                         learning [9]. However, the pursuit for generalist robot policies                          diverse, and high-quality datasets at relatively low cost [17,
+                                         remains constrained by the limited availability of high-quality                           18, 19]. In practice, effective policy learning can be achieved
+                                         datasets, especially for contact-rich robotic manipulation. Ex-                           by co-training on a mixture of data from different points along
+                                         isting datasets [7, 10, 11, 12] are orders of magnitude smaller                           this spectrum, reducing data collection costs while improving
+                                         than those used to train foundation models in other domains,                              generalization [20].
+                                         such as Large Language Models (LLMs). The scarcity of
+                                                                                                                                      A key insight in this work is that human demonstrations and
+                                         diverse, high-fidelity manipulation data limits policy gener-
+                                                                                                                                   model-based planners complement each other in critical ways
+                                         alization across different embodiments, task contexts, and
+                                                                                                                                   for generating high-quality robot data. Human demonstrations,
+                                         physical conditions.
+                                                                                                                                   though costly to collect, offer valuable global information
+                                            To address data scarcity, robot learning researchers often                             for solving complex tasks. However, collecting real-world,
+                                         rely on a spectrum of data sources varying in cost, quality, and                          contact-rich manipulation data through teleoperation is chal-
+                                         transferability. The most informative data typically consists of                          lenging due to the need for precise multi-contact interactions,
+                                         high-quality demonstrations specific to the task, environment,                            which are difficult to achieve in practice due to hardware
+                                                                                                                                   latency, embodiment mismatches between the human and
+                                            *Equal Contribution. 1 Computer Science and Artificial Intelligence Laboratory
+                                         (CSAIL), Massachusetts Institute of Technology. 2 Robotics and AI Institute. Correspon-
+                                                                                                                                   robot, and the fine-grained control required [21]. In contrast,
+                                         dence to lujie@mit.edu.                                                                   trajectory optimization has demonstrated success in generating
+locally-optimal trajectories for contact-rich tasks [22, 23, 24],   [26, 27], and puppeteering platforms [28, 29] for end-effector
+but often relies on global guidance in the form of good initial     [7] and whole-body control [30, 31].
+guesses.                                                               Virtual and augmented reality (VR/AR) interfaces have
+   In this work, we propose a data generation framework             recently gained traction as effective alternatives for robot
+that leverages the strengths of both approaches: human              data collection [32, 33], reducing cognitive load, physical
+demonstrations can provide global guidance, while trajectory        strain, and user frustration compared to traditional techniques
+optimization can locally refine these demonstrations to ensure      like kinesthetic teaching or 3D mouse control [34]. These
+dynamic feasibility. Starting with a small number of human          technologies offer a more intuitive data collection paradigm
+demonstrations collected in a virtual reality (VR) environment,     for complex tasks, especially in dexterous manipulation.
+our method uses model-based trajectory optimization to              AR2-D2 [35] enables data collection without a physical robot
+generate large datasets of dynamically feasible, contact-rich       by projecting a virtual robot into the physical workspace,
+trajectories in simulation. The demonstrations guide the plan-      but lacks real-time feedback necessary for precise control.
+ner through complex search spaces, while the planner ensures        DART [36] supports data collection entirely in simulation,
+physical consistency and robustness across varying physical         visualized through a VR headset, but faces challenges
+parameters and robot embodiments. Our pipeline, visualized          bridging the sim-to-real gap for physical robot deployment.
+in Fig. 1, enables efficient cross-embodiment data transfer,        ARCap [37] integrates real-time AR feedback, but requires
+where demonstrations collected with one robot configuration         specialized hardware, including an RGBD camera, motion
+can be adapted to another, and supports domain randomization        capture gloves, and VR controllers, in addition to the AR
+for improved generalization and robustness. Additionally, it        headset. ARMADA [38] enables real-world manipulation
+provides the potential to revive and adapt legacy datasets          data collection with bare hands through real-time virtual
+collected with different hardware or configurations, making         robot feedback, achieving high success rates when replayed
+old datasets valuable for new robot systems.                        on physical hardware. In contrast to these existing systems,
+   Our key contributions include:                                   our work focuses on scalable data generation from a small
+   1) We present an intuitive, embodiment-flexible demon-           number of human demonstrations by leveraging trajectory
+       stration interface based on virtual reality and physics      optimization, facilitating generalization across different robot
+       simulation, enabling fast data collection for dexterous      embodiments, initial conditions, and physical parameters.
+       contact-rich manipulation.
+   2) We propose a scalable framework that leverages trajec-        B. Data Augmentation
+       tory optimization to transform a small number of human
+       demonstrations into large-scale, physically consistent          Despite many research efforts, collecting large datasets re-
+       datasets, enabling generalization across embodiments,        mains time-consuming and costly, requiring a large amount of
+       initial conditions, and physical parameters.                 human effort and resources. To address these challenges, sig-
+   3) We validate our approach by training policies on the          nificant effort has been devoted to automating the data gener-
+       generated dataset for challenging contact-rich manipu-       ation process through data augmentation techniques. Existing
+       lation tasks across multiple robot platforms, including      approaches have leveraged state-of-the-art generative models
+       bimanual robot arms and a floating base Allegro hand.        for visual [39, 40, 41] and semantic [42, 43, 44] augmenta-
+   4) We achieve high success rates in zero-shot hardware           tions. MimicGen [45] and its bimanual extension DexMim-
+       deployment on bimanual iiwa arms, highlighting the           icGen [46] automatically synthesize large-scale datasets from
+       utility of augmented datasets in real-world scenarios.       a small number of human demonstrations. These works de-
+                                                                    compose long-horizon tasks into object-centric subtasks and
+                    II. R ELATED W ORKS                             replay transformed demonstrations open loop in simulation.
+                                                                    SkillMimicGen [47] extends this paradigm by segmenting
+   In this section, we review the most relevant approaches          tasks into motion and skill components, augmenting local
+for generating diverse robot data for contact-rich tasks. We        manipulation skills with MimicGen-style replay and using
+categorize the methods into data collection, data augmentation,     motion planning to connect these skill segments. RoboCasa
+model-based planning, demonstration-guided reinforcement            [48] leverages generative models to create diverse kitchen
+learning and cross-embodiment transfer.                             scenes with abundant 3D assets and utilizes MimicGen for
+                                                                    automated trajectory generation. While these approaches have
+A. Data Collection for Imitation Learning                           shown success in automating data generation, they primarily
+  Behavior Cloning [25], which trains robot policies to mimic       rely on kinematic replay of demonstrations, which is often
+expert behavior, has shown impressive empirical results in a        inadequate for contact-rich manipulation tasks. Our work
+wide range of dexterous manipulation tasks [26]. Collecting         can be viewed as an important extension to MimicGen line
+high-quality robot data has been an essential component of          of works to support dynamically feasible contact-rich data
+imitation learning (IL). Many such methods rely on human            generation, which requires fine-grained control of the robot
+experts teleoperating a robot to accomplish specific tasks.         and continuous reasoning about making and breaking contacts
+Researchers have adopted interfaces such as 3D spacemouse           with the environment.
+C. Trajectory Optimization for Contact-Rich Tasks                   D. Demonstration-Guided Reinforcement Learning
+                                                                       While IL often demands a large number of expert demon-
+  Planning and control through contact remains a significant        strations to achieve robust and high-performing policies, re-
+challenge for both learning-based and model-based methods           inforcement learning (RL) aims to solve tasks autonomously
+due to the explosion of contact modes and the nonsmooth             through reward-driven exploration. However, pure RL can
+nature of contact dynamics. To tackle these challenges, re-         suffer from inefficient exploration and the need for extensive
+searchers have explored various trajectory optimization for-        reward shaping, especially in complex manipulation tasks
+mulations for multi-contact interactions.                           [71, 72]. To address these challenges, researchers have ex-
+Contact-Implicit Trajectory Optimization Existing works             plored using demonstrations to guide RL, improving both
+based on contact-implicit trajectory optimization (CITO) [23,       sample efficiency and exploration quality.
+22] have sought to formulate the combinatorial problem into            Demonstrations have been integrated into RL pipelines in
+a smooth optimization problem by using complementarity              various ways, including adding them directly to the replay
+constraints. CITO has been applied in various domains, in-          buffer [73, 74], using behavior cloning for policy pretraining
+cluding planar manipulation [49, 50], dynamic pushing [51],         [75, 76, 77], and augmenting task rewards with information
+and locomotion tasks [52, 53, 54]. Recent efforts have ex-          extracted from demonstrations [78, 79, 80]. Sleiman et al. [81]
+tended CITO for real-time applications as model predictive          guide RL with demonstrations generated from a model-based
+control (MPC) [55, 56], with successful hardware deployment         trajectory optimizer for multi-contact loco-manipulation tasks,
+on quadrupeds using tailored solvers [57, 58]. Aydinoglu et         and validate their method on hardware with a quadrupedal
+al. [59] parallelize the solution of linear complementarity         mobile manipulator. While these approaches search over the
+problems using alternating direction method of multipliers          parameters of a neural network policy and potentially optimize
+(ADMM) and validate the method on hardware for multi-               a more global objective, we leverage trajectory optimization
+contact manipulation tasks. While CITO shows promising              as a complementary tool to locally refine and expand demon-
+scalability for handling contact modes, it suffers from poor        stration trajectories. This enables the efficient generation of
+global exploration and relies on good initial guesses [60]. A       contact-rich data while avoiding the computational overhead,
+new line of work tries to address these issues with efficient       approximation errors, and unnecessary exploration associated
+global optimization [61], but does not yet scale to the tasks       with RL’s high-dimensional search space.
+we consider here.                                                   E. Cross-Embodiment Generalization
+Sampling-Based Planning Sampling-based methods have                    Reusing datasets and policies across different embodiments
+also shown great promise for solving trajectory optimiza-           unlocks the potential for large-scale robot learning. One line
+tion for contact-rich tasks. Hämäläinen et al. [62] employ       of work learns latent plans from videos of humans interacting
+sampling-based belief propagation for humanoid balancing,           with the environment and transfers this knowledge for robotic
+juggling and locomotion. Carius et al. [63] extend the path in-     manipulation [82, 83]. Another approach involves portable
+tegral formulation to handle state-input constraints and validate   data collection tools, such as hand-held grippers [21, 84],
+the approach on quadruped stabilization on hardware. More           for in-the-wild human demonstrations. While these methods
+recently, Pezzato et al. [64] applied sampling-based predictive     enable policy deployment on multiple robot platforms, they
+control (SPC) for simpler contact tasks like pushing, while         are often constrained to robots with the same end-effector
+Howell et al. [65] and Li et al. [66] extended SPC to more          used during data collection, limiting generalization across
+complex, contact-rich tasks such as in-hand cube reorientation.     platforms. On the other hand, to leverage large-scale datasets,
+Pang et al. [67] use smoothed contact dynamics with global          recent works pull data from a heterogeneous set of robots
+sampling to generate contact-rich plans in under a minute, with     ranging from navigation to manipulation, and train a robotic
+performance comparable to reinforcement learning. Cheng et          foundation model capable of accomplishing a diverse range
+al. introduce HiDex [68], a hierarchical planner that combines      of tasks [85, 86]. Our proposed framework enables reusing
+Monte-Carlo Tree Search with integrated contact projection,         the same set of easy-to-collect demonstrations for multiple
+achieving rapid planning for dexterous manipulation tasks.          robots, avoiding the need to collect embodiment-specific data
+Interestingly, directly applying sampling-based planners for        for contact-rich tasks.
+contact-rich data generation in behavior cloning can be prob-
+lematic, as the high entropy of the generated trajectories often                      III. DATA C OLLECTION
+degrades downstream policy performance [69, 70].                      We present a Virtual Reality (VR)-based data collection
+   In this work, we leverage low-entropy human demonstra-           pipeline designed for intuitive and efficient collection of
+tions to guide the global planning for multi-contact inter-         human demonstrations across multiple robot embodiments.
+actions and utilize trajectory optimization to locally refine       The pipeline emphasizes simplicity and cross-embodiment
+the trajectories for specific physical parameters and robot         generalization while minimizing the reliance on physical robot
+embodiments. From a small number of demonstrations, the             hardware. While we consider the data collection pipeline to be
+model-based planner can efficiently generate abundant, high-        one of our contributions, we emphasize that the simulation-
+quality, contact-rich data for training robust robot policies.      based large-scale data generation method presented in the
+                                                                   eliminating the need for embodiment-specific demonstrations.
+                                                                                IV. AUTOMATED DATA G ENERATION
+                                                                      In this section, we present our method for automatically
+                                                                   generating large quantities of physically feasible trajectories
+                                                                   for contact-rich manipulation tasks across a range of objects,
+                                                                   initial conditions, and embodiments from only a handful of
+                                                                   demonstrations. The presented method also offers the potential
+                                                                   to adapt legacy datasets collected using outdated configura-
+     Fig. 2: VR-based human-hand demonstration framework.          tions to new robot settings, reducing the cost of collecting
+                                                                   large amounts of data on the new robot setups from scratch.
+                                                                      Our method starts out by retargeting kinematic motions
+next section is independent of this particular data collection     from the original embodiment-flexible human demonstrations
+approach.                                                          collected in VR to the specific robot embodiment in sim-
+   Our data collection pipeline (Fig. 2) is a human-hand           ulation, producing kinematically feasible trajectories. These
+demonstration interface in VR. We use an Apple Vision Pro to       trajectories are then refined and augmented through the use
+track the poses of the human demonstrator’s hands and stream       of local trajectory optimization to obtain dynamically feasible
+the poses to the Drake physics simulator [87], which simulates     trajectories for a range of physical parameters. The following
+the contact interaction between the object and the hands. The      subsections provide a detailed breakdown of each step in the
+updated object pose is then sent back to Apple Vision Pro for      pipeline.
+real-time visualization in VR using Vuer [88].
+   Our demonstration interface is fast and cost-effective. Since   A. Kinematic Motion Retargeting
+the system operates entirely in simulation, it removes the           Given a sequence of demonstrations xdemo0:T with horizon T ,
+                                                                                                             retarget
+dependency on robot hardware, significantly reducing the           we aim to find the robot configurations q0:T       that match the
+cost and complexity of data collection. In practice, it takes      positioning of the demonstrator while avoiding penetration and
+approximately 7 minutes to collect 24 long-horizon demos for       obeying joint limits. At each time step, we solve the following
+each considered system. The setup is also intuitive to use, as     nonconvex program:
+the human demonstrator does not have to mentally close the                                     N
+                                                                              ⋆                X
+embodiment gap between the human body and the specific              qtretarget = arg min             wi ∥ψi (qtretarget ) − ψ̃i (xdemo
+                                                                                                                                  t    )∥2 (1a)
+robot.                                                                            qtretarget   i=0
+   We demonstrate our pipeline on two different classes of                               s.t. ϕj (qtretarget ) ≥ 0, ∀j                    (1b)
+robot embodiments: a dexterous hand and a bimanual manip-
+                                                                                               qmin ≤ qtretarget ≤ qmax ,                 (1c)
+ulation setup.
+   Floating Allegro Hand For the dexterous hand, we con-           where wi > 0 are weight parameters, and ψi and ψ̃i represent
+sider a 22-DOF free-floating Allegro hand manipulating a cube      the i-th mappings from the robot configuration and demon-
+on a table as shown in Fig. 3. Since the Allegro hand only         strator state to corresponding points on the embodiments. The
+has four fingers, we restrict the VR-based demonstrations to       corresponding points of interest for each robot/demonstrator
+using four fingers on the right hand to interact with the object   pair are manually defined. For example, on the bimanual
+in simulation.                                                     robot arm system, ψ0 is the forward kinematics from the
+   Bimanual Robot Arms For the bimanual manipulation               robot joint angles to the left robot arm’s end effector position,
+setup, we consider two different fixed-base bimanual manip-        while ψ̃0 is a map from the hand pose to the fingertip of
+ulators: a pair of 7-DOF Kuka LBR iiwa arms, and a pair of         the left index finger. We find the resulting plans generated by
+Franka Emika Panda arms. Each pair of arms collaboratively         trajectory optimization relatively robust to the correspondence
+manipulates a big box (Fig. 3). During the VR demonstrations,      and weight parameter selection. ϕj denotes the signed distance
+the human demonstrator uses both index fingers to manipulate       function between the j-th collision pair and (1b) enforces non-
+a small cube in VR and constrains their wrist movement to          penetration constraints. qmin and qmax are the lower and upper
+mimic the fixed base. During kinematic motion retargeting          bounds on the joint angles. Notice that q retarget and xdemo can
+(detailed in Sec. IV-A), the small cube and fingers are scaled     have different dimensions as long as both ψi and ψ̃i map them
+to match the size of the larger box and the robot manipulators.    to vectors in the same space (e.g., Apple Vision Pro captures
+   This design facilitates two forms of cross-embodiment           5 landmarks on the index finger while each robot arm has 7
+generalization. First, it utilizes easy-to-collect human finger    DOF in the bimanual robot arm system). We solve (1) using
+demonstrations to guide planning for harder and higher-            a Sequential Quadratic Programming (SQP)-style algorithm:
+dimensional tasks, such as the dual-arm manipulators. Second,      during each iteration, the nonpenetration constraint (1b) is
+it supports the reuse of the same set of demonstrations across     linearized and the matching objective (1a) is quadratically
+multiple robot platforms, as both the iiwa and Panda arms can      approximated around the solution to the previous iteration.
+leverage the same data to accomplish the manipulation task,        We warmstart the solution of the nonlinear program at time t
+Fig. 3: Human hand demo in VR and kinematic retargeting for different embodiments. The blue spheres illustrate the demo hand landmarks
+scaled to the specific system.
+
+                                                      retarget              ⋆
+with the optimal solution from the previous timestep qt−1                        of tasks with different dynamics f (xt , ut , θt ), where θt ∼ ρ
+to encourage faster convergence and temporal consistency.                        represents all the perturbations. We assume the kinematically
+                                                                                 retargeted trajectory xretarget
+                                                                                                         0:T     still provides good guidance on
+B. Demonstration-Guided Trajectory Optimization
+                                                          retarget    ⋆          achieving the task in the vicinity of the nominal demonstration.
+   The kinematically consistent robot trajectories q0:T              are         This way, a large number of physically consistent trajectories
+generally not dynamically feasible due to the embodiment                         with various physical properties and initial conditions can be
+gap and differences in physical parameters. However, they                        generated from a single human demonstration. We outline our
+can provide good guidance on generating dynamically feasible                     data generation pipeline in Algorithm 1.
+trajectories with complex multi-contact interactions. In partic-
+ular, human demonstrations provide global information about
+                                                                                  Algorithm 1: Automated Data Generation
+when and where to make contact with the object, which model-
+based planning can then locally refine. We define the retargeted                 1 Input: Probability distribution ρ, augmentation number
+system state xretarget
+                 t     to incorporate both the object state xobjectt   ,            N , demo trajectory xdemo  0:T ;
+which is a subset of xdemo    , and   the  robot state as a   function           2 Output: N dynamically consistent trajectories on
+             ⋆            t
+of qtretarget . The trajectory xretarget is then locally refined by                 target embodiments {(x⋆0:T , u⋆0:T −1 )};
+                                 0:T                                                retarget ⋆
+solving the following nonconvex optimization program:                            3 q0:T        ← Solve (1) for xdemo0:T ;
+                                                                                 4 for n = 1, . . . , N do
+     x⋆t , u⋆t = arg min         ∥xT − xretarget
+                                        T        ∥2QT +                          5      Sample θ0:T ∼ ρ;
+                  xt ,ut
+                           T
+                           X −1                                                  6      (x⋆0:T , u⋆0:T −1 ) ← Solve (2) with xretarget
+                                                                                                                              0:T      , θ0:T and
+                                 (∥xt − xretarget
+                                         t        ∥2Qt + ∥ut ∥2Rt )       (2a)            xt+1 = f (xt , ut , θt );
+                           t=0
+                       s.t. xt+1 = f (xt , ut )                       (2b)
+                                 ϕj (xt ) ≥ 0, ∀j                         (2c)
+                                                                                         V. T RAJECTORY O PTIMIZATION E XPERIMENTS
+                                 xmin ≤ xt ≤ xmax                     (2d)
+                                 umin ≤ ut ≤ umax .                       (2e)      While kinematic retargeting of demonstrations might suffice
+                                                                                 to generate data for simpler manipulation tasks such as pick
+Here, f is obtained by time-stepping the dynamics engine,                        and place, it often falls short for the more challenging contact-
+xmin /xmax (umin /umax ) are the lower and upper bounds on the                   rich tasks requiring frequent contact mode switches and fine-
+state (input), Qt , Rt are the cost matrices for the state and                   grained actions. In this section, we demonstrate that trajectory
+input, respectively, and QT is the cost matrix for the terminal                  optimization is crucial for generating diverse, dynamically
+state. To encourage precise tracking of the object trajectory, we                feasible contact-rich trajectories on three high-dimensional
+assign higher weights to the entries of Qt which correspond                      dexterous manipulation systems: a floating Allegro hand, bi-
+to xobject
+     t     . The detailed parameters can be found in Appendix                    manual iiwa arms, and bimanual Panda arms.
+IX-A.                                                                               Our data generation framework is agnostic to the choice
+   In general, model-based planners can struggle to discover                     of the trajectory optimizer. We implement the cross-entropy
+high-quality long-horizon contact-rich trajectories without
+demonstrations. CITO requires good initial guesses and can
+easily get stuck in local optima without making progress.                        Parameter                      Floating Allegro Hand   Bimanual Robot Arms
+Human demonstrations offer valuable global guidance that                         Init. obj. trans. pert. (cm)     [±1.5, ±1.5, 0]             [±5, ±5, 0]
+helps overcome these challenges, and xretarget
+                                            0:T    can naturally                 Init. obj. rot. pert. (rad)
+                                                                                 Object side length (cm)
+                                                                                                                    [0, 0, ±0.3]
+                                                                                                                      [5.8, 6.2]
+                                                                                                                                              [0, 0, ±0.3]
+                                                                                                                                                 [28, 32]
+serve as the initial guess to CITO-based methods where local                     Object mass (kg)                     [0.1, 0.3]              [0.25, 0.75]
+                                                                                 Friction coefficients                [0.7, 1.3]                [0.2, 0.4]
+adjustments are made to obey dynamical constraints (2b).                         Task horizon (s)                         25            50 / 260 (Panda / iiwa)
+   Thanks to access to the system dynamics f in simulation,
+we can locally perturb the physical parameters as well as                        TABLE I: Ranges of different physical parameters θ. The initial
+                                                                                 object pose is only perturbed in yaw, x, and y to ensure the object
+robot and object states around a nominal demonstration. From                     sits stably on the table.
+the single demonstration, we can solve (2) for a distribution
+Fig. 4: Trajectory optimization is crucial for generating dynamically feasible trajectories. (Top) Before trajectory optimization, the
+kinematically retargeted demos easily lose contact and drive the object out of reach with different physical parameters or slight deviations in
+object states. (Bottom) Trajectory optimization encourages robots to establish contact with and maintain good manipulability of the object.
+The tricolor axis indicates the object orientation.
+
+
+Perturbation                 Allegro Hand   iiwa Arms     Panda Arms     turbations thanks to caging grasps or other strategies that
+Original demo                   4 / 24        5 / 24        6 / 24       encourage robustness during the human demonstration. For
+Object size                     2 / 24        1 / 24        4 / 24
+Initial object translation      1 / 24        3 / 24        2 / 24       all the systems, the successful rollouts are relatively short,
+Initial object orientation      2 / 24        3 / 24        3 / 24       manipulating the object to the goal pose within only 1 or 2
+Trajectory optimization      2164 / 3000    2252 / 3000   2462 / 3000    rotations.
+TABLE II: Success rates of replaying kinematically retargeted trajec-       The low success rate of purely kinematically retargeted tra-
+tories of the 24 original human demos, and trajectory optimization       jectories highlights the importance of trajectory optimization
+under random perturbations in physical parameters and object initial
+                                                                         for locally refining the demos for the particular embodiments
+conditions.
+                                                                         and physical parameters. Before trajectory optimization, the
+                                                                         floating Allegro hand lightly touches the cube and easily loses
+method (CEM) [89] to solve (2) over a distribution of physical           contact when rotating it clockwise (demonstrated in Fig. 4a).
+parameters and initial conditions, as specified in Table I.              After trajectory optimization, the hand increases the contact
+   Task Manipulating the object to a target pose on the table            area, establishing a stable grip for rotation. In Fig. 4b, similar
+(Fig. 6). The object is initially placed randomly on the table           behavior that encourages contact can be observed for the
+with an arbitrary face upward. Task success is defined as the            bimanual iiwa arms: the demo trajectory tries to rotate the box
+object reaching within 3 cm and 0.2 rad of the target pose               clockwise only using a single arm, while trajectory optimiza-
+for the Allegro hand, and within 10 cm and 0.2 rad for the               tion encourages the other arm to help hold the box and reorient
+bimanual robot arms. This task requires long-horizon reason-             the box more stably. These refinements that encourage contact
+ing of complex multi-contact interactions between the robot              are particularly helpful when the object is heavier or smaller,
+and the object. The necessary frequent contact mode switches             or when the friction coefficients are lower than expected.
+and high-dimensional action space pose great challenges for              In addition, replaying the kinematically retargeted trajectory
+traditional model-based planners, while the precise contact              often fails when the object pose deviates slightly from the
+interactions require fine-grained control actions.                       demonstration, driving the object out of reach (visualized in
+   Dynamic Feasibility While kinematic motion retargeting                Fig. 4c). In contrast, trajectory optimization accounts for the
+can generate visually plausible robot and object trajectories,           system’s true dynamics and can adjust the robot’s actions
+these trajectories often lack dynamical consistency due to the           accordingly. The success rates of trajectory optimization under
+differences in physical parameters and embodiment between                random perturbations in physical parameters and object initial
+the human demonstrator and the target robot. To illustrate               conditions for each system are recorded in Table II.
+this, we replay the kinematically retargeted trajectories of the            Cross-Embodiment Generalization We demonstrate that
+original 24 human demos and record the success rates for                 a single set of human demonstrations can be effectively
+each system in Table II. Furthermore, we randomly sample                 repurposed to generate dynamically consistent, contact-rich
+object sizes and perturbations of initial object poses according         trajectories across different robotic embodiments with varying
+to Table I and roll out the nominal kinematically retargeted             task horizons. Specifically, human demonstrations involving
+trajectories. Some trajectories still succeed under certain per-         two index fingers manipulating a small cube are retargeted
+Fig. 5: Distribution and snapshots of trajectories generated from a single demonstration. (a) The original demonstration (orange)
+is locally perturbed and augmented to about 100 dynamically feasible contact-rich trajectories (blue) for each system. The density map
+represents the object pose distribution of the generated trajectories in the specific 2-dimensional slices. (b) Snapshots of 30 dynamically
+feasible trajectories under random physical parameters and object initial poses for bimanual iiwa arms are visualized.
+
+
+
+
+Fig. 6: Policy rollouts for different embodiments. The object manipulation task requires the robots to frequently make and break contact
+with the object. It also requires precise control of the robot since small deviations in positions can result in missing contact interactions and
+lead to task failure.
+
+
+to fixed-base bimanual Kuka LBR iiwa and Franka Emika                     (2). For safe hardware deployment, we enforce conservative
+Panda arms manipulating a larger box (visualized in Fig. 3).              velocity limits on the iiwa arms, while only applying soft
+This approach addresses key challenges in data collection for             velocity regularization on the Panda arms in simulation to
+contact-rich tasks: directly teleoperating two real robot arms to         allow for more aggressive motions.
+flip a large box would be both physically demanding and cost-
+prohibitive due to hardware latency, limited feedback, and the
+embodiment gap–differences in kinematic structure, degrees
+of freedom, and workspace between human and robotic arms.
+                                                                             Data Diversity Trajectory optimization efficiently aug-
+In contrast, performing the same task on a smaller scale using
+                                                                          ments a single demonstration to a wide distribution of trajec-
+human fingers is more intuitive, reduces physical effort, and
+                                                                          tories with locally perturbed physical parameters and initial
+enables faster, more consistent demonstration collection.
+                                                                          conditions as visualized in Fig. 5. The diverse states in
+   The iiwa and Panda arms differ in contact geometry, velocity           the generated dataset cover a larger training distribution and
+limits, and joint constraints, all of which are explicitly modeled        encourage smoother learned policies, as will be discussed in
+within the trajectory optimization framework described in                 the next section.
+Fig. 7: Failure cases of baselines. (a) The baseline policy trained on the original 24 demonstrations for the floating Allegro hand frequently
+misses contact or gets stuck on the cube. (b-c) The baseline policies for the bimanual robot arms often exhibit jittery motion, resulting in
+loss of contact, the box being kicked out of reach, or the robot arms running into and getting stuck on the box surface.
+
+
+                                                                         as 25 seconds to allow the policy sufficient time to recover
+                                                                         from missed contacts and other errors during the execution.
+                                                                         The task complexity arises from the 22-dimensional action
+                                                                         space of the Allegro hand and the long-horizon nature of
+                                                                         the task, which requires a sequence of coordinated rolling,
+                                                                         pitching, and yawing actions to reorient the cube to an upright
+                                                                         position. These factors together present significant challenges
+                                                                         for traditional model-based planners without guidance.
+                                                                            The baseline behavior cloning policy trained on the original
+                                                                         set of 24 demonstrations achieves a success rate of 10/48 =
+                                                                         21% and exhibits significant jittery behavior when encoun-
+                                                                         tering out-of-distribution states. The workspace, characterized
+Fig. 8: Success rates of policy evaluation in simulation and hardware.   by diverse object orientations and translations, is sufficiently
+                                                                         large that minor deviations during policy rollouts often drive
+           VI. B EHAVIOR C LONING E XPERIMENTS                           the trajectory out of the demonstrated distribution. Common
+   We illustrate our framework’s capability to efficiently pro-          failure modes include the Allegro hand repeatedly missing
+duce diverse, high-quality contact-rich datasets for training            contact with the cube or becoming stuck on its surface while
+behavior cloning policies across multiple robotic platforms,             attempting reorientation (visualized in Fig. 7a), which often re-
+including the floating Allegro hand and the bimanual Panda               sult in the object being trapped in intermediate orientations. In
+arms in simulation as well as bimanual iiwa arms on hardware.            contrast, policies trained on the expanded dataset generated by
+We show that policies trained on the generated data generalize           our pipeline demonstrate a higher likelihood of re-establishing
+to a wide distribution of physical parameters and initial                contact with the object after initial misses, resulting in signif-
+conditions, and are much more robust and performant than                 icantly improved success rates up to 39/48 = 81%.
+the ones trained only on the original demonstrations.                       2) Bimanual Robot Arms: The baseline policy trained on
+                                                                         the original set of 24 human demonstrations achieves a success
+A. Policy Evaluation in Simulation                                       rate of 27/48 = 56% on the bimanual iiwa system. We hypoth-
+   From only 24 human demonstrations, our data generation                esize that the restrictive velocity limits encourage more quasi-
+pipeline can efficiently generate thousands of dynamically               static behavior, leading to longer trajectories with a higher
+feasible contact-rich trajectories using trajectory optimization.        density of state-action pairs in the training data. In contrast, the
+We train state-based diffusion policies [26] on the 24 original          baseline policy yields a success rate of 14/48 = 29% on the
+demo trajectories, as well as 500 and 1000 generated trajec-             bimanual Panda system, likely due to the more dynamic nature
+tories. While our method is compatible with any Behavior                 of the learned behavior under its looser velocity constraints.
+Cloning algorithm, we adopt diffusion policies due to its recent         Both baseline policies exhibit remarkably jittery motion, fre-
+success in contact-rich tasks [21, 70, 90]. Fig. 6 visualizes the        quently kicking the box out of reach, losing contact, or running
+policy rollouts. We evaluate the performance by conducting 48            into and getting stuck on the box surface during reorientation
+policy rollouts for each embodiment in simulation and record             (visualized in Fig. 7b and c). Policies trained on the augmented
+the success rates in Fig. 8. The success criteria are the same           dataset, however, generate significantly smoother trajectories
+as specified in the trajectory optimization experiments.                 and are capable of re-establishing contact with the object
+   1) Floating Allegro Hand: While the human demonstrator                after initial misses, resulting in as high as 44/48 = 92%
+completes the task in approximately 5 seconds on average in              success rates for bimanual iiwa arms and 42/48 = 87.5%
+the virtual reality environment, the demonstration trajectories          for bimanual Panda arms. Additionally, the learned policies
+are temporally scaled by a factor of 2.5 to ensure smoother,             capture multimodal behaviors observed in the original human
+dynamically feasible motions on the floating Allegro hand,               demonstrations, such as rotating the box either clockwise or
+which is subject to velocity limits. We define the task horizon          counterclockwise for similar object poses.
+Fig. 9: Policy rollouts on hardware. The fixed-base bimanual iiwa arms perform a sequence of coordinated rolling, pitching, and yawing
+actions to reorient the box to the goal pose.
+
+
+
+
+Fig. 10: Policy failure and recovery on hardware. The baseline policy frequently (a) gets stuck on the box surface when small deviations
+from the demonstration trajectories occur, and (b) struggles to recover from out-of-distribution states, where the object is never intentionally
+lifted for accomplishing the task in the generated dataset. Policies trained on augmented datasets (c) sometimes fail due to unmodeled
+collision geometry, but (d) can recover from undesired sliding by employing firmer grasps found by trajectory optimization.
+
+
+B. Policy Evaluation on Hardware                                         human-hand demonstration framework is fast and intuitive, it
+   We zero-shot deploy the trained policies on hardware for              may not fully exploit the kinematic capabilities of the target
+bimanual iiwa arms to flip a 30 cm cubic box on a table                  robot, such as continuous joint rotation or specialized dex-
+(Fig. 9). An OptiTrack motion capture system is employed                 terous maneuvers. Future work could explore the application
+to estimate the object pose. The baseline behavior cloning               of our automated data generation framework to embodiment-
+policy only achieves 6/23 = 26% success rate, with most                  aware legacy datasets, better capturing the unique motion
+successful rollouts being relatively short-horizon, involving            capabilities of different robotic systems.
+only 1 or 2 rotations. Common failure modes of the baseline                 Second, although our method demonstrates strong perfor-
+policy include: 1) deviation from the demonstration trajectory,          mance in the vicinity of the demonstration due to trajectory op-
+causing the arms to collide with the box surface (Fig. 10a), and         timization, the learned policies struggle to recover from states
+2) significant box sliding during rolling, resulting in the policy       far outside the demonstrated regions, such as those resulting
+encountering out-of-distribution states and failing to recover           from catastrophic failure. Future work could explore more ad-
+(Fig. 10b). In contrast, as shown in Fig. 8b, the policy trained         vanced planning techniques to iteratively improve the learned
+on 500 generated trajectories achieves 17/23 = 74% success               policies’ robustness in unvisited regions of the state space.
+rate, while the policy trained on 1000 generated trajectories               Third, we have demonstrated the effectiveness of our
+achieves 16/23 = 70% success rate. Despite occasional box                pipeline primarily for training robust state-based policies. Ex-
+sliding during rolling, these policies demonstrate an improved           tending the framework to train visuomotor policies by incorpo-
+ability to stabilize the box by using one arm to hold the                rating high-quality synthetic rendering from simulation could
+opposite side more firmly to prevent further sliding (Fig 10d).          further improve policy transferability to real-world scenarios.
+However, as visualized in Fig 10c, both policies trained on the
+augmented datasets exhibit failure modes originating from un-                                    VIII. C ONCLUSION
+modeled collision geometries on iiwa arms, which lead to sig-               In this work, we present a novel, cost-effective pipeline that
+nificant undesired yaw motions of the box during pitch actions.          combines physics-based simulations, human demonstrations,
+                                                                         and model-based planning to address data scarcity in contact-
+           VII. L IMITATIONS AND F UTURE W ORK
+                                                                         rich robotic manipulation tasks. A key insight of our approach
+   While our method efficiently generates abundant contact-              is that human demonstrations—even when collected on a
+rich trajectories, several limitations remain. First, although our       different morphology—offer valuable global task information
+that model-based planners often struggle to discover indepen-           S. Dasari, S. Karamcheti, S. Nasiriany, M. K. Srirama,
+dently due to the high-dimensional search space and complex             L. Y. Chen, K. Ellis, et al., “Droid: A large-scale
+contact dynamics. By leveraging these demonstrations as a               in-the-wild robot manipulation dataset,” arXiv preprint
+global prior, our method refines and augments them through              arXiv:2403.12945, 2024.
+kinematic retargeting and trajectory optimization, resulting       [11] H. R. Walke, K. Black, T. Z. Zhao, Q. Vuong, C. Zheng,
+in large datasets of dynamically feasible trajectories across           P. Hansen-Estruch, A. W. He, V. Myers, M. J. Kim,
+a range of physical parameters, initial conditions, and em-             M. Du, et al., “Bridgedata v2: A dataset for robot
+bodiments. Our framework significantly reduces the reliance             learning at scale,” in Conference on Robot Learning.
+on costly, hardware-specific data collection while offering             PMLR, 2023, pp. 1723–1736.
+the potential to reuse legacy datasets collected with outdated     [12] S. Dasari, F. Ebert, S. Tian, S. Nair, B. Bucher,
+hardware or configurations. We demonstrate its effectiveness            K. Schmeckpeper, S. Singh, S. Levine, and C. Finn,
+across multiple robotic systems in simulation and successfully          “Robonet: Large-scale multi-robot learning,” arXiv
+zero-shot deploy policies trained on the augmented dataset to           preprint arXiv:1910.11215, 2019.
+a bimanual iiwa hardware setup.                                    [13] D. Damen, H. Doughty, G. M. Farinella, S. Fidler,
+                                                                        A. Furnari, E. Kazakos, D. Moltisanti, J. Munro, T. Per-
+                        R EFERENCES                                     rett, W. Price, et al., “Scaling egocentric vision: The
+ [1] J. Achiam, S. Adler, S. Agarwal, L. Ahmad, I. Akkaya,              epic-kitchens dataset,” in Proceedings of the European
+     F. L. Aleman, D. Almeida, J. Altenschmidt, S. Alt-                 conference on computer vision (ECCV), 2018, pp. 720–
+     man, S. Anadkat, et al., “Gpt-4 technical report,” arXiv           736.
+     preprint arXiv:2303.08774, 2023.                              [14] I. Radosavovic, T. Xiao, S. James, P. Abbeel, J. Malik,
+ [2] H. Touvron, T. Lavril, G. Izacard, X. Martinet, M.-A.              and T. Darrell, “Real-world robot learning with masked
+     Lachaux, T. Lacroix, B. Rozière, N. Goyal, E. Hambro,             visual pre-training,” in Conference on Robot Learning.
+     F. Azhar, et al., “Llama: Open and efficient founda-               PMLR, 2023, pp. 416–426.
+     tion language models,” arXiv preprint arXiv:2302.13971,       [15] S. Nair, A. Rajeswaran, V. Kumar, C. Finn, and A. Gupta,
+     2023.                                                              “R3m: A universal visual representation for robot manip-
+ [3] J. Hoffmann, S. Borgeaud, A. Mensch, E. Buchatskaya,               ulation,” arXiv preprint arXiv:2203.12601, 2022.
+     T. Cai, E. Rutherford, D. d. L. Casas, L. A.                  [16] S. Karamcheti, S. Nair, A. S. Chen, T. Kollar, C. Finn,
+     Hendricks, J. Welbl, A. Clark, et al., “Training                   D. Sadigh, and P. Liang, “Language-driven representation
+     compute-optimal large language models,” arXiv preprint             learning for robotics,” arXiv preprint arXiv:2302.12766,
+     arXiv:2203.15556, 2022.                                            2023.
+ [4] R. Anil, A. M. Dai, O. Firat, M. Johnson, D. Lep-             [17] F. Xiang, Y. Qin, K. Mo, Y. Xia, H. Zhu, F. Liu, M. Liu,
+     ikhin, A. Passos, S. Shakeri, E. Taropa, P. Bailey,                H. Jiang, Y. Yuan, H. Wang, et al., “Sapien: A simulated
+     Z. Chen, et al., “Palm 2 technical report,” arXiv preprint         part-based interactive environment,” in Proceedings of
+     arXiv:2305.10403, 2023.                                            the IEEE/CVF conference on computer vision and pat-
+ [5] A. Radford, J. W. Kim, C. Hallacy, A. Ramesh, G. Goh,              tern recognition, 2020, pp. 11 097–11 107.
+     S. Agarwal, G. Sastry, A. Askell, P. Mishkin, J. Clark,       [18] G. Brockman, “Openai gym,” arXiv preprint
+     et al., “Learning transferable visual models from natural          arXiv:1606.01540, 2016.
+     language supervision,” in International conference on         [19] S. James, Z. Ma, D. R. Arrojo, and A. J. Davison,
+     machine learning. PMLR, 2021, pp. 8748–8763.                       “Rlbench: The robot learning benchmark & learning
+ [6] M. J. Kim, K. Pertsch, S. Karamcheti, T. Xiao, A. Balakr-          environment,” IEEE Robotics and Automation Letters,
+     ishna, S. Nair, R. Rafailov, E. Foster, G. Lam, P. Sanketi,        vol. 5, no. 2, pp. 3019–3026, 2020.
+     et al., “Openvla: An open-source vision-language-action       [20] L. Wang, X. Chen, J. Zhao, and K. He, “Scaling
+     model,” arXiv preprint arXiv:2406.09246, 2024.                     proprioceptive-visual learning with heterogeneous pre-
+ [7] A. O’Neill, A. Rehman, A. Gupta, A. Maddukuri,                     trained transformers,” arXiv preprint arXiv:2409.20537,
+     A. Gupta, A. Padalkar, A. Lee, A. Pooley, A. Gupta,                2024.
+     A. Mandlekar, et al., “Open x-embodiment: Robotic             [21] C. Chi, Z. Xu, C. Pan, E. Cousineau, B. Burchfiel,
+     learning datasets and rt-x models,” arXiv preprint                 S. Feng, R. Tedrake, and S. Song, “Universal manipula-
+     arXiv:2310.08864, 2023.                                            tion interface: In-the-wild robot teaching without in-the-
+ [8] O. M. Team, D. Ghosh, H. Walke, K. Pertsch, K. Black,              wild robots,” arXiv preprint arXiv:2402.10329, 2024.
+     O. Mees, S. Dasari, J. Hejna, T. Kreiman, C. Xu, et al.,      [22] I. Mordatch, E. Todorov, and Z. Popović, “Discovery of
+     “Octo: An open-source generalist robot policy,” arXiv              complex behaviors through contact-invariant optimiza-
+     preprint arXiv:2405.12213, 2024.                                   tion,” ACM Transactions on Graphics (ToG), vol. 31,
+ [9] Reuters, “Robotics startup figure raises $67.5 million             no. 4, pp. 1–8, 2012.
+     from microsoft, nvidia, and other big tech firms,” Reuters,   [23] M. Posa, C. Cantu, and R. Tedrake, “A direct method for
+     2024, accessed: 2024-12-08.                                        trajectory optimization of rigid bodies through contact,”
+[10] A. Khazatsky, K. Pertsch, S. Nair, A. Balakrishna,                 The International Journal of Robotics Research, vol. 33,
+     no. 1, pp. 69–81, 2014.                                       [38] N. Nechyporenko, R. Hoque, C. Webb, M. Sivapurapu,
+[24] T. A. Howell, K. Tracy, S. Le Cleac’h, and Z. Manch-               and J. Zhang, “Armada: Augmented reality for robot ma-
+     ester, “Calipso: A differentiable solver for trajectory op-        nipulation and robot-free data acquisition,” arXiv preprint
+     timization with conic and complementarity constraints,”            arXiv:2412.10631, 2024.
+     in The International Symposium of Robotics Research.          [39] X. Zhang, M. Chang, P. Kumar, and S. Gupta, “Diffu-
+     Springer, 2022, pp. 504–521.                                       sion meets dagger: Supercharging eye-in-hand imitation
+[25] D. A. Pomerleau, “Alvinn: An autonomous land vehicle               learning,” arXiv preprint arXiv:2402.17768, 2024.
+     in a neural network,” Advances in neural information          [40] S. Tian, B. Wulfe, K. Sargent, K. Liu, S. Zakharov,
+     processing systems, vol. 1, 1988.                                  V. Guizilini, and J. Wu, “View-invariant policy learn-
+[26] C. Chi, Z. Xu, S. Feng, E. Cousineau, Y. Du,                       ing via zero-shot novel view synthesis,” arXiv preprint
+     B. Burchfiel, R. Tedrake, and S. Song, “Diffusion pol-             arXiv:2409.03685, 2024.
+     icy: Visuomotor policy learning via action diffusion,”        [41] L. Y. Chen, C. Xu, K. Dharmarajan, Z. Irshad, R. Cheng,
+     The International Journal of Robotics Research, p.                 K. Keutzer, M. Tomizuka, Q. Vuong, and K. Goldberg,
+     02783649241273668, 2023.                                           “Rovi-aug: Robot and viewpoint augmentation for cross-
+[27] Y. Zhu, A. Joshi, P. Stone, and Y. Zhu, “Viola: Imitation          embodiment robot learning,” in Conference on Robot
+     learning for vision-based manipulation with object pro-            Learning (CoRL), 2024.
+     posal priors,” in Conference on Robot Learning. PMLR,         [42] Z. Mandi, H. Bharadhwaj, V. Moens, S. Song, A. Ra-
+     2023, pp. 1199–1210.                                               jeswaran, and V. Kumar, “Cacti: A framework for scal-
+[28] Z. Fu, T. Z. Zhao, and C. Finn, “Mobile aloha: Learning            able multi-task multi-scene visual imitation learning,”
+     bimanual mobile manipulation with low-cost whole-body              arXiv preprint arXiv:2212.05711, 2022.
+     teleoperation,” arXiv preprint arXiv:2401.02117, 2024.        [43] Z. Chen, S. Kiami, A. Gupta, and V. Kumar, “Genaug:
+[29] T. Z. Zhao, J. Tompson, D. Driess, P. Florence,                    Retargeting behaviors to unseen situations via generative
+     K. Ghasemipour, C. Finn, and A. Wahid, “Aloha un-                  augmentation,” arXiv preprint arXiv:2302.06671, 2023.
+     leashed: A simple recipe for robot dexterity,” arXiv          [44] T. Yu, T. Xiao, A. Stone, J. Tompson, A. Brohan,
+     preprint arXiv:2410.13126, 2024.                                   S. Wang, J. Singh, C. Tan, J. Peralta, B. Ichter, et al.,
+[30] Z. Fu, Q. Zhao, Q. Wu, G. Wetzstein, and C. Finn,                  “Scaling robot learning with semantically imagined ex-
+     “Humanplus: Humanoid shadowing and imitation from                  perience,” arXiv preprint arXiv:2302.11550, 2023.
+     humans,” arXiv preprint arXiv:2406.10454, 2024.               [45] A. Mandlekar, S. Nasiriany, B. Wen, I. Akinola,
+[31] T. He, Z. Luo, X. He, W. Xiao, C. Zhang, W. Zhang,                 Y. Narang, L. Fan, Y. Zhu, and D. Fox, “Mim-
+     K. Kitani, C. Liu, and G. Shi, “Omnih2o: Universal and             icgen: A data generation system for scalable robot
+     dexterous human-to-humanoid whole-body teleoperation               learning using human demonstrations,” arXiv preprint
+     and learning,” arXiv preprint arXiv:2406.08858, 2024.              arXiv:2310.17596, 2023.
+[32] F. Ebert, Y. Yang, K. Schmeckpeper, B. Bucher, G. Geor-       [46] Z. Jiang, Y. Xie, K. Lin, Z. Xu, W. Wan, A. Mandlekar,
+     gakis, K. Daniilidis, C. Finn, and S. Levine, “Bridge              L. Fan, and Y. Zhu, “Dexmimicgen: Automated data gen-
+     data: Boosting generalization of robotic skills with cross-        eration for bimanual dexterous manipulation via imitation
+     domain datasets,” arXiv preprint arXiv:2109.13396,                 learning,” arXiv preprint arXiv:2410.24185, 2024.
+     2021.                                                         [47] C. Garrett, A. Mandlekar, B. Wen, and D. Fox,
+[33] T. Zhang, Z. McCarthy, O. Jow, D. Lee, X. Chen,                    “Skillmimicgen: Automated demonstration generation
+     K. Goldberg, and P. Abbeel, “Deep imitation learning for           for efficient skill learning and deployment,” in 8th Annual
+     complex manipulation tasks from virtual reality teleoper-          Conference on Robot Learning, 2024.
+     ation,” in 2018 IEEE international conference on robotics     [48] S. Nasiriany, A. Maddukuri, L. Zhang, A. Parikh, A. Lo,
+     and automation (ICRA). IEEE, 2018, pp. 5628–5635.                  A. Joshi, A. Mandlekar, and Y. Zhu, “Robocasa: Large-
+[34] A. Smith and M. Kennedy III, “An augmented reality                 scale simulation of everyday tasks for generalist robots,”
+     interface for teleoperating robot manipulators: Reducing           arXiv preprint arXiv:2406.02523, 2024.
+     demonstrator task load through digital twin control,”         [49] A. Ö. Önol, P. Long, and T. Padır, “Contact-implicit tra-
+     arXiv preprint arXiv:2409.18394, 2024.                             jectory optimization based on a variable smooth contact
+[35] J. Duan, Y. R. Wang, M. Shridhar, D. Fox, and R. Kr-               model and successive convexification,” in 2019 Interna-
+     ishna, “Ar2-d2: Training a robot without a robot,” arXiv           tional Conference on Robotics and Automation (ICRA).
+     preprint arXiv:2306.13818, 2023.                                   IEEE, 2019, pp. 2447–2453.
+[36] Y. Park, J. S. Bhatia, L. Ankile, and P. Agrawal, “Dexhub     [50] J. Moura, T. Stouraitis, and S. Vijayakumar, “Non-
+     and dart: Towards internet scale robot data collection,”           prehensile planar manipulation via trajectory optimiza-
+     arXiv preprint arXiv:2411.02214, 2024.                             tion with complementarity constraints,” in 2022 Interna-
+[37] S. Chen, C. Wang, K. Nguyen, L. Fei-Fei, and C. K. Liu,            tional Conference on Robotics and Automation (ICRA).
+     “Arcap: Collecting high-quality human demonstrations               IEEE, 2022, pp. 970–976.
+     for robot learning with augmented reality feedback,”          [51] J.-P. Sleiman, J. Carius, R. Grandia, M. Wermelinger,
+     arXiv preprint arXiv:2410.08464, 2024.                             and M. Hutter, “Contact-implicit trajectory optimization
+     for dynamic object manipulation,” in 2019 IEEE/RSJ in-             Mora, and C. H. Corbato, “Sampling-based model pre-
+     ternational conference on intelligent robots and systems           dictive control leveraging parallelizable physics simula-
+     (IROS). IEEE, 2019, pp. 6814–6821.                                 tions,” arXiv preprint arXiv:2307.09105, 2023.
+[52] Y. Tassa, T. Erez, and E. Todorov, “Synthesis and stabi-      [65] T. Howell, N. Gileadi, S. Tunyasuvunakool, K. Za-
+     lization of complex behaviors through online trajectory            kka, T. Erez, and Y. Tassa, “Predictive sampling: Real-
+     optimization,” in 2012 IEEE/RSJ International Confer-              time behaviour synthesis with mujoco,” arXiv preprint
+     ence on Intelligent Robots and Systems. IEEE, 2012,                arXiv:2212.00541, 2022.
+     pp. 4906–4913.                                                [66] A. H. Li, P. Culbertson, V. Kurtz, and A. D. Ames,
+[53] M. Neunert, F. Farshidian, and J. Buchli, “Efficient               “Drop: Dexterous reorientation via online planning,”
+     whole-body trajectory optimization using contact con-              arXiv preprint arXiv:2409.14562, 2024.
+     straint relaxation,” in 2016 IEEE-RAS 16th International      [67] T. Pang, H. T. Suh, L. Yang, and R. Tedrake, “Global
+     Conference on Humanoid Robots (Humanoids). IEEE,                   planning for contact-rich manipulation via local smooth-
+     2016, pp. 43–48.                                                   ing of quasi-dynamic contact models,” IEEE Transac-
+[54] A. W. Winkler, C. D. Bellicoso, M. Hutter, and                     tions on robotics, 2023.
+     J. Buchli, “Gait and trajectory optimization for legged       [68] X. Cheng, S. Patil, Z. Temel, O. Kroemer, and M. T.
+     systems through phase-based end-effector parameteriza-             Mason, “Enhancing dexterity in robotic manipulation
+     tion,” IEEE Robotics and Automation Letters, vol. 3,               via hierarchical contact exploration,” IEEE Robotics and
+     no. 3, pp. 1560–1567, 2018.                                        Automation Letters, vol. 9, no. 1, pp. 390–397, 2023.
+[55] M. Wang, A. Ö. Önol, P. Long, and T. Padır, “Contact-       [69] S. Belkhale, Y. Cui, and D. Sadigh, “Data quality in
+     implicit planning and control for non-prehensile manip-            imitation learning,” Advances in Neural Information Pro-
+     ulation using state-triggered constraints,” in The Interna-        cessing Systems, vol. 36, 2024.
+     tional Symposium of Robotics Research. Springer, 2022,        [70] H. Zhu, T. Zhao, X. Ni, J. Wang, K. Fang, L. Righetti,
+     pp. 189–204.                                                       and T. Pang, “Should we learn contact-rich manipulation
+[56] V. Kurtz, A. Castro, A. Ö. Önol, and H. Lin, “Inverse dy-        policies from sampling-based planners?” arXiv preprint
+     namics trajectory optimization for contact-implicit model          arXiv:2412.09743, 2024.
+     predictive control,” arXiv preprint arXiv:2309.01813,         [71] T. Chen, J. Xu, and P. Agrawal, “A system for general
+     2023.                                                              in-hand object re-orientation,” in Conference on Robot
+[57] M. Neunert, M. Stäuble, M. Giftthaler, C. D. Bellicoso,           Learning. PMLR, 2022, pp. 297–307.
+     J. Carius, C. Gehring, M. Hutter, and J. Buchli, “Whole-      [72] H. Qi, A. Kumar, R. Calandra, Y. Ma, and J. Malik,
+     body nonlinear model predictive control through contacts           “In-hand object rotation via rapid motor adaptation,” in
+     for quadrupeds,” IEEE Robotics and Automation Letters,             Conference on Robot Learning. PMLR, 2023, pp. 1722–
+     vol. 3, no. 3, pp. 1458–1465, 2018.                                1732.
+[58] S. Le Cleac’h, T. A. Howell, S. Yang, C.-Y. Lee,              [73] M. Vecerik, T. Hester, J. Scholz, F. Wang, O. Pietquin,
+     J. Zhang, A. Bishop, M. Schwager, and Z. Manchester,               B. Piot, N. Heess, T. Rothörl, T. Lampe, and M. Ried-
+     “Fast contact-implicit model predictive control,” IEEE             miller, “Leveraging demonstrations for deep reinforce-
+     Transactions on Robotics, 2024.                                    ment learning on robotics problems with sparse rewards,”
+[59] A. Aydinoglu, A. Wei, W.-C. Huang, and M. Posa,                    arXiv preprint arXiv:1707.08817, 2017.
+     “Consensus complementarity control for multi-contact          [74] A. Nair, B. McGrew, M. Andrychowicz, W. Zaremba,
+     mpc,” IEEE Transactions on Robotics, 2024.                         and P. Abbeel, “Overcoming exploration in reinforcement
+[60] H. T. Suh, T. Pang, T. Zhao, and R. Tedrake, “Dexterous            learning with demonstrations,” in 2018 IEEE interna-
+     contact-rich manipulation via the contact trust region,”           tional conference on robotics and automation (ICRA).
+     2025.                                                              IEEE, 2018, pp. 6292–6299.
+[61] B. P. Graesdal, S. Y. C. Chia, T. Marcucci, S. Morozov,       [75] A. Rajeswaran, V. Kumar, A. Gupta, G. Vezzani,
+     A. Amice, P. A. Parrilo, and R. Tedrake, “Towards tight            J. Schulman, E. Todorov, and S. Levine, “Learn-
+     convex relaxations for contact-rich manipulation,” arXiv           ing complex dexterous manipulation with deep rein-
+     preprint arXiv:2402.10312, 2024.                                   forcement learning and demonstrations,” arXiv preprint
+[62] P. Hämäläinen, J. Rajamäki, and C. K. Liu, “Online             arXiv:1709.10087, 2017.
+     control of simulated humanoids using particle belief          [76] H. Hu, S. Mirchandani, and D. Sadigh, “Imitation
+     propagation,” ACM Transactions on Graphics (TOG),                  bootstrapped reinforcement learning,” arXiv preprint
+     vol. 34, no. 4, pp. 1–13, 2015.                                    arXiv:2311.02198, 2023.
+[63] J. Carius, R. Ranftl, F. Farshidian, and M. Hutter, “Con-     [77] N. Hansen, Y. Lin, H. Su, X. Wang, V. Kumar, and
+     strained stochastic optimal control with learned impor-            A. Rajeswaran, “Modem: Accelerating visual model-
+     tance sampling: A path integral approach,” The Interna-            based reinforcement learning with demonstrations,”
+     tional Journal of Robotics Research, vol. 41, no. 2, pp.           arXiv preprint arXiv:2212.05698, 2022.
+     189–209, 2022.                                                [78] Y. Zhu, Z. Wang, J. Merel, A. Rusu, T. Erez, S. Cabi,
+[64] C. Pezzato, C. Salmi, M. Spahn, E. Trevisan, J. Alonso-            S. Tunyasuvunakool, J. Kramár, R. Hadsell, N. de Freitas,
+     et al., “Reinforcement and imitation learning for diverse
+     visuomotor skills,” arXiv preprint arXiv:1802.09564,
+     2018.
+[79] X. B. Peng, Z. Ma, P. Abbeel, S. Levine, and
+     A. Kanazawa, “Amp: Adversarial motion priors for styl-
+     ized physics-based character control,” ACM Transactions
+     on Graphics (ToG), vol. 40, no. 4, pp. 1–20, 2021.
+[80] X. B. Peng, P. Abbeel, S. Levine, and M. Van de Panne,
+     “Deepmimic: Example-guided deep reinforcement learn-
+     ing of physics-based character skills,” ACM Transactions
+     On Graphics (TOG), vol. 37, no. 4, pp. 1–14, 2018.
+[81] J.-P. Sleiman, M. Mittal, and M. Hutter, “Guided
+     reinforcement learning for robust multi-contact loco-
+     manipulation,” in 8th Annual Conference on Robot
+     Learning (CoRL 2024), 2024.
+[82] J. Li, Y. Zhu, Y. Xie, Z. Jiang, M. Seo, G. Pavlakos, and
+     Y. Zhu, “Okami: Teaching humanoid robots manipulation
+     skills through single video imitation,” in 8th Annual
+     Conference on Robot Learning, 2024.
+[83] C. Wang, L. Fan, J. Sun, R. Zhang, L. Fei-Fei, D. Xu,
+     Y. Zhu, and A. Anandkumar, “Mimicplay: Long-horizon
+     imitation learning by watching human play,” arXiv
+     preprint arXiv:2302.12422, 2023.
+[84] M. Seo, H. A. Park, S. Yuan, Y. Zhu, and L. Sentis,
+     “Legato: Cross-embodiment imitation using a grasping
+     tool,” arXiv preprint arXiv:2411.03682, 2024.
+[85] J. Yang, C. Glossop, A. Bhorkar, D. Shah, Q. Vuong,
+     C. Finn, D. Sadigh, and S. Levine, “Pushing the lim-
+     its of cross-embodiment learning for manipulation and
+     navigation,” arXiv preprint arXiv:2402.19432, 2024.
+[86] R. Doshi, H. R. Walke, O. Mees, S. Dasari, and
+     S. Levine, “Scaling cross-embodied learning: One policy
+     for manipulation, navigation, locomotion and aviation,”
+     in 8th Annual Conference on Robot Learning.
+[87] R. Tedrake and the Drake Development Team, “Drake:
+     Model-based design and verification for robotics,” 2019.
+     [Online]. Available: https://drake.mit.edu
+[88] G. Yang, “VUER: A 3d visualization and data
+     collection environment for robot learning,” 2024.
+     [Online]. Available: https://github.com/vuer-ai/vuer
+[89] P.-T. De Boer, D. P. Kroese, S. Mannor, and R. Y.
+     Rubinstein, “A tutorial on the cross-entropy method,”
+     Annals of operations research, vol. 134, pp. 19–67, 2005.
+[90] X. Li, T. Zhao, X. Zhu, J. Wang, T. Pang, and K. Fang,
+     “Planning-guided diffusion policy learning for generaliz-
+     able contact-rich bimanual manipulation,” arXiv preprint
+     arXiv:2412.02676, 2024.
+    Parameter                T     Plan Duration        qo     qr        ru
+    Floating Allegro Hand    6        1.25 s          10       0.01      0.1
+    Bimanual iiwa Arms       6        1.25 s          10       0.01      10
+    Bimanual Panda Arms      6         2.0 s          10       0.01      10
+
+TABLE III: Parameters for CEM. T : planning horizon. qo : scalar
+weight for tracking object trajectories. qr : scalar weight for tracking
+robot trajectories. ru : scalar weight for control input.
+
+Parameter               To    Ta     Freq      Epochs        Obs. Dim.         Act. Dim.
+Floating Allegro Hand   10    40      50       1000             34                22
+Bimanual iiwa Arms      10    40      20        800             26                14
+Bimanual Panda Arms     10    40      50        800             26                14
+
+TABLE IV: Parameters for diffusion policies. To : observation
+horizon. Ta : action horizon. Freq: environment frequency (Hz, both
+observations and actions).
+
+
+                         IX. APPENDIX
+  In appendix, we present the implementation details of CEM
+and policy training.
+A. CEM Implementation Details
+   We provide detailed parameters for the CEM implemen-
+tation in Table III. We optimize over the action knot points
+u0:T −1 , which are linearly interpolated to generate action com-
+mands sent to Drake. Drake simulates the contact dynamics f
+at 200 Hz. The state cost matrix Qt = diag(qo · 1no , qr · 1nr ),
+where no and nr denote the object and robot state dimensions,
+and 1 is a vector or all 1’s. The terminal state cost matrix
+QT = 10 · Qt . The input cost matrix Rt = diag(ru · 1nu ),
+where nu represents the control input dimension. All of
+the systems adopt 50 samples, 5 elites and initial standard
+deviation σ = 0.05 · 1nu for action sampling.
+B. Policy Implementation Details
+   We train UNet-based diffusion policies [26] for all tasks.
+The action space is the robot configuration (joint angles, and
+additional floating base coordinates for the Allegro hand),
+while the observation space is the robot configuration and ob-
+ject pose (with orientations represented by rotation matrices).
+Detailed parameters are listed in Table IV.
+

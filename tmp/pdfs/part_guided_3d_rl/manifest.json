@@ -1,0 +1,167 @@
+{
+  "pdf": "/Users/yang/Notes/Notes/Papers/Part-Guided 3D RL for Sim2Real Articulated Object Manipulation.pdf",
+  "out": "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl",
+  "tools": {
+    "pdfinfo": true,
+    "pdftotext": true,
+    "pdftoppm": true
+  },
+  "pdfinfo": {
+    "Title": "",
+    "Subject": "",
+    "Keywords": "",
+    "Author": "",
+    "Creator": "LaTeX with hyperref",
+    "Producer": "pdfTeX-1.40.25",
+    "CreationDate": "Mon Apr 29 08:29:51 2024 CST",
+    "ModDate": "Mon Apr 29 08:29:51 2024 CST",
+    "Custom Metadata": "yes",
+    "Metadata Stream": "no",
+    "Tagged": "no",
+    "UserProperties": "no",
+    "Suspects": "no",
+    "Form": "none",
+    "JavaScript": "no",
+    "Pages": "9",
+    "Encrypted": "no",
+    "Page size": "612 x 792 pts (letter)",
+    "Page rot": "0",
+    "File size": "3710225 bytes",
+    "Optimized": "no",
+    "PDF version": "1.5"
+  },
+  "page_count": 9,
+  "pdftotext_layout": "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pdftotext-layout.txt",
+  "pdfplumber_pages": [
+    {
+      "page": 1,
+      "chars": 4895,
+      "tables": 0,
+      "keyword_hits": [
+        "abstract",
+        "introduction",
+        "method",
+        "approach",
+        "model",
+        "experiment",
+        "table",
+        "limitation"
+      ]
+    },
+    {
+      "page": 2,
+      "chars": 6143,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "model",
+        "experiment",
+        "evaluation",
+        "table"
+      ]
+    },
+    {
+      "page": 3,
+      "chars": 4896,
+      "tables": 0,
+      "keyword_hits": [
+        "introduction",
+        "method",
+        "approach",
+        "model",
+        "table"
+      ]
+    },
+    {
+      "page": 4,
+      "chars": 5237,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "model",
+        "experiment",
+        "table"
+      ]
+    },
+    {
+      "page": 5,
+      "chars": 5495,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "objective",
+        "experiment",
+        "evaluation",
+        "ablation",
+        "table"
+      ]
+    },
+    {
+      "page": 6,
+      "chars": 3083,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "experiment",
+        "ablation",
+        "table"
+      ]
+    },
+    {
+      "page": 7,
+      "chars": 4453,
+      "tables": 1,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "experiment",
+        "ablation",
+        "table",
+        "limitation"
+      ]
+    },
+    {
+      "page": 8,
+      "chars": 6613,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "model",
+        "experiment",
+        "evaluation",
+        "table",
+        "conclusion"
+      ]
+    },
+    {
+      "page": 9,
+      "chars": 2330,
+      "tables": 0,
+      "keyword_hits": []
+    }
+  ],
+  "selected_pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "rendered_pages": [
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-1-1.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-2-2.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-3-3.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-4-4.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-5-5.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-6-6.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-7-7.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/part_guided_3d_rl/pages/page-8-8.png"
+  ]
+}

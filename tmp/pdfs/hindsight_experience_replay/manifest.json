@@ -1,0 +1,205 @@
+{
+  "pdf": "/Users/yang/Notes/Notes/Papers/Hindsight Experience Replay.pdf",
+  "out": "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay",
+  "tools": {
+    "pdfinfo": true,
+    "pdftotext": true,
+    "pdftoppm": true
+  },
+  "pdfinfo": {
+    "Title": "",
+    "Subject": "",
+    "Keywords": "",
+    "Author": "",
+    "Creator": "LaTeX with hyperref package",
+    "Producer": "pdfTeX-1.40.17",
+    "CreationDate": "Mon Feb 26 09:58:37 2018 CST",
+    "ModDate": "Mon Feb 26 09:58:37 2018 CST",
+    "Custom Metadata": "yes",
+    "Metadata Stream": "no",
+    "Tagged": "no",
+    "UserProperties": "no",
+    "Suspects": "no",
+    "Form": "none",
+    "JavaScript": "no",
+    "Pages": "15",
+    "Encrypted": "no",
+    "Page size": "612 x 792 pts (letter)",
+    "Page rot": "0",
+    "File size": "2464277 bytes",
+    "Optimized": "no",
+    "PDF version": "1.5"
+  },
+  "page_count": 15,
+  "pdftotext_layout": "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pdftotext-layout.txt",
+  "pdfplumber_pages": [
+    {
+      "page": 1,
+      "chars": 3208,
+      "tables": 0,
+      "keyword_hits": [
+        "abstract",
+        "introduction",
+        "approach",
+        "model",
+        "experiment",
+        "ablation",
+        "conclusion"
+      ]
+    },
+    {
+      "page": 2,
+      "chars": 4198,
+      "tables": 0,
+      "keyword_hits": [
+        "approach",
+        "model",
+        "experiment",
+        "table",
+        "conclusion"
+      ]
+    },
+    {
+      "page": 3,
+      "chars": 4127,
+      "tables": 1,
+      "keyword_hits": [
+        "approach",
+        "model",
+        "experiment",
+        "figure"
+      ]
+    },
+    {
+      "page": 4,
+      "chars": 4672,
+      "tables": 0,
+      "keyword_hits": [
+        "approach",
+        "experiment",
+        "appendix"
+      ]
+    },
+    {
+      "page": 5,
+      "chars": 2988,
+      "tables": 0,
+      "keyword_hits": [
+        "experiment"
+      ]
+    },
+    {
+      "page": 6,
+      "chars": 2573,
+      "tables": 1,
+      "keyword_hits": [
+        "table",
+        "figure",
+        "appendix"
+      ]
+    },
+    {
+      "page": 7,
+      "chars": 3987,
+      "tables": 3,
+      "keyword_hits": [
+        "model",
+        "ablation",
+        "figure"
+      ]
+    },
+    {
+      "page": 8,
+      "chars": 3494,
+      "tables": 3,
+      "keyword_hits": [
+        "experiment",
+        "figure"
+      ]
+    },
+    {
+      "page": 9,
+      "chars": 2246,
+      "tables": 9,
+      "keyword_hits": [
+        "ablation",
+        "figure"
+      ]
+    },
+    {
+      "page": 10,
+      "chars": 3702,
+      "tables": 1,
+      "keyword_hits": [
+        "approach",
+        "figure",
+        "appendix"
+      ]
+    },
+    {
+      "page": 11,
+      "chars": 3676,
+      "tables": 0,
+      "keyword_hits": [
+        "model",
+        "experiment",
+        "conclusion"
+      ]
+    },
+    {
+      "page": 12,
+      "chars": 3826,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "model",
+        "experiment"
+      ]
+    },
+    {
+      "page": 13,
+      "chars": 1688,
+      "tables": 0,
+      "keyword_hits": [
+        "model"
+      ]
+    },
+    {
+      "page": 14,
+      "chars": 4201,
+      "tables": 0,
+      "keyword_hits": [
+        "experiment",
+        "table"
+      ]
+    },
+    {
+      "page": 15,
+      "chars": 1117,
+      "tables": 0,
+      "keyword_hits": [
+        "approach"
+      ]
+    }
+  ],
+  "selected_pages": [
+    1,
+    2,
+    3,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "rendered_pages": [
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-1-01.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-2-02.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-3-03.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-6-06.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-7-07.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-8-08.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-9-09.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/hindsight_experience_replay/pages/page-10-10.png"
+  ]
+}

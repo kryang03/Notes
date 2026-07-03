@@ -1,0 +1,188 @@
+{
+  "pdf": "/Users/yang/Notes/Notes/Papers/Autoregressive Policies for Continuous Control Deep Reinforcement Learning.pdf",
+  "out": "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control",
+  "tools": {
+    "pdfinfo": true,
+    "pdftotext": true,
+    "pdftoppm": true
+  },
+  "pdfinfo": {
+    "Title": "",
+    "Subject": "",
+    "Keywords": "",
+    "Author": "",
+    "Creator": "LaTeX with hyperref package",
+    "Producer": "pdfTeX-1.40.17",
+    "CreationDate": "Thu Mar 28 08:54:35 2019 CST",
+    "ModDate": "Thu Mar 28 08:54:35 2019 CST",
+    "Custom Metadata": "yes",
+    "Metadata Stream": "no",
+    "Tagged": "no",
+    "UserProperties": "no",
+    "Suspects": "no",
+    "Form": "none",
+    "JavaScript": "no",
+    "Pages": "13",
+    "Encrypted": "no",
+    "Page size": "612 x 792 pts (letter)",
+    "Page rot": "0",
+    "File size": "918905 bytes",
+    "Optimized": "no",
+    "PDF version": "1.5"
+  },
+  "page_count": 13,
+  "pdftotext_layout": "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pdftotext-layout.txt",
+  "pdfplumber_pages": [
+    {
+      "page": 1,
+      "chars": 5004,
+      "tables": 0,
+      "keyword_hits": [
+        "abstract",
+        "introduction",
+        "approach",
+        "model",
+        "table"
+      ]
+    },
+    {
+      "page": 2,
+      "chars": 6704,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "approach",
+        "model",
+        "objective",
+        "experiment",
+        "table"
+      ]
+    },
+    {
+      "page": 3,
+      "chars": 4795,
+      "tables": 0,
+      "keyword_hits": [
+        "objective",
+        "appendix"
+      ]
+    },
+    {
+      "page": 4,
+      "chars": 5304,
+      "tables": 12,
+      "keyword_hits": [
+        "figure"
+      ]
+    },
+    {
+      "page": 5,
+      "chars": 6745,
+      "tables": 0,
+      "keyword_hits": [
+        "method",
+        "model",
+        "experiment",
+        "table",
+        "appendix"
+      ]
+    },
+    {
+      "page": 6,
+      "chars": 5791,
+      "tables": 6,
+      "keyword_hits": [
+        "approach",
+        "objective",
+        "experiment",
+        "figure",
+        "appendix"
+      ]
+    },
+    {
+      "page": 7,
+      "chars": 4839,
+      "tables": 10,
+      "keyword_hits": [
+        "approach",
+        "experiment",
+        "figure"
+      ]
+    },
+    {
+      "page": 8,
+      "chars": 5487,
+      "tables": 0,
+      "keyword_hits": [
+        "introduction",
+        "method",
+        "table",
+        "conclusion"
+      ]
+    },
+    {
+      "page": 9,
+      "chars": 2598,
+      "tables": 0,
+      "keyword_hits": [
+        "introduction",
+        "method"
+      ]
+    },
+    {
+      "page": 10,
+      "chars": 2566,
+      "tables": 0,
+      "keyword_hits": []
+    },
+    {
+      "page": 11,
+      "chars": 2907,
+      "tables": 0,
+      "keyword_hits": [
+        "experiment",
+        "table",
+        "figure",
+        "appendix"
+      ]
+    },
+    {
+      "page": 12,
+      "chars": 2002,
+      "tables": 9,
+      "keyword_hits": [
+        "experiment",
+        "table",
+        "figure"
+      ]
+    },
+    {
+      "page": 13,
+      "chars": 2843,
+      "tables": 1,
+      "keyword_hits": [
+        "model"
+      ]
+    }
+  ],
+  "selected_pages": [
+    1,
+    2,
+    5,
+    6,
+    7,
+    8,
+    11,
+    12
+  ],
+  "rendered_pages": [
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-1-01.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-2-02.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-5-05.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-6-06.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-7-07.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-8-08.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-11-11.png",
+    "/Users/yang/Notes/Notes/tmp/pdfs/autoregressive_policies_continuous_control/pages/page-12-12.png"
+  ]
+}

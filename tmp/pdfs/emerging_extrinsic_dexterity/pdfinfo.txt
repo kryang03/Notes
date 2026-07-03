@@ -1,0 +1,18 @@
+Title:           Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning
+Author:          Yixin Zheng; Jiangran Lyu; Yifan Zhang; Jiayi Chen; Mi Yan; Yuntian Deng; Xuesong Shi; Xiaoguang Zhao; Yizhou Wang; Zhizheng Zhang; He Wang
+Creator:         arXiv GenPDF (tex2pdf:8e18bb9)
+Producer:        pikepdf 8.15.1
+Custom Metadata: yes
+Metadata Stream: yes
+Tagged:          no
+UserProperties:  no
+Suspects:        no
+Form:            none
+JavaScript:      no
+Pages:           18
+Encrypted:       no
+Page size:       612 x 792 pts (letter)
+Page rot:        0
+File size:       7477373 bytes
+Optimized:       no
+PDF version:     1.7

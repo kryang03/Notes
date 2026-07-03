@@ -1,0 +1,1003 @@
+                                           Research Article                                                                                           ETH Zurich and Intel   1
+
+
+
+
+                                         Learning Agile and Dynamic Motor Skills for Legged Robots
+                                         J EMIN H WANGBO1* , J OONHO L EE1 , A LEXEY D OSOVITSKIY2 , DARIO B ELLICOSO1 , J OONHO L EE1 ,
+                                         VASSILIOS T SOUNIS1 , V LADLEN KOLTUN2 , AND M ARCO H UTTER1
+                                         1 Robotic Systems Lab, ETH Zurich
+                                         2 Intelligent Systems Lab, Intel
+                                         * Corresponding author: jemin.hwangbo@gmail.com
+
+
+                                         Compiled January 28, 2019
+
+
+
+                                         Legged robots pose one of the greatest challenges in                40 kg) and generate smoke and noise, limiting them to outdoor
+
+
+
+
+arXiv:1901.08652v1 [cs.RO] 24 Jan 2019
+                                         robotics. Dynamic and agile maneuvers of animals can-               environments. Another family of legged systems is equipped
+                                         not be imitated by existing methods that are crafted                with electric actuators, which are better suited to indoor environ-
+                                         by humans. A compelling alternative is reinforce-                   ments. MIT Cheetah [3] is one of the most promising legged sys-
+                                         ment learning, which requires minimal craftsmanship                 tems of this kind. It is a fast, efficient, and powerful quadrupedal
+                                         and promotes the natural evolution of a control pol-                robot designed with advanced actuation technology. However,
+                                                                                                             it is a research platform optimized mainly for speed and has
+                                         icy. However, so far, reinforcement learning research
+                                                                                                             not been thoroughly evaluated with respect to battery life, turn-
+                                         for legged robots is mainly limited to simulation, and
+                                                                                                             ing capability, mechanical robustness, and outdoor applicability.
+                                         only few and comparably simple examples have been                   Boston Dynamics’ newly introduced robot, SpotMini, is also
+                                         deployed on real systems. The primary reason is that                driven by electric actuators and is designed for both indoor and
+                                         training with real robots, particularly with dynamically            outdoor applications. Although the details have not been dis-
+                                         balancing systems, is complicated and expensive. In                 closed, a series of public demonstrations and media releases [4]
+                                         the present work, we report a new method for train-                 are convincing evidence of its applicability to real-world oper-
+                                         ing a neural network policy in simulation and transfer-             ation. The platform used in this work, ANYmal [5], is another
+                                         ring it to a state-of-the-art legged system, thereby we             promising quadrupedal robot powered by electric actuators. Its
+                                         leverage fast, automated, and cost-effective data gener-            bioinspired actuator design makes it robust against impact while
+                                         ation schemes. The approach is applied to the ANYmal                allowing accurate torque measurement at the joints. However,
+                                                                                                             the complicated actuator design increases cost and compromises
+                                         robot, a sophisticated medium-dog-sized quadrupedal
+                                                                                                             the power output of the robot.
+                                         system. Using policies trained in simulation, the
+                                         quadrupedal machine achieves locomotion skills that                    Designing control algorithms for these hardware platforms
+                                         go beyond what had been achieved with prior methods:                remains exceptionally challenging. From the control perspective,
+                                                                                                             these robots are high-dimensional and non-smooth systems with
+                                         ANYmal is capable of precisely and energy-efficiently
+                                                                                                             many physical constraints. The contact points change over the
+                                         following high-level body velocity commands, running                course of time and depending on the maneuver being executed
+                                         faster than ever before, and recovering from falling                and, therefore, cannot be prespecified. Analytical models of the
+                                         even in complex configurations.                                     robots are often inaccurate and cause uncertainties in the dy-
+                                                                                                             namics. A complex sensor suite and multiple layers of software
+                                         https://doi.org/10.1126/scirobotics.aau5872
+                                                                                                             bring noise and delays to information transfer. Conventional
+                                                                                                             control theories are often insufficient to deal with these problems
+                                                                                                             effectively. Specialized control methods developed to tackle this
+                                         INTRODUCTION                                                        complex problem typically require a lengthy design process and
+                                         Legged robotic systems are attractive alternatives to               arduous parameter tuning.
+                                         tracked/wheeled robots for applications in rough terrain                The most popular approach to controlling physical legged
+                                         and complex cluttered environments. Their freedom to choose         systems is modular controller design. This method breaks the
+                                         contact points with the environment enables them to overcome        control problem down into smaller submodules that are largely
+                                         obstacles comparable to their leg length. With such capabilities,   decoupled and are therefore easier to manage. Each module is
+                                         legged robots may one day rescue people in forests and              based on template dynamics [6] or heuristics and generates ref-
+                                         mountains, climb stairs to carry payloads in construction sites,    erence values for the next module. For example, some popular
+                                         inspect unstructured underground tunnels, and explore other         approaches [7–10] use a template-dynamics-based control mod-
+                                         planets. Legged systems have the potential to perform any           ule that approximates the robot as a point mass with a massless
+                                         physical activity humans and animals are capable of.                limb to compute the next foothold position. Given the foothold
+                                             A variety of legged systems are being developed in the effort   positions, the next module computes a parameterized trajectory
+                                         to take us closer to this vision of the future. Boston Dynamics     for the foot to follow. The last module tracks the trajectory with
+                                         introduced a series of robots equipped with hydraulic actua-        a simple Proportional-Integral-Derivative (PID) controller. Since
+                                         tors [1, 2]. These have advantages in operation since they are      the outputs of these modules are physical quantities, such as
+                                         powered by conventional fuel with high energy density. How-         body height or foot trajectory, each module can be individually
+                                         ever, systems of this type cannot be scaled down (usually >         hand-tuned. Approaches of this type have achieved impressive
+ Research Article                                                                                            ETH Zurich and Intel   2
+
+
+results. Kalakrishnan et al. [11] demonstrated robust locomotion     readings to low-level control signals, thereby allowing for highly
+over challenging terrain with a quadrupedal robot: to date this      agile and efficient controllers. On the downside, RL typically
+remains the state-of-the-art for rough terrain locomotion. Re-       requires prohibitively long interaction with the system to learn
+cently, Bellicoso et al. [12] demonstrated dynamic gaits, smooth     complex skills – typically weeks or months of real-time execu-
+transitions between them, and agile outdoor locomotion with          tion [18]. Moreover, over the course of training, the controller
+a similar controller design. Yet despite their attractive proper-    may exhibit sudden and chaotic behavior, leading to logistical
+ties, modular designs have limitations. First, limited detail in     complications and safety concerns. Direct application of learn-
+the modeling constrains the model’s accuracy. This inherent          ing methods to physical legged systems is therefore complicated
+drawback is typically mitigated by limiting the operational state    and has only been demonstrated on relatively simple and stable
+domain of each module to a small region where the approxima-         platforms [19] or in a limited context [20].
+tions are valid. In practice, such constraints lead to significant       Due to the difficulties of training on physical systems, most
+compromises in performance, such as slow acceleration, fixed         advanced applications of RL to legged locomotion are restricted
+upright pose of the body, and limited velocity of the limbs. Sec-    to simulation. Recent innovations in RL make it possible to train
+ond, the design of modular controllers is extremely laborious.       locomotion policies for complex legged models. Levine and
+Highly trained engineers spend months to develop a controller        Koltun [21] combined learning and trajectory optimization to
+and to arduously hand-tune the control parameters per module         train a locomotion controller for a simulated 2D walker. Schul-
+for every new robot or even for every new maneuver. For ex-          man et al. [22] trained a locomotion policy for a similar 2D
+ample, running and climbing controllers of this kind can have        walker with an actor-critic method. More recent work obtained
+drastically different architectures and are designed and tuned       full 3D locomotion policies [23–26]. In these papers, animated
+separately.                                                          characters achieve remarkable motor skills in simulation.
+    More recently, trajectory optimization approaches have been          Given the achievements of reinforcement learning in simu-
+proposed to mitigate the aforementioned problems. In these           lated environments, a natural question is whether these learned
+methods, the controller is separated into two modules: planning      policies can be deployed on physical systems. Unfortunately,
+and tracking. The planning module uses rigid-body dynamics           such simulation-to-reality transfer is hindered by the reality
+and numerical optimization to compute an optimal path that           gap – the discrepancy between simulation and the real system
+the robot should follow to reach the desired goal. The tracking      in terms of dynamics and perception. There are two general
+module is then used to follow the path. In general, trajectory       approaches to bridging the reality gap. The first is to improve
+optimization for a complex rigid-body model with many un-            simulation fidelity either analytically or in a data-driven way;
+specified contact points is beyond the capabilities of current       the latter is also known as system identification [27–32]. The
+optimization techniques. Therefore, in practice, a series of ap-     second approach is to accept the imperfections of simulation
+proximations are employed to reduce complexity. Some methods         and aim to make the controller robust to variations in system
+approximate the contact dynamics to be smooth [13, 14], making       properties, thereby allowing for better transfer. This robust-
+the dynamics differentiable. Notably, Neunert et al. [13] demon-     ness can be achieved by randomizing various aspects of the
+strated that such methods can be used to control a physical          simulation: employing a stochastic policy [33], randomizing the
+quadrupedal robot. Other methods [15] prespecify the contact         dynamics [34–37], adding noise to the observations [38], and per-
+timings and solve for sections of trajectories where the dynam-      turbing the system with random disturbances. Both approaches
+ics remain smooth. A few methods aim to solve this problem           lead to improved transfer; however, the former is cumbersome
+with little to no approximation [16, 17]. These methods can dis-     and often impossible, while the latter can compromise the per-
+cover a gait pattern (i.e., contact sequence) with hard contact      formance of the policy. Therefore, in practice, both are typically
+models and have demonstrated automatic motion generation             employed in conjunction. For instance, the recent work of Tan et
+for 2D robotic systems but, like any other trajectory optimiza-      al. [35] demonstrates successful sim-to-real transfer of locomo-
+tion approach, the possible contact points are specified a priori.   tion policies on a quadrupedal system called Minitaur via the
+While more automated than modular designs, the existing opti-        use of an accurate analytical actuator model and dynamics ran-
+mization methods perform worse than state-of-the-art modular         domization. Although achieving impressive results, the method
+controllers. The primary issue is that numerical trajectory op-      of Tan et al. [35] crucially depends on accurate analytical model-
+timization remains challenging, requires tuning, and in many         ing of the actuators, which is possible for direct-drive actuators
+cases can produce suboptimal solutions. Besides, optimization        (as used in Minitaur), but not for more complex actuators such
+has to be performed at execution time on the robot, making           as servomotors, Series-Elastic Actuators (SEAs), and hydraulic
+these methods computationally expensive. This problem is of-         cylinders, which are commonly used in larger legged systems.
+ten solved by reducing precision or running the optimization             In this work, we develop a practical methodology for au-
+on a powerful external machine, but both solutions introduce         tonomously learning and transferring agile and dynamic motor
+their own limitations. Furthermore, the system still consists of     skills for complex and large legged systems, such as the ANY-
+two independent modules that do not adapt to each other’s per-       mal robot [5]. Compared to the robots used in [35], ANYmal has
+formance characteristics. This necessitates hand-tuning of the       a much larger leg length relative to footprint, making it more
+tracker; yet accurately tracking fast motion by an underactuated     dynamic, less statically stable, and therefore more difficult to
+system with many unexpected contacts is nearly impossible.           control. In addition, it features 12 SEAs, which are difficult to
+    Data-driven methods, like reinforcement learning (RL),           control and for which sufficiently accurate analytical models do
+promise to overcome the limitations of prior model-based ap-         not exist. Gehring et al. [39] have attempted analytical modeling
+proaches by learning effective controllers directly from experi-     of an SEA but, as we will show, their model is insufficiently
+ence. The idea of RL is to collect data by trial and error and       accurate for training a high-performance locomotion controller.
+automatically tune the controller to optimize the given cost (or         Our approach is summarized in Fig. 1. Our key insight on
+reward) function representing the task. This process is fully au-    the simulation side is that efficiency and realism can be achieved
+tomated and can optimize the controller end-to-end, from sensor      by combining classical models representing well-known articu-
+ Research Article                                                                                              ETH Zurich and Intel   3
+
+
+
+
+Fig. 1. Creating a control policy. In the first step, we identify the physical parameters of the robot and estimate uncertainties in the
+identification. In the second step, we train an actuator net that models complex actuator/software dynamics. In the third step, we
+train a control policy using the models produced in the first two steps. In the fourth step, we deploy the trained policy directly on
+the physical system.
+
+
+lated system and contact dynamics with learning methods that              We use the hybrid simulator for training controllers via rein-
+can handle complex actuation (Fig. 1, steps 1 and 2). The rigid       forcement learning (Fig. 1, step 3). The controller is represented
+links of ANYmal, connected through high-quality ball bearings,        by a multi-layer perceptron that takes as input the history of the
+closely resemble an idealized multi-body system that can be           robot’s states and produces as output the joint position target.
+modeled with well-known physical principles [40]. However,            Specifying different reward functions for RL yields controllers
+this analytical model does not include the set of mechanisms          for different tasks of interest.
+that map the actuator commands to the generalized forces act-             The trained controller is then directly deployed on the phys-
+ing on the rigid-body system: the actuator dynamics, the de-          ical system (Fig. 1, step 4). Unlike the existing model-based
+lays in control signals introduced by multiple hardware and           control approaches, our proposed method is computationally
+software layers, the low-level controller dynamics, and compli-       efficient at runtime. Inference of the simple network used in this
+ance/damping at the joints. Since these mechanisms are nearly         work takes 25 µs on a single CPU thread, which corresponds to
+impossible to model accurately, we learn the corresponding map-       about 0.1% of the available onboard computational resources
+ping in an end-to-end manner – from commanded actions to the          on the robot used in the experiments. This is in contrast to
+resulting torques – with a deep network. We learn this “actuator      model-based control approaches that often require an external
+net” on the physical system via self-supervised learning and          computer to operate at sufficient frequency [13, 15]. Also, by sim-
+use it in the simulation loop to model each of the 12 joints of       ply swapping the network parameter set, the learned controller
+ANYmal. Crucially, the full hybrid simulator, including a rigid-      manifests vastly different behaviors. Although these behaviors
+body simulation and the actuator nets, runs at nearly 500K time       are trained separately, they share the same code base: only the
+steps per second, which allows the simulation to run roughly a        high-level task description changes depending on the behav-
+thousand times faster than real time. About half of the runtime       ior. In contrast, most of the existing controllers are task-specific
+is used to evaluate the actuator nets, and the remaining computa-     and have to be developed nearly from scratch for every new
+tions are efficiently performed via our in-house simulator, which     maneuver.
+exploits the fast contact solver of Hwangbo et al. [41], efficient        We apply the presented methodology to learning several com-
+recursive algorithms for computing dynamic properties of artic-       plex motor skills that are deployed on the physical quadruped.
+ulated systems (composite rigid-body algorithm and recursive          First, the controller enables the ANYmal robot to follow base
+Newton-Euler algorithm) [40], and a fast collision detection li-      velocity commands more accurately and energy-efficiently than
+brary [42]. Thanks to efficient software implementations, we did      the best previously existing controller running on the same hard-
+not need any special computing hardware, such as multi-CPU or         ware. Second, the controller makes the robot run faster than ever
+multi-GPU servers, for training. All training sessions presented      before, breaking the previous speed record of ANYmal by 25 %.
+in this paper were done on a personal computer with one CPU           The controller can operate at the limits of the hardware and
+and one GPU, and none lasted more than eleven hours.                  push performance to the maximum. Third, we learn a controller
+ Research Article                                                                                                 ETH Zurich and Intel   4
+
+
+for dynamic recovery from a fall. This maneuver is exception-               The control performance was also evaluated and compared in
+ally challenging for existing methods, since it involves multiple        forward running. To this end, we sent a step input of four differ-
+unspecified internal and external contacts. It requires fine coor-       ent speed commands (0.25, 0.5, 0.75, and 1.0 m/s) for 4.5 s each.
+dination of actions across all limbs and must use momentum to            The results, including a comparison to the prior method [12],
+dynamically flip the robot. To the best of our knowledge, such           are shown in Fig. 2. Figure 2A shows the flying trot pattern
+recovery skill has never before been achieved on a quadruped             discovered by the learned controller. Note that this flight phase
+of comparable complexity.                                                disappears for low-velocity commands and ANYmal displays
+                                                                         walking trot as shown in movie S2. Even without specifying
+                                                                         the gait pattern, the learned policy manifests trot, a gait pattern
+RESULTS                                                                  that is commonly observed in quadrupedal animals. Figure 2B
+Movie S1 summarizes the results and the method of this work.             shows the velocity tracking accuracy of the policy both in sim-
+In the following subsections, we describe the results in detail.         ulation and on the real robot. Note that the oscillation of the
+                                                                         observed velocity around the commanded one is a well-known
+                                                                         phenomenon in legged systems, including humans [43]. In terms
+Command-conditioned locomotion
+                                                                         of average velocity, the learned policy has an error of 2.2 % on
+In most practical scenarios, the motion of a robot is guided by          the real robot, 1.1 % higher than in a simulation.
+high-level navigation commands, such as the desired direction
+and speed of motion. These commands can be provided for                      Figure 2C, 2D, and 2E compare the performance of the
+instance by an upper-level planning algorithm or by a user via           learned controller to the approach of Bellicoso et al. [12] in terms
+teleoperation. Using our method, we trained a locomotion policy          of accuracy and efficiency. We used two gaits from [12] for the
+that can follow such commands at runtime, adapting the gait              comparison: flying trot, the only gait that can achieve 1 m/s, and
+as needed, with no prior knowledge of command sequence and               dynamic lateral walk, the most efficient gait. First, we compare
+timing. A command consists of three components: forward                  the velocity error at various commanded velocities in Fig. 2C.
+velocity, lateral velocity, and yaw rate.                                The learned controller is more accurate than the prior controller
+    We first qualitatively evaluate this learned locomotion policy       for all commanded velocities: by a factor of 1.5 to 2.5 compared
+by giving random commands using a joystick. Additionally, the            to the dynamic lateral walk and by a factor of 5 to 7 compared
+robot is disturbed during the experiment by multiple external            to the flying trot, depending on the speed. Figure. 2D shows the
+pushes to the main body. The resulting behavior is shown in              mechanical power output as a function of the measured velocity.
+movie S2. The video shows about 40 seconds of robust command             The learned controller performs similarly to the dynamic lateral
+following. We also tested the policy for five minutes without            walk and more efficiently than the flying trot by a factor of 1.2
+a single failure, which manifests the robustness of the learned          to 2.5, depending on the speed. Finally, Fig. 2E plots the average
+policy.                                                                  measured torque magnitude against the measured velocity. The
+    The trained policy perform stably within the command distri-         learned controller is significantly more efficient in this respect
+bution that it is trained on, with any random combination of the         than both prior gaits, using 23 % to 36 % less torque depending
+command velocities. Although the forward command velocity is             on the velocity. This large improvement in efficiency is possible
+sampled from U (−1, 1) m/s during training, the trained policy           since the learned controller walks with 10 to 15 degree straighter
+reaches 1.2 m/s of measured forward velocity reliably when the           nominal knee posture. The nominal posture cannot be adjusted
+forward command velocity is set slightly higher (1.23 m/s) and           to this level in the approach of Bellicoso et al. since this would
+the other command velocities are set to zero.                            drastically increase the rate of failure (falling).
+    Next, we quantitatively evaluate this learned locomotion                 Next, we compare our method to ablated alternatives: train-
+policy by driving the robot with randomly-sampled commands.              ing with an ideal actuator model and training with an analyti-
+The commands are sampled as described in section S2. The robot           cal actuator model. The ideal actuator model assumes that all
+receives a new command every two seconds and the command                 controllers and hardware inside the actuator have infinite band-
+is held constant in between. The test is performed for 30 seconds        width and zero latency. The analytical model uses the actual
+and a total of 15 random transitions are performed, including            controller code running on the actuator in conjunction with iden-
+the initial transition from zero velocity. The base velocity plot is     tified dynamics parameters from experiments and Computer-
+shown in fig. S1. The average linear velocity error was 0.143 m/s        Aided Design (CAD) tools. Some parameters, such as latency,
+and the average yaw rate error was 0.174 rad/s.                          damping, and friction are hand-tuned to increase the accuracy of
+    We now compare the learned controller to the best-                   predicted torque in relation to data obtained from experiments.
+performing existing locomotion controller available for ANY-             The policy training procedure for each method is identical to
+mal [12]. For this experiment, we used a flying trot gait pattern        ours.
+(trot with full flight phase), since this is the only gait that stably
+reaches 1.0 m/s forward velocity. We used the same velocity                 Both alternative methods could not make a single step with-
+command profile which results in the base velocity shown in              out falling. The resulting motions are shown in movies S4 and S5.
+fig. S2. The average linear velocity error was 0.231 m/s and the         We observed violent shaking of the limbs, probably due to not
+average yaw rate error was 0.278 rad/s. Given the same com-              accounting for various delays properly. Even though the analyt-
+mand profile, the tracking error of the model-based controller           ical model contains multiple delay sources that are tuned using
+is about 95% higher than our learned controller with respect to          real data, accurately modeling all delay sources is complicated
+linear velocity and about 60% higher with respect to yaw rate.           when the actuator has limited bandwidth. SEA mechanisms
+In addition, our learned controller used less torque (8.23 Nm            generate amplitude-dependent mechanical response time, and
+vs. 11.7 Nm) and less mechanical power (78.1 W vs. 97.3 W)               manual tuning of latency parameters becomes challenging. We
+in average. Movie S3 illustrates the experiments for both the            have tuned the analytical model for more than a week without
+learned policy and the model-based policy.                               much success.
+ Research Article                                                                                             ETH Zurich and Intel   5
+
+
+
+
+Fig. 2. Quantitative evaluation of the learned locomotion controller. (A) The discovered gait pattern for 1.0 m/s forward velocity
+command. The abbreviations stand for Left Front (LF) leg, Right Front (RF) leg, Left Hind (LH) leg, and Right Hind (RH) leg, re-
+spectively. (B) The accuracy of the base velocity tracking with our approach. (C)-(E) Comparison of the learned controller against
+the best existing controller, in terms of power efficiency, velocity error, and torque magnitude, given forward velocity commands of
+0.25, 0.5, 0.75, and 1.0 m/s.
+
+
+High-speed locomotion                                                mum joint velocities (12 rad/s) on the physical system as shown
+In the previous section, we evaluated the generality and robust-     in Fig. 3B and 3C. This shows that the learned policy can exploit
+ness of the learned controller. Now we focus on operating close      the full capacity of the hardware to achieve the goal. For most ex-
+to the limits of the hardware to reach the highest possible speed.   isting methods, planning while accounting for the limitations of
+The notion of high speed is in general hardware-dependent.           the hardware is very challenging, and executing the plan on the
+There are some legged robots that are exceptional in this regard.    real system reliably is harder still. Even state-of-the-art methods
+Park et al. [44] demonstrated full 3D legged locomotion at over      [12, 46] cannot limit the actuation during planning due to limita-
+5.0 m/s with the MIT Cheetah. The Boston Dynamics WildCat            tions of their planning module. Modules in their controllers are
+has been reported to reach 8.5 m/s [45]. These robots are de-        not aware of the constraints in the later stages and, consequently,
+signed to run as fast as possible whereas ANYmal is designed         their outputs may not be realizable on the physical system.
+to be robust, reliable, and versatile. The current speed record          The gait pattern produced by our learned high-speed con-
+on ANYmal is 1.2 m/s and has been set using the flying trot          troller, shown in Fig. 3D, is distinct from the one exhibited by
+gait [12]. Although this may not seem high, it is 50 % faster than   the command-conditioned locomotion controller. It is close to a
+the previous speed record on the platform [39]. Such velocities      flying trot but with significantly longer flight phase and asym-
+are challenging to reach via conventional controller design while    metric flight phase duration. This is not a commonly observed
+respecting all limits of the hardware.                               gait pattern in nature and we suspect that it is among multiple
+    We have used the presented methodology to train a high-          near-optimal solution modes for this task. The behavior of the
+speed locomotion controller. This controller was tested on the       policy is illustrated in movie S6.
+physical system by slowly increasing the commanded velocity
+to 1.6 m/s and lowering it to zero after 10 meters. The forward      Recovery from a fall
+speed and joint velocities/torques are shown in Fig. 3. ANYmal       Legged systems change contact points as they move and are thus
+reached 1.58 m/s in simulation and 1.5 m/s on the physical sys-      prone to falling. If a legged robot falls and cannot autonomously
+tem when the command was set to 1.6 m/s. All speed values            restore itself to an upright configuration, a human operator
+were computed by averaging over at least 3 gait cycles. The          must intervene. Autonomous recovery after a fall is thus highly
+controller used both the maximum torque (40 Nm) and the maxi-        desirable. One possibility is to represent recovery behaviors
+ Research Article                                                                                           ETH Zurich and Intel   6
+
+
+                                                                   as well-tuned joint trajectories that can simply be replayed: an
+                                                                   approach that has been taken in some commercial systems [47].
+                                                                   Such trajectories have required laborious manual tuning. They
+                                                                   also take a very long time to execute since they do not take
+                                                                   dynamics into account in the motion plan or the control. Some
+                                                                   robots are designed such that recovery is either unnecessary or
+                                                                   trivial [48, 49]. However, such a design may not be possible
+                                                                   for bigger and more complex machines. Morimoto et al. [50]
+                                                                   demonstrated that a standing-up motion can be learned on a
+                                                                   real robot. However, a simple three-link chain was used for
+                                                                   demonstration and the method has not been scaled to realistic
+                                                                   systems.
+                                                                       Fast and flexible recovery after a fall, as seen in animals, re-
+                                                                   quires dynamic motion with multiple unspecified contact points.
+                                                                   The collision model for our quadruped is highly complicated:
+                                                                   it consists of 41 collision bodies, such as boxes, cylinders, and
+                                                                   spheres (Fig. 1, step 1). Planning a feasible trajectory for such a
+                                                                   model is extremely complicated. Even simulating such a system
+                                                                   is challenging since there are many internal contacts. We use the
+                                                                   approach of Hwangbo et al. [41] due to its ability to handle such
+                                                                   simulation in numerically stable fashion.
+                                                                       Using the presented methodology, we trained a recovery
+                                                                   policy and tested it on the real robot. We place ANYmal in nine
+                                                                   random configurations and activate the controller as shown in
+                                                                   movie S7. Many challenging configurations are tested, including
+                                                                   a nearly entirely upside-down configuration (pose 8) and more
+                                                                   complex contact scenarios where ANYmal is resting on its own
+                                                                   legs (pose 2 and 4). In all tests, ANYmal successfully flipped
+                                                                   itself upright. An example motion is shown in Fig. 4. These
+                                                                   agile and dynamic behaviors demonstrate that our approach is
+                                                                   able to learn performant controllers for tasks that are difficult or
+                                                                   impossible to address with prior methods.
+
+                                                                   DISCUSSION
+                                                                   The learning-based control approach presented in this paper
+                                                                   achieved a new level of locomotion skill based purely on training
+                                                                   in simulation and without tedious tuning on the physical robot.
+                                                                   The system achieved more precise and energy-efficient motions
+                                                                   than the prior state of the art. It outperformed the previous
+                                                                   speed record by 25 % and learned to consistently restore the
+                                                                   robot to an operational configuration by dynamically rolling
+                                                                   over its body.
+                                                                       Existing controllers are created by engineers. A model with
+                                                                   adequate complexity has to be designed and a control strategy
+                                                                   has to be developed, tested, and tuned. This process typically
+                                                                   takes months and has to be repeated for every distinct maneuver.
+                                                                   In contrast, the simulation and learning framework used in this
+                                                                   work are applicable to any rigid body system. For applications
+                                                                   to new tasks, our method only requires a task description, which
+                                                                   consists of the cost function, the initial state distribution, and
+                                                                   randomization.
+                                                                       In our method, learned actuator dynamics significantly re-
+Fig. 3. Evaluation of the trained policy for high-speed loco-      duce the reality gap, while stochastic modeling guides the policy
+motion. (A) Forward velocity of ANYmal. (B) Joint velocities.      to be sufficiently conservative. The recovery task was success-
+(C) Joint torques. (D) Gait pattern. The abbreviations stand for   ful on the very first attempt on the hardware. We then further
+Left Front (LF) leg, Right Front (RF) leg, Left Hind (LH) leg,     improved the success rate to 100 % by relaxing the joint velocity
+and Right Hind (RH) leg, respectively.                             constraints. The results presented here were obtained on the sec-
+                                                                   ond day of experiments on the physical system. In contrast, due
+                                                                   to many model-abstraction layers which are necessary to make
+                                                                   the computation tractable, prior methods often cannot exploit
+                                                                   a sophisticated actuator model in controlling a complex legged
+                                                                   system. Consequently, they often compromise performance or
+ Research Article                                                                                               ETH Zurich and Intel   7
+
+
+
+
+Fig. 4. A learned recovery controller deployed on the real robot. The learned policy successfully recovers from a random initial
+configuration in less than 3 seconds.
+
+
+rely on well-tuned low-level controllers. For example, low-level       decreasing as computational technology evolves. In contrast,
+controllers (e.g., the tracking controllers and the whole-body con-    the prior controllers that employ model abstractions inevitably
+troller) have to be extensively tuned in the tested model-based        require more development time and often extensive tuning on
+controller [12] to mitigate imperfections of the actuators.            the real systems. Developing the recovery policy took about a
+    The learned policies are also robust to changes in hardware,       week largely due to the fact that some safety concerns (i.e., high
+such as those caused by wear and tear. All control policies have       impacts, fast swing legs, collisions with fragile components, etc)
+been tested for more than three months on the real robot without       are not very intuitive to embed in a cost function. Achieving a
+any modification. Within this period, the robot was heavily            stand-up behavior was as simple as other tasks. However, for
+used with many controllers, including the ones presented here.         achieving the safe and robust behaviors that are demonstrated
+Many hardware changes were introduced as well: different               in this work, the cost function had to be tweaked several times.
+robot configurations, which roughly contribute 2.0 kg to the           Longer development time was also attributed to the fact that it
+total weight, and a new drive which has a spring three times           was trained by a person who had no previous experience with
+stiffer than the original one. All of the policies presented in this   any real robot.
+paper have performed robustly even under such conditions.                  To train policies for a new robot, necessary modeling effort
+    In terms of computational cost, our approach has an advan-         has to be made. This includes rigid body modeling using the
+tage over prior methods. Although it requires several hours of         CAD model and actuator modeling using an actuator network.
+training with an ordinary desktop PC, the inference on the robot       The former is often automated by modern CAD software and the
+requires less than 25 µs using a single CPU thread. Our method         latter is easy if all necessary software/hardware infrastructures
+shifts nearly all computational costs to the training phase, where     (e.g., logging, regression, and torque measurements) are in place.
+we can use external computational resources. Prior controllers of-     If not, it also takes a significant portion of the development time.
+ten require two orders of magnitude more onboard computation.          In addition, there are a few actuation types that manifest coupled
+These demanding requirements limit the level of sophistication         dynamics (e.g., hydraulic actuators sharing a single accumula-
+and thus the overall performance of the controller.                    tor). Learning actuators independently might not result in a
+    Using a policy network that directly outputs a joint-level         sufficient accuracy for these systems. With good understand-
+command brings another advantage to our method. In contrast            ing on the actuator dynamics, appropriate history configuration
+to many prior methods that have numerical issues at singular           can be estimated a priori and tuned further with respect to the
+configurations of the robot, our policies can be evaluated at any      validation error. In contrast, constructing an analytical actuator
+configuration. Consequently, our method is free from using             model for ANYmal takes at least three weeks even if there is a
+ad hoc methods (e.g., branching conditions) in resolving such          very similar model studied in literature [39]. The model also
+issues.                                                                has many more parameters, many of which cannot be accurately
+    While our approach allows for largely automated discovery          obtained from measurements or the data sheet. Consequently, it
+of performant policies, it still requires some human expertise. A      requires more tuning than constructing an actuator network.
+cost function and an initial state distribution have to be designed        Another limitation of our approach was observed over the
+and tuned for each task. For a person with good understanding          course of this study. A single neural network trained in one
+on both the task and RL, this process takes about two days for         session manifests single-faceted behaviors that do not generalize
+the locomotion policies presented in this work. Although this          across multiple tasks. Introducing hierarchical structure in the
+is still significant amount of time, all the necessary tuning hap-     policy network can remedy this and is a promising avenue for
+pens in simulation. Therefore, the development time will keep          future work [25].
+ Research Article                                                                                               ETH Zurich and Intel    8
+
+
+                                                                      true dynamics of a set of rigid bodies making hard contacts with
+                                                                      their environment. The solver is not only accurate but also fast,
+                                                                      generating about 900,000 time steps per second for the simulated
+                                                                      quadruped on an ordinary desktop machine. Because we need
+                                                                      hundreds of millions of samples to train a complicated policy,
+                                                                      this solver was key to our work.
+                                                                         The inertial properties of the links are estimated from the
+                                                                      CAD model. We expect up to about 20 % error in the estimation
+                                                                      due to unmodeled cabling and electronics. To account for such
+                                                                      modeling inaccuracies, we robustify the policy by training with
+                                                                      30 different ANYmal models with stochastically sampled inertial
+                                                                      properties. The center of mass positions, the masses of links, and
+                                                                      joint positions are randomized by adding a noise sampled from
+                                                                      U (−2, 2) cm, U (−15, 15) %, and U (−2, 2) cm, respectively.
+
+                                                                      Modeling the actuation
+                                                                      Actuators are an essential part of legged systems. Fast, power-
+                                                                      ful, lightweight, and high-accuracy actuators typically translate
+                                                                      to dynamic, versatile, and agile robots. Most legged systems
+                                                                      are driven by hydraulic actuators [51] or electric motors with
+                                                                      gears [3], and some even include dedicated mechanical compli-
+                                                                      ance [5, 52]. These actuators have one thing in common: they
+                                                                      are extremely difficult to model accurately. Their dynamics in-
+                                                                      volve nonlinear and nonsmooth dissipation and they contain
+                                                                      cascaded feedback loops and a number of internal states that are
+                                                                      not even directly observable. Gehring et al. [39] extensively stud-
+                                                                      ied SEA actuator modeling. The model of Gehring et al. includes
+                                                                      nearly one hundred parameters that have to be estimated from
+Fig. 5. Training control policies in simulation. The policy net-
+                                                                      experiments or assumed to be correct from data sheets. This
+work maps the current observation and the joint state history
+                                                                      process is error-prone and time-consuming. In addition, many
+to the joint position targets. The actuator network maps the
+                                                                      manufacturers do not provide sufficiently detailed descriptions
+joint state history to the joint torque, which is used in rigid-
+                                                                      of their products and, consequently, an analytical model may
+body simulation. The state of the robot consists of the gener-
+                                                                      not be feasible.
+alized coordinate q and the generalized velocity u. The state
+                                                                          To this end, we use supervised learning to obtain an action-
+of a joint consists of the joint velocity φ̇ and the joint position
+                                                                      to-torque relationship that includes all software and hardware
+error, which is the current position φ subtracted from the joint
+                                                                      dynamics within one control loop. More precisely, we train an
+position target φ∗ .
+                                                                      actuator network that outputs an estimated torque at the joints
+                                                                      given a history of position errors (the actual position subtracted
+METHOD                                                                from the commanded position) and velocities. In this work, we
+                                                                      assume that the dynamics of the actuators are independent to
+This section describes in detail the simulation environment, the      each other such that we can learn a model for each actuator
+training process, and the deployment on the physical system.          separately. This assumption might not be valid for other types
+An overview of our training method is shown in Fig. 5. The            of actuation. For example, hydraulic actuators with a single
+training loop proceeds as follows. The rigid-body simulator           common accumulator might manifest coupled dynamics and a
+outputs the next state of the robot given the joint torques and       single large network, that represents multiple actuators together,
+the current state. The joint velocity and the position error are      might be more desirable.
+buffered in a joint state history within a finite time window. The        The states of the actuators are only partially observable be-
+control policy, implemented by a multi-layer perceptron with          cause the internal states of the actuators (e.g., states of the inter-
+two hidden layers, maps the observation of the current state          nal controllers and motor velocity) cannot be measured directly.
+and the joint state history to the joint position targets. Finally,   We assume that the network can be trained to estimate the inter-
+the actuator network maps the joint state history and the joint       nal states given a history of position errors and velocities, since
+position targets to 12 joint torque values, and the loop continues.   otherwise the given information is simply insufficient to control
+In what follows we describe each component in detail.                 the robot adequately. The actuator used in this work is revolute
+                                                                      and radially symmetric, and the absolute angular position is
+Modeling rigid-body dynamics                                          irrelevant given the position error. We use a history consisting of
+To efficiently train a complex policy within a reasonable time        the current state and two past states that correspond to t − 0.01
+and transfer it to the real world, we need a simulation platform      and t − 0.02 seconds. Note that too sparse input configuration
+that is both fast and accurate. One of the biggest challenges         might not effectively capture the dynamics at high frequency
+with walking robots is the dynamics at intermittent contacts.         (> 100 Hz). This issue is partially mitigated by introducing a
+To this end, we utilize the rigid body contact solver presented       smoothness cost term, which penalizes abrupt changes in the
+in our previous work [41]. This contact solver employs a hard         output of the policy. Too dense history can also have adverse
+contact model that fully respects the Coulomb friction cone           effects: it is more prone to overfitting and computationally more
+constraint. This modeling technique can accurately capture the        expensive. The length of the history should be chosen such that
+ Research Article                                                                                                     ETH Zurich and Intel      9
+
+
+it is sufficiently longer than the sum of all communication delays       where γ ∈ (0, 1) is the discount factor and τ (π ) is the trajectory
+and the mechanical response time. In practice, the exact input           distribution under policy π (the distribution depends both on
+configuration is tuned with respect to the validation error. This        the policy and the environment dynamics). In our setting, the
+tuning process often takes less than a day since the network is          observations are the measurements of robot states provided to
+very small.                                                              the controller, the actions are the position commands to the
+     To train the network, we collected a dataset consisting of joint    actuators, and the rewards are specified so as to induce the
+position errors, joint velocities, and the torque. We used a sim-        behavior of interest.
+ple parameterized controller that generates foot trajectories in             A variety of reinforcement learning algorithms can be ap-
+the form of a sine wave; the corresponding joint positions were          plied to the specified policy optimization problem. We chose
+computed using inverse kinematics. The feet constantly made              Trust Region Policy Optimization (TRPO) [22], a policy gradient
+or break a contact with the ground during data collection so             algorithm that has been demonstrated to learn locomotion poli-
+that the resulting trajectories roughly mimicked the trajectories        cies in simulation [54]. It requires almost no parameter tuning;
+followed by a locomotion controller. To obtain a rich set of data,       we use only the default parameters (as provided in [22, 54]) for
+we varied the amplitude (5∼10 cm) and the frequency (1∼25 Hz)            all learning sessions presented in this paper. We used a fast
+of the foot trajectories and disturbed the robot manually dur-           custom implementation of the algorithm [55]. This efficient im-
+ing data collection. We found that the excitation must cover a           plementation and fast rigid-body simulation [41] allowed us to
+wide range of frequency spectra since, otherwise, the trained            generate and process about a quarter of a billion state transitions
+model generates unnatural oscillation even during the training           in roughly four hours. A learning session terminates if the aver-
+phase. Data collection took less than 4 min since the data can be        age performance of the policy does not improve by more than a
+collected in parallel from the 12 identical actuators on ANYmal.         task-specific threshold within 300 TRPO iterations.
+Data was collected at 400 Hz, therefore the resulting dataset
+contains more than a million samples. Approximately 90 % of              Observation and action
+the generated data was used for training, and the rest was used          The observations in our method should be observable (i.e., can
+for validation.                                                          be inferred from measurements) on the real robot and relevant
+     The actuator network is a multi-layer perceptron (MLP) with         for the task. The joint angles, velocities, and body twist are all
+3 hidden layers of 32 units each (Fig. 5, “Actuator net” box).           observable and highly relevant. Measuring the body orienta-
+After testing with two common smooth and bounded activa-                 tion is not straightforward since only two degrees of freedom
+tion functions – tanh and softsign [53] – we chose the softsign          in the orientation are observable with an Inertial Measurement
+activation function, since it is computationally efficient and pro-      Unit (IMU). The set of observable degrees in the orientation is in
+vides a smooth mapping. Evaluating the actuator network for              bijection with S2 , or with a unit vector, which can be interpreted
+all 12 joints takes 12.2 µs with softsign, and 31.6 µs with tanh.        as the direction of the gravity vector expressed in the IMU frame.
+As shown here, the tanh activation function results in a higher          We denote this unit vector as φ g . The height of the base is not ob-
+computational cost and is therefore less preferred. The two              servable, but we can estimate it from the leg kinematics, assum-
+activation functions resulted in approximately the same vali-            ing the terrain is flat. A simple height estimator based on a 1D
+dation error (0.7∼0.8 Nm in RMS). The validation result with             Kalman filter was implemented along with the existing state esti-
+the softsign function is shown in Fig. 6. The trained network            mation [56]. However, since this height estimator cannot be used
+nearly perfectly predicts the torque from the validation data,           when the robot is not on its feet, we removed the height obser-
+whereas the ideal actuator model fails to produce a reasonable           vation when training for recovery from a fall. The whole obser-
+prediction. Here the ideal actuator model assumes that there             vation at t = tk is defined as ok = hφ g , rz , v, ω, φ, φ̇, Θ, ak−1 , C i,
+is no communication delay and that the actuator can generate             where rz , v, and ω are height, linear, and angular velocities of
+any commanded torque instantly (i.e., infinite actuator band-            the base, φ and φ̇ are positions and velocities of the joints, Θ is a
+width). The trained model has an average error of 0.740 Nm on            sparsely sampled joint state history, ak−1 is the previous action,
+the validation set, which is not far from the resolution of the          and C is the command. The joint state history is sampled at
+torque measurement (0.2 Nm) and much smaller than the error              t = tk − 0.01 s and t = tk − 0.02 s.
+of the ideal actuator model (3.55 Nm). Its prediction error on               The joint state history was essential in training a locomotion
+test data (i.e., collected using the trained locomotion policies) is     policy. We hypothesize that this is due to the fact that it enables
+significantly higher (0.966 Nm) but still far less than that of the      contact detection. An alternative way to detect contacts is to
+ideal model (5.74 Nm).                                                   use force sensors which give a reliable contact state estimate.
+                                                                         However, such sensors increase the weight of the end-effectors
+Reinforcement learning                                                   and consequently lower the energy efficiency of the robot. The
+We represent the control problem in discretized time. At every           exact history configuration was found empirically by analyzing
+time step t the agent obtains an observation ot ∈ O , performs an        the final performance of the policy.
+action at ∈ A, and achieves a scalar reward rt ∈ R. We refer to              Our policy outputs low-impedance joint position commands,
+reward and cost interchangeably, with cost being the negative            which we find to be very effective in many tasks. Peng et al. [57]
+of the reward. We denote by Ot = hot , ot−1 , . . . , ot−h i the tuple   found that such a controller can outperform a torque controller
+of recent observations. The agent selects actions according to a         in both training speed and final control performance. Even
+stochastic policy π ( at |Ot ), which is a distribution over actions     though there is always a bijective map between them, the two
+conditioned on the recent observations. The aim is to find a             action parameterizations have different smoothness and thus
+policy that maximizes the discounted sum of rewards over an              different training difficulty. In addition, a position policy has
+infinite horizon:                                                        an advantage in training since it starts as a standing controller
+                                                                         whereas a torque controller initially creates many trajectories
+                                           ∞
+                                        "         #
+                                                                         that result in falling. Thus we use the policy network as an
+                    π ∗ = argmax Eτ (π )
+                             π
+                                           ∑ γt rt ,              (1)
+                                                                         impedance controller. Our network outputs a single position
+                                           t =0
+ Research Article                                                                                            ETH Zurich and Intel   10
+
+
+
+
+Fig. 6. Validation of the learned actuator model. The measured torque and the predicted torque from the trained actuator model
+are shown. The “ideal model” curve is computed assuming an ideal actuator (i.e., zero communication delay and zero mechanical
+response time) and is shown for comparison. (A) Validation set (B,C) Data from a command-conditioned policy experiment with
+0.75 m/s forward command velocity and its corresponding policy network output, respectively (D,E) Data from a high-speed loco-
+motion policy experiment with 1.6 m/s forward command velocity and its corresponding policy network output, respectively. Note
+that the measured ground truth in (A) is nearly hidden since the predicted torque from the trained actuator network accurately
+matches the ground-truth measurements. Test data is collected at one of the knee joints.
+
+
+reference, which is converted to torque using fixed gains (k p =       In addition, thanks to kinematic randomization, a trained policy
+50 Nm/rad and k d = 0.1 Nm/rad/s) and zero target velocity.            does not solely rely on kinematics: the policy inevitably has to
+The position gain is chosen to be roughly the nominal range            learn to exert appropriate impulse on the environment for loco-
+of torque (±30 Nm) divided by the nominal range of motion              motion. This makes our policy more robust since impulse-based
+(±0.6 rad). This ensures that the policy network has similar           control approaches are known to be more robust against system
+output range for torque and position. The velocity gain is chosen      changes and model inaccuracies [44].
+to be sufficiently high to prevent unwanted oscillation on the real
+robot. From our experience, the final locomotion performance is        Policy training details
+robust against a small change in gains. For instance, increasing
+                                                                       The control policies presented in this work were trained only
+the position gain to 80 Nm/rad does not noticeably change the
+                                                                       in simulation. In order to train performant policies using only
+performance.
+                                                                       simulated data, we follow both standard and problem-specific
+   Note that the position policy we use here is different from         training procedures. Here we describe them in detail and explain
+position controllers commonly used in robotics. Position con-          the rationale behind them.
+trollers are sometimes limited in performance when the position            Training control policies for locomotion have been demon-
+reference is time-indexed, which means that there is a higher-         strated multiple times in literature. [22, 24, 25]. However, many
+level controller that assumes that the position plan will be fol-      of the trained policies do not manifest natural motions and it is
+lowed at high accuracy. This is the main reason that torque con-       highly questionable if they will work on physical systems. Some
+trollers have become popular in legged robotics. However, as in        researchers have noticed that naive methods cannot generate
+many other RL literature, our control policy is state-indexed and      natural-looking and energy-efficient locomotion behaviors [58].
+does not suffer from the limitations of common PD controllers.         Low penalty on joint torque and velocity results in unnatural
+The policy is trained to foresee that position errors will occur and   motions whereas high penalty on them results in a standing
+even uses them to generate acceleration and interaction forces.        behavior. The main reason for the standing behavior is that such
+ Research Article                                                                                                ETH Zurich and Intel   11
+
+
+a behavior is already a good local minimum when there is high           cedure generates data containing complicated state transitions
+penalty associated with motion.                                         and robustifies the trained controller. Each trajectory lasts 6 sec-
+    We solved this problem by introducing a curriculum: using           onds unless the robot reaches a terminal state earlier. There are
+a curriculum, we shape the initial cost landscape such that the         two possibilities for termination: violating joint limits and hit-
+policy is strongly attracted to a locomotion policy and then later      ting the ground with the base. Upon termination, agent receives
+polish the motion to satisfy the other criteria. A simple curricu-      a cost of 1 and is reinitialized. The value of the termination cost
+lum was generated by modulating the coefficients of the cost            is not tuned: since only the ratio between the cost coefficients is
+terms and the disturbance via a multiplicative curriculum factor.       important for the final performance, we tune other cost terms to
+We define a curriculum factor which describes the progression           work with this terminal value.
+of the curriculum: k c = k0 ∈ (0, 1) corresponds to the start of            For training recovery from a fall, the collision bodies of the
+the curriculum and k c = 1 corresponds to the final difficulty          ANYmal model are randomized in size and position. Samples
+level. The intermediate values are computed as k c,j+1 ← (k c,j )kd ,   that result in unrealistic internal collisions are removed. The cost
+where k d ∈ (0, 1) is the advance rate, which describes how             function and the initial state distribution are described in section
+quickly the final difficulty level is reached, and j is the itera-      S4 and fig. S3, respectively. The special initialization method in
+tion index of RL training. The sequence of curriculum factors           section S4 is needed to train for this task since naive sampling
+is monotonically increasing and asymptotically converging to            often results in interpenetration and the dynamics become un-
+1 within the given parameter intervals. We suspect that many            realistic. To this end, we dropped ANYmal from a height of
+other update rules adhering to these criteria will result in similar    1.0 m with randomized orientations and joint positions, ran the
+learning performance. All of cost terms are multiplied by this          simulation for 1.2 s, and used the resulting state as initialization.
+curriculum factor, except the cost terms related to the objective           Another crucial detail is that joint velocities cannot be di-
+(i.e., base velocity error cost in the command-conditioned and          rectly measured on the real robot. Rather, they are computed
+high-speed locomotion task and base orientation cost in recovery        by numerically differentiating the position signal, which results
+task). This way, the robot first learns how to achieve the objec-       in noisy estimates. We model this imperfection by injecting a
+tive and then how to respect various constraints. This technique        strong additive noise (U (−0.5, 0.5) rad/s) to the joint velocity
+is related to curriculum learning introduced by Bengio et al. [59],     measurements during training. This way we ensure that the
+which incrementally introduces samples of more difficulties. In-        learned policy is robust to inaccurate velocity measurements.
+stead of altering the samples, we alter the objective to control        We also add noise during training to the observed linear velocity
+the training difficulty. For all training sessions, we use k0 = 0.3     (U (−0.08, 0.08) m/s) and angular velocity (U (−0.16, 0.16) m/s)
+and k d = 0.997. The parameter k0 should be chosen to prevent           of the base. The rest of the observations are noise-free. Interest-
+the initial tendency to stand still. It can be easily tuned by ob-      ingly, removing velocities from the observation altogether led
+serving the first one hundred iterations of the RL algorithm. The       to a complete failure to train, even though in theory the policy
+parameter k d is chosen such that the curriculum factor almost          network could infer velocities as finite differences of observed
+reaches 1 (or ∼ 0.9) at the end of training. Although the required      positions. We explain this by the fact that non-convexity of
+number iterations are not known a priori, there are sufficient          network training makes appropriate input pre-processing im-
+publications on RL applications (including this one) to provide         portant. For similar reasons, input normalization is necessary in
+necessary insights to the users.                                        most learning procedures.
+    We tuned the discount factor γ (Eq. Eq. (1)) separately for             We implemented the policy with an MLP with two hidden
+each task based on the qualitative performance of the trained           layers, with 256 and 128 units each and tanh nonlinearity (Fig. 5).
+controllers in simulation. For training the command-conditioned         We found that the nonlinearity has a strong effect on perfor-
+controller and the high-speed controller, we used γ = 0.9988            mance on the physical system. Performance of two trained
+which corresponds to a half-life of 5.77 s. We also successfully        policies with different activation functions can be very different
+trained almost equally performant policies with lower half-life         in the real world even when they perform similarly in simula-
+(∼ 2 s) but they manifest a less natural standing posture. For          tion. Our explanation is that unbounded activation functions,
+training the recovery controller, we used γ = 0.993, which cor-         such as ReLU, can degrade performance on the real robot, since
+responds to a half-life of 4.93 s. A sufficiently high discount         actions can have very high magnitude when the robot reaches
+factor shows more natural standing posture due to the fact that         states that were not visited during training.
+it penalizes standing torque more than motion (torque, joint ve-            Bounded activation functions, such as tanh, yield less aggres-
+locities and other quantities incurring due to motion). However,        sive trajectories when subjected to disturbances. We believe this
+too high discount factor might result in a slow convergence so it       is true for softsign as well, but it is not tested in policy networks
+should be tuned appropriately depending on the task. For train-         due to an implementation issue in our RL framework [55].
+ing command-conditioned and high-speed locomotion, TRPO
+finished training in nine days of simulated time, which corre-          Deployment on the physical system
+sponds to four hours of computation in real time. For training          We use the ANYmal robot [5], shown in step four of Fig. 1, to
+for recovery from a fall, TRPO took 79 days of simulated time,          demonstrate the real-world applicability of our method. ANY-
+which corresponds to eleven hours of computation in real time.          mal is a dog-sized quadrupedal robot weighing about 32 kg.
+    For command-conditioned and high-speed locomotion, we               Each leg is about 55 cm long and has three actuated degrees
+represent a command by three desired body velocity values:              of freedom, namely Hip Abduction/Adduction (HAA), Hip
+forward velocity, lateral velocity, and the turning rate. During        Flexion/Extension (HFE), and Knee Flexion/Extension (KFE).
+training, the commands are sampled randomly from predefined                ANYmal is equipped with 12 SEAs [60, 61]. An SEA is com-
+intervals (see tables S1 and S2 for details) and the cost defined       posed of an electric motor, a high gear ratio transmission, an
+in section S3 is employed. The initial state of the robot is sam-       elastic element, and two rotary encoders to measure spring de-
+pled either from a previous trajectory or a random distribution,        flection and output position. In this work, we use a joint-level
+shown in table S3, with equal probability. This initialization pro-     PD controller with low feedback gains on the joint-level actuator
+ Research Article                                                                                                   ETH Zurich and Intel       12
+
+
+module of the ANYmal robot. The dynamics of the actuators           Fig. S2. Base velocity tracking performance of the best existing
+contain multiple components in succession, as follows. First, the   method while following random commands from a joystick.
+position command is converted to the desired torque using a         Fig. S3. Sampled initial states for training recovery controller
+PD controller. Subsequently, the desired current is computed        Movie S1. Summary of the results and the method.
+using a PID controller from the desired torque. The desired cur-    Movie S2. Locomotion policy trained with a learned actuator
+rent is then converted to phase voltage using a Field-Oriented      model.
+Controller (FOC), which produces the torque at the input of the     Movie S3. Random command experiment.
+transmission. The output of the transmission is connected to        Movie S4. Locomotion policy trained with an analytical actuator
+an elastic element whose deflection finally generates torque at     model.
+the joint [39]. These highly complex dynamics introduce many        Movie S5. Locomotion policy trained with an ideal actuator
+hidden internal states that we do not have direct access to and     model.
+complicate our control problem.                                     Movie S6. Performance of a learned high-speed policy.
+   After acquiring a parameter set for a trained policy from        Movie S7. Performance of a learned recovery policy.
+our hybrid simulation, the deployment on the real system was
+straightforward. A custom MLP implementation and the trained
+parameter set were ported to the robot’s onboard PC. This net-
+work was evaluated at 200 Hz for command-conditioned/high-          REFERENCES
+speed locomotion and at 100 Hz for recovery from a fall. We         1.    M. Raibert, K. Blankespoor, G. Nelson, R. Playter, Bigdog, the rough-
+found that performance was surprisingly insensitive to the con-           terrain quadruped robot, Proceedings of the 2008 International Federa-
+trol rate. For example, the recovery motion was trained at 20 Hz          tion of Automatic Control, 10822–10825 (Elsevier, 2008).
+but performance was identical when we increased the control         2.    G. Nelson, A. Saunders, N. Neville, B. Swilling, J. Bondaryk, D. Billings,
+rate up to 100 Hz. This was possible since the flip-up behaviors          C. Lee, R. Playter, M. Raibert, Petman: A humanoid robot for testing
+involve low joint velocities (mostly below 6 rad/s). More dy-             chemical protective clothing, Journal of the Robotics Society of Japan
+namic behaviors (e.g., locomotion) often require a much higher            372–377 (2012).
+control rate in order to have an adequate performance. Higher       3.    S. Seok, A. Wang, M. Y. Chuah, D. Otten, J. Lang, S. Kim, Design
+                                                                          principles for highly efficient quadrupeds and implementation on the
+frequency (100 Hz) was used for experiments because it made
+                                                                          mit cheetah robot, IEEE International Conference on Robotics and Au-
+less audible noise. Even at 100 Hz, evaluation of the network
+                                                                          tomation, 3307–3312 (IEEE, 2013).
+uses only 0.25 % of the computation available on a single CPU       4.    Spotmini autonomous navigation, https://youtu.be/Ve9kWX_KXus. Ac-
+core.                                                                     cessed: 2018-08-11.
+                                                                    5.    M. Hutter, C. Gehring, D. Jud, A. Lauber, C. D. Bellicoso, V. Tsounis,
+                                                                          J. Hwangbo, K. Bodie, P. Fankhauser, M. Bloesch, R. Diethelm, S. Bach-
+CONCLUSION
+                                                                          mann, A. Melzer, M. Hoepflinger, Anymal-a highly mobile and dynamic
+Controllers presented in this paper, trained in a few hours in            quadrupedal robot, IEEE/RSJ International Conference on Intelligent
+simulation, outperformed the best existing model-based con-               Robots and Systems, 38–44 (IEEE, 2016).
+troller running on the same robot, which were designed and          6.    R. J. Full, D. E. Koditschek, Templates and anchors: neuromechani-
+                                                                          cal hypotheses of legged locomotion on land, Journal of experimental
+tuned over many years. Our learned locomotion policies ran
+                                                                          biology 3325–3332 (1999).
+faster and with higher precision while using less energy, torque,
+                                                                    7.    M. H. Raibert, J. J. Craig, Hybrid position/force control of manipula-
+and computation. The recovery controller exhibits dynamic                 tors, Journal of Dynamic Systems, Measurement, and Control 126–133
+roll-over involving multiple unspecified contacts with the envi-          (1981).
+ronment; such a behavior has not been achieved on a real robot      8.    J. Pratt, J. Carff, S. Drakunov, A. Goswami, Capture point: A step
+of comparable complexity with any of the existing optimization            toward humanoid push recovery, 2006 6th IEEE-RAS International
+schemes.                                                                  Conference on Humanoid Robots, 200–207 (IEEE, 2006).
+    The presented approach is not fundamentally limited to          9.    A. Goswami, B. Espiau, A. Keramane, Limit cycles in a passive com-
+known and simple environments. We see the results presented               pass gait biped and passivity-mimicking control laws, Autonomous
+in this paper as a step towards comprehensive locomotion con-             Robots 273–286 (1997).
+                                                                    10.   W. J. Schwind, Spring loaded inverted pendulum running: A plant
+trollers for resilient and versatile legged robots.
+                                                                          model., Ph.D. thesis (1998).
+                                                                    11.   M. Kalakrishnan, J. Buchli, P. Pastor, M. Mistry, S. Schaal, Fast, ro-
+SUPPLEMENTARY MATERIALS                                                   bust quadruped locomotion over challenging terrain, 2010 IEEE Inter-
+                                                                          national Conference on Robotics and Automation, 2665–2670 (IEEE,
+Section S1. Nomenclature                                                  2010).
+Section S2. Random command sampling method employed for             12.   C. D. Bellicoso, F. Jenelten, C. Gehring, M. Hutter, Dynamic locomotion
+evaluating the learned command-conditioned controller.                    through online nonlinear motion optimization for quadrupedal robots,
+Section S3. Cost terms for training command-conditioned                   IEEE Robotics and Automation Letters 2261–2268 (2018).
+locomotion and high-speed locomotion tasks                          13.   M. Neunert, F. Farshidian, A. W. Winkler, J. Buchli, Trajectory optimiza-
+Section S4. Cost terms for training recovery from a fall                  tion through contacts and automatic gait discovery for quadrupeds,
+Table S1. Command distribution for training command-                      IEEE Robotics and Automation Letters 1502–1509 (2017).
+                                                                    14.   I. Mordatch, E. Todorov, Z. Popović, Discovery of complex behaviors
+conditioned locomotion
+                                                                          through contact-invariant optimization, ACM Transactions on Graphics
+Table S2. Command distribution for training high-speed
+                                                                          (TOG) p. 43 (2012).
+locomotion                                                          15.   F. Farshidian, M. Neunert, A. W. Winkler, G. Rey, J. Buchli, An efficient
+Table S3. Initial state distribution for training both the                optimal planning and control framework for quadrupedal locomotion,
+command-conditioned and high-speed locomotion                             2017 IEEE International Conference on Robotics and Automation, 93–
+Fig. S1. Base velocity tracking performance of the learned                100 (IEEE, 2017).
+controller while following random commands from a joystick.         16.   M. Posa, C. Cantu, R. Tedrake, A direct method for trajectory opti-
+ Research Article                                                                                                                ETH Zurich and Intel       13
+
+
+      mization of rigid bodies through contact, The International Journal of      39. C. Gehring, S. Coros, M. Hutter, C. D. Bellicoso, H. Heijnen, R. Di-
+      Robotics Research 69–81 (2014).                                                 ethelm, M. Bloesch, P. Fankhauser, J. Hwangbo, M. Hoepflinger, others,
+17.   J. Carius, R. Ranftl, V. Koltun, M. Hutter, Trajectory optimization with        Practice makes perfect: An optimization-based approach to controlling
+      implicit hard contacts, IEEE Robotics and Automation Letters (2018).            agile motions for a quadruped robot, IEEE Robotics & Automation
+18.   S. Levine, P. Pastor, A. Krizhevsky, J. Ibarz, D. Quillen, Learning hand-       Magazine 34–43 (2016).
+      eye coordination for robotic grasping with deep learning and large-scale    40. R. Featherstone, Rigid body dynamics algorithms (Springer, 2014).
+      data collection, The International Journal of Robotics Research 421–436     41. J. Hwangbo, J. Lee, M. Hutter, Per-contact iteration method for solving
+      (2018).                                                                         contact dynamics, IEEE Robotics and Automation Letters 895–902
+19.   R. Tedrake, T. W. Zhang, H. S. Seung, Stochastic policy gradient rein-          (2018).
+      forcement learning on a simple 3d biped, 2004 IEEE/RSJ International        42. R. Smith, Open dynamics engine (2005).
+      Conference on Intelligent Robots and Systems, 2849–2854 (IEEE, 2004).       43. D. A. Winter, The biomechanics and motor control of human gait:
+20.   J. Yosinski, J. Clune, D. Hidalgo, S. Nguyen, J. C. Zagal, H. Lipson,           normal, elderly and pathological. 2, University of Waterloo, Waterloo
+      Evolving robot gaits in hardware: the hyperneat generative encoding             (1991).
+      vs. parameter optimization., 2011 European Conference on Artificial Life,   44. H.-W. Park, S. Park, S. Kim, Variable-speed quadrupedal bounding
+      890–897 (2011).                                                                 using impulse planning: Untethered high-speed 3d running of mit chee-
+21.   S. Levine, V. Koltun, Learning complex neural network policies with             tah 2, 2015 IEEE international conference on Robotics and automation,
+      trajectory optimization, 2014 International Conference on Machine Learn-        5163–5170 (IEEE, 2015).
+      ing, 829–837 (2014).                                                        45. Introducing wildcat, https://youtu.be/wE3fmFTtP9g. Accessed: 2018-
+22.   J. Schulman, S. Levine, P. Abbeel, M. Jordan, P. Moritz, Trust re-              08-06.
+      gion policy optimization, International Conference on Machine Learning,     46. A. W. Winkler, F. Farshidian, D. Pardo, M. Neunert, J. Buchli, Fast trajec-
+      1889–1897 (2015).                                                               tory optimization for legged robots using vertex-based zmp constraints,
+23.   J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov, Proximal            IEEE Robotics and Automation Letters 2201–2208 (2017).
+      policy optimization algorithms, arXiv preprint arXiv:1707.06347 (2017).     47. S. Shamsuddin, L. I. Ismail, H. Yussof, N. I. Zahari, S. Bahari,
+24.   N. Heess, S. Sriram, J. Lemmon, J. Merel, G. Wayne, Y. Tassa, T. Erez,          H. Hashim, A. Jaffar, Humanoid robot nao: Review of control and
+      Z. Wang, A. Eslami, M. Riedmiller, others, Emergence of locomo-                 motion exploration, 2011 IEEE International Conference on Control
+      tion behaviours in rich environments, arXiv preprint arXiv:1707.02286           System, Computing and Engineering, 511–516 (IEEE, 2011).
+      (2017).                                                                     48. U. Saranli, M. Buehler, D. E. Koditschek, Rhex: A simple and highly
+25.   X. B. Peng, G. Berseth, K. Yin, M. Van De Panne, Deeploco: Dynamic              mobile hexapod robot, The International Journal of Robotics Research
+      locomotion skills using hierarchical deep reinforcement learning, ACM           616–631 (2001).
+      Transactions on Graphics (TOG) p. 41 (2017).                                49. E. Ackerman, Boston dynamics sand flea robot demonstrates aston-
+26.   Z. Xie, G. Berseth, P. Clary, J. Hurst, M. van de Panne, Feedback               ishing jumping skills, IEEE Spectrum Robotics Blog 2 (2012).
+      control for cassie with deep reinforcement learning, arXiv preprint         50. J. Morimoto, K. Doya, Acquisition of stand-up behavior by a real robot
+      arXiv:1803.05580 (2018).                                                        using hierarchical reinforcement learning, Robotics and Autonomous
+27.   T. Lee, F. C. Park, A geometric algorithm for robust multibody inertial         Systems 37–51 (2001).
+      parameter identification, IEEE Robotics and Automation Letters 2455–        51. C. Semini, N. G. Tsagarakis, E. Guglielmino, M. Focchi, F. Cannella,
+      2462 (2018).                                                                    D. G. Caldwell, Design of hyq–a hydraulically and electrically actuated
+28.   M. Neunert, T. Boaventura, J. Buchli. Why off-the-shelf physics simula-         quadruped robot, Proceedings of the Institution of Mechanical Engineers,
+      tors fail in evaluating feedback controller performance-a case study for        Part I: Journal of Systems and Control Engineering 831–849 (2011).
+      quadrupedal robots. Advances in Cooperative Robotics (World Scientific,     52. N. G. Tsagarakis, S. Morfey, G. M. Cerda, L. Zhibin, D. G. Caldwell,
+      2017), 464–472.                                                                 Compliant humanoid coman: Optimal joint stiffness tuning for modal
+29.   J. Bongard, V. Zykov, H. Lipson, Resilient machines through continuous          frequency control, 2013 IEEE International Conference on Robotics and
+      self-modeling, Science 1118–1121 (2006).                                        Automation, 673–678 (IEEE, 2013).
+30.   D. Nguyen-Tuong, M. Seeger, J. Peters, Model learning with local            53. J. Bergstra, G. Desjardins, P. Lamblin, Y. Bengio, Quadratic polynomials
+      gaussian process regression, Advanced Robotics 2015–2034 (2009).                learn better image features, Technical report, 1337 (2009).
+31.   D. Nguyen-Tuong, J. Peters, Learning robot dynamics for computed            54. J. Schulman, P. Moritz, S. Levine, M. Jordan, P. Abbeel, High-
+      torque control using local gaussian processes regression, 2008 ECSIS            dimensional continuous control using generalized advantage estima-
+      Symposium on Learning and Adaptive Behaviors for Robotic Systems,               tion, Proceedings of the International Conference on Learning Representa-
+      59–64 (IEEE, 2008).                                                             tions (2016).
+32.   K. Nikzad, J. Ghaboussi, S. L. Paul, Actuator dynamics and delay            55. J. Hwangbo, I. Sa, R. Siegwart, M. Hutter, Control of a quadrotor
+      compensation using neurocontrollers, Journal of engineering mechanics           with reinforcement learning, IEEE Robotics and Automation Letters
+      966–975 (1996).                                                                 2096–2103 (2017).
+33.   R. S. Sutton, A. G. Barto, Reinforcement learning: An introduction,         56. M. Bloesch, M. Hutter, M. A. Hoepflinger, S. Leutenegger, C. Gehring,
+      vol. 1 (MIT press Cambridge, 1998).                                             C. D. Remy, R. Siegwart, State estimation for legged robots-consistent
+34.   I. Mordatch, K. Lowrey, E. Todorov, Ensemble-cio: Full-body dynamic             fusion of leg kinematics and imu, Robotics 17–24 (2013).
+      motion planning that transfers to physical humanoids, 2015 IEEE/RSJ         57. X. B. Peng, M. van de Panne, Learning locomotion skills using deeprl:
+      International Conference on Intelligent Robots and Systems, 5307–5314           does the choice of action space matter?, Proceedings of the ACM
+      (IEEE, 2015).                                                                   SIGGRAPH/Eurographics Symposium on Computer Animation, p. 12
+35.   J. Tan, T. Zhang, E. Coumans, A. Iscen, Y. Bai, D. Hafner, S. Bohez,            (ACM, 2017).
+      V. Vanhoucke, Sim-to-real: Learning agile locomotion for quadruped          58. W. Yu, G. Turk, C. K. Liu, Learning symmetric and low-energy locomo-
+      robots, Proceedings of Robotics: Science and Systems (RSS) (2018).              tion, ACM Transactions on Graphics (TOG) p. 144 (2018).
+36.   X. B. Peng, M. Andrychowicz, W. Zaremba, P. Abbeel, Sim-to-                 59. Y. Bengio, J. Louradour, R. Collobert, J. Weston, Curriculum learning,
+      real transfer of robotic control with dynamics randomization, CoRR              Proceedings of the 26th annual International Conference on Machine
+      abs/1710.06537 (2017).                                                          Learning, 41–48 (ACM, 2009).
+37.   N. Jakobi, P. Husbands, I. Harvey, Noise and the reality gap: The use       60. G. A. Pratt, M. M. Williamson, Series elastic actuators, Intelligent
+      of simulation in evolutionary robotics, European Conference on Artificial       Robots and Systems 95.’Human Robot Interaction and Cooperative
+      Life, 704–720 (Springer, 1995).                                                 Robots’, Proceedings. 1995 IEEE/RSJ International Conference on, 399–
+38.   A. Dosovitskiy, V. Koltun, Learning to act by predicting the future,            406 (IEEE, 1995).
+      International Conference on Learning Representations (ICLR) (2017).         61. M. Hutter, K. Bodie, A. Lauber, J. Hwangbo, EP16181251 - Joint
+ Research Article                                                               ETH Zurich and Intel   14
+
+
+    unit, joint system, robot for manipulation and/or transportation, robotic
+    exoskeleton system and method for manipulation and/or transportation
+    (2016).
+
+
+
+ACKNOWLEDGMENTS
+Acknowledgment We thank ANYbotics for responsive support
+on ANYmal Funding The project was funded in part by the Intel
+Network on Intelligent Systems and the Swiss National Science
+Foundation (SNF) through the National Centre of Competence
+in Research Robotics and Project 200021-166232. The work has
+been conducted as part of ANYmal Research, a community to
+advance legged robotics. Author contribution J.H conceived
+the main idea of the train and control methods, set up the sim-
+ulation and trained networks for the command-conditioned
+locomotion and the high-speed locomotion. J.L trained a net-
+work for recovery from a fall. J.H, A.D, M.H and V.K refined
+ideas and contributed in the experiment design. J.H and J.L
+performed experiments together. D.B and V.T helped setting
+up the hardware for the experiments. J.H, A.D, M.H and V.K
+analyzed the data and prepared the manuscript. Conflict of in-
+terest The authors declare that they have no competing interests.
+Data and material availability All data needed to evaluate the
+conclusions in the paper are present in the paper or the Sup-
+plementary Materials. Other materials can be found at https:
+//github.com/junja94/anymal_science_robotics_supplementary.
+ Research Article                                                                                                                 ETH Zurich and Intel    15
+
+
+SUPPLEMENTARY MATERIALS                                             angular velocity of the base cost (cw = −6∆t)
+S1. Nomenclature                                                                                             I       I
+                                                                                                    cw K (|ω IB − ω̂ IB |)                                 (3)
+   kc     curriculum factor.
+    c·    coefficient term for a cost term.                         linear velocity of the base cost (cv1 = −10∆t, cv2 = −4∆t)
+  vCAB    linear velocity of B respect to A expressed in C
+   ω      angular velocity                                                                     cv1 K (|cv2 · (v IIB − v̂ IIB )|)                           (4)
+    ˆ·    desired quantity
+                                                                    torque cost (cτ = 0.005∆t)
+    τ     joint torque
+    φ     angular quantity
+   vf     linear velocity of a foot                                                                          k c cτ ||τ ||2                                (5)
+  vft     tangential velocity of a foot (x, y components)           joint speed cost (c js = 0.03∆t)
+   pf     linear position of a foot
+  vc,n    linear velocity of the n-th contact point
+  ic,n    contact impulse of the n-th contact                                              k c c js ||φ̇i ||2    ∀i ∈ {1, 2..., 12}                        (6)
+   gi     gap function of the i-th possible contact pair
+                                                                    foot clearance cost (c f = 0.1∆t, p̂ f ,i,z = 0.07 m)
+    Ic    index set of all contacts
+  Ic, f   index set of foot contacts
+   Ic,i   index set of internal contacts                                  k c c f ( p̂ f ,i,z − p f ,i,z )2 ||v f t,i ||, ∀i, gi > 0, i ∈ {0, 1, 2, 3},    (7)
+   |·|    cardinality of a set or l1 norm
+                                                                    foot slip cost (c f v = 2.0∆t)
+  ||·||   l2 norm
+   0n     n-dimensional vector of zeroes
+    q     generalized coordinate                                                     k c c f v ||v f t,i ||, ∀i, gi = 0, i ∈ {0, 1, 2, 3}                  (8)
+    u     generalized velocity
+                                                                    orientation cost (co = 0.4∆t)
+
+
+S2. Random command sampling method employed for evalu-
+                                                                                                k c co ||[0, 0, −1] T − φg ||                              (9)
+ating the learned command-conditioned controller.                   smoothness cost (cs = 0.5∆t)
+The motivation of having a special sampling method is the lim-
+ited size of the experimental area. A sufficiently long uncon-                                       k c cs ||τt−1 − τt ||2                               (10)
+strained sequence of randomly sampled velocity commands
+may drive the robot outside the limits of the physical space        S4. Cost terms for training recovery from a fall
+available. We therefore use the following sampling scheme. We       We use angleDiff : R × R → [0, π ] that computes the minimum
+first sample a command from the distribution described in table     angle difference between two angular positions to define a cost
+S1. Then we simulate a position trajectory by assuming that the     function on the joint positions. The symbols used in this section
+body follows the velocity command perfectly. If the position of     are defined in section S1. torque cost (cτ = 0.0005∆t)
+the body goes outside the perimeter of the available space, we
+reject the sampled command, reset the position to the previous
+                                                                                                             k c cτ ||τ ||2                               (11)
+position, and resample a velocity command. This loop continues
+until the desired number of commands are sampled.                   joint speed cost (c js = 0.2∆t, c jsmax = 8 rad/s)
+
+S3. Cost terms for training command-conditioned locomotion
+and high-speed locomotion                                                    If |φ̇i | > |c jsmax |,         k c c js ||φ̇i ||2     ∀i ∈ {1, 2...12}      (12)
+We used a logistic kernel to define a bounded cost function         joint acceleration cost (c ja = 0.0000005∆t)
+K : R → [−0.25, 0) as
+                                  1                                                         k c c ja ||φ̈i ||2    ∀i ∈ {1, 2...12}                        (13)
+                     K(x) = − x           .                  (2)
+                             e + 2 + e− x
+                                                                    HAA cost (c H AA = 6.0∆t)
+This kernel converts a tracking error to a bounded reward. We
+found it more useful than Euclidean norm, which is a more               If |φroll | < 0.25π,          k c c H AA K (angleDiff(φ H AA , 0))                (14)
+common choice. An Euclidean norm generates a high cost in
+the beginning of training where the tracking error is high such     HFE cost (c HFE = 7.0∆t, φ̂ HFE = ±0.5π rad (+ for right legs) )
+that termination (i.e. falling) becomes more rewarding strategy.
+On the other hand, the logistic kernel ensures that the cost is       If |φroll | < 0.25π,         k c c HFE K (angleDiff(φ HFE , φ̂ HFE ))               (15)
+lower-bounded by zero and termination becomes less favorable.
+Many other bell-shaped kernels (Gaussian, triweight, biweight,      KFE cost (cKFE       = 7.0∆t, φ̂KFE = ∓2.45 rad)
+etc) have the same functionality and can be used instead of a
+logistic kernel.                                                       If |φroll | < 0.25π,         k c cKFE K (angleDiff(φKFE , φ̂KFE ))                 (16)
+   The symbols used in this section are defined in section S1.
+Note that many cost terms are also multiplied by the time step      contact slip cost (ccv = 6.0∆t)
+∆t since we are interested in the integrated value over time. Ex-
+                                                                                                                          I ||2
+planation on the curriculum factor k c can be found in subsection                                            ∑n∈ Ic ||vc,n
+"Training in simulation".                                                                          k c ccv                                                (17)
+                                                                                                                   | Ic |
+ Research Article                                               ETH Zurich and Intel   16
+
+
+body contact impulse cost (ccimp = 6.0∆t)
+
+                                                  I ||
+                                ∑n∈ Ic \ Ic, f ||ic,n
+                    k c ccimp                            (18)
+                                   | Ic | − | Ic, f |
+
+internal contact cost (ccint = 6.0∆t)
+
+                            k c ccint | Ic,i |           (19)
+
+orientation cost (co = 6.0∆t)
+
+                     co ||[0, 0, −1] T − φg ||2          (20)
+
+smoothness cost (cs = 0.0025∆t)
+
+                        k c cs ||τt−1 − τt ||2           (21)
+ Research Article                                                                                ETH Zurich and Intel   17
+
+
+
+
+                                     min            max
+            forward velocity         -1.0 m/s       1.0 m/s
+            lateral velocity         -0.4 m/s       0.4 m/s
+            turning rate             -1.2 rad/s     1.2 rad/s
+
+Table S1. Command distribution for the command-
+conditioned locomotion task. During training the command
+was varied randomly as shown in this table. The range was
+selected to match the capabilities of the existing controllers.
+
+
+
+
+                                     min           max
+            forward velocity         -1.6 m/s      1.6 m/s
+            lateral velocity         -0.2 m/s      0.2 m/s
+            turning rate             -0.3 rad/s    0.3 rad/s
+
+Table S2. Command distribution for the high-speed loco-
+motion task. During training the command was varied ran-
+domly as shown in this table. Only the forward velocity com-
+mand has a large variation since this task focuses only on high
+speed.
+
+
+
+
+                               mean                             standard deviation
+ base position                 [0, 0, 0.55] T                   1.5 cm
+ base orientation              [1, 0, 0, 0] T                   0.06 rad (about a random axis)
+ joint position                [0, 0.4, −0.8, 0, 0.4, −0.8,     0.25 rad
+                               0, −0.4, 0.8, 0, −0.4, 0.8] T
+ base linear velocity          03                               0.012 m/s
+ base angular velocity         03                               0.4 rad/s
+ joint velocity                012                              2 rad/s
+
+Table S3. Initial state distribution for training the command-
+conditioned and high-speed locomotion controllers. The
+initial state is randomized to make the trained policy more
+robust.
+18
+ETH Zurich and Intel
+                       Fig. S1. Base velocity tracking performance of the learned controller while following random commands. (A) Forward velocity, (B) Lateral velocity, (C) Yaw rate. For all
+                       graphs, the dotted lines represent the commanded velocity and the solid lines represent the measured velocity. All commands are followed with a reasonable accuracy even
+Research Article
+
+
+                       when the commands are given in a random fashion.
+                                                                                                                                                                              Research Article
+
+
+
+
+Fig. S2. Base velocity tracking performance of the best existing method while following random commands. (A) Forward velocity, (B) Lateral velocity, (C) Yaw rate. For
+all graphs, the dotted lines represent the commanded velocity and the solid lines represent the measured velocity. The tracking performance is significantly worse than the
+learned policy.
+
+
+                                                                                                                                                                              ETH Zurich and Intel
+
+
+
+
+                                                                                                                                                                              19
+ Research Article                                                    ETH Zurich and Intel   20
+
+
+
+
+Fig. S3. Sampled initial states for training a recovery controller
+

@@ -1,0 +1,933 @@
+                                                                  DemoStart: Demonstration-led auto-curriculum
+                                                                  applied to sim-to-real with multi-fingered robots
+                                                               Maria Bauza*1 , Jose Enrique Chen*1 , Valentin Dalibard*1 , Nimrod Gileadi*1 ,
+                                                               Roland Hafner*1 , Murilo F. Martins*1 , Joss Moore*1 , Rugile Pevceviciute*1 ,
+                                                                Antoine Laurens1 , Dushyant Rao1 , Martina Zambelli1 , Martin Riedmiller1 ,
+                                                                 Jon Scholz1 , Konstantinos Bousmalis1 , Francesco Nori1 , Nicolas Heess1
+
+
+
+
+arXiv:2409.06613v2 [cs.RO] 12 Sep 2024
+                                            Abstract— We present DemoStart, a novel auto-curriculum              learning is automatically adjusted. While the trained policies
+                                         reinforcement learning method capable of learning complex               leverage privileged information, we distill them into policies
+                                         manipulation behaviors on an arm equipped with a three-                 that rely only on RGB camera images and proprioception. In
+                                         fingered robotic hand, from only a sparse reward and a handful
+                                         of demonstrations in simulation.                                        combination with the judicious use of domain randomization
+                                            Learning from simulation drastically reduces the develop-            techniques, this allows the policies to be deployed zero-shot
+                                         ment cycle of behavior generation, and domain randomization             to real robots. Compared to learning from demonstrations di-
+                                         techniques are leveraged to achieve successful zero-shot sim-to-        rectly, our approach can learn from two orders of magnitude
+                                         real transfer. Transferred policies are learned directly from raw       fewer demonstrations.
+                                         pixels from multiple cameras and robot proprioception. Our
+                                         approach outperforms policies learned from demonstrations                  We test DemoStart on several challenging tasks that re-
+                                         on the real robot and requires 100 times fewer demonstra-               quire 6D Cartesian control of an arm with 7 degrees of
+                                         tions, collected in simulation. More details and videos in              freedom (DoF) and joint-space control of a dexterous hand
+                                         sites.google.com/view/demostart.                                        with 12 DoFs. We show that DemoStart is effective in
+                                                                  I. I NTRODUCTION                               simulation, with over 98% success on a number of different
+                                                                                                                 tasks including lifting, plug insertion, cube reorientation,
+                                            A longstanding goal of the robotics community has been
+                                                                                                                 nut-and-bolt threading, and a tidy-up task of placing a
+                                         to synthesize skills that are functional, performant, and safe
+                                                                                                                 screwdriver in a cup. We also demonstrate effective zero-
+                                         to execute on real robots, especially for complex robot
+                                                                                                                 shot transfer of our solutions for plug lifting, plug insertion,
+                                         morphologies and tasks such as manipulation with multi-
+                                                                                                                 and cube reorientation to the real world (97%, 64%, and 97%
+                                         fingered hands. Learning from human-teleoperated robots
+                                                                                                                 success, respectively), outperforming both the zero-shot sim-
+                                         has led to some impressive results for relatively simple
+                                                                                                                 to-real transfer of naive RL baselines and policies imitating
+                                         embodiments, for which effective teleoperation devices exist
+                                                                                                                 human-teleoperated demonstrations collected directly in the
+                                         [1], [2], [3]. However, high-quality teleoperation of so-
+                                                                                                                 real world. Figure 2 shows the setup and tasks considered
+                                         phisticated embodiments such as dexterous hands remains
+                                                                                                                 in this work. The video in the supplementary material
+                                         an open research challenge. As a result, simulation-based
+                                                                                                                 includes further visualizations of the behaviors generated by
+                                         learning with subsequent transfer to real robots (sim-to-real)
+                                                                                                                 DemoStart and the baselines. In summary, the contributions
+                                         is an attractive alternative that can significantly reduce the
+                                                                                                                 of this work are:
+                                         scalability and safety concerns associated with learning from
+                                         real robot data.                                                          1) The DemoStart method for solving tasks in simulation
+                                            In this work we tackle a set of problems with the following               from minimal and sub-optimal demonstrations, with
+                                         constraints: a complex embodiment with a large action space;                 sparse rewards.
+                                         a very small number of sub-optimal demonstrations available               2) Experiments showing that DemoStart can master
+                                         per task; and access to only success detectors that act as                   difficult-to-control simulation tasks with a high DoF
+                                         binary sparse rewards. Finding a general approach to solve                   embodiment, achieving success rates over 98% on all
+                                         problems of this type can greatly expand the set of tasks that               evaluated tasks.
+                                         can be solved with dexterous robots by reducing the amount                3) Successful evaluations of sim-to-real zero-shot transfer
+                                         of effort required to solve a new task.                                      on a dexterous multi-fingered hand mounted on a robot
+                                            Our auto-curriculum method, DemoStart (Section III-A),                    arm, showing that DemoStart generates transferable
+                                         combines a handful of demonstrations in simulation with RL                   behaviors for dexterous tasks.
+                                         from sparse rewards to go beyond the quality of demonstrated
+                                         behaviors and avoid the need for difficult reward design.                                   II. R ELATED W ORK
+                                         DemoStart creates a curriculum in which the difficulty of                  Research in robotic manipulation is moving on from
+                                           * Alphabetical order, equal contributions.                            pick-and-place to more challenging dexterous tasks [4], [5].
+                                           1 Google DeepMind.                                                    Along with more complex tasks, we see an increased use of
+
+                                                                                                             1
+Fig. 1. Starting with 20 demonstrations in simulation (Top), DemoStart generates a curriculum for reinforcement learning. Once a state-based policy is
+trained (Middle), we use distillation to turn it into a visuomotor policy that can be executed on the real robot (Bottom).
+
+
+
+bimanual robots with parallel grippers [5], [6], [7] and multi-                                        III. M ETHOD
+fingered hands [8], [9]. These embodiments have higher                           We propose an approach to train policies in simulation
+DoFs and require more complex control.                                        which can transfer zero-shot to real environments. Our
+                                                                              approach requires only a few demonstrations in simulation
+   Two approaches are common in this domain: learning                         and a binary sparse success reward, making it easy to design
+policies in simulation using RL [8], [10], [11], [12], [13],                  new tasks. Our procedure consists of two steps. We first learn
+[14], [15], [16], [17], or imitating human demonstrations on                  a teacher policy in simulation from features (not images)
+the real robot [3], [4], [9]. Combining these two approaches                  using a novel auto-curriculum RL method, DemoStart (see
+by kick-starting RL with demonstrations has many bene-                        Section III-A), and physics domain randomization. We then
+fits [18], [19], [20], and allows us to use a small number                    distill the teacher policy into a vision-based student policy
+of demonstrations and simple sparse rewards.                                  (Section III-B) and transfer it zero-shot to real.
+                                                                                 We consider learning within a Markov decision process
+   To transfer learned behaviors, some approaches rely on                     (MDP) framework. At each time step, t, the agent selects
+hand-crafted external perception mechanisms such as mark-                     an action, at ∈ A, based on its current state, st ∈ S.
+ers [13], [15], [21], or utilize sensor modalities such as                    Subsequently, it receives a reward (rt+1 = R(st , at ) ∈ R)
+point clouds, binary tactile sensing, or segmentation maps to                 and transitions to the next state (st+1 ) according to the
+minimize the sim-to-real gap [8], [16], [17], [22]. We operate                transition probability distribution (p(· | st , at )). With sparse
+directly on RGB images. To transfer feature-based policies                    rewards, we end the episode on the first success.
+into the real world, some works first explicitly estimate the                    We parameterize the MDP with task parameters (TPs) ψ.
+state from the RGB images [13], [14], [21], [23], [24], while                 Each ψ contains 1) The starting state s0 , 2) Environment
+others rely on vision-based distillation to turn the feature-                 settings such as physical or visual parameters, and 3) A goal
+based policy into a visuomotor policy [25]. We chose the                      specification, for goal-conditioned tasks. We call Ttarget the
+latter as it doesn’t rely on a fixed representation of the state              distribution over TPs with starting states s0 from the initial
+space.                                                                        states of the target environment. In our auto-curriculum
+                                                                              method, we extend Ttarget by creating TPs that are better
+   Auto-curriculum methods [26] have been a popular ap-                       suited for training policies. When evaluating the performance
+proach to train policies with RL in challenging environments                  of a policy in simulation, we sample the TPs from Ttarget .
+[27], [28], [29], [30], [31]. DemoStart, presented in Section
+III-A, is an auto-curriculum method which has the advantage                   A. DemoStart: A demonstration-led auto-curriculum for RL
+of requiring little modification to an existing RL setup and                  in simulation
+does not require a centralized controller, making it easy to                     In this section we propose DemoStart, an auto-curriculum
+scale. Prior work has also exploited the use of state resets                  method where demonstrations are leveraged to provide in-
+to induce a curriculum [32] and used demonstrations as                        creasingly difficult episode start states. DemoStart leverages
+the source of these states [33], [34], [35], [36], [37]. Most                 three distinct conceptual mechanisms which are then put
+similar to our approach is Tao et al. [37] which combines                     together as part of a single data generation procedure. We
+an auto-curriculum method, PLR [28], with state resets from                   first describe these mechanisms and then show how they fit
+demonstrations to learn policies. One key difference of our                   together in DemoStart.
+approach is that we combine the auto-curriculum and resets                       Conceptual mechanisms used by DemoStart. DemoStart
+from demonstration into one integrated method, instead of                     leverages the following three mechanisms:
+two separate consecutive stages. We also do not feed the                         Mechanism 1: Turning demonstrations into TPs of varying
+demonstrations as part of the replay experience, which allows                 difficulty. We start by recording a few demonstrations of
+us to gracefully handle demonstrations of poor quality or                     solving the task in simulation. For each time step in the
+where actions are in the wrong action space.                                  demonstrations, we save the full environment state such that
+
+                                                                          2
+each of these states can then be used as the starting state             chunk i and use it as s0 of the corresponding TP ψi . As a
+s0 of a TP. TPs that have a start state towards the end of              result, the sequence is designed so that the TPs tend to go
+demonstrations, and therefore require fewer steps to reach a            from harder to easier.
+goal state, tend to be easier, whereas TPs with start states               Step 2. Find a TP to train on. Second, the actor searches
+towards the beginning of demonstrations tend to be harder.              for a TP in the sequence which is identified to contain high
+   Mechanism 2: Finding TPs with high training signal with              training signal. Starting with the first TP ϕ0 , the actor gener-
+zero-variance filtering. During learning, most TPs are either           ates T episodes by executing the policy on that TP. Note that
+too hard or too easy to provide a good training signal for              none of this generated data is sent for training. We then apply
+the current policy. For instance, if a policy knows how to              the ZVF criterion to decide whether this TP has high training
+insert a plug when already on top of its socket, a good                 signal. If there is variance in the sparse reward outcomes,
+TP for learning might be one where the plug is lifted and               meaning some but not all of the T episode succeeded, we
+almost on top of the socket while a hard TP would be                    consider the TP good for learning and we move on to Step
+one where the plug is far from the socket and not grasped.              3. If there is no variance across the T episodes because the
+Other parameters of a TP, such as the physics parameters,               agent always fails, meaning the TP is too hard, we move on
+will also affect the difficulty of the task. DemoStart uses a           to evaluating the next TP in the sequence which should be
+novel heuristic to identify TPs that lead to a strong training          easier. If the agent always succeeds on that TP, meaning the
+signal: we only train on experience generated from TPs for              TP is too easy, or we have run out of TPs in the sequence,
+which the current policy sometimes succeeds and sometimes               we go back to Step 1 to sample a new sequence of TPs.
+fails. We call this heuristic Zero-Variance Filtering (ZVF).               Step 3. Generate training data on the selected TP. Finally,
+The main intuition behind ZVF is that if success on a TP                if the previous step found a TP suitable for training, we then
+doesn’t vary across episodes then there is no behavior to be            generate M episodes of the policy on that TP and send the
+reinforced in the experience of that TP. We further discuss             data to the replay buffer for training. When done, we return
+some considerations regarding the applications of ZVF in                to Step 1.
+Appendix VII-E.                                                            We highlight three properties of DemoStart. First, ZVF
+   Mechanism 3: Focusing on TPs with minimal bias from                  has the positive property that it is easy to implement as
+demonstrations. Recorded demonstrations often contain un-               part of any setup with binary sparse rewards. Unlike other
+natural states which would not occur when executing a                   auto-curriculum methods like PAIRED [27] or PLR [28],
+skilled agent. For example, a demonstration may contain                 DemoStart does not require an additional agent to be trained
+states where the agent has an unstable grasp of an object.              or a separate centralized controller. Second, DemoStart does
+As a result, training using such states as TPs’ starting states         not make use of the demonstrations’ experience as part of the
+can have a negative impact on performance. In our example,              replay. As such, it is able to leverage demonstrations that are
+the agent may end up focusing on how to rectify a poor grasp            of poor quality or that are not suitable for behavior cloning,
+instead of learning how to grasp an object well in the first            for example due to a different action space. In particular,
+place. To tackle this, DemoStart’s implementation includes              as we show in the plug insertion task (Section IV-A), we
+a novel technique to bias the TPs it trains on towards states           are able to leverage demonstrations where no demonstration
+which occur earlier in the demonstrations. This way, once               completes the entire task from beginning to end, but each
+an agent has become competent at grasping an object, it will            demonstration executes a section of the task (e.g. flipping
+no longer train on TPs where the object is already grasped.             the plug to the upright position). Third, DemoStart will
+The details of how this bias is implemented is described in             gracefully switch training from using initial states from the
+the overall implementation of DemoStart below.                          demonstrations to using the initial states from the target
+   Implementing DemoStart. DemoStart is implemented as                  environment in Ttarget . In all our experiments, we use K = 8,
+part of a distributed actor-learner setup [38]. The actors              T = 4 and M = 50.
+generate experience by executing the policy in the environ-
+ment and send it to a learner through an experience replay              B. Distillation and Transfer
+buffer [39]. The learner updates the policy based on the                   After training a policy that operates from privileged
+experience using the MPO algorithm [40]. The method we                  observations using DemoStart, we distill the result into a
+describe below determines how we gather experience for                  student policy with visual observations, as in [25]. Instead
+learning and thus it is implemented as part of the actors               of interactively querying the teacher policy while training the
+without affecting other parts of the system such as the agent           student policy, we generate an offline dataset of trajectories
+update rules. Each actor repeatedly executes the following              from the teacher, and use behavior cloning to train the
+procedure:                                                              student. This approach provides additional flexibility as it
+   Step 1. Sample a sequence of TPs. First, the actor samples           makes it easy to mix different types of data, or reuse the same
+a sequence of TPs (ψ0 , ψ1 , ..., ψK ). The first TP ψ0 is always       pipeline for learning entirely from human demonstrations
+sampled from Ttarget . The next K TPs are sampled by first              (see Section V-A).
+sampling one demonstration from the set of demonstrations                  Domain Randomization. We use three types of domain
+and splitting it into K temporal chunks of equal size. We               randomization (DR)[41] when training the teacher and stu-
+then sample uniformly a single environment state from each              dent policies: 1) Perturbations: We apply external force
+
+                                                                    3
+disturbances to any object that is not fixed to the basket;            just added 8 demonstrations of flipping the connector into the
+2) Physics: We randomize the friction, mass, and inertia of            upright position, which was faster and didn’t require solving
+every joint and body in the scene; 3) Visual: We randomize             the insertion task. Our experiments use all 20 demonstrations.
+the camera poses and lighting, as well as the colors of                   Cube reorientation: Reorient the cube such that a specific
+every object in the scene (see Appendix VII-B.3). When                 side is facing upwards and within 5cm of the basket center.
+training the teacher policy with DemoStart, we do not use              The goal orientation is sampled as part of the TP. We used
+perturbations and physics DR for episodes initialized from             2 demonstrations of unstructured interaction with the cube.
+demonstration states.                                                     Nut and bolt threading: Thread a nut onto a bolt. The
+   Photorealistic Rendering. We include photorealistic im-             nut and bolt are oversized and the bolt is fixed. We used 60
+ages rendered with Filament [42] for the plug insertion task.          demonstrations total: 20 demonstrations of the full task, 20
+When generating these images, we randomize lighting and                lifts and 20 demonstrations where the nut was brought to the
+camera exposure settings. The first row of Figure 2 shows              top of the bolt.
+an example image.                                                         Screwdriver in cup: Ensure cup is upright and insert
+   Policy distillation. We use the Perceiver-Actor-Critic              screwdriver into the cup, handle first. We used 20 demon-
+(PAC) model [43], a scalable neural architecture designed for          strations.
+continuous control tasks for the student policy. While PAC                To collect demonstrations in simulation, we use a sim-
+supports optimizing an offline-RL objective, we solely use it          pler action space that allows us to collect data through a
+for behavior cloning. More details in Appendix VII-A.2.                3Dconnexion SpaceMouse [47]. Although the action space
+                                                                       was different, the demonstrations can be used by DemoStart,
+                IV. E XPERIMENTAL S ETUP
+                                                                       which does not use the actions from the demonstrations. As
+   Each of our six robot cells consists of a square basket with        part of the teleoperation baseline described in Section V-
+slanted walls and two cameras fixed to the basket corners:             A, we also collected expert human demonstrations on the
+front right and left corner. We use a Kuka LBR iiwa 14 robot           real robot setup. Appendix VII-B.4-VII-B.5 include further
+arm with the three-finger DEX-EE Hand [44] attached to its             details on teleoperation.
+flange, as well as two wrist cameras attached to either side
+of the base of the hand. The real robot setup is replicated in                                 V. R ESULTS
+simulation using MuJoCo. The action space exposed to the
+agent is 18-dimensional. The first 6 dimensions correspond to          A. Baselines
+the desired 6D Cartesian velocity of the robot arm, while the
+                                                                          We compare DemoStart against various baselines and
+last 12 dimensions correspond to the desired joint positions
+                                                                       ablations on the plug insertion task. Both DemoStart and
+of the fingers of the robot hand. Our real and simulated
+                                                                       our vanilla RL baseline uses the same sparse reward and
+experimental setups are shown in Figure 2. Please refer
+                                                                       MPO agent architecture, as described in Appendix VII-
+to Appendix VII-B for a more detailed description of the
+                                                                       A.1 (see more in Appendix VII-F). We also compare to
+experimental setup.
+                                                                       Scheduled Auxiliary Control (SAC-X) [48], an RL method
+A. Tasks                                                               that uses auxiliary rewards to help exploration. In order to
+                                                                       evaluate on the real robot, we use the distillation method
+   Our tasks are inspired by the NIST dexterous manipulation
+                                                                       from Section III-B to learn either from data generated from
+benchmark [45] and have varying levels of complexity, time
+                                                                       our agents in simulation or from real demonstrations obtained
+horizon (multiple stages), precision, among other attributes
+                                                                       through teleoperation (2067 successful demonstrations for
+relevant to dexterous manipulation (see Figure 2).
+                                                                       insertion and 2116 for lift). Note that for the plug insertion
+   For real robot experiments we 3D-printed a simplified
+                                                                       task, the 20 demonstrations in simulation are equivalent
+version of an industrial-grade plug (yellow) and socket
+                                                                       to half an hour of collection time. In contrast, the 2753
+(gray) connector from NIST Board #1 [45], as well as a
+                                                                       demonstrations collected on the real robot, including failures,
+green cube with a black side. For simulation experiments
+                                                                       are equivalent to 27 hours non-stop of data collection.We
+we also used oversized CAD models of a nut and bolt
+                                                                       discuss further details about our baselines in Appendix VII-
+as well as a screwdriver and cup from the YCB object
+                                                                       D.
+dataset [46]. Below is a brief description of each task, along
+with the type and number of demonstrations we captured
+                                                                       B. Simulation experiments
+from simulation for DemoStart. Further details on tasks and
+objects in Appendix VII-C.                                                We compare the performance of agents trained in sim-
+   Plug lifting: Lift the yellow plug 5cm above the basket             ulation on the tasks of plug lift and plug insertion. See
+surface. We used 5 demonstrations.                                     Table I for the performance of each method on plug insertion.
+   Plug insertion: Insert the plug into the socket. We initially       For each evaluation, we run 1000 episodes of 10 seconds
+recorded 12 demonstrations of plug insertion where the                 each with different initial conditions. We include physics DR
+plug was always spawned upright. We then changed the                   and perturbations on the objects during the evaluations. An
+environment to randomize the orientation of the plug and               episode is successful if the task was achieved during the
+instead of collecting new demonstrations of insertion, we              episode.
+
+                                                                   4
+                          Fig. 2.   Experimental setup: simulated (top) and real (bottom) robot environments and tasks.
+
+
+
+   Vanilla RL with the same sparse rewards was unable                                 Method                                      Plug Insertion
+
+to solve any of the plug tasks. SAC-X using manually-                                 Vanilla RL                                      0%
+                                                                                      Vanilla RL + Mechanism 1                        0%
+designed auxiliary rewards can solve plug lift (100%) and                             Vanilla RL + Mechanism 1 + Success Filter       0%
+insertion (99.2%), however this high performance comes at                             Vanilla RL + Mechanisms 1 & 2                  97.2%
+                                                                                      DemoStart (Mechanisms 1, 2 & 3)                99.6%
+high cost as the process of generating the auxiliary rewards                          SAC-X                                          99.2%
+is non-trivial and requires domain expertise. DemoStart also                          DemoStart + BC distillation                    99.0%
+                                                                                      SAC-X + BC distillation                        20.4%
+solves the tasks with 99.7% success rate for lift and 99.6%
+for insertion, but requires only a sparse reward and a few                                             TABLE I
+demonstrations in simulation. When distilling with BC, the                      P ERFORMANCE IN SIMULATION ON THE P LUG I NSERTION TASK .
+distilled vision-based policy from DemoStart data retains
+                                                                                                  DemoStart (Mechanisms 1, 2 & 3)
+its performance (99.0% for plug insertion) while distilling
+                                                                                                  Plug Insertion          99.6%
+SAC-X in plug insertion results in a significant drop of                                          Plug Lift               99.7%
+performance (20.4%) as the distilled policy struggles to learn                                    Cube Reorientation      99.9%
+                                                                                                  Nut and Bolt            99.8%
+from the jerky, non-smooth behaviors of SAC-X policy.                                             Screwdriver in cup      98.6%
+Distilling DemoStart and SAC-X for plug lift results in
+high success rates for both tasks, with 99.3% and 98.3%                                               TABLE II
+success rates respectively. Note that the distilled policies only               P ERFORMANCE IN SIMULATION OF D EMO S TART ON ALL TASKS .
+have access to RGB images and proprioceptive information,                   Qualitatively, we see the emergence of semantically mean-
+and their evaluations randomize the camera poses and use                    ingful curricula. As Figure 3 shows, when learning the
+photorealistic images.                                                      screwdriver-in-cup task, early episodes used in training start
+   To evaluate the relative importance of the mechanisms                    with the screwdriver above an upright cup, and later on we
+introduced in Section III-A, we include two ablations. In                   see the screwdriver being grasped, the cup being held, and
+Vanilla RL + Mechanism 1 actors sample the TPs from a                       finally episodes starting with the cup upside down.
+mixture distribution. 20% of this mixture consists of the
+native environment’s distribution Ttarget and the remaining                 C. Real-world performance
+80% are uniformly distributed across the states from the                       On the real robot, we test distilling DemoStart on three
+collected demonstrations. In Vanilla RL + Mechanisms 1 & 2,                 different tasks: plug lift, plug insertion and cube reorienta-
+each actor additionally uses the ZVF criterion to decide                    tion. For the plug tasks, we compare policies distilled from
+whether to send the experience it has generated to the learner,
+instead of sending all data. In Vanilla RL + Mechanism 1 +
+Success Filter, ZVF is replaced with a simple criterion that
+if any rollout from a given TP is successful, that state is
+considered informative.
+   Finally, table II shows the performance of DemoStart
+on the five tasks in Figure 2. DemoStart achieves near-
+perfect results in all tasks in simulation and behavior is also
+significantly more efficient at solving the task compared to
+the demonstrations it was trained on. For instance, in the
+Screwdriver in cup task, agents take a median time of 3.5
+seconds to solve the task, whereas the median time of the
+demonstrations is 93.2 seconds.                                             Fig. 3. Visual representation of the emergent curriculum. We plot, for a
+                                                                            single demonstration, the states that passed ZVF and were used for training.
+   Emergent Curricula with DemoStart. During training,                      We see that as training progresses, the training distribution shifts from the
+we record some of the starting states that passed the ZVF.                  end of the demonstration to its beginning.
+
+
+                                                                        5
+                                                                                 Method                   Plug Lift      Plug Insertion    Cube reorientation
+                                                                                 DemoStart distillation     97%               64%                97%
+                                                                                 SAC-X distillation         20%                1%            Not evaluated
+                                                                                 BC from real teleop        64%                2%            Not evaluated
+
+                                                                                                       TABLE III
+                                                                                  R EAL ROBOT PERFORMANCE OF D EMO S TART AND BASELINES .
+
+                                                                              D. Distillation ablations
+                                                                                 We perform several ablations on the distillation pipeline
+                                                                              for learning pixel-based policies on the plug insertion task.
+                                                                              The ablations include using the Cartesian fingertip poses as
+                                                                              observations instead of the finger joint angles, not including
+                                                                              photorealistic rendering in the training data, and using a dif-
+                                                                              ferent number of cameras. Table IV shows the performance
+Fig. 4. Plug insertion success rate over episode duration. Sim episodes       of PAC in the simulation and real environments for the plug
+terminate after 10s. Teleoperation demonstrations terminate after 50s.        insertion task. We observe that the performance in simulation
+                                                                              is barely affected while the performance in the real world
+                                                                              decreases significantly in some cases. For instance, the
+DemoStart data against those distilled from SAC-X or teleop-                  performance decreases with the number of camera views,
+eration data. Unless otherwise specified, the distilled policies              especially when wrist cameras are not included. Not using
+use as observations the images from the four cameras, and                     any photorealistic data also results in lower performance.
+the joint angles for the arm and fingers as well as the arm’s                 Using Cartesian poses instead of joint angles results in only
+tool center point. For each method and task we collected                      a mild decrease in performance.
+100 episodes of one minute for lift and cube reorientation,
+                                                                                Method                                Plug Insertion Sim   Plug Insertion Real
+and three minutes for insertion. We ensured that no episode                     DemoStart distillation                      99.0%                 64%
+started in a successful state. An episode was marked as                         DemoStart distillation
+                                                                                                                           97.0%                   29%
+successful if it contained at least one successful step (for                    without photorealistic data
+                                                                                DemoStart distillation
+plug lift, the plug needed be held for at least a second).                                                                 98.6%                   50%
+                                                                                with fingertip Cartesian poses
+Table III shows the average success rate.                                       DemoStart distillation
+                                                                                                                           99.3%                   51%
+                                                                                with 3 cameras
+                                                                                DemoStart distillation
+   As expected, performance drops when transferring policies                    with 2 cameras
+                                                                                                                           98.1%                   42%
+from simulation to the real robot. For plug lift and cube                       DemoStart distillation
+                                                                                                                           97.0%                   17%
+                                                                                with 1 camera (no wrist camera)
+reorientation the sim-to-real gap is small and performance
+remains strong in the real setup with a 97% success rate in                                               TABLE IV
+each task. For plug insertion, the drop is not only in terms                     A BLATION FOR THE DISTILLATION PIPELINE SETTINGS . U NLESS
+of success rate, but also in terms of how quickly the policies                  OTHERWISE SPECIFIED , DISTILLED POLICIES USE PHOTOREALISTIC
+
+achieve the task. Figure 4 shows the success rate for plug                                DATA , FINGER JOINT ANGLES AND FOUR CAMERAS .
+
+insertion as a function of episode duration, showing that in                                              VI. D ISCUSSION
+simulation policies solve plug insertion in seconds, whereas
+transferred policies require many more attempts.                                 We introduce a pipeline that leverages simulation-based
+                                                                              training and sim-to-real transfer to synthesize complex be-
+   The distilled policies from DemoStart clearly outperform                   haviors for real robot manipulation. DemoStart simplifies
+the other two methods on the plug tasks. It is remarkable                     task design, relying only on a handful of low-quality demon-
+that, although the Real Teleoperation baseline produces                       strations and a simple, sparse reward function. DemoStart
+reasonable performance on plug lift, it fails to do so on                     can also leverage incomplete demonstrations of a task and
+plug insertion. Both baselines are able to capture some of                    combine them in order to learn to solve the task end-to-end.
+the behaviors needed to solve the tasks, but result in more                   We have shown that DemoStart is effective on a number of
+fidgety policies. We hypothesize these behaviors come from                    challenging tasks and that, with distillation, it can produce
+the action distribution in teleoperation and SAC-X data being                 vision based controllers that can perform well on real robots.
+more diverse and less smooth. For instance, each teleoperator                    Inherently, DemoStart makes a number of trade-offs. Us-
+has a different style of collecting data and will often include               ing demonstrations only to shape the initial state distribution
+pauses or suboptimal motions during data collection. For                      of RL allows greater flexibility in how the demonstrations
+SAC-X, pure RL is prone to produce jerky behaviors if                         can be obtained while allowing for more efficient and perfor-
+not properly regularized, that in turn lead to more diverse                   mant behaviors to emerge. However, this simplicity can result
+solutions. In contrast, policies learned through DemoStart                    in behaviors that don’t follow the demonstrations closely
+funnel the policy behavior. This results in more consistent                   and thus it is harder to provide guarantees with regards to
+and smooth behaviors that are easier to learn and transfer to                 the final solution. Another consideration to make is that,
+real.                                                                         although we found the variance-based signal of DemoStart to
+
+                                                                          6
+be generally effective, there are some situations where it can                       [9] K. Shaw, A. Agarwal, and D. Pathak, “Leap hand: Low-cost, effi-
+be misleading. This is primarily due to inherent stochasticity                           cient, and anthropomorphic hand for robot learning,” arXiv preprint
+                                                                                         arXiv:2309.06440, 2023.
+of the environment which can cause variance in situations                           [10] W. Wan, H. Geng, Y. Liu, Z. Shan, Y. Yang, L. Yi, and H. Wang,
+where there is little training signal for the policy to learn.                           “Unidexgrasp++: Improving dexterous grasping policy learning via
+   Overall we expect DemoStart to work well for many ma-                                 geometry-aware curriculum and iterative generalist-specialist learn-
+                                                                                         ing,” in Proceedings of the IEEE/CVF International Conference on
+nipulation tasks with predictable dynamics including those                               Computer Vision, 2023, pp. 3891–3902.
+with challenging exploration or hard-to-define rewards. Re-                         [11] A. Petrenko, A. Allshire, G. State, A. Handa, and V. Makoviychuk,
+garding the limitations of this work, we believe that includ-                            “Dexpbt: Scaling up dexterous manipulation for hand-arm systems
+                                                                                         with population based training,” arXiv preprint arXiv:2305.12127,
+ing more informative rewards, when available, will allow                                 2023.
+for more precise behavior shaping. Additionally, employing                          [12] G. Khandate, C. Mehlman, X. Wei, and M. Ciocarlie, “Dexterous
+more advanced randomization techniques may enable better                                 in-hand manipulation by guiding exploration with simple sub-skill
+                                                                                         controllers,” arXiv preprint arXiv:2303.03533, 2023.
+sim-to-real transfer. Because zero-variance filtering drops
+                                                                                    [13] O. M. Andrychowicz, B. Baker, M. Chociej, R. Jozefowicz, B. Mc-
+most of the data produced by actors, and because we are                                  Grew, J. Pachocki, A. Petron, M. Plappert, G. Powell, A. Ray, et al.,
+using sparse rewards, the method is compute intensive com-                               “Learning dexterous in-hand manipulation,” The International Journal
+pared to methods that use dense rewards. Compute efficiency                              of Robotics Research, vol. 39, no. 1, pp. 3–20, 2020.
+                                                                                    [14] A. S. Morgan, K. Hang, B. Wen, K. Bekris, and A. M. Dollar,
+can be improved by reducing the cost of simulation (e.g.                                 “Complex in-hand manipulation via compliance-enabled finger gaiting
+by using a GPU-based simulator), or by better selection                                  and multi-modal planning,” IEEE Robotics and Automation Letters,
+of informative states from demonstrations (perhaps by es-                                vol. 7, no. 2, pp. 4821–4828, 2022.
+                                                                                    [15] V. Kumar, E. Todorov, and S. Levine, “Optimal control with learned
+timating the success probability of a starting state before                              local models: Application to dexterous manipulation,” in 2016 IEEE
+rolling out). We leave these explorations for future work.                               International Conference on Robotics and Automation (ICRA). IEEE,
+On the potential extensions, we believe the modularity of our                            2016, pp. 378–383.
+                                                                                    [16] Z.-H. Yin, B. Huang, Y. Qin, Q. Chen, and X. Wang, “Rotating without
+pipeline is an asset. One interesting direction to be explored                           seeing: Towards in-hand dexterity through touch,” arXiv preprint
+in future work, for instance, is to include real-robot data                              arXiv:2303.10880, 2023.
+in the second training phase. This is already enabled by                            [17] H. Qi, B. Yi, S. Suresh, M. Lambeta, Y. Ma, R. Calandra, and J. Malik,
+the current distillation pipeline and would allow for a self-                            “General in-hand object rotation with vision and touch,” in Conference
+                                                                                         on Robot Learning. PMLR, 2023, pp. 2549–2564.
+improvement loop where performance continues to improve                             [18] S. Schaal, “Learning from demonstration,” Advances in neural infor-
+during deployment.                                                                       mation processing systems, vol. 9, 1996.
+                                                                                    [19] M. Vecerik, T. Hester, J. Scholz, F. Wang, O. Pietquin, B. Piot,
+                                                                                         N. Heess, T. Rothörl, T. Lampe, and M. Riedmiller, “Leveraging
+                             R EFERENCES                                                 demonstrations for deep reinforcement learning on robotics problems
+                                                                                         with sparse rewards,” arXiv preprint arXiv:1707.08817, 2017.
+ [1] C. Chi, S. Feng, Y. Du, Z. Xu, E. Cousineau, B. Burchfiel, and S. Song,        [20] A. Rajeswaran, V. Kumar, A. Gupta, G. Vezzani, J. Schulman,
+     “Diffusion policy: Visuomotor policy learning via action diffusion,”                E. Todorov, and S. Levine, “Learning complex dexterous manipulation
+     arXiv preprint arXiv:2303.04137, 2023.                                              with deep reinforcement learning and demonstrations,” in Proceedings
+ [2] K. Bousmalis, G. Vezzani, D. Rao, C. M. Devin, A. X. Lee, M. B.                     of Robotics: Science and Systems (RSS), 2018.
+     Villalonga, T. Davchev, Y. Zhou, A. Gupta, A. Raju, A. Laurens,                [21] OpenAI, I. Akkaya, M. Andrychowicz, M. Chociej, M. Litwin,
+     C. Fantacci, V. Dalibard, M. Zambelli, M. F. Martins, R. Pevceviciute,              B. McGrew, A. Petron, A. Paino, M. Plappert, G. Powell, R. Ribas,
+     M. Blokzijl, M. Denil, N. Batchelor, T. Lampe, E. Parisotto, K. Zolna,              J. Schneider, N. Tezak, J. Tworek, P. Welinder, L. Weng, Q. Yuan,
+     S. Reed, S. G. Colmenarejo, J. Scholz, A. Abdolmaleki, O. Groth,                    W. Zaremba, and L. Zhang, “Solving rubik’s cube with a robot hand,”
+     J.-B. Regli, O. Sushkov, T. Rothörl, J. E. Chen, Y. Aytar, D. Barker,              2019.
+     J. Ortiz, M. Riedmiller, J. T. Springenberg, R. Hadsell, F. Nori, and          [22] B. Tang, M. A. Lin, I. Akinola, A. Handa, G. S. Sukhatme, F. Ramos,
+     N. Heess, “Robocat: A self-improving generalist agent for robotic                   D. Fox, and Y. Narang, “Industreal: Transferring contact-rich assembly
+     manipulation,” Transactions on Machine Learning Research, 2024.                     tasks from simulation to reality,” arXiv preprint arXiv:2305.17110,
+     [Online]. Available: https://openreview.net/forum?id=vsCpILiWHu                     2023.
+ [3] T. Z. Zhao, V. Kumar, S. Levine, and C. Finn, “Learning fine-grained           [23] A. Allshire, M. MittaI, V. Lodaya, V. Makoviychuk, D. Makoviichuk,
+     bimanual manipulation with low-cost hardware,” arXiv preprint                       F. Widmaier, M. Wüthrich, S. Bauer, A. Handa, and A. Garg,
+     arXiv:2304.13705, 2023.                                                             “Transferring dexterous manipulation from gpu simulation to a remote
+ [4] A. Kannan, K. Shaw, S. Bahl, P. Mannam, and D. Pathak, “Deft:                       real-world trifinger,” in 2022 IEEE/RSJ International Conference on
+     Dexterous fine-tuning for real-world hand policies,” arXiv preprint                 Intelligent Robots and Systems (IROS). IEEE, 2022, pp. 11 802–
+     arXiv:2310.19797, 2023.                                                             11 809.
+ [5] J. Aldaco, T. Armstrong, R. Baruch, J. Bingham, S. Chan, K. Draper,            [24] A. Handa, A. Allshire, V. Makoviychuk, A. Petrenko, R. Singh, J. Liu,
+     D. Dwibedi, C. Finn, P. Florence, S. Goodrich, et al., “Aloha 2:                    D. Makoviichuk, K. Van Wyk, A. Zhurkevich, B. Sundaralingam,
+     An enhanced low-cost hardware for bimanual teleoperation,” arXiv                    et al., “DexTreme: Transfer of agile in-hand manipulation from
+     preprint arXiv:2405.02292, 2024.                                                    simulation to reality,” in 2023 IEEE International Conference on
+ [6] M. Bauza, A. Bronars, Y. Hou, I. Taylor, N. Chavan-Dafle, and                       Robotics and Automation (ICRA). IEEE, 2023, pp. 5977–5984.
+     A. Rodriguez, “simple: a visuotactile method learned in simulation             [25] D. Chen, B. Zhou, V. Koltun, and P. Krähenbühl, “Learning by
+     to precisely pick, localize, regrasp, and place objects,” arXiv preprint            cheating,” in Conference on Robot Learning. PMLR, 2020, pp. 66–
+     arXiv:2307.13133, 2023.                                                             75.
+ [7] J. Varley, S. Singh, D. Jain, K. Choromanski, A. Zeng, S. B. R.                [26] R. Portelas, C. Colas, L. Weng, K. Hofmann, and P.-Y. Oudeyer,
+     Chowdhury, A. Dubey, and V. Sindhwani, “Embodied ai with two                        “Automatic curriculum learning for deep rl: A short survey,” arXiv
+     arms: Zero-shot learning, safety and modularity,” arXiv preprint                    preprint arXiv:2003.04664, 2020.
+     arXiv:2404.03570, 2024.                                                        [27] M. Dennis, N. Jaques, E. Vinitsky, A. Bayen, S. Russell, A. Critch,
+ [8] T. Chen, M. Tippur, S. Wu, V. Kumar, E. Adelson, and P. Agrawal,                    and S. Levine, “Emergent complexity and zero-shot transfer via unsu-
+     “Visual dexterity: In-hand dexterous manipulation from depth,” in                   pervised environment design,” in Proceedings of the 34th International
+     ICML workshop on new frontiers in learning, control, and dynamical                  Conference on Neural Information Processing Systems, ser. NIPS ’20.
+     systems, 2023.                                                                      Red Hook, NY, USA: Curran Associates Inc., 2020.
+
+
+                                                                                7
+[28] M. Jiang, E. Grefenstette, and T. Rocktäschel, “Prioritized level                    playing solving sparse reward tasks from scratch,” in Proceedings
+     replay,” in International Conference on Machine Learning. PMLR,                       of the 35th International Conference on Machine Learning, ser.
+     2021, pp. 4940–4950.                                                                  Proceedings of Machine Learning Research, J. Dy and A. Krause,
+[29] O. E. L. Team, A. Stooke, A. Mahajan, C. Barros, C. Deck, J. Bauer,                   Eds., vol. 80. PMLR, 10–15 Jul 2018, pp. 4344–4353.
+     J. Sygnowski, M. Trebacz, M. Jaderberg, M. Mathieu, et al., “Open-               [49] J. L. Ba, J. R. Kiros, and G. E. Hinton, “Layer normalization,” arXiv
+     ended learning leads to generally capable agents,” arXiv preprint                     preprint arXiv:1607.06450, 2016.
+     arXiv:2107.12808, 2021.                                                          [50] E. Todorov, T. Erez, and Y. Tassa, “MuJoCo: A physics engine for
+[30] J. Bauer, K. Baumli, F. Behbahani, A. Bhoopchand, N. Bradley-                         model-based control,” in 2012 IEEE/RSJ International Conference on
+     Schmieg, M. Chang, N. Clay, A. Collister, V. Dasagi, L. Gonzalez,                     Intelligent Robots and Systems. IEEE, 2012, pp. 5026–5033.
+     K. Gregor, E. Hughes, S. Kashem, M. Loks-Thompson, H. Openshaw,                  [51] K. Zakka, Y. Tassa, and MuJoCo Menagerie contributors,
+     J. Parker-Holder, S. Pathak, N. Perez-Nieves, N. Rakicevic,                           “MuJoCo Menagerie: A collection of high-quality simulation
+     T. Rocktäschel, Y. Schroecker, S. Singh, J. Sygnowski, K. Tuyls,                     models for MuJoCo,” 2022. [Online]. Available: http://github.com/
+     S. York, A. Zacherl, and L. M. Zhang, “Human-timescale                                google-deepmind/mujoco menagerie
+     adaptation in an open-ended task space,” in Proceedings of                       [52] Blender Online Community, “Blender (4.1) - a 3d modelling and
+     the 40th International Conference on Machine Learning, ser.                           rendering package,” 2024. [Online]. Available: http://www.blender.org
+     Proceedings of Machine Learning Research, A. Krause, E. Brunskill,               [53] Shadow Robot Company, “Shadow hand glove,” 2024. [Online].
+     K. Cho, B. Engelhardt, S. Sabato, and J. Scarlett, Eds., vol.                         Available: https://www.shadowrobot.com/shadow-hand-glove/
+     202. PMLR, 23–29 Jul 2023, pp. 1887–1935. [Online]. Available:
+     https://proceedings.mlr.press/v202/bauer23a.html
+[31] J. Schmidhuber, “Powerplay: Training an increasingly general prob-
+     lem solver by continually searching for the simplest still unsolvable
+     problem,” 2012.
+[32] C. Florensa, D. Held, M. Wulfmeier, M. Zhang, and P. Abbeel, “Re-
+     verse curriculum generation for reinforcement learning,” in Conference
+     on robot learning. PMLR, 2017, pp. 482–495.
+[33] I. Popov, N. Heess, T. Lillicrap, R. Hafner, G. Barth-Maron, M. Ve-
+     cerik, T. Lampe, Y. Tassa, T. Erez, and M. Riedmiller, “Data-efficient
+     deep reinforcement learning for dexterous manipulation,” 2017.
+[34] T. Salimans and R. Chen, “Learning montezuma’s revenge from a
+     single demonstration,” arXiv preprint arXiv:1812.03381, 2018.
+[35] A. Nair, B. McGrew, M. Andrychowicz, W. Zaremba, and P. Abbeel,
+     “Overcoming exploration in reinforcement learning with demonstra-
+     tions,” in 2018 IEEE international conference on robotics and automa-
+     tion (ICRA). IEEE, 2018, pp. 6292–6299.
+[36] C. Resnick, R. Raileanu, S. Kapoor, A. Peysakhovich, K. Cho, and
+     J. Bruna, “Backplay: ’man muss immer umkehren’,” 2019. [Online].
+     Available: https://openreview.net/forum?id=H1xk8jAqKQ
+[37] S. Tao, A. Shukla, T.-k. Chan, and H. Su, “Reverse forward curriculum
+     learning for extreme sample and demonstration efficiency in reinforce-
+     ment learning,” arXiv preprint arXiv:2405.03379, 2024.
+[38] L. Espeholt, H. Soyer, R. Munos, K. Simonyan, V. Mnih, T. Ward,
+     Y. Doron, V. Firoiu, T. Harley, I. Dunning, et al., “Impala: Scalable dis-
+     tributed deep-rl with importance weighted actor-learner architectures,”
+     in International conference on machine learning. PMLR, 2018, pp.
+     1407–1416.
+[39] L.-J. Lin, Reinforcement learning for robots using neural networks.
+     Carnegie Mellon University, 1992.
+[40] A. Abdolmaleki, J. T. Springenberg, Y. Tassa, R. Munos, N. Heess,
+     and M. Riedmiller, “Maximum a posteriori policy optimisation,” arXiv
+     preprint arXiv:1806.06920, 2018.
+[41] J. Tobin, R. Fong, A. Ray, J. Schneider, W. Zaremba, and P. Abbeel,
+     “Domain randomization for transferring deep neural networks from
+     simulation to the real world,” in 2017 IEEE/RSJ international con-
+     ference on intelligent robots and systems (IROS). IEEE, 2017, pp.
+     23–30.
+[42] Google, “Filament (1.52.0) - real-time physically based rendering
+     engine,” 2024. [Online]. Available: https://github.com/google/filament
+[43] J. T. Springenberg, A. Abdolmaleki, J. Zhang, O. Groth, M. Bloesch,
+     T. Lampe, P. Brakel, S. Bechtle, S. Kapturowski, R. Hafner, N. Heess,
+     and M. Riedmiller, “Offline actor-critic reinforcement learning scales
+     to large models,” 2024.
+[44] Shadow Robot Company, “Dex-ee,” 2024. [Online]. Available:
+     https://www.shadowrobot.com/dex-ee/
+[45] N. I. of Standards and T. (NIST), “Assembly Per-
+     formance Metrics and Test Methods,” 2024. [Online].
+     Available: https://www.nist.gov/el/intelligent-systems-division-73500/
+     robotic-grasping-and-manipulation-assembly/assembly
+[46] B. Calli, A. Singh, J. Bruce, A. Walsman, K. Konolige, S. Srinivasa,
+     P. Abbeel, and A. M. Dollar, “Yale-CMU-Berkeley dataset for robotic
+     manipulation research,” International Journal of Robotics Research
+     (IJRR), 2017.
+[47] 3Dconnexion, “Spacemouse wireless,” 2024. [Online]. Available:
+     https://3dconnexion.com/uk/product/spacemouse-wireless/
+[48] M. Riedmiller, R. Hafner, T. Lampe, M. Neunert, J. Degrave, T. van de
+     Wiele, V. Mnih, N. Heess, and J. T. Springenberg, “Learning by
+
+
+                                                                                  8
+                           VII. A PPENDIX                                        difficulty to the task parameters ψ for that task which
+                                                                                 could take the values easy or hard. If difficulty
+A. Agent training details
+                                                                                 was hard the agent would receive a reward when the task
+   1) DemoStart agent architecture and reward:                                   was completed, with the nut fully screwed onto the bolt, as
+   Agent architecture. We now describe the architecture of                       usual. If difficulty was easy, the agent would receive
+the agent used by DemoStart and in our ablations. The agent                      a reward and the episode would terminate if the nut was
+is an MPO [40] agent with a shared encoder between the                           positioned anywhere vertically above the bolt. We found
+actor and the critic.                                                            randomly sampling difficulty to be easy with a 50%
+                                                                                 chance when generating a task parameter encouraged the
+  Observation name (dimensions)       Description
+                                                                                 agent to learn to grasp the nut and bring it to the bolt and was
+  iiwa14 joint pos (7)                Joints position of the Kuka arm            enough to steer the agent into completing the whole task.
+  iiwa14 joint vel (7)                Joints velocity of the Kuka arm
+  iiwa14 tcp pos (3)                  Arm Tool Center Point (TCP) position          Training hyperparameters. Our agents were trained on
+  iiwa14 tcp pose (7)                 Arm TCP position and quaternion            trajectories of length 10. The replay buffer was configured
+  iiwa14 tcp rmat (9)                 Arm TCP rotation matrix
+  finger{0|1|2} ftip pos (3)          Hand fingertip position                    to use each trajectory twice for training. We trained our
+  finger{0|1|2} ftip rmat (9)         Hand fingertip rotation matrix             agents with a batch size of 256. Agents were trained until
+  finger{0|1|2} joint pos (4)         Hand finger joints positions
+  finger{0|1|2} joint torques (4)     Hand finger joints torques                 convergence which typically took under 10M learner updates
+  finger{0|1|2} joint vel (4)         Hand finger joints velocities              but took 32M learner updates on the Screwdriver in cup task.
+  finger{0|1|2} joint commanded (4)   Commanded finger joint positions
+                                                                                 In all our ablations in Table I, the agents were trained for
+                           TABLE V                                               twice the number of update steps as DemoStart.
+      P ROPRIOCEPTIVE OBSERVATIONS OF D EMO S TART AGENTS                           2) Perceiver-Actor-Critic (PAC) model: In this work, we
+                                                                                 use the Perceiver-Actor-Critic (PAC) model [43] to distill the
+                                                                                 policies from DemoStart. PAC is a scalable neural architec-
+   The list of observations received at each time step by the                    ture specifically designed for continuous control tasks for the
+agent is listed in Table V. To process these observations into                   student policy. While PAC supports optimizing an offline-RL
+a policy, we first stack the observations from the last three                    objective, we solely use it for behavior cloning.
+timesteps. These vectors are then flattened and concatenated,                       To handle multimodal inputs, the model first encodes
+linearly projected as a 512 vector, and passed through a Layer                   the inputs into embedding vectors using modality-specific
+Normalization layer [49]. The shared encoder processes the                       encoders for vision and proprioception. eI = ϕP (sP        t ) ⊕
+normalized observation vector using an 8 layer MLP with                          ϕV (sVt ) ⊕ ϕV (τV ) ⊕ ϕL (τL ) ∈ RN ×DI . To reduce compu-
+hidden size 512. The resulting embedding is then processed                       tational complexity, a cross-attention block is used to query
+by a linear policy head.                                                         the input embeddings with a small number of trainable latent
+   Agent action specifications. Two action specifications are                    vectors. This is followed by several self-attention operations
+available to control the fingers of the robot hand. An agent                     on the latent vectors to produce the final output (zM ∈
+can use integrated joint velocity control in which case it                       RNZ ×DZ ). This perceiver-like architecture reduces the com-
+outputs velocities for each of the joints, or joint position in                  putational and memory usage of self-attention by shifting it
+which case the agent outputs the target position of each of                      from the input embeddings to the latent vectors. PAC policies
+the joints directly. We found that it was beneficial to tune the                 are trained to effectively adapt to the inevitable discrepancies
+choice of action specification as a hyperparameter on each                       in dynamics, physics (such as friction at fingertips), and
+task. As a result, we use joint position on all tasks apart from                 visual inputs that arise across different source of robotic data.
+cube reorientation where we use joint velocity.                                     The PAC model was chosen in this paper as it provides
+   Agent reward. DemoStart is able to leverage sparse                            an effective approach for learning policies from large and
+rewards. In each of our tasks, if the agent reaches a goal                       complex datasets while keeping the computational cost man-
+state where the task has been completed, we terminate the                        ageable.
+episode and give the agent a reward of 1. Below we include                          3) Data and observations for the distillation pipeline:
+additional details about the rewards used for the plug lifting                   Unless otherwise specified, the distillation policies take as
+task and the nut and bolt threading task.                                        input the four cameras from the cells (two on the wrist of
+   In the plug lifting task, we found that having a reward                       the robot and two on the basket) downsized to squares of
+for lifting the plug 5cm above the basket surface led to the                     80x80 pixels. The policies also take as input proprioception
+agent flicking the plug up in an unstable way. We therefore                      information: arm joint positions (seven dimensions), arm
+changed the reward so the agent had to hold the plug 5cm                         tool center point position and orientation (twelve dimensions
+above the basket surface for a consecutive 0.5 seconds before                    using the rotation matrix) and the joint angles of each finger
+scoring a reward and terminating the episode.                                    (twelve dimensions, four per finger).
+   In the nut and bolt threading task, we initially found that                      We generate the data to train the distillation policies
+while the agent could learn to thread a nut already placed on                    by saving successful episodes of the feature-based policies
+top of the bolt, it would fail to learn to grasp a nut and place                 generated by either DemoStart or SAC-X. When generating
+it on top of the bolt. We found a simple modification that                       the data, we include physics DR, object perturbations and
+let the agent train successfully: we added an extra parameter                    visual DR. For the connector insertion task, we also in-
+
+                                                                             9
+                                                                          sensor data rate of both the robot arm and the robot hand is
+                                                                          1 kHz.
+                                                                             The agent and environment run in lockstep at 20 Hz,
+                                                                          where at each step the environment will fetch the latest
+                                                                          readings from the different data streams, and accept new
+                                                                          commands from the agent. The robot arm and robot hand
+                                                                          are controlled independently. The robot arm is operated
+                                                                          by the agent with a 6D Cartesian velocity controller. The
+                                                                          6D Cartesian velocities commanded by the agent are first
+  Fig. 5.   DEX-EE Hand - finger configuration (dimensions in mm).
+                                                                          mapped into joint velocities through a QP-based differential
+                                                                          inverse kinematics controller running in a separate process at
+                                                                          200 Hz. We subsequently compute adequate 7-dimensional
+clude episodes with photorealistic images. For each task we               joint torques for the robot arm that track the joint velocity
+generate thousands of successful episodes and when using                  setpoints through an impedance controller running at 1 kHz.
+photorealistic data, the ratio is around one episode with                 The QP-based controller also incorporates a kinematic safety
+photorealistic rendering per one of visual DR.                            layer to prevent the robot arm from colliding with the basket
+                                                                          and cameras, while allowing the robot hand to physically
+B. Experimental Setup                                                     interact with the basket surface. The robot hand is operated
+                                                                          with a joint position controller running in a separate process
+   We carefully designed our experimental setup with flexi-               at 1 kHz.
+bility in mind, allowing for experimentation on a variety of                 The action space exposed to the agent is 18-dimensional.
+tasks. In this study our focus is primarily on dexterous ma-              The first 6 dimensions correspond to the desired 6D Cartesian
+nipulation, covering dexterity attributes such as independent             velocity of the robot arm, while the last 12 dimensions
+multi-finger control, making and breaking contacts, speed                 correspond to the desired joint positions of the fingers of
+and dynamics, precision and exploitation of environmental                 the robot hand.
+constraints.                                                                 3) Simulation: We leverage the scalable characteristics
+   1) Standard robot cell: Our robot is placed in a cell-                 of simulation with our method. A digital twin equivalent
+consisting of a basket with slanted walls that determine the              of the real robot setup was created using the MuJoCo
+workspace where tasks are carried out. We use two Basler                  simulator [50]. We use the MuJoCo model for the Kuka LBR
+ACA1920-40GC GigE cameras with standard lenses. The                       iiwa 14 from the MuJoCo Menagerie [51].
+cameras are installed on front-left and front-right corners of               Note that in contrast with the real robot setup where dif-
+the basket. We use 7 DoF Kuka LBR iiwa 14 R820 robot                      ferent sensors resulted in asynchronous data streams and data
+arms with the DEX-EE [44] robot hands attached to their                   aliasing, in simulation all sensing data arrives synchronised
+flange. We also attach two Basler ACA1920-40UC USB3                       as part of the physics state. Similarly, control commands are
+cameras with standard lenses to either side of the base of                synchronously applied at every simulation step, whereas on
+the DEX-EE Hand. Figure 2 includes a visualization of the                 the real robot we observe thread concurrence and network
+setup.                                                                    communication delays between different machines. Please
+   The DEX-EE Hand [44] is an over-actuated tendon-driven                 refer to a related discussion in the domain randomisation
+robot hand with 3 fingers, each of which with 4 joints and 5              section III-B.
+actuators, with a total of 12 DoFs. The fingers are arranged                 As well as the default rendering provided by MuJoCo,
+in a near antagonistic configuration, with one finger opposing            we developed a custom solution for rendering high-quality
+the other two fingers, which are almost parallel to each                  images of the plug insertion scene, which we use to evaluate
+other (Figure 5).                                                         how photorealistic renderings of simulated camera images
+   In order to maximize the workspace and manipulability of               impact performance of the learning agents and the sim-to-
+the arm, we mounted the arm on a base that is off-center and              real transfer. For this, we used the Filament renderer [42]
+rotated w.r.t. the basket as shown in Figure 2. We made use               with custom 3D assets, materials and lighting built using
+of a fleet of 6 real robot setups for this study.                         Blender [52]. Sample images from the photorealistic renderer
+   2) Sensing and control: We deliberately make use of                    are shown in the second row of Figure 1.
+asynchronous data streams; we believe that methods that                      We also use domain randomization, as explained in Sec-
+are capable of handling asynchronous data streams are more                tion III-B. Examples of visual domain randomization are
+flexible, robust and much easier to deploy when compared                  shown in Figure 6).
+to the non-trivial amount of work and cost to synchronise                    4) Teleoperation for simulation demonstrations: To sim-
+data acquisition. Several concurrent processes run in the                 plify data collection in simulation, we used an environment
+background to fetch data from sensors and compute control                 where the hand was controlled with finger joint velocity
+commands to the robots while ensuring safety, all asyn-                   commands instead of joint position commands. Note that
+chronously. The basket cameras operate at 42 frames per                   although the action space of the environments was different,
+second (FPS), while wrist cameras operate at 30 FPS. The                  the demonstrations could be re-used for our auto-curriculum
+
+                                                                     10
+                                          Fig. 6.   Example images of domain randomization.
+
+
+
+approach, which does not use actions from the demonstra-                  The tasks chosen for this study varying levels of com-
+tions.                                                                 plexity, time horizon (multiple steps), precision, among other
+   Simulated robot demonstrations were collected using a               attributes relevant to dexterous manipulation. For all tasks,
+3DConnexion SpaceMouse [47]. The SpaceMouse axes were                  at the beginning of each episode, the robots are randomly
+used to control the 6D Cartesian velocity of the arm, while            moved to a given set of joint positions uniformly sampled
+the buttons and keyboard were used to control the hand                 from a predefined distribution that lies within the operational
+through a 8 DoF abstraction command to control the fingers             workspace of the robots. Similarly, in simulation objects
+of the hand.                                                           are also randomly placed within the basket by uniformly
+   5) Teleoperation for real robot demonstrations: Real                sampling their initial position from a predefined distribution.
+robot demonstrations were collected using two devices, one             For real robot evaluations we rely both on the inherent
+for the arm and one for the hand. To control the arm, we               variations of the physical interactions between robots and
+used a custom magnetic-based tracking device to measure                objects during episodes, and on the regular monitoring of
+the Cartesian 6D pose of a remote controller relative to               evaluations to ensure a wider distribution of initial states is
+a receiver. At every step, we computed a Cartesian 6D                  covered.
+velocity action for the arm through a P-controller on the                 1) Plug lifting: Before an agent is able to perform more
+SE(3) error between the current robot hand pose and the                dexterous tasks, one of the first behaviors that must be
+measured hand pose of the human teleoperator. The hand                 learned is that of lifting an object. We use or 3D-printed
+was directly controlled using the Shadow Hand Glove [53]               yellow plug (Figure 7). The goal of the task is straightfor-
+and a custom IK solution to compute the joint positions for            ward: the agent must control the robots such that the plug
+the fingers.                                                           is grasped and then lifted up from the basket surface.In this
+   To collect expert human demonstrations on the real robot            task the grey socket is present, fixed to the basket surface,
+for the baselines, a team of 6 individuals with no relation            but merely serves as a distractor for the agent.
+to the research team attempted the tasks on-site. For the                 The agent receives a reward of 1 if the plug center of
+plug insertion task, the 20 demonstrations in simulation are           mass is lifted 11cm or more above the basket surface for at
+equivalent to half an hour of collection time, while the 2753          least 0.5 seconds. i.e., the following function would have to
+real demonstrations, including failures, are equivalent to 27          evaluate to 1 for 0.5 seconds:
+hours. The real demonstrations were collected over a span of             def reward(plug_position):
+36 days as it is uncomfortable to teleoperate with the glove               lifted = plug_position[2] > 0.11
+                                                                           centered = all(
+for over one hour.                                                             abs(plug_position[:2]) < 0.1)
+   For the lifting demonstrations we found that 500 suc-                   if lifted and centered:
+cessful demonstrations were not sufficient to achieve good                   return 1.0
+performance, so we included the lift part of the plug insertion            return 0.0
+demos to get over 2000 demonstrations for plug lifting.
+                                                                          2) Plug insertion: Inspired by the NIST benchmark [45],
+C. Tasks                                                               this task uses our 3D-printed yellow plug and grey socket
+  We take inspiration from the dexterous manipulation                  objects. These objects are designed with two symmetrical
+benchmark created by NIST [45]. With a focus on Task                   axes, increasing the level of difficulty the agent must over-
+Board #1, we created 3D-printed versions of the objects                come from a perception perspective when estimating their
+of one of the industrial-standard connectors and nuts and              orientation from raw pixels in our real robot evaluations.
+bolts. By parameterizing and 3D-printing these objects, we                The goal of the task is to insert the yellow plug into the
+can easily vary the scaling of such objects, create a range            socket as illustrated in the right-hand image of Figure 7. The
+of plugs with different mass densities, fitting tolerances (for        position of the socket (permanently fixed to the basket) does
+plug insertion) and thread angle (for nut and bolt threading).         not change across episodes. Differently from the plug lifting
+These parameterised objects also facilitate the development            task, here the agent must learn emergent behavior that grasps
+of simulation models with domain randomization in mind.                and reorients the plug (in-hand or exploiting environmental
+See Figure 7 for an example of the 3D-printed plug and                 constraints such as the basket geometry), as well as fine
+socket objects.                                                        motor control to precisely insert the plug into the socket.
+
+                                                                  11
+  The agent receives a reward of 1 if the plug is within 2mm
+of the fully inserted position, which is only possible if it’s
+correctly oriented.
+  def reward(plug_position):
+    error = plug_position - SOCKET_POSITION
+    if norm(error) <= 0.002:
+      return 1.0
+    return 0.0
+                                                                       Fig. 7.    Our NIST-inspired 3D-printed plug and socket used in the
+   3) Nut and bolt threading: Also taking inspiration from             experiments.
+the NIST benchmark [45], we create a nut and bolt threading
+task in simulation. Increasing the level of difficulty from the
+plug insertion, in this task the agent must not only learn how         forces and interactions between the two free moving objects.
+to grasp, re-orient and insert the nut onto the bolt, but must           def reward(screwdriver_handle_position,
+also apply repeated turnings to move the nut down the bolt                          cup_position,
+shaft. Similarly to the plug insertion task, the bolt is fixed                      cup_z_axis):
+to the basket surface facing upwards. The bolt position does               # up to 10 degree error
+                                                                           cup_upright = cup_z_axis[2] >= 0.985
+not change across episodes.                                                if (cup_upright and
+   At evaluation, the agent receives a reward of 1 if the nut                  norm(screwdriver_handle_position -
+is threaded onto the bolt such that the top of the nut is flush                     cup_position) <= 0.01):
+with the bolt. During training, we mix this with an easier                   return 1.0
+reward as discussed in Appendix VII-A.1.                                   return 0.0
+  def reward(nut_position, difficulty):
+    # difficulty is a value                                               5) Cube reorientation: We also experimented with a cube
+    # from 0 (easy) to 1 (hard).                                       reorientation task in simulation. The goal of this task is
+    error = (nut_position -                                            for the cube to be reoriented to have a specific side facing
+             FULLY_THREADED_POSITION)                                  upwards when resting on the basket surface. The target pose
+    z_threshold = (1 - difficulty) * (
+        TOP_OF_BOLT_Z -
+                                                                       (which of the 6 sides should face upwards) is randomly
+        FULLY_THREADED_POSITION[2])                                    sampled from a uniform distribution. This task allows us to
+    if (norm(error[:2]) <= 0.01 and                                    evaluate how the agent performs when independent control
+        error[2] <= z_threshold):                                      of multiple fingers is required and a relatively accurate
+      return 1.0                                                       estimation of object orientation is pivotal for solving the task.
+    return 0.0
+                                                                       It also demonstrates the training of goal-conditioned policies
+   4) Screwdriver in cup: Both plug insertion and nut and              using the auto-curriculum method.
+bolt threading present challenging insertion problems the                 The goal is specified as an axis in the object coordinates
+agent must address, with different contact interactions, mul-          that should face upwards.
+tiple steps to complete the tasks and precise motions. One               def reward(cube_position,
+                                                                                     cube_orientation,
+caveat of both tasks is that both the socket and the bolt are                        goal_z_axis):
+rigidly attached to the basket surface and their placement                 rotated_goal = cube_rotation @ goal_z_axis
+does not change over the course of experiments and evalua-                 # return 1.0 if within 8 degrees of
+tions.                                                                     # correct alignment, and near the basket
+   We devise a screwdriver in cup task, where we selected                  # center.
+                                                                           if (rotated_goal[2] > 0.99 and
+the two objects (screwdriver and cup) from the well-known                      norm(cube_position) < 0.05):
+YCB object dataset [46]. This task addresses the issue                       return 1.0
+of two free moving objects within the basket, relaxes the                  return 0.0
+requirements for precise insertion while adding requirements
+for gentle contact interactions (i.e. to avoid tipping the cup)
+and increases the time horizon of the task solution. The               D. Baselines
+poses of screwdriver and cup are randomly sampled from                    1) Vanilla RL: Our Vanilla RL ablations presented in
+predefined uniform distributions at the beginning of each              Table I all use the same agent architecture and reward as
+episode.                                                               DemoStart presented in Appendix VII-A.1.
+   The agent receives a reward of 1 when the screwdriver                  2) Scheduled Auxiliary Control: We apply Scheduled
+is located upside-down inside the cup, but only if the cup             Auxiliary Control (SAC-X)[48] to our domain. SAC-X is
+is standing upright. The agent must learn to firstly ensure            method that overcomes the exploration problem by defining
+that the cup is upright within the basket, and then place the          auxiliary tasks that do not limit the final solution, which still
+screwdriver upside-down inside the cup. With the random                is learned on the (potentially sparse) original task reward.
+initial pose of the objects, the agent must learn grasping, re-        As discussed below, finding good solutions to long-horizon
+orientation and placement of both objects and handle contact           sparse tasks requires a considerable amount of engineering in
+
+                                                                  12
+                                                                                 the one presented in Section VII-A.1, and solve the tasks
+                                                                                 in simulation. We use the SAC-Q method here where we
+                                                                                 put the task reward as the main auxiliary in SAC-Q.
+                                                                                    The learning starts with random initialized networks and
+                                                                                 an empty transition data buffer, demonstrations are not
+                                                                                 necessary and not used in this setting. While we do not
+                                                                                 optimize for data efficiency, as we only run these rewards in
+                                                                                 simulation in the sim-to-real setting, we need approximately
+                                                                                 800k episodes to learn the lift task and 2m episodes to learn
+Fig. 8. Example of a non regularised reach behavior (left) versus a pose         the insertion task from scratch.
+regulated reach behavior (right).
+                                                                                    3) Learning from human demonstrations on the real
+                                                                                 robot: Following the procedure in Section VII-B.5, we
+                                                                                 collected human-teleoperated expert data for for plug lifting
+designing these auxiliary reward functions and regularising
+                                                                                 and plug insertion. Each episode was limited to 50 seconds,
+reward components.
+                                                                                 during which the teleoperators were asked to complete the
+   Following the SAC-X paper [48] we define by trial and
+                                                                                 task and signal whether the episode was a success or a
+error a set of auxiliaries that allows the agent to discover
+                                                                                 failure. At the end of the episode, the teleoperators were
+rewards for the sparse task reward. This set of auxiliaries
+                                                                                 asked to manually randomize the plug starting pose before
+can be built by simple to define sparse auxiliary rewards that
+                                                                                 the next episode started. Table VII shows a summary of the
+guide the exploration and help the policy head responsible
+                                                                                 data collected.
+for the main task to learn with the original task reward.
+   In the original paper, this was shown to work for a                               Task             Successful Episodes   Total Episodes   Success Rate
+robotics manipulation task with a parallel gripper. A required
+                                                                                     Plug Lift                556                556            100%
+auxiliary used there was ”reaching” an object. However,                              Plug Insertion          2067               2753             73%
+if we simply apply the same reward in this setting, the
+                                                                                                                 TABLE VII
+high dimensional nature of the multi-fingered hand poses
+                                                                                             H UMAN - TELEOPERATED EXPERT DATA IN REAL .
+additional issues. For example a simple reaching behavior
+will learn to reach the object under control, but it will not                       While inspecting the episodes we found that human-
+care about the positions of the fingers and these end up                         to-human variability resulted in very different behaviors
+in positions that do not facilitate manipulating objects (an                     when solving the plug insertion task. For example, some
+example is shown in Figure 8 on the left).                                       teleoperators preferred to lift the connector and drop it to re-
+   The solution is to move away from the sparse auxiliary                        orient it, while others preferred using in-hand re-orientation
+definitions and add regularisation on top of them. We found                      techniques to re-orient the plug. There was also a large
+that a necessary regularisation is to have the hand in an open                   diversity in initial states, as we encouraged them to reset the
+configuration with the fingers being all in a straight config-                   plug in challenging or difficult to reach positions. Plug lift
+uration, which we call a ”comfy” base pose (an example is                        was a relatively simple task for the teleoperators, achieving
+shown in Figure 8 on the right). We also found that using this                   a 100% success rate. On the other hand, plug insertion was
+regularisation is only necessary for the reaching and lifting                    significantly more difficult, achieving only a 73% success
+auxiliaries, as later auxiliaries will be biased enough to find                  rate, as it required re-orienting the object first and carefully
+better configurations. In addition we found that learning with                   controlling the robot to insert the plug in the socket.
+sparse and dense auxiliaries helps to learn better policies.
+                                                                                 E. Handling Environment Stochasticity
+    auxiliary                 description
+                                                                                    Zero-variance filtering works best in regimes where there
+    REACH COMFY               regularised, dense reach reward                    is low environment stochasticity. In this context, if there is
+    REACHED COMFY             regularised, sparse reach reward
+    LIFT COMFY                regularised, dense lift reward                     variance in the reward, it is likely due to the difference
+    LIFTED COMFY              regularised, sparse lift reward                    in the actions sampled by the policy, which indicates that
+    HOVER                     dense positioning reward
+    INSERT                    dense insertion reward based on positioning        there is learning signal as some actions should be reinforced.
+    INSERTED (task reward)    sparse insertion reward                            However, if the environment is stochastic, the variance in
+                          TABLE VI                                               reward can be a result of the environment’s stochasticity. In
+  E XAMPLE OF THE AUXILIARY REWARDS USED BY THE BASELINE                         this case, ZVF may diagnose a task parameter ψ to be good
+SAC-X TO SOLVE THE TWO PLUG TASKS . F OR THE PLUG LIFTING TASK                   for learning regardless of the policy’s behavior.
+ WE USE ONLY THE FIRST FOUR OF THE AUXILIARIES , WHILE WE USE                       For example, in one of the demonstrations of the cube
+            THE FULL LIST FOR THE INSERTION TASK .                               reorientation task, the cube was lifted and dropped from
+                                                                                 a height. Just like rolling dice, even with deterministic
+                                                                                 simulation, the result of episodes that start just before the
+  If we apply SAC-X with the defined auxiliaries on the                          cube left the hand was highly random, and dependent on
+two plug tasks, we can make an MPO agent, similar to                             small action perturbations. This means that even late into
+
+                                                                            13
+the training process, data from this state would pass the zero-
+variance filter.
+   In general, when possible it is preferable to generate
+demonstrations which only contains stable states to alleviate
+this issue. The specific demonstration above was removed
+from our train set and instead we used a demonstration with
+a stable grasp throughout the episode. However, we also
+subsequently designed Mechanism 3, presented in Section
+III-A, to bias the training away from such states in the
+middle of demonstrations. We found this improved stability,
+convergence speed as well as final performance.
+F. Learned Behaviors
+   1) Moving away from demonstrations: The policies
+learned with DemoStart are able to extract useful behaviors
+from demonstrations, such as pushing the plug down to
+ensure it is connected (see an example in the supplementary
+video). However, they can also move away from these
+behaviors. We find that the curriculum policies are substan-
+tially faster at solving the tasks: our policy for the task
+                                                                        Fig. 9. Example of the two lifting strategies used by the plug insertion
+of screwdriver in cup takes about 3.5 seconds to solve the              policy. The one on the left matches the grasp used when generating
+task, whereas the median time of the demonstrations is 93.2             demonstrations in simulation. The one on the right is a new grasping solution
+seconds. Beyond becoming more efficient, DemoStart can                  that DemoStart learned with RL.
+also discover new and effective behaviors. For instance, in
+the plug insertion task, we observe that the policy sometimes           a single policy resulting in more jerky behaviors than the
+opts for a behavior not seen in any of the insertion demos:             distilled policies from DemoStart. We believe this explains
+grabbing the connector when lying on the side, rather than              why it is hard to learn from our teleoperation data and
+upright, and reorienting it in-air to do the insertion (see             suggest that either more demonstrations would be needed to
+Figure 9 and see supplementary video). This validates the               further boost performance or that teleoperators would need
+importance of the RL component in DemoStart allowing                    to receive clear instructions on how to perform the task to
+policies to go beyond the demonstrations and produce more               make demonstrations as similar as possible to ease learning.
+efficient and robust solutions. In other tasks, we also observe            3) Failure modes during sim-to-real transfer: In sim-
+emerging behaviors. For instance, the plug lifting policies use         ulation, DemoStart provides policies that solve the tasks
+more robust grasps that the ones in the demonstrations which            reliably and with minimal failure. However, when we distill
+mostly used the fingertips for holding the plug. In the nut             and transfer these policies to the real setup, we observe
+and bolt task, we see a more intentional and efficient use of           some failure modes. For cube reorientation, the three failures
+a single finger the rotate the nut and finish the screwing. For         during the evaluation (Section III) come from the cube
+cube reorientation, the behavior are clearly different from             ending in one corner of the basket and the policy struggling
+the demonstrations as the two demonstrations provided only              to bring it to center with the right orientation on time. For
+contain unstructured interaction with the connector rather              plug lifting, the main failure mode is failing to hold the object
+than an intentional re-orientation.                                     reliably as small finger motions can break the grasp.
+   2) Behavioral differences between DemoStart and the                     The task of plug insertion is the hardest to transfer zero-
+baselines: In Section V, we showed that the baselines                   shot from simulation. While our policies manage to reorient
+cannot match the performance of the distilled policies from             and successfully grasp the plug, they sometimes fail when
+DemoStart. Qualitatively we observe that SAC-X policies                 the plug and socket are aligned and a precise insertion
+result in more jittery but also more diverse behaviors. As a            behaviour is needed. This results in episodes with multiple
+result, it becomes hard to distill these policies which results         insertion attempts. For the baseline policies, this presents two
+in lower performance even in simulation for the task of plug            additional failure modes: understanding the orientation of
+insertion.                                                              the connector and failing at recognizing that the plug wasn’t
+   With regards to the demonstrations collected on the real             correctly inserted. As a result, when executing the baseline
+setup, we observed smoother behaviors but still large diver-            policies the robot sometimes attempts to insert the plug in
+sity in the behaviors collected. This is reasonable as each             the wrong orientation or leaves the plug on top of the socket
+person has its own preferences towards how to perform the               rather than finalizing the insertion. The SAC-X baseline also
+task during teleoperation. For instance, some teleoperators             struggles with reliably lifting the plug.
+opt for lifting and subtly throwing the connector to reorient              4) Lifting generalization: We found that the policy for
+it while other perform the reorientation in-hand. As a result,          plug lifting is also capable of lifting objects of different
+the learned policies struggle to capture all this behaviors into        shapes and colors, like a cube or a lemon, with reasonable
+
+                                                                   14
+success rate. While generalization is beyond the scope of
+this work, it is promising to see that the policy can already
+adapt to these new objects which present different challenges.
+For instance, the lemon tends to roll in the basket, making it
+much harder to lift, while the cube is of a different color and
+shape resulting in clear visual domain gap with respect to the
+plug (see videos of lifting these objects in the supplementary
+material).
+
+
+
+
+                                                                  15
+

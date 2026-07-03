@@ -1,0 +1,1237 @@
+
+
+===== PAGE 1 =====
+Autoregressive Policies for Continuous Control Deep Reinforcement Learning
+Dmytro Korenkevych1 , A. Rupam Mahmood1 , Gautham Vasan1 , James Bergstra1
+1Kindred AI
+{dmytro.korenkevych, rupam, gautham.vasan, james}@kindred.ai
+Abstract Schulman et al., 2017; Haarnoja et al., 2018]. The sam-
+ples from such policies are temporally coherent only through
+Reinforcement learning algorithms rely on explo-
+the distribution mean. In most environments this coherence
+ration to discover new behaviors, which is typically
+is not sufficient to provide consistent and effective explo-
+achieved by following a stochastic policy. In con-
+ration. In early stages of learning in particular, with ran-
+tinuous control tasks, policies with a Gaussian dis-
+domly initialized policy parameters, exploration essentially
+tribution have been widely adopted. Gaussian ex-
+relies on a white noise process around zero mean. In envi-
+ploration however does not result in smooth trajec- ronments where actions represent low-level motion control,
+tories that generally correspond to safe and reward-
+e.g. velocity or torque, such exploration rarely produces a
+ing behaviors in practical tasks. In addition, Gaus-
+consistent motion that could lead to discovery of reward-
+sian policies do not result in an effective explo-
+ing behaviors. This contributes to low sample efficiency of
+ration of an environment and become increasingly
+learning algorithms [Wawrzynski, 2015; Hoof et al., 2017;
+inefficient as the action rate increases. This con-
+Plappert et al., 2018]. For real world robotic applications a
+tributes to a low sample efficiency often observed
+short reaction time is often desirable, however, as action rate
+in learning continuous control tasks. We introduce
+increases, a white noise exploration model becomes even less
+a family of stationary autoregressive (AR) stochas-
+viable, effectively locking the robot in place [Plappert et al.,
+tic processes to facilitate exploration in continuous
+2018]. In addition, temporally incoherent exploration results
+control domains. We show that proposed processes
+in a jerky movement on physical robots leading to hardware
+possess two desirable features: subsequent pro-
+damage and safety concerns [Peters and Schaal, 2007].
+cess observations are temporally coherent with con-
+tinuously adjustable degree of coherence, and the In this work we observe that the parameters of policy distri-
+process stationary distribution is standard normal. bution typically exhibit high temporal coherence, particularly
+We derive an autoregressive policy (ARP) that im- at higher action rates. Specifically, in the case of Gaussian
+plements such processes maintaining the standard policy distribution, the action can be represented as a sum
+agent-environment interface. We show how ARPs of deterministic parametrized mean and a scaled white noise
+can be easily used with the existing off-the-shelf component. The mean part typically changes smoothly be-
+learning algorithms. Empirically we demonstrate tween subsequent states. It is the white noise part that results
+that using ARPs results in improved exploration in inconsistent exploration behavior. We propose to replace
+and sample efficiency in both simulated and real the white noise component with a stationary autoregressive
+world domains, and, furthermore, provides smooth Gaussian process that has stationary standard normal distri-
+exploration trajectories that enable safe operation bution, while exhibiting temporal coherence between subse-
+of robotic hardware. quent observations. We derive a general form of these pro-
+cesses of an arbitrary order and show how the degree of tem-
+poral coherence can be continuously adjusted with a scalar
+1 Introduction
+parameter. We demonstrate an advantage of higher orders
+Reinforcement Learning (RL) is a promising approach to processes compared to the first order ones used in prior work.
+solving complex real world tasks with physical robots, sup- Further, we propose an agent’s policy structure that directly
+ported by recent successes [Andrychowicz et al., 2018; implements the autoregessive computation in such processes.
+Kalashnikov et al., 2018; Haarnoja et al., 2018]. Exploration Temporal action smoothing mechanism therefore is not hid-
+is an integral part of RL responsible for discovery of new den from the agent but is made explicit through its policy
+behaviors. It is typically achieved by executing a stochas- function. In order to achieve this, we require a fixed length
+tic behavior policy [Sutton and Barto, 2018]. In continuous history of past states and actions. However, the set of re-
+control domain, for instance, policies with a parametrized sulting history-dependent policies contains the set of Markov
+Gaussian distribution have been commonly used [Schul- deterministic policies, and those contain the optimal policies
+man et al., 2015; Levine et al., 2016; Mnih et al., 2016; in many tasks [Puterman, 2014, Section 4.4]. We find that,
+9102
+raM
+72
+]GL.sc[
+1v42511.3091:viXra
+
+===== PAGE 2 =====
+in practical applications, the search for such optimal policies easier learning problem [ Hoof et al., 2017]. However, it re-
+can be more efficient and safe in a space of history-dependent quires expert knowledge to define appropriate class of con-
+stochastic policies with special structure, compared to con- trollers and limits possible policies to those, representable
+ventional search in a space of Markov stochastic policies. within the selected class. In complex tasks [Andrychowicz
+Empirically we show that proposed autoregressive policies et al., 2018; Kalashnikov et al., 2018] it may be non-trivial to
+can be used with off-the-shelf learning algorithms and result design a sufficiently rich primitives set.
+in superior exploration and learning in sparse reward tasks
+Several studies have considered applying exploration noise
+compared to conventional Gaussian policies, while achieving
+to policy distribution parameters such as network weights and
+similar or slightly better performance in tasks with dense re- hidden units activations. Plappert et al. [2017] applied Gaus-
+ward. We also show that the drop in learning performance
+sian exploration noise to policy parameters at the beginning
+due to increasing action rate can be greatly mitigated by in-
+of each episode, demonstrating a more coherent and efficient
+creasing the degree of temporal coherence in the underlying
+exploration behavior compared to only adding Gaussian noise
+autoregressive process. In the real world robotic experiments to the action itself. Fortunato et al. [2017] similarly ap-
+we demonstrate that the autoregressive policies result in a
+plied independent Gaussian noise to policy parameters, where
+smoother and safer movement. 1
+the scale of the noise was also learned via gradient descent.
+Both of these works demonstrated improved learning perfor-
+2 Related Work mance compared to baseline Gaussian action space explo-
+ration, in particular in tasks with sparse rewards. Our ap-
+The problem of exploration in Reinforcement Learning has proach is fully complimentary to auxiliary rewards and para-
+been studied extensively. One approach has been to mod- metric noise ideas, as both still rely on exploration noise in the
+ify the environment by changing its reward function to make action space in addition to other noise sources and can benefit
+it easier for an agent to obtain any rewards or to encourage from consistent and temporally smooth exploration trajecto-
+the agent to visit new environment states. This approach in- ries provided by our method.
+cludes work on reward shaping [Ng et al., 1999] and auxiliary
+In the context of continuous control deep RL our work is
+reward components such as curiosity [Oudeyer et al., 2007;
+most closely related to the use of temporally coherent Gaus-
+Houthooft et al., 2016; Pathak et al., 2017; Burda et al.,
+sian noise during exploration. Wawrzynski [2015] used mov-
+2018]. Note that regardless of chosen reward function tem-
+ing average process for exploration where temporal smooth-
+porally consistent behavior would still be beneficial in most
+ness of exploration trajectories was determined by the in-
+tasks as it would discover rewarding behaviors more effi-
+teger size of an averaging window. They showed that
+ciently. A randomly initialized agent is unaware of the reward
+learning with such process results in a similar final perfor-
+function and for example will not exhibit curiosity until after
+mance as with standard Gaussian exploration, while provid-
+some amount of learning, which already requires visiting new
+ing smoother behavior suitable for physical hardware appli-
+states and discovering rewarding behaviors in the first place.
+cations. Hoof et al. [2017] proposed a stationary first order
+A second approach, particularly common in practical
+AR exploration process in parameters space. Lillicrap et al.
+robotic applications, has been to directly enforce temporal
+[2015] and Tallec et al. [2019] used Ornstein–Uhlenbeck
+coherence between subsequent motion commands. In the
+(OU) process for exploration in off-policy learning. The lat-
+most simple case a low-pass filter is applied, e.g. the agent
+ter work showed that adjusting process parameters according
+actions are exponentially averaged over the fixed or infinite
+to the time step duration helps to maintain exploration perfor-
+length window [Benbrahim and Franklin, 1997]. A similar
+mance at higher action rates. It can be shown that in a discrete
+alternative is to employ a derivative control where agent’s ac-
+time form OU process is a first order Gaussian AR process,
+tions represent higher order derivatives of the control signal
+which makes it a particular case of our model. AR processes
+[Mahmood et al., 2018a]. Both of these approaches corre-
+derived in this work generalize the processes used in these
+spond to acting in a modified MDP with different state and
+studies, providing a wider space of possible exploration tra-
+action spaces and result in a less direct connection between
+jectories. In addition, the current work proposes policy struc-
+agent’s action and its consequence in the environment, which
+ture that directly implements autoregressive computation, in
+can make the learning problem harder. They also make the
+contrast to the above studies, where the agent was unaware
+process less observable unless the agent has access to the his-
+of the noise structure. Due to this explicit policy formulation,
+tory of past actions used in smoothing and to the structure
+autoregressive exploration can be used in both, on-policy and
+of a smoothing mechanism itself, which is typically not the
+off-policy learning.
+case. As in the case with modified reward function, the opti-
+mal policies in the new MDP generally may not correspond Autoregressive architectures have been proposed in the
+to the optimal policies in the original MDP. context of high-dimensional discrete or discretized continu-
+A third approach has been to learn parameters of prede- ous action spaces [Metz et al., 2017; Vinyals et al., 2017]
+fined parametrized controllers, such as motor primitives, in- with regression defined over action components. The objec-
+stead of learning control directly in the actuation space [Pe- tive of such architectures was to reduce dimensionality of the
+ters and Schaal, 2008]. This approach is attractive, as it al- action space. In contrast, we draw on autoregressive stochas-
+lows to ensure safe robot behaviour and often results in an tic processes literature, and define regression over time steps
+directly in a multidimensional continuous action space with
+1See accompanying video at https://youtu.be/NCpyXBNqNmw the objective of enforcing temporally coherent behaviour.
+
+===== PAGE 3 =====
+3 Background 4 Stationary autoregressive Gaussian
+Reinforcement Learning processses
+Reinforcement Learning (RL) framework [Sutton and Barto, In this section we derive a family of stationary AR-p Gaussian
+2018] describes an agent interacting with an environment processes for any p ∈ N, such that X ∼ N (0, 1) ∀t, meaning
+t
+at discrete time steps. At each step t the agent receives X has a marginal standard normal distribution at each t. We
+t
+the environment state s ∈ S and a scalar reward signal also show how the degree of temporal smoothness of trajec-
+t
+r ∈ R. The agent selects an action a ∈ A according tories formed by subsequent observations of such processes
+t t
+to a policy defined by a probability distribution π(a|s) := can be continuously tuned with a scalar parameter.
+(cid:8) (cid:9)
+P a t = a|s t = s . At the next time step t + 1 in part Proposition 4.1. For any p ∈ N and for any α ∈ [0, 1),
+k
+due to the agent’s action, the environment transitions to a
+k = 1, . . . , p consider a set of coefficients
+new state s and produces a new reward r accord-
+t+1 t+1
+ing to a transition probability distribution p(s(cid:48), r|s, a) := {φ˜ }p = (−1)k+1 (cid:88) α α . . . α .
+Pr (cid:8) s = s(cid:48), r = r|s = s, a = a (cid:9) . The objective of k k=0 i1 i2 ik (3)
+t+1 t+1 t t 1≤i1<i2···<ik≤p
+the agent is to find a policy that maximizes the expected
+return defined as the future accumulated rewards G := The Yule-Walker system (2) with coefficients {φ˜ } has a
+t k
+(cid:80)∞ γk−tr , where γ ∈ [0, 1] is a discount factor. In unique solution with respect to (γ˜ , γ˜ , . . . , γ˜ , σ˜2 ), such that
+k=t k+1 0 1 p Z
+practice, the agent observes the environment’s state partially γ˜ = 1 and σ˜2 > 0. Furthermore, the autoregressive process
+0 Z
+through a real-valued observation vector o .
+t
+p
+Autoregressive processes X = (cid:88) φ˜ X + Z
+t k t−k t
+An autoregressive process of order p ∈ N (AR-p) is defined k=1 (4)
+as Z ∼ N (0, σ˜2 ),
+t Z
+is a stationary Gaussian process with zero mean and unit
+X t =
+(cid:80)p
+k=1 φ k X t−k + Z t , (1) variance, meaning X t ∼ N (0, 1) ∀t.
+where φ ∈ R, k = 1, . . . , p are real coefficients, and
+Z t is a k white noise with zero mean and finite variance, Proof. The proof follows from the observation that {φ˜ k } are
+Z t ∼ WN(0, σ Z 2 ), σ Z 2 < ∞. coefficients of a polynomial P (z) = (z−α 1 )(z−α 2 ) . . . (z−
+An autoregressive process {X t } is called weakly station- α p ) with roots {α k } that all lie within a unit circle. Since
+ary, if its mean function µ (t) = E[X ] is independent of P (z) is a characteristic polynomial of a process (4), the pro-
+X t
+t and its covariance function γ (t + h, t) = cov(X , X ) cess is stationary. The existence of a unique solution to the
+X t+h t
+is independent of t for each h. In the future we will use the system (2) with γ˜ 0 = 1, σ˜ Z 2 > 0 follows from the obser-
+term stationary implying this definition. The process (1) is vation that for any σ˜ Z 2 > 0 the system (2) has a unique so-
+stationary if the roots G i , i = 1, . . . , p (possibly complex) of lution with respect to (γ˜ 0 , γ˜ 1 , . . . , γ˜ p ), while it is homoge-
+its characteristic polynomial neous with respect to (γ˜ 0 , γ˜ 1 , . . . , γ˜ p , σ˜ Z 2 ). The result then
+follows from observing that γ˜ > 0, and scaling the solution
+0
+P (z) := zp − (cid:88) p φ i zp−i ( in γ˜ 0 A , p γ˜ p 1 e , n . . d . ix , γ˜ A p . , σ˜ Z 2 ) by 1/γ˜ 0 . A complete proof can be found
+i=1
+lie within a unit circle, e.g. |G | < 1, i = 1, . . . , p (see e.g. Corollary 4.1.1. For any p ∈ N and for any α ∈ [0, 1) let
+i
+[Brockwell et al., 2002, Section 3.1]). {X t } be the autoregressive process:
+An autocovariance function γ is defined as γ =
+k k p
+cov(X t , X t−k ), k = 0, ±1, ±2, . . .. From definition, γ 0 = X = (cid:88) φ˜ X + Z
+var(X ) = σ2 . For a stationary AR-p process a linear system t k t−k t
+t X k=1
+of Yule-Walker equations holds: (cid:18) p (cid:19) (5)
+φ˜ = (−1)k+1 αk
+      k k
+γ γ γ . . . γ φ
+1 0 1 p−1 1
+γ 2  γ 1 γ 0 . . . γ p−2 φ 2 Z t ∼ N (0, σ˜ Z 2 ),
+     
+    γ . . . 3    =     γ . . . 2 γ . . . 1 . . . . . . γ p . . . −3        φ . . . 3    w tio h n er t e o (cid:0) t k h p(cid:1) e = syst k e !( m p p − ! ( k 2 ) ) ! w is it a h b { i φ nom = ia φ˜ l c } o p effic a ie n n d t, γ σ˜ Z 2 = is 1 a . T so h l e u n -
+γ γ γ . . . γ φ (2) k k k=1 0
+p p−1 p−2 0 p X ∼ N (0, 1) ∀t.
+t
+and
+Proof. Set α = α ∀k in (3) and apply Proposition 4.1.
+p k
+(cid:88)
+γ 0 = φ i γ i + σ Z 2 . An example of a third order process AR-3 defined by (4) is
+i=1 given in Appendix B.
+The system (2) has a unique solution with respect to the Proposition 4.1 allows to formulate stationary autoregres-
+variables {γ }, k = 0, . . . , p. sive processes of an arbitrary order p for arbitrary values
+k
+
+===== PAGE 4 =====
+p = 1, = 0.0 p = 1, = 0.5 p = 1, = 0.8 p = 1, = 0.9 We would like to build an agent that implements stochastic
+2 2 2 2 policy with samples, defined by (7). From definition (5) of
+0 0 0 0 the process {X }, (7) can be expanded as
+t
+2 2 2 2
+0 50 100 0 50 100 0 50 100 0 50 100 p
+p = 3, = 0.0 p = 3, = 0.5 p = 3, = 0.8 p = 3, = 0.9 a = µ (s ) + σ (s ) (cid:88) φ˜ X + σ (s )σ˜ ε ,
+2 2 2 2 t θ t θ t k t−k θ t Z t (8)
+0 0 0 0 k=1
+2 2 2 2 ε t ∼ N (0, I).
+0 50 100 0 50 100 0 50 100 0 50 100
+p = 5, = 0.0 p = 5, = 0.5 p = 5, = 0.8 p = 5, = 0.9 From (7) also, X = (a − µ (s ))/σ (s ) ∀t, hence (8) can
+t t θ t θ t
+2 2 2 2 be rewritten as
+0 0 0 0
+p
+2 0 50 100 2 0 50 100 2 0 50 100 2 0 50 100 a t = µ θ (s t ) + σ θ (s t ) (cid:88) φ˜ k a t−k σ − (s µ θ (s ) t−k ) +
+θ t−k
+Figure 1: Realizations of processes (5) for different p and α and the k=1 (9)
+same set of 3 random seeds. + σ θ (s t )σ˜ Z ε t ,
+ε ∼ N (0, I).
+t
+α k ∈ [0, 1), k = 1, . . . , p, such that the marginal distribu- Denote f = (cid:80)p φ˜ at−k−µθ(st−k) the auto-regressive
+tions of realizations of these processes are standard normal at θ,t k=1 k σθ(st−k)
+each time step. This gives us great flexibility and power in ”history” term in (9). Note that f θ,t is a function of past p
+defining properties of these processes, such as the degree of states and actions, f θ,t = f ({s t−k , a t−k }p k=1 , θ). Then a t
+temporal coherence between process realizations at various follows the distribution:
+time lags. If we were to use these processes as a source of a ∼ N (µ (s ) + σ (s )f , σ2(s )σ˜2 · I),
+t θ t θ t θ,t θ t Z
+exploration behavior in RL algorithms, this flexibility would (10)
+translate into a flexibility in defining the shape and smooth- φ˜ k , σ˜ Z 2 are defined by (5).
+ness of exploration trajectories. Note, that the process (4)
+In order to implement such action distribution, we need to
+trivially generalizes to a vector form by defining Z t a multi- define a history-dependent policy π(a |s , hp), where hp =
+t t t t
+variate white noise with a diagonal covariance. (s , a , . . . , s , a ) is a history of past p states and
+t−p t−p t−1 t−1
+Autoregressive processes in the general form (4) possess a
+actions. In general, history-dependent policies do not induce
+number of interesting properties that can be utilized in rein-
+Markov stochastic processes, even if the environment tran-
+forcement learning. However, for the purposes of the discus- sition probabilities are Markovian [Puterman, 2014, Section
+sion in the following sections, from now on we will consider 2.1.6]. However when the dependence is only on a history of
+a simpler subfamily of processes, defined by (5). Notice, that
+a fixed size, such policy induces a Markov stochastic process
+α = 0 results in φ˜ k = 0 ∀k, and X t becomes a white Gaus- in an extended state space, where states are defined as pairs
+sian noise. On the other hand, α → 1 results in σ2 → 0, and (hp, s ). In order to be able to lean on existing theoretical re-
+Z t t
+X t becomes a constant function. Therefore, tuning a single sults, such as Policy Gradient Theorem [Sutton et al., 2000],
+scalar parameter α from 0 to 1 continuously adjusts tempo- and to use existing learning algorithms, we will talk about
+ral smoothness of X t ranging from white noise to a constant learning policies in this extended MDP.
+function. Figure 1 shows realizations of such processes at dif- More formally, let M = (S, A, P (·|a, s), r(s, a)) be a
+ferent values of p and α. The realizations are initialized from given MDP with S and A denoting state and action sets, and
+the same set of 3 random seeds for each p, α pair. P and r denoting transition probability and reward functions
+respectively. Let p be an arbitrary integer number. We define
+5 Autoregressive policies a modified MDP M˜ p = (S˜, A˜, P˜(·|a, s˜), r˜(s˜, a)) with the el-
+In continuous control RL a policy is often defined as a ements S˜ = {S × A}p × S, where {C}p denotes Cartesian
+parametrized diagonal Gaussian distribution: product of set C with itself p times, A˜ = A, and P˜ and r˜
+p (a |s ) = N (µ (s ), σ2(s ) · I), (6) defined as follows:
+θ t t θ t θ t
+where s is a state at time t, µ (s ) and σ2(s ) are vectors
+t θ t θ t
+parametrized by deep neural networks. The actions, sampled ∀s˜, s˜(cid:48) ∈ S˜ :
+from such distribution, can be represented as a t = µ θ (s t ) + s˜ = (s 1 , a 1 , . . . , s p , a p , s p+1 ), a k ∈ A, s k ∈ S ∀k
+σ (s )ε , where ε ∼ N (0, I) is a white Gaussian noise. We
+θ t t t s˜(cid:48) = (s(cid:48) , a(cid:48) , . . . , s(cid:48) , a(cid:48) , s(cid:48) ), a(cid:48) ∈ A, s(cid:48) ∈ S ∀k
+propose to replace ε t with observations of an AR-p process 1 1 p p p+1 k k
+{X t } defined by (
+a
+5
+t
+)
+=
+for
+µ
+s
+θ
+o
+(
+m
+s
+t
+e
+)
+p
++
+∈
+σ
+θ
+N
+(s
+a
+t
+n
+)X
+d α
+t
+.
+∈ [0, 1):
+(7)
+  P (s(cid:48) p+1 |a, s p+1 ), if
+a
+s(cid:48) k
+(cid:48)
+k
+=
+=
+s
+a
+k
+k
++
++
+1
+1
+,
+,
+k
+k
+≤
+<
+p
+p
+Both ε t and X t follow marginal standard normal distribution P˜(s˜(cid:48)|a, s˜) = a(cid:48) p = a
+a
+th
+t
+e
+ea
+n
+c
+e
+h
+tw
+s
+o
+te
+rk
+p
+o
+t,
+ut
+t
+p
+h
+u
+e
+t
+re
+t
+f
+o
+or
+n
+e
+oi
+s
+s
+u
+e
+ch
+rat
+s
+i
+u
+o
+bs
+in
+tit
+s
+u
+a
+ti
+m
+on
+ple
+d
+d
+oe
+a
+s
+ct
+n
+io
+o
+n
+t
+s
+c
+,
+h
+h
+a
+o
+n
+w
+ge
+-
+0
+otherwise
+ever for α > 0 the sequence {X } possesses temporal coher-
+t
+r˜(s˜, a) = r(s , a)
+ence and can provide a more consistent exploration behavior. p+1
+
+===== PAGE 5 =====
+In other words, transitions in a modified MDP M˜ p cor- with identical rewards. Therefore, improving the policy and
+respond to transitions in the original MDP M with states the obtained rewards in M˜ p results in identical improvement
+in M˜ p containing also the history of past p states and ac- of a corresponding history-dependent policy in M . Notice
+tions in M . The interaction between the agent and the en- also, that if σ (s ) → 0 in (11), then π reduces to a Markov
+θ t θ
+vironment, induced by M˜ p, occurs in the following way. deterministic policy a t = µ θ (s t ) in M . Therefore, the op-
+At each time t the agent is presented with the current state timal policy in the set of ARPs defined by (11) is at least as
+s˜ = (s , a , . . . , s , a , s ). Based on this state and good, as the best deterministic policy in the set of policies
+t t−p t−p t−1 t−1 t
+its policy, it chooses an action a t from the set A and sends it to a t = µ θ (s t ). This is in contrast with action averaging ap-
+the environment. Internally, the environment propagates the proaches, where temporal smoothing is typically imposed on
+action a to the original MDP M , currently in state s , which the entire action vector and not just on the exploration com-
+t t
+responds with a reward value r and transitions to a new ponent, limiting the space of possible deterministic policies.
+t+1
+state s . At this moment, the MDP M˜ p transitions to a new It is important to point out that for any history-dependent
+t+1
+state s˜ = (s , a , . . . , s , a , s ) and presents policy there exists an equivalent Markov stochastic policy
+t+1 t−p+1 t−p+1 t t t+1
+it to the agent together with the reward r . Let s be an with identical expected returns [Puterman, 2014, Theorem
+t+1 0
+element of the set of the initial states of M . A corresponding 5.5.1]. For the policy (11), for example, it can be constructed
+initial state of M˜ p is defined as s˜ 0 = (s
+(cid:124)
+0 , a 0 , .
+(cid:123)
+.
+(cid:122)
+. , s 0 , a
+(cid:125)
+0 , s 0 ), as π θ M (a|s) = hp (cid:80) ∈Hp π θ (a|s, hp)p(hp|s, π θ ) ∀(a, s), where
+p repetitions Hp is a set of all histories of size p. However, πM (a|s)
+θ
+where a 0 is any element of an action set A, for example zero is a non-trivial function of a state s, unknown to us at the
+vector in the case of continuous space. The particular choice beginning of learning. It is certainly not given by a ran-
+of a 0 is immaterial, since it does not affect future transitions dom initialization of (6), while a random initialization of (11)
+and rewards (more details in Appendix E). already provides consistent and smooth behavior. πM (a|s)
+We define an autoregressive policy (ARP) over M˜ p as: also cannot be derived analytically from (11), since comput-
+∀s˜ = (s , a , . . . , s , a , s ) : ing p(hp|s, π θ ) requires knowledge of environment transition
+t t−p t−p t−1 t−1 t
+probabilities, which we cannot expect to have for each given
+π (a |s˜ ) = N (µ (s ) + σ (s )f (s˜ ), σ2(s )σ˜2 I),
+θ t t θ t θ t θ t θ t Z task. From these considerations, the particular form of pol-
+p icy parametrization defined by (11) can also be thought of
+f (s˜ ) = (cid:88) φ˜ a t−k − µ θ (s t−k ) , (11) as an additional structure, enforced upon the general class of
+θ t k σ (s )
+k=1 θ t−k Markov policies, such as policies defined by (6), restricting
+φ˜ , σ˜2 are defined by (5), possible behaviors to temporally coherent ones.
+k Z Although autoregressive term f (s˜ ) in (11) is formally a
+θ t
+where µ θ (·) and σ θ (·) are parametrized function approxima- part of the distribution mean, numerically it corresponds to a
+tions, such as deep neural networks. For notation brevity, stationary zero mean random process F = (cid:80)p φ˜ X ,
+we omitted dependence of policy π θ on {φ˜ k } and σ˜ Z , since where {X t } is an underlying AR proc t ess defi k= ne 1 d k by t ( − 5 k ).
+these values are constant once the autoregressive model {X t } Therefore, f θ (s˜ t ) can be thought of as a part of an action
+is selected. In this parametrization, µ θ (s t−k ), k = 0, . . . , p exploration component around the ”true” mean, given by
+should be thought of as the same parametrized function µ θ (·) µ θ (s t ). It is this part that ensures a consistent and smooth
+applied to different parts of the state vector s˜ t , therefore each exploration, as will be demonstrated in the next section.
+occurence of µ θ (·) in (11) contributes to the gradient w.r.t. In principle, one could define π θ in (11) using arbitrary
+parameters θ. Similarly, each occurence of σ θ (·) contributes values of coefficients {φ˜ } and σ˜2 . The role of particular
+to the gradient w.r.t. θ. Note, that including history of states k Z
+values of {φ˜ } computed according to (5) is to make sure,
+and actions does not affect the dimensionality of the input to k
+that the underlying AR process {X } is stationary and the
+the function approximations, as both µ (·) and σ (·) accept t
+θ θ autoregressive part f (s˜ ) does not explode. The role of σ˜2
+only states from the original space as inputs. θ t Z
+The history-dependent policy (11) results in the desired ac- computed by solving (2) with coefficients {φ k = φ˜ k } and
+tion distribution (10) in the original MDP M , at the same time γ 0 = 1 is to make sure, that the variance of the underlying
+with respect to M˜ p it is just a particular case of a Gaussian process {X t } is 1. The total variance around µ θ (s t ) is then
+policy (6). Formally, we will perform learning in M˜ p, where conveniently defined by an agent controlled σ θ (s t ).
+Since linear system (2) with coefficients (3) and γ = 1 has
+π is Markov, and therefore all the related theoretical results 0
+θ a unique solution according to the Proposition 4.1, its matrix
+apply, and any off-the-shelf learning algorithm, applicable
+has a full rank, and therefore the system is well-determined
+to policies of type (6), can be used. In particular, the value
+and can be solved numerically to an arbitrary precision. In
+function in e.g. actor-critic architectures is learned with usual
+practice we solve it with numpy.linalg.solve function.
+methods. Empirically we found that conditioning value func-
+tion only on a current state s from the original MDP instead
+t 6 Experiments
+of an entire vector s˜ gives more stable learning performance.
+t
+It also helps to maintain the critic network size invariant to We compared conventional Gaussian policy with ARPs on
+the AR process order p. a set of tasks with both, sparse and dense reward functions,
+By design, for each sample path (s˜ , a , s˜ , a , . . .) in M˜ p in simulation and the real world. In the following learn-
+0 0 1 1
+there is a corresponding sample path (s , a , s , a , . . .) in M ing experiments we used the Open AI Baselines PPO algo-
+0 0 1 1
+
+===== PAGE 6 =====
+p = 1, = 0.99 p = 2, = 0.87
+a) 1.0 b)
+2 2 105
+0.8 0 0
+2 2
+0.6
+p = 1, = 0.99 0 50 100 0 50 100
+p = 2, = 0.87 p = 3, = 0.79 p = 5, = 0.69 0.4 p = 3, = 0.79 2 2 104
+p = 5, = 0.69
+0.2 0 0
+0.0 2 2
+0 10 20 30 40 50 0 50 100 0 50 100
+time lag 1 2 5 10 20 50 100
+Action rate, Hz
+Figure 2: a) Autocorrelation function ρ for autoregressive pro-
+τ
+cesses (5) with different orders p but the same value of ρ = 0.99.
+1
+b) Realizations of processes (5) with the same ρ = 0.99.
+1
+rithm implementation [Schulman et al., 2017; Dhariwal et
+al., 2017]. The results with Baselines TRPO [Schulman et
+al., 2015] are provided in Appendix C. For each experiment
+we used identical algorithm hyper-parameters and neural net-
+work structures to parametrize µ , σ and the value networks
+θ θ
+for both Gaussian and ARP policies. We used the same set of
+random seeds to initialize neural networks and the same set
+of random seeds to initialize environments that involve un-
+certainty. Detailed parameters for each task are included in
+Appendix D. We did not perform a hyper-parameter search
+to optimize for ARP performance, as our primary objective
+is to demonstrate the advantage of temporally coherent ex-
+ploration even in the setting, tuned for a standard Gaussian
+policy. The video of agent behaviors can be found at https:
+//youtu.be/NCpyXBNqNmw. The code to reproduce experi-
+ments is available at https://github.com/kindredresearch/arp.
+The order of an autoregressive process
+From Figure 1 one can notice that the temporal smoothness
+of realizations of AR processes (5) empirically increases with
+both, parameter α and order p. Why do we need higher order
+processes if we can simply increase α to achieve a higher
+degree of temporal coherence? To answer this question
+it is helpful to consider an autocorrelation function (ARF)
+ρ = cov(X , X )/var(X ) = γ /γ of these processes.
+τ t t+τ t τ 0
+White Gaussian noise by definition has autocorrelation func-
+tion equal to zero at any τ other than 0. An autoregressive
+process with non-zero coefficients generally has non-zero val-
+ues of autocorrelation function at all τ .
+One of the reasons we are interested in autoregressive pro-
+cesses for exploration is that they provide smooth trajecto-
+ries that do not result in jerky movement and do not damage
+physical robot hardware. Intuitively, the smoothness of the
+process realization is defined by a correlation between subse-
+quent observations corr(X , X ) = ρ , which for a given p
+t t+1 1
+increases with increasing α. However, given the same value
+ρ , processes of different orders p behave differently. Fig-
+1
+ure 2a shows ARFs for different processes defined by (5)
+and their corresponding values of α with the same value of
+ρ = 0.99, while Figure 2b shows realizations of these pro-
+1
+cesses. ARF values at higher orders p decrease much faster
+with increasing time lag τ compared to the 1st order pro-
+cess, where correlation between past and future observations
+s
+,tegrat
+ot
+emit
+egarevA
+bad for exploration, bad for hardware
+10Hz control 100Hz control
+a) Gaussian policy b)5 ( )=1
+ARP, =0.5
+ARP, =0.8
+ARP, =0.9
+ARP, =0.95 ( )=10
+5 5
+5 5 5 5 5
+good for exploration, good for hardware
+Figure 3: a) Average time to target in Square environment as a func-
+tion of an action rate for Gaussian policy and ARPs with varied α.
+b) 10 seconds long exploration trajectories at 10Hz (left column) and
+100Hz (right column) action rate using Gaussian policy (top row)
+and ARPs with p = 3 and α values 0.8 and 0.95 (bottom row).
+lingers over long periods of time. As shown on Figure 2b,
+the 1st order AR process produces nearly a constant func-
+tion, while the 5th order process exhibits a much more diverse
+exploratory behavior. Given the same value of correlation
+between subsequent realizations, higher order autoregressive
+processes exhibit lower correlation between observations dis-
+tant in time, resulting in trajectories with better exploration
+potential. In robotics applications where smoothness of the
+trajectory can be critical, higher order autoregressive pro-
+cesses may be a preferable choice. Empirically we found that
+the 3-rd order processes provide sufficiently smooth trajecto-
+ries while exhibiting a good exploratory behavior, and used
+p = 3 in all our subsequent learning experiments varying
+only the smoothing parameter α.
+Toy environment with sparse reward
+To demonstrate the advantage of temporally consistent ex-
+ploration, in particular at high action rates, we designed a
+toy Square environment with a 2D continuous state space
+bounded by a 10x10 square arena. The agent controls a dot
+through a continuous direct velocity control. The agent is ini-
+tialized in the middle of the arena at the start of each episode
+and receives a -1 reward at each time step scaled by time step
+duration. The target is generated at a random location on a
+circle of diameter 5 centered at the middle of the arena to
+make episodes homogenous in difficulty. The episode is over
+when the agent approaches the target to within a distance of
+0.5. The action space is bounded within a two-dimensional
+[−1, 1]2 interval. The observation vector contains the agent’s
+position, velocity, and the vector difference between agent
+position and the target position.
+To compare exploration efficiency we ran random ARP
+(p = 3) and Gaussian agents with µ (·), σ initialized to θ θ
+(cid:126)0 and (cid:126)1 respectively for 10 million simulated seconds at dif-
+ferent action rates. Figure 3a shows average time to reach the
+target as a function of an action rate. The results show that
+the optimal degree of temporal coherence depends on the en-
+vironment properties, such as action rate. At low control fre-
+quency a white Gaussian exploration is more effective than
+ARPs with high α, as in the latter the agent quickly reaches
+
+===== PAGE 7 =====
+0
+200
+400
+600
+800
+1000
+0 25000 50000
+nruter
+egarevA
+10Hz control 20Hz control
+0
+200
+400
+600
+800
+1000
+0 25000 50000
+Simulated time, s
+0
+200
+400
+600
+800
+1000
+0 25000 50000
+Simulated time, s
+nruter
+egarevA
+0
+20
+40
+60
+80
+100
+0 1 2 3 4 5
+Time, hours
+50Hz control
+Gaussian policy
+ARP, = 0.5
+ARP, = 0.8
+ARP, = 0.9
+Figure 4: On a toy 2D environment with sparse reward, white noise
+exploration (Gaussian policy) leads to ineffective learning. Tempo-
+rally smoother processes are effective at higher action rates.
+the boundary of the state space and gets stuck there. The ef-
+ficiency of Gaussian exploration drops dramatically with the
+increase of action rate. However it is possible to recover the
+same exploration performance in ARP by increasing accord-
+ingly the α parameter. This effect is visualized on Figure 3b
+which shows five 10 seconds long exploration trajectories at
+10Hz and 100Hz control for Gaussian and ARP policies. Al-
+though ran for the same amount of simulated time, Gaussian
+exploration at 100Hz covers substantially smaller area of state
+space compared to 10Hz control, while increasing α from 0.8
+to 0.95 (the values were chosen empirically) results in ARP
+trajectories covering similar space at both action rates. Note
+that the issue with Gaussian policy can not be fixed by simply
+increasing the variance, as most actions will just be clipped
+at the [−1, 1]2 boundary, resulting in a similarly poor explo-
+ration. Figure 3b top right plot shows exploration trajectories
+for σ(θ) = (cid:126)1 (blue) and σ(θ) = 1(cid:126)0 (gray). To the contrary of
+the common intuition, in bounded action spaces Gaussian ex-
+ploration with high variance does not produce a diverse state-
+action visitation.
+Reacher-v2 Swimmer-v2 Hopper-v2
+300
+25 2000 200
+50 100 1000
+75
+0 0
+0 1000000 0 1000000 0 1000000
+Walker2d-v2 HalfCheetah-v2
+2000 1000 Gaussian policy
+ARP, = 0.3
+1000 ARP, = 0.5
+0
+ARP, = 0.8
+0
+0 1000000 0 1000000
+Figure 5: Learning curves in Mujoco-based environments.
+nruter
+egarevA
+25Hz control 125Hz control
+0
+Gaussian policy Gaussian policy
+ARP, =0.5 20 ARP, =0.5 ARP, =0.8 ARP, =0.8
+40
+60
+80
+100
+0 1 2 3 4 5 6
+Time, hours
+Figure 6: Learning curves on a UR5 Reacher 2D environment with
+sparse reward at 25Hz and 125Hz velocity control. Thick lines rep-
+resent average across runs, thin lines show individual curves.
+The advantage of ARPs in exploration translates into an ad-
+vantage in learning. Figure 4 shows learning curves (averaged
+over 5 random seeds) on Square environment at different ac-
+tion rates ran for 50,000 seconds of total simulated time with
+episodes limited to 1000 simulated seconds. Not only ARPs
+exhibit better learning, but the initial random behaviour gives
+much higher returns compared to initial Gaussian agent be-
+haviour. At higher action rates ARPs with higher α produce
+better results.
+In the formulation of the AR-1 process used in Lillicrap
+et al. [2015] and in Tallec et al. [2019], parameter α corre-
+sponds to 1 − κdt, where dt is a time step duration. Hence,
+in that formulation α naturally approaches 1 as dt approaches
+zero. Note, that in order to achieve the best performance on
+each given task, parameter κ still needs to be tuned, just as
+parameter α needs to be tuned in our formulation. The op-
+timal values of these parameters depend not only on action
+rate, but also on environment properties, such as a size of a
+state space relative to the typical size of an agent step.
+Mujoco experiments
+Figure 5 shows the learning results on standard OpenAI Gym
+Mujoco environments [Brockman et al., 2016]. These en-
+vironments have dense rewards, so consistent exploration is
+less crucial here compared to tasks with sparse rewards. Nev-
+ertheless, we found that ARPs perform similarly or slightly
+better, than a standard Gaussian policy. On a Swimmer-v2 en-
+vironment ARP resulted in a much better performance com-
+pared to Gaussian policy, possibly because in this environ-
+ment smooth trajectories are highly rewarded.
+Physical robot experiments
+On a UR5 robotic arm we were able to obtain results similar
+to those in the toy environment. We designed a sparse reward
+version of a UR5 Reacher 2D task introduced in [Mahmood et
+al., 2018b]. In a modified task at each time step the agent re-
+ceives a -1 reward scaled by a time step duration. The episode
+is over when the agent reaches the target within a distance of
+0.05. In order to provide sufficient time for exploration in a
+sparse reward setting we doubled the episode time duration to
+8 seconds. Figure 6 shows the learning curves for 25Hz and
+125Hz control. Each curve is an average across 4 random
+seeds. The Gaussian policy fails to learn in a 125Hz control
+setting within a 5 hours time limit, while ARP was able to find
+an effective policy in 50% of the runs, and the effectiveness
+at higher α increased at a higher action rate.
+
+===== PAGE 8 =====
+7 Conclusions [Houthooft et al., 2016] Rein Houthooft, Xi Chen, Yan
+Duan, John Schulman, Filip De Turck, and Pieter Abbeel.
+We introduced autoregressive Gaussian policies (ARPs) for
+Vime: Variational information maximizing exploration.
+temporally coherent exploration in continuous control deep
+In Advances in Neural Information Processing Systems,
+reinforcement learning. The policy form is grounded in
+pages 1109–1117, 2016.
+the theory of stationary autoregressive stochastic processes.
+We derived a family of stationary Gaussian autoregressive [Kalashnikov et al., 2018] Dmitry Kalashnikov, Alex Irpan,
+stochastic processes for an arbitrary order p with continu- Peter Pastor, Julian Ibarz, Alexander Herzog, Eric Jang,
+ously adjustable degree of temporal coherence between sub- Deirdre Quillen, Ethan Holly, Mrinal Kalakrishnan, Vin-
+sequent observations. We derived an agent policy that im- cent Vanhoucke, and Sergey Levine. Scalable deep rein-
+plements these processes with a standard agent-environment forcement learning for vision-based robotic manipulation.
+interface. Empirically we showed that ARPs result in a supe- In Aude Billard, Anca Dragan, Jan Peters, and Jun Mo-
+rior exploration and learning in sparse reward tasks and per- rimoto, editors, Proceedings of The 2nd Conference on
+form on par or better compared to standard Gaussian policies Robot Learning, volume 87 of Proceedings of Machine
+in dense reward tasks. On physical hardware, ARPs result in Learning Research, pages 651–673. PMLR, 29–31 Oct
+smooth trajectories that are safer to execute compared to the 2018.
+trajectories provided by conventional Gaussian exploration. [Levine et al., 2016] Sergey Levine, Chelsea Finn, Trevor
+Darrell, and Pieter Abbeel. End-to-end training of deep
+References visuomotor policies. The Journal of Machine Learning
+Research, 17(1):1334–1373, 2016.
+[Andrychowicz et al., 2018] Marcin Andrychowicz, Bowen
+Baker, Maciek Chociej, Rafal Jozefowicz, Bob McGrew, [Lillicrap et al., 2015] Timothy P Lillicrap, Jonathan J Hunt,
+Jakub Pachocki, Arthur Petron, Matthias Plappert, Glenn Alexander Pritzel, Nicolas Heess, Tom Erez, Yuval Tassa,
+Powell, Alex Ray, et al. Learning dexterous in-hand ma- David Silver, and Daan Wierstra. Continuous con-
+nipulation. arXiv preprint arXiv:1808.00177, 2018. trol with deep reinforcement learning. arXiv preprint
+arXiv:1509.02971, 2015.
+[Benbrahim and Franklin, 1997] Hamid Benbrahim and
+Judy A Franklin. Biped dynamic walking using rein- [Mahmood et al., 2018a] A Rupam Mahmood, Dmytro Ko-
+forcement learning. Robotics and Autonomous Systems, renkevych, Brent J Komer, and James Bergstra. Setting
+22(3-4):283–302, 1997. up a reinforcement learning task with a real-world robot.
+In 2018 IEEE/RSJ International Conference on Intelli-
+[Brockman et al., 2016] Greg Brockman, Vicki Cheung,
+gent Robots and Systems (IROS), pages 4635–4640. IEEE,
+Ludwig Pettersson, Jonas Schneider, John Schulman, Jie
+2018.
+Tang, and Wojciech Zaremba. Openai gym, 2016.
+[Mahmood et al., 2018b] A. Rupam Mahmood, Dmytro Ko-
+[Brockwell et al., 2002] Peter J Brockwell, Richard A Davis, renkevych, Gautham Vasan, William Ma, and James
+and Matthew V Calder. Introduction to time series and Bergstra. Benchmarking reinforcement learning algo-
+forecasting, volume 2. Springer, 2002. rithms on real-world robots. In CoRL, 2018.
+[Burda et al., 2018] Yuri Burda, Harri Edwards, Deepak [Metz et al., 2017] Luke Metz, Julian Ibarz, Navdeep Jaitly,
+Pathak, Amos Storkey, Trevor Darrell, and Alexei A Efros. and James Davidson. Discrete sequential prediction
+Large-scale study of curiosity-driven learning. arXiv of continuous actions for deep rl. arXiv preprint
+preprint arXiv:1808.04355, 2018. arXiv:1705.05035, 2017.
+[Dhariwal et al., 2017] Prafulla Dhariwal, Christopher [Mnih et al., 2016] Volodymyr Mnih, Adria Puigdomenech
+Hesse, Oleg Klimov, Alex Nichol, Matthias Plappert, Badia, Mehdi Mirza, Alex Graves, Timothy Lillicrap, Tim
+Alec Radford, John Schulman, Szymon Sidor, and Yuhuai Harley, David Silver, and Koray Kavukcuoglu. Asyn-
+Wu. Openai baselines. GitHub, GitHub repository, 2017. chronous methods for deep reinforcement learning. In In-
+[Fortunato et al., 2017] Meire Fortunato, Moham- ternational conference on machine learning, pages 1928–
+1937, 2016.
+mad Gheshlaghi Azar, Bilal Piot, Jacob Menick, Ian
+Osband, Alex Graves, Vlad Mnih, Remi Munos, Demis [Ng et al., 1999] Andrew Y Ng, Daishi Harada, and Stuart
+Hassabis, Olivier Pietquin, et al. Noisy networks for Russell. Policy invariance under reward transformations:
+exploration. arXiv preprint arXiv:1706.10295, 2017. Theory and application to reward shaping. In ICML, vol-
+ume 99, pages 278–287, 1999.
+[Haarnoja et al., 2018] Tuomas Haarnoja, Aurick Zhou,
+Kristian Hartikainen, George Tucker, Sehoon Ha, Jie [Oudeyer et al., 2007] Pierre-Yves Oudeyer, Frdric Kaplan,
+Tan, Vikash Kumar, Henry Zhu, Abhishek Gupta, Pieter and Verena V Hafner. Intrinsic motivation systems for au-
+Abbeel, et al. Soft actor-critic algorithms and applications. tonomous mental development. IEEE transactions on evo-
+arXiv preprint arXiv:1812.05905, 2018. lutionary computation, 11(2):265–286, 2007.
+[van Hoof et al., 2017] Herke van Hoof, Daniel Tanneberg, [Pathak et al., 2017] Deepak Pathak, Pulkit Agrawal,
+and Jan Peters. Generalized exploration in policy search. Alexei A Efros, and Trevor Darrell. Curiosity-driven
+Machine Learning, 106(9-10):1705–1724, 2017. exploration by self-supervised prediction. In International
+
+===== PAGE 9 =====
+Conference on Machine Learning (ICML), volume 2017,
+2017.
+[Peters and Schaal, 2007] Jan Peters and Stefan Schaal. Re-
+inforcement learning by reward-weighted regression for
+operational space control. In Proceedings of the 24th inter-
+national conference on Machine learning, pages 745–750.
+ACM, 2007.
+[Peters and Schaal, 2008] Jan Peters and Stefan Schaal. Re-
+inforcement learning of motor skills with policy gradients.
+Neural networks, 21(4):682–697, 2008.
+[Plappert et al., 2017] Matthias Plappert, Rein Houthooft,
+Prafulla Dhariwal, Szymon Sidor, Richard Y Chen,
+Xi Chen, Tamim Asfour, Pieter Abbeel, and Marcin
+Andrychowicz. Parameter space noise for exploration.
+arXiv preprint arXiv:1706.01905, 2017.
+[Plappert et al., 2018] Matthias Plappert, Marcin
+Andrychowicz, Alex Ray, Bob McGrew, Bowen Baker,
+Glenn Powell, Jonas Schneider, Josh Tobin, Maciek
+Chociej, Peter Welinder, et al. Multi-goal reinforcement
+learning: Challenging robotics environments and request
+for research. arXiv preprint arXiv:1802.09464, 2018.
+[Puterman, 2014] Martin L Puterman. Markov decision pro-
+cesses: discrete stochastic dynamic programming. John
+Wiley & Sons, 2014.
+[Schulman et al., 2015] John Schulman, Sergey Levine,
+Pieter Abbeel, Michael Jordan, and Philipp Moritz. Trust
+region policy optimization. In International Conference
+on Machine Learning, pages 1889–1897, 2015.
+[Schulman et al., 2017] John Schulman, Filip Wolski, Pra-
+fulla Dhariwal, Alec Radford, and Oleg Klimov. Prox-
+imal policy optimization algorithms. arXiv preprint
+arXiv:1707.06347, 2017.
+[Sutton and Barto, 2018] Richard S Sutton and Andrew G
+Barto. Reinforcement learning: An introduction. MIT
+press, 2018.
+[Sutton et al., 2000] Richard S Sutton, David A McAllester,
+Satinder P Singh, and Yishay Mansour. Policy gradient
+methods for reinforcement learning with function approxi-
+mation. In Advances in neural information processing sys-
+tems, pages 1057–1063, 2000.
+[Tallec et al., 2019] Corentin Tallec, Le´onard Blier, and
+Yann Ollivier. Making deep q-learning methods robust
+to time discretization. arXiv preprint arXiv:1901.09732,
+2019.
+[Vinyals et al., 2017] Oriol Vinyals, Timo Ewalds, Sergey
+Bartunov, Petko Georgiev, Alexander Sasha Vezhnevets,
+Michelle Yeo, Alireza Makhzani, Heinrich Ku¨ttler, John
+Agapiou, Julian Schrittwieser, et al. Starcraft ii: A
+new challenge for reinforcement learning. arXiv preprint
+arXiv:1708.04782, 2017.
+[Wawrzynski, 2015] Pawel Wawrzynski. Control policy
+with autocorrelated noise in reinforcement learning for
+robotics. International Journal of Machine Learning and
+Computing, 5(2):91, 2015.
+
+===== PAGE 10 =====
+A Proof of Proposition 4.1
+Lemma A.1. For any p ∈ N and for any α ∈ [0, 1), k = 1, . . . , p the autoregressive process
+k
+p
+X = (cid:88) φ˜ X + Z
+t k t−k t
+k=1
+φ˜ = (−1)k+1 (cid:88) α α . . . α , k = 1, . . . , p (12)
+k i1 i2 ik
+1≤i1,i2,...,ik≤p
+Z ∼ WN(0, σ2 ), σ2 < ∞,
+t Z Z
+is stationary.
+Proof. Consider a polynomial
+P (z) = (z − α )(z − α ) . . . (z − α ).
+1 2 p
+It can be written in a form
+p
+P (z) = zp − (cid:88) φ˜ zp−k,
+k
+k=1 (13)
+φ˜ = (−1)k+1 (cid:88) α α . . . α , k = 1, . . . , p
+k i1 i2 ik
+1≤i1,i2,...,ik≤p
+consequently P (z) is a characteristic polynomial of the process (12). By design, P (z) has roots α , k = 1, . . . , p which all lie
+k
+within a unit circle, therefore the process (12) is stationary.
+Lemma A.2. Let {X } be an autoregressive process defined in (12). If its white noise component Z is Gaussian,
+t t
+i.e. Z ∼ N (0, σ2 ), then X are identically distributed normal random variables with zero mean and finite variance
+t Z t
+var(X ) = σ2 < ∞ ∀t.
+t X
+Proof. According to lemma A.1 the process (12) is stationary, meaning X are identically distributed random variables with
+t
+finite variance var(X ) = σ2 < ∞ ∀t. If Z is Gaussian, then X are identically distributed normal variables. Let us denote
+t X t t
+µ the mean of this distribution. Taking expectation of both sides of (12) gives
+X
+p
+E[X ] = (cid:88) φ˜ E[X ] + E[Z ] ⇒
+t k t−k t
+k=1
+p
+µ = (cid:88) φ˜ µ ⇒
+X k X
+k=1
+p
+µ (1 − (cid:88) φ˜ ) = 0.
+X k
+k=1
+(1 − (cid:80)p φ˜ ) (cid:54)= 0 since polynomial (13) does not have a root z = 1, therefore µ = 0.
+k=1 k X
+We established that under Gaussian white noise Z the process (12) represents a series of identically distributed normal
+t
+variables with zero mean and finite variance. From the linear form of the process it is clear that the variance σ2 linearly
+X
+depends on the variance σ2 of a white noise component. Scaling σ2 by a factor β > 0 results in scaling σ2 by the same factor
+Z Z X
+β. Therefore, it should be possible to pick σ such that the variance σ2 would have any desired positive value, in particular,
+Z X
+value of 1. The following lemma formalizes this observation.
+Lemma A.3. For any p ∈ N let {φ , k = 0, . . . , p} be a set of coefficients corresponding to a stationary AR-p process {X }
+k t
+defined in (1). Then the linear system
+     
+γ 1 γ γ . . . γ φ
+1 1 2 p−1 1
+γ 2  γ 1 1 γ 1 . . . γ p−2 φ 2
+     
+γ 3 =  γ 2 γ 1 1 . . . γ p−3 φ 3
+   . . .       . . . . . . . . . . . . . . .       . . .   
+γ γ γ γ . . . 1 φ (14)
+p p−1 p−2 p−3 p
+and
+p
+(cid:88)
+1 = φ γ + σ2 ,
+i i Z
+i=1
+
+===== PAGE 11 =====
+has a unique solution (γ˜ , . . . , γ˜ , σ˜2 ), where σ˜2 > 0. Furthermore, the autoregressive process
+1 p Z Z
+p
+X˜ = (cid:88) φ X˜ + Z˜ ,
+t k t−k t
+(15)
+k=1
+var(Z˜ ) = σ˜2
+t Z
+is stationary with variance σ˜2 = var(X˜ ) = 1.
+X t
+Proof. For any σ˜2 > 0 stationarity of {X˜ } follows from stationarity of {X }, since both processes share the same coefficients
+Z t t
+{φ }, and therefore, the same characteristic polynomial.
+k
+Since {X } is stationary, the corresponding system of Yule-Walker equations (2) has a unique solution with respect to
+t
+(γ , γ , . . . , γ ) [Brockwell et al., 2002, Section 3.1]. Notice, however, that the system (2) is homogenous with respect to
+0 1 p
+the variables (γ , γ , . . . , γ , σ2 ), meaning that if (γ(cid:48) , γ(cid:48) , . . . , γ(cid:48) , σ(cid:48)2) is a solution, then (βγ(cid:48) , βγ(cid:48) , . . . , βγ(cid:48) , βσ(cid:48)2) is also a
+0 1 p Z 0 1 p Z 0 1 p Z
+solution ∀β ∈ R. Therefore, since γ = var(X ) > 0, exists a unique solution (γ˜ , γ˜ , . . . , γ˜ , σ˜ 2) such that γ˜ = 1. We can
+0 t 0 1 p Z 0
+find it by substituting γ = 1 into a linear system (2), resulting in (14). This solution corresponds to a stationary process {X˜ }
+0 t
+with var(X˜ ) = γ˜ = 1 ∀t.
+t 0
+Now the proof of proposition 4.1 is straightforward. By lemma A.1 coefficients {φ˜ } correspond to a stationary autore-
+k
+gressive process, therefore by lemma A.3 the system (14) has a unique solution σ˜2 > 0 and the process (4) is a stationary
+Z
+process with unit variance. Since Z is normal, by lemma (A.2) the process (4) is Gaussian with zero mean. Therefore,
+t
+X ∼ N (0, 1) ∀t.
+t
+B Example of an AR-3 Gaussian process
+A third order process AR-3 defined by (4) has a form:
+X = (α + α + α )X − (α α + α α + α α )X + α α α X + σ N (0, 1),
+t 1 2 3 t−1 1 2 2 3 1 3 t−2 1 2 3 t−3 Z
+where σ2 is a solution of a system:
+Z
+     
+γ 1 γ γ φ
+1 1 2 1
+γ 2 = γ 1 1 γ 1 φ 2 ,
+γ γ γ 1 φ
+3 2 1 3
+φ = α + α + α
+1 1 2 3
+φ = −(α α + α α + α α )
+2 1 2 2 3 1 3
+φ = α α α
+3 1 2 3
+and
+3
+(cid:88)
+1 = φ γ + σ2 ,
+i i Z
+i=1
+resulting in
+(1 − α2)(1 − α2)(1 − α2)(1 − α α )(1 − α α )(1 − α α )
+σ2 = 1 2 3 1 2 2 3 1 3 .
+Z (1 + α α + α α + α α − α α α (α α α + α + α + α ))
+1 2 2 3 1 3 1 2 3 1 2 3 1 2 3
+For any α , α , α ∈ [0, 1) this process is stationary with X ∼ N (0, 1) ∀t.
+1 2 3 t
+If α = α = α = α, the process reduces to
+1 2 3
+X = 3αX − 3α2X + α3X + σ N (0, 1),
+t t−1 t−2 t−3 Z
+(1 − α2)6
+σ2 = .
+Z 1 + 3α2 − 3α4 − α6
+C Learning results in simulation with ARPs and OpenAI Baselines TRPO
+We ran a set of experiments with ARPs (p = 3) and OpenAI Baselines TRPO algorithm. Figures 7a and 7b show learning curves
+in Mujoco and Square environments respectively. The hyper-parameters are specified in the Appendix D. TRPO delivered a
+similar performance to PPO in Mujoco tasks (with a more stable performance on a Reacher-v2 task), however PPO produced
+better results on a sparse reward Square environment.
+
+===== PAGE 12 =====
+Reacher-v2 Swimmer-v2 Hopper-v2
+300
+20 2000
+200
+40 100 1000
+60 0 0
+0 1000000 0 1000000 0 1000000
+Walker2d-v2 HalfCheetah-v2
+1000
+2000
+Gaussian policy
+500
+ARP, = 0.3
+1000
+ARP, = 0.5
+0
+ARP, = 0.8
+0
+0 1000000 0 1000000
+(a)
+200
+400
+600
+800
+1000
+0 25000 50000
+Simulated time, s
+nruter
+egarevA
+10Hz control 20Hz control 50Hz control
+Gaussian policy
+200 200
+ARP, = 0.5
+400 400
+ARP, = 0.8
+600 600
+ARP, = 0.9
+800 800
+1000 1000
+0 25000 50000 0 25000 50000
+Simulated time, s Simulated time, s
+(b)
+Figure 7: Learning curves in (a) Mujoco-based, (b) Square environments with OpenAI Baselines TRPO.
+D Algorithm parameters
+In our experiments we used the default Open AI Baselines parameters specified in https://github.com/openai/baselines/blob/
+master/baselines with the exception of γ and λ parameters, for which we used a larger value of 0.995. For experiments
+in Square environment at 10Hz action rate we used 4 times larger batch and optimization batch sizes to account for longer
+episodes. For Square and UR5 Reacher 2D environments at higher action rates we used the same parameter values as for basic
+versions (10Hz and 25Hz respectively), but scaled the batch and the optimization batch sizes accordingly to make sure that the
+data within a batch at all action rates corresponds to the same amount of simulated time (e.g. for UR5 Reacher 2D at 125Hz we
+used 5 times bigger batch and optimization batch compared to those in UR5 Reacher 2D at 25Hz). In all experiments we used
+fully connected networks with the same hidden sizes to parametrize policy and value networks. For each experiment identical
+parameters and network architectures were used for standard Gaussian policy and ARP. The table below shows the parameters
+values for basic versions of the environments:
+PPO:
+Hyper-parameter Square at 10Hz Mujoco and UR5 Reacher 2D at 25Hz
+batch size 8192 2048
+step-size 4 × 10−3 4 × 10−3
+opt. batch size 256 64
+opt. epochs 10 10
+γ 0.995 0.995
+λ 0.995 0.995
+clip. ε 0.2 0.2
+hidden layers 2 2
+hidden sizes 64 64
+
+===== PAGE 13 =====
+TRPO:
+Hyper-parameter Square at 10Hz Mujoco
+batch size 8192 1024
+max-kl 0.01 0.01
+cg-iters 10 10
+vf-iters 5 5
+vf-step-size 10−3 10−3
+γ 0.995 0.995
+λ 0.995 0.995
+hidden layers 2 2
+hidden sizes 64 64
+E Implementation details
+The equation (11) in the main text, replicated for convenience below, defines a stationary autoregressive policy distribution in
+M˜ p under given parameters θ:
+π (a |s˜ ) = N (µ (s ) + σ (s )f (s˜ ), σ2(s )σ˜2 I),
+θ t t θ t θ t θ t θ t Z
+p
+f (s˜ ) = (cid:88) φ˜ a t−k − µ θ (s t−k ) ,
+θ t k σ (s )
+θ t−k
+k=1
+φ˜ , σ˜2 are defined by (5).
+k Z
+The two aspects that need to be considered separately for a practical application are the initialization at the start of a roll-out
+and the learning updates.
+At t < p, we do not include in the model the terms φ˜ at−k−µθ(st−k) where t − k < 0. This corresponds to having
+k σθ(st−k)
+X = 0, t − k < 0 in the underlying AR process. Initializing an AR process with zero values results in a well behaved
+t−k
+time-series that quickly equilibrates to the stationary distribution without large spikes in values. In contrast, initializing from
+arbitrary values often results in temporal spikes of large values before the process equilibrates to its stationary behaviour. This
+restriction can be expressed in the following policy formulation:
+π (a |s˜ ) = N (µ (s ) + σ (s )f (s˜ ), σ2(s )σ˜2 I),
+θ t t θ t θ t θ t θ t Z
+min(p,t)
+f (s˜ ) = (cid:88) φ˜ a t−k − µ θ (s t−k ) ,
+θ t k σ (s )
+θ t−k
+k=1
+φ˜ , σ˜2 are defined by (5).
+k Z
+Formally, dependence on t makes the policy non-stationary, however the term t plays a role only within the first p steps in each
+sample path, and, as long as the exact action a is not encountered again in the sample path, which is the case for continuous
+0
+action spaces, the policy could be equivalently formulated by having the agent count number of occurences of a in each state
+0
+s˜ and based on that decide on the number of terms in f (s˜ ). Such formulation would make the policy stationary, however
+t θ t
+it would not allow a similarly compact representation and would unnecessarily burden the formulation. Notice, that proposed
+formulation also means that a will never be part of policy computation, and therefore will not affect future transitions.
+0
+As we pointed out in the main text, if the learning updates are performed within an episode, the change in the parameters
+θ can temporally distort stationarity of the underlying AR process, since the terms φ˜ at−k−µ(st−k,θnew) change their values
+k σ(st−k,θnew)
+compared to φ˜ at−k−µ(st−k,θold) . This may cause temporal spikes in values of f (s˜ ) until the process equilibrates again. To
+k σ(st−k,θold) θ t
+avoid this, corresponding previously computed values of terms φ˜ at−k−µ(st−k,θold) where t − k < t should be used in
+k σ(st−k,θold) update
+computing f for the next p steps after an update.
+θ

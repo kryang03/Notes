@@ -1,0 +1,844 @@
+                                                                                                                                                                                   January 2024
+
+
+
+                                         SERL: A Software Suite for Sample-Efficient
+                                         Robotic Reinforcement Learning
+                                         Jianlan Luo1* , Zheyuan Hu1* , Charles Xu1 , You Liang Tan1 , Jacob Berg2 , Archit Sharma3 , Stefan Schaal4 , Chelsea Finn3 ,
+                                         Abhishek Gupta2 and Sergey Levine1
+                                         * Equal Contribution, 1 Department of EECS, University of California, Berkeley, 2 Department of Computer Science and Engineering, University of
+
+                                         Washington, 3 Department of Computer Science, Stanford University, 4 Intrinsic Innovation LLC
+
+
+
+
+arXiv:2401.16013v3 [cs.RO] 13 Feb 2024
+                                         Figure 1: Depiction of various tasks solved using SERL in the real world. These include PCB board insertion (left), cable routing
+                                         (middle), and object relocation (right). SERL provides an out-of-the-box package for real-world reinforcement learning, with support for
+                                         sample-efficient learning, learned rewards, and automation of resets.
+
+                                         In recent years, significant progress has been made in the field of robotic reinforcement learning (RL), enabling
+                                         methods that handle complex image observations, train in the real world, and incorporate auxiliary data, such
+                                         as demonstrations and prior experience. However, despite these advances, robotic RL remains hard to use. It is
+                                         acknowledged among practitioners that the particular implementation details of these algorithms are often just
+                                         as important (if not more so) for performance as the choice of algorithm. We posit that a significant challenge
+                                         to widespread adoption of robotic RL, as well as further development of robotic RL methods, is the comparative
+                                         inaccessibility of such methods. To address this challenge, we developed a carefully implemented library
+                                         containing a sample efficient off-policy deep RL method, together with methods for computing rewards and
+                                         resetting the environment, a high-quality controller for a widely-adopted robot, and a number of challenging
+                                         example tasks. We provide this library as a resource for the community, describe its design choices, and present
+                                         experimental results. Perhaps surprisingly, we find that our implementation can achieve very efficient learning,
+                                         acquiring policies for PCB board assembly, cable routing, and object relocation between 25 to 50 minutes of
+                                         training per policy on average, improving over state-of-the-art results reported for similar tasks in the literature.
+                                         These policies achieve perfect or near-perfect success rates, extreme robustness even under perturbations, and
+                                         exhibit emergent recovery and correction behaviors. We hope that these promising results and our high-quality
+                                         open-source implementation will provide a tool for the robotics community to facilitate further developments
+                                         in robotic RL. Our code, documentation, and videos can be found at https://serl-robot.github.io/
+
+
+                                         1. Introduction                                                               et al., 2017), and performing a wide range of other
+                                         Considerable progress on robotic reinforcement learn-                         skills. However, despite the significant progress on the
+                                         ing (RL) over the recent years has produced impressive                        underlying algorithms, RL remains challenging to use
+                                         results, with robots playing table tennis (Büchler et al.,                    for real-world robotic learning problems, and practical
+                                         2022), manipulating objects from raw images (Gupta                            adoption has been more limited. We argue that part
+                                         et al., 2021; Kalashnikov et al., 2021; Levine et al., 2016b),                of the reason for this is that the implementation of
+                                         grasping diverse objects (Levine et al., 2018; Mahler                         RL algorithms, particularly for real-world robotic sys-
+                                                                                                                       tems, presents a very large design space, and it is the
+
+
+                                         Corresponding author(s): Jianlan Luo and Zheyuan Hu, Berkeley AI Research Lab (BAIR), University of California, Berkeley: jianlanluo@eecs.berkeley.edu,
+                                         huzheyuan@berkeley.edu.
+                             SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+challenge of navigating this design space, rather than               on image observations. This result is significant be-
+limitations of algorithms per se, that limit adoption. It            cause RL, particularly with deep networks and image
+is often acknowledged by practitioners in the field that             inputs, is often considered to be highly inefficient. Our
+details in the implementation of an RL algorithm might               results challenge this assumption, suggesting careful
+be as important (if not more important) as the particular            implementations of existing techniques, combined with
+choice of algorithm. Furthermore, real-world learning                well-designed controllers and carefully selected compo-
+presents additional challenges with reward specifica-                nents for reward specification and resets, can provide
+tion, implementation of environment resets, sample                   an overall system that is efficient enough for real-world
+efficiency, compliant and safe control, and other diffi-             use.
+culties that put even more stress on this issue. Thus,
+adoption and further research progress on real-world                 2. Related Work
+robotic RL may well be bottlenecked on implementation                While our framework combines existing RL methods
+rather than novel algorithmic innovations.                           into a complete robotic learning system, the particular
+   To address this challenge, our aim in this paper is to            combination of parts is carefully designed to provide
+provide an open-source software framework, which we                  for efficient and out-of-the-box reinforcement learning
+call Sample-Efficient Robotic reinforcement Learning                 directly in the real world and, as shown in our exper-
+(SERL), that aims to facilitate wider adoption of RL in              iments, achieves excellent results on a wide range of
+real-world robotics. SERL consists of the following                  tasks. Here, we summarize both related prior methods
+components: (1) a high-quality RL implementation that                and systems.
+is geared towards real-world robotic learning and sup-               Algorithms for real-world RL: Real-world robotic
+ports image observations and demonstrations; (2) im-                 RL demands algorithms that are sample-efficient, can
+plementations of several reward specification methods                utilize onboard perception, and support easily speci-
+that are compatible with image observations, includ-                 fied rewards and resets. A number of algorithms have
+ing classifiers and adversarial training; (3) support for            shown the ability to learn very efficiently directly in
+learning “forward-backward” controllers that can auto-               the real world (Riedmiller et al., 2009; Westenbroek
+matically reset the task between trials (Eysenbach et al.,           et al., 2022; Yang et al., 2020; Zhan et al., 2021; Hou
+2018); (4) a software package that can in principle con-             et al., 2020; Tebbe et al., 2021; Popov et al., 2017; Luo
+nect the aforementioned RL component to any robotic                  et al., 2019; Zhao et al., 2022; Hu et al., 2024; Johannink
+manipulator; and (5) an impedance controller design                  et al., 2018; Schoettler et al., 2020), using variants of
+principle that is particularly effective for dealing with            off-policy RL (Kostrikov et al., 2023; Hu et al., 2024;
+contact-rich manipulation tasks. Our aim in this paper               Luo et al., 2023), model-based RL (Hester and Stone,
+is not to propose novel algorithms or methodology, but               2013; Wu et al., 2022; Nagabandi et al., 2019; Rafailov
+rather to offer a resource for the community to provide              et al., 2021; Luo et al., 2018), and on-policy RL (Zhu
+roboticists with a well-designed foundation both for                 et al., 2019). These advances have been paired with
+future research on robotic RL, and other methods that                advances in inferring rewards from raw visual observa-
+might employ robotic RL as a subroutine. However,                    tion through success classifiers (Fu et al., 2018; Li et al.,
+in the process of evaluating our framework, we also                  2021), foundation-model-based rewards (Du et al., 2023;
+make a scientifically interesting empirical observation:             Mahmoudieh et al., 2022; Fan et al., 2022), and rewards
+when implemented properly in a carefully engineered                  from videos (Ma et al., 2023b;a). Additionally, to enable
+software package, current sample-efficient robotic RL                autonomous training, there have been a number of al-
+methods can attain very high success rates with rela-                gorithmic advances in reset-free learning (Gupta et al.,
+tively modest training times. The tasks in our evalu-                2021; Sharma et al., 2021; Zhu et al., 2020; Xie et al., 2022;
+ation are illustrated in Fig. 1: precise insertion tasks             Sharma et al., 2023) that enable autonomous training
+involving dynamic contact, deformable object manip-                  with minimal human interventions. While these algo-
+ulation with complex dynamics, and object relocation                 rithmic advances are important, the contribution we
+where the robot must learn without manually designed                 make in this work is to provide a framework and soft-
+resets. For each of these tasks, SERL is able to learn               ware package to enable sample efficient reinforcement
+effectively within 15 - 60 min of training per policy (in            learning in the real world with a ready-made choice
+terms of total wall-clock time), achieving near-perfect              of methods that can work well for a variety of tasks.
+success rates, despite learning policies that operate                In doing so, we hope to lower the barrier of entry for
+
+
+                                                                 2
+                              SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+new researchers to build better algorithms and training               dynamics, and 𝑟 ∶  ×  → ℝ is the reward function,
+methodologies for robot learning in the real world.                   which encodes the task. An optimal policy 𝜋 is one
+Software packages for RL: There are a number of                       that maximizes the cumulative expected value of the
+packages (Seno and Imai, 2022; Nair and Pong; Hill et al.,            reward, i.e., 𝐸[∑∞ 𝑡=0 𝛾 𝑟(𝐬𝑡 , 𝐚𝑡 )], where the expectation
+                                                                                              𝑡
+
+2018; Guadarrama et al., 2018) for RL, though to our                  is taken with respect to the initial state distribution,
+knowledge, none aim to directly address real-world                    transition probabilities, and policy 𝜋.
+robotic RL specifically. SERL builds on the recently                     While the specification of the RL task is concise and
+proposed RLPD algorithm, which is an off-policy RL                    simple, turning real-world robotic learning problems
+algorithm with a high update-to-data ratio. SERL is not               into RL problems requires care. First, the sample effi-
+a library of RL algorithms for training agents in simula-             ciency of the algorithm for learning 𝜋 is paramount:
+tion, although it could be adapted to be so. Rather, SERL             when the learning must take place in the real world, ev-
+offers a full stack pipeline for robot control, going from            ery minute and hour of training comes at a cost. Sample
+low-level controllers to the interface for asynchronous               efficiency can be improved by using effective off-policy
+and efficient training with an RL algorithm to additional             RL algorithms (Konda and Tsitsiklis, 1999; Haarnoja
+machinery for inferring rewards and training without                  et al., 2018; Fujimoto et al., 2018), but it can also be
+resets. In doing so, SERL provides an off-the-shelf pack-             accelerated by incorporating prior data and demonstra-
+age to help non-experts start using RL to train their                 tions (Rajeswaran et al., 2018; Ball et al., 2023; Nair
+physical robots in the real world, unlike prior libraries             et al., 2020), which is important to achieve the fastest
+that aim to provide implementations of many meth-                     training times.
+ods – that is, SERL offers a full “vertical” integration of              Additionally, many of the challenges with robotic
+components, whereas prior libraries focus on the “hor-                RL lie beyond just the core algorithm for optimizing 𝜋.
+izontal.” SERL is also not an RL benchmark package                    For example, the reward function 𝑟 might depend on
+such as (Yu et al., 2019; James et al., 2020; Mittal et al.,          image observations, and difficult for the user to specify
+2023). SERL allows users to define their own tasks and                manually. Additionally, for episodic tasks where the
+success metrics directly in the real world, providing                 robot resets to an initial state 𝐬0 ∼ 𝜌(𝐬0 ) between trials,
+the software infrastructure for actually controlling and              actually resetting the robot (and its environment) into
+training robotic manipulators in these tasks.                         one of these initial states is a mechanical operation that
+Software for real-world RL: There have been several                   must somehow be automated.
+previous packages that have proposed infrastructure                      Furthermore, the controller layer, which interfaces
+for real world RL: for dexterous manipulation (Ahn                    the MDP actions 𝐚 (e.g., end-effector poses) to the actual
+et al., 2019), tabletop furniture assembly (Heo et al.,               low-level robot controls, also requires great care, partic-
+2023), legged locomotion (Kostrikov et al., 2023), and                ularly for contact-rich tasks where the robot physically
+peg insertion (Levine et al., 2016a). These packages are              interacts with objects in the environment. Not only
+effective in narrow situations, either using privileged               does this controller need to be accurate, but it must
+information or training setups such as explicit tracking              also be safe enough that the RL algorithm can explore
+(Levine et al., 2016a; Ahn et al., 2019) or pure proprio-             with random actions during training.
+ception (Kostrikov et al., 2023), or limited to imitation                SERL will aim to provide ready-made solutions to
+learning. In SERL, we show a full stack system that can               each of these challenges, with a high-quality implemen-
+be used for a wide variety of robotic manipulation tasks              tation of a sample-efficient off-policy RL method that
+without requiring privileging of the training setups as               can incorporate prior data, several choices for reward
+in prior work.                                                        function specification, a forward-backward algorithm
+                                                                      for learning resets, and a controller suitable for learning
+3. Preliminaries and Problem Statement                                contact-rich tasks without damaging either the robot
+Robotic reinforcement learning tasks can be defined via               or objects in the environment.
+an MDP  = {, , 𝜌, , 𝑟, 𝛾}, where 𝐬 ∈  is the state
+observation (e.g., an image in combination with the cur-              4. Sample Efficient Robotic Reinforce-
+rent end-effector position), 𝐚 ∈  is the action (e.g., the              ment Learning in the Real-World
+desired end-effector pose), 𝜌(𝐬0 ) is a distribution over             Our software package, which we call Sample-Efficient
+initial states,  is the unknown and potentially stochas-             Robotic reinforcement Learning (SERL), aims to make
+tic transition probabilities that depend on the system                robotic RL in the real world accessible by providing
+
+
+                                                                  3
+                             SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+ready-made solutions to the problems detailed in the                 on-policy data, such that half of each batch comes from
+previous section. This involves providing efficient                  prior data and half from the online replay buffer, and
+vision-based reinforcement learning algorithms and                   (iii) layer-norm regularization during training. This
+the infrastructure needed to support these learning al-              method can train from scratch, or use prior data (e.g.,
+gorithms for autonomous learning. We note that the                   demonstrations) to bootstrap learning. Each step of
+purpose of such an endeavor is not to propose novel                  the algorithm updates the parameters of a parametric
+algorithms or tools, but rather to develop a software                Q-function 𝑄𝜙 (𝐬, 𝐚) and actor 𝜋𝜃 (𝐚|𝐬) according to the
+package that anyone can use easily for robotic learning,             gradient of their respective loss functions:
+without complex setup procedures and painful integra-
+                                                                                                                                      2
+tion across libraries.                                               𝑄 (𝜙) = 𝐸𝐬,𝐚,𝐬′[(𝑄𝜙 (𝐬, 𝐚)− (𝑟(𝐬, 𝐚)+𝛾𝐸𝐚′ ∼𝜋𝜃 [𝑄𝜙̄ (𝐬′ , 𝐚′ )])) ]
+   The core reinforcement learning algorithm is derived
+                                                                     𝜋 (𝜃) = −𝐸𝐬 [𝐸𝐚∼𝜋𝜃 (𝐚) [𝑄𝜙 (𝐬, 𝐚)] + 𝛼(𝜋𝜃 (⋅|𝐬)] ,
+from RLPD (Ball et al., 2023), which itself is a variant
+of soft actor-critic (Haarnoja et al., 2018): an off-policy          where 𝑄𝜙̄ is a target network (Mnih et al., 2013), and
+Q-function actor-critic method that can readily incor-               the actor loss uses entropy regularization with an adap-
+porate prior data (either suboptimal data or demon-                  tively adjusted weight 𝛼 (Haarnoja et al., 2018). Each
+strations) into the replay buffer for efficient learning.            update step uses a sample-based approximation of each
+The reward functions can be specified either with a bi-              expectation, with half of the samples drawn from the
+nary classifier or VICE (Fu et al., 2018), which provides            prior data (e.g., demonstrations), and half drawn from
+a method to update the classifier during RL training                 the replay buffer (Mnih et al., 2013). For efficient learn-
+with additional negatives from the policy. The reward                ing, multiple update steps are performed per time step
+function can also be specified by hand in cases where                in the environment, which is referred to as the update-
+the robot state is sufficient to evaluate success (e.g., as          to-date (UTD) ratio, and regularizing the critic with
+in our PCB board assembly task). The resets can be                   layer normalization allows for higher UTD ratios and
+provided via a forward-backward architecture (Sharma                 thus more efficient training (Ball et al., 2023).
+et al., 2021), where the algorithm simultaneously trains
+two policies: a forward policy that performs the task,               4.2. Reward Specification with Classifiers
+and a backward policy that resets the environment back               Reward functions are difficult to specify by hand when
+to the initial state. On the robot system side, we also              learning with image observations, as the robot typically
+provide a universal adapter for interfacing our method               requires some sort of perception system just to deter-
+to arbitrary robots, as well as an impedance controller              mine if the task was performed successfully. While
+that is particularly well-suited for contact-rich manip-             some tasks, such as the PCB board assembly task in
+ulation tasks.                                                       Fig. 1, can accommodate hand-specified rewards based
+                                                                     on the location of the end effector (under the assump-
+4.1. Core RL Algorithm: RLPD                                         tion that the object is held rigidly in the gripper), most
+There are several desiderata for reinforcement learning              tasks require rewards to be deduced from images. In
+algorithm to be deployed in this setting: (1) it must be             this case, the reward function can be provided by a
+efficient and able to make multiple gradient updates                 binary classifier that takes in the state observation 𝐬
+per time step, (2) it must be able to incorporate prior              and outputs the probability of a binary “event” 𝑒, corre-
+data easily and then continue improving with further                 sponding to successful completion. The reward is then
+experience, (3) it must be simple to debug and build on              given by 𝑟(𝐬) = log 𝑝(𝑒|𝐬).
+for new users. To this end, we build on the recently                    This classifier can be trained either using hand-
+proposed RLPD (Ball et al., 2023) algorithm, which has               specified positive and negative examples, or via an
+shown compelling results on sample-efficient robotic                 adversarial method called VICE (Fu et al., 2018). The
+learning. RLPD is an off-policy actor-critic reinforce-              latter addresses a reward exploitation problem that can
+ment learning algorithm that builds on the success                   arise when learning with classifier based rewards, and
+of temporal difference algorithms such as soft-actor                 removes the need for negative examples in the clas-
+critic (Haarnoja et al., 2018), but makes some key mod-              sifier training set: when the RL algorithm optimizes
+ifications to satisfy the desiderata above. RLPD makes               the reward 𝑟(𝐬) = log 𝑝(𝑒|𝐬), it can potentially discover
+three key changes: (i) high update-to-data ratio training            “adversarial” states that fool the classifier 𝑝(𝑒|𝐬) to erro-
+(UTD), (ii) symmetric sampling between prior data and                neously output high probabilities. VICE addresses this
+
+
+                                                                 4
+                              SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+issue by adding all states visited by the policy into the
+training set for the classifier with negative labels, and
+updating the classifier after each iteration. In this way,
+the RL process is analogous to a generative adversar-
+ial network (GAN) (Goodfellow et al., 2014), with the
+policy acting as the generator and the reward classi-
+fier acting as the discriminator. Our framework thus
+supports all three types of rewards.
+
+4.3. Reset-Free Training               with       Forward-
+                                                                      Figure 2: Software architecture and real-world robot training
+     Backward Controllers                                             example code. SERL runs three parallel processes, consisting of the
+When learning episodic tasks, the robot must reset                    actor, which chooses actions, and the learner node, which actually
+the environment between task attempts. For example,                   runs the training code, and the robot environment, which executes
+                                                                      the actions from the actor and contributes data back to the learner.
+when learning the object relocation task in Figure 1,
+each time the robot successfully moves the object to the
+target bin, it must then take it out and place it back into           at a fixed rate, which is crucial for tasks that require
+the initial bin. To remove the need for human effort                  immediate feedback and reactions, such as deformable
+in “resets”, SERL supports “reset-free” training by us-               objects and contact-rich manipulations, but also re-
+ing forward and backward controllers (Han et al., 2015;               duces the total wall-clock time spend training in the
+Gupta et al., 2021). In this setup, two policies are trained          real world.
+simultaneously using two independent RL agents, each
+with its own policy, Q-function, and reward function                  4.5. Impedance Controller for Contact-Rich
+(specified via the methods in the previous section). The                   Tasks
+forward agent learns to perform the task, and the back-               Although our package should be compatible with any
+ward agent learns to return to the initial state(s). While            OEM robot controller, as described in Sec. 4, we found
+more complex reset-free training procedures can also                  that the choice of controllers can heavily affect the final
+be possible (Gupta et al., 2021), we find that this sim-              performance. This is more pronounced for contact-
+ple recipe is sufficient for learning object manipulation             rich manipulation. For example, in the PCB insertion
+tasks like the repositioning skill in Figure 1.                       task in Fig. 1, an overly stiff controller might bend the
+                                                                      fragile pins and make insertion difficult, while an overly
+4.4. Software Components                                              compliant controller might struggle to move the object
+Environment adapters: SERL aims to be easily usable                   into position quickly.
+for many robot environments. Although we provide a                       A typical setup for robotic RL employs a two-layered
+set of Gym environment wrappers and robot environ-                    control hierarchy, where an RL policy produces set-
+ments for the Franka arm as starter guides, users can                 point actions at a much lower frequency than the down-
+also use their own existing environments or develop                   stream real-time controller. The RL controller can set
+new environments as they see fit. Thus, the library                   targets for the low-level controller to cause physically
+does not impose additional constraints on the robot                   undesirable consequences. To illustrate this, let’s con-
+environment as long as it is Gym-like (Brockman et al.,               sider the hierarchical controller structure presented in
+2016) as shown in Fig. 2. We welcome contributions                    Fig. 4, where a high-level RL controller 𝜋(𝐚|𝐬) sends
+from the community to extend the support for readily                  control targets at 10HZ for the low-level impedance
+deployable environment wrappers for other robots and                  controller to track at 1K HZ, so one timestep from RL
+tasks.                                                                will block 100 timesteps of the low-level controller to
+Actor and learner nodes: SERL includes options to                     execute. A typical impedance control objective for this
+train and act in parallel to decouple inferring actions               controller is
+and updating policies with a few lines of code as illus-                             𝐹 = 𝑘𝑝 ⋅ 𝑒 + 𝑘𝑑 ⋅ 𝑒̇ + 𝐹𝑓 𝑓 + 𝐹𝑐𝑜𝑟 ,
+trated in Fig. 2. We found this to be beneficial in sample-
+efficient real-world learning problems with high UTD                  where 𝑒 = 𝑝 − 𝑝𝑟𝑒𝑓 , 𝑝 is the measured pose, and 𝑝𝑟𝑒𝑓 is
+ratios. By separating actor and learner on two different              the target pose computed by the upstream controller,
+threads, SERL not only preserves the control frequency                𝐹𝑓 𝑓 is the feed-forward force, 𝐹𝑐𝑜𝑟 is the Coriolis force,
+
+
+                                                                  5
+                                   SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+                                                                             stable training, because the episode would need enough
+                                                                             time steps to allow the arm to move over long distances
+                                                                             (e.g., approaching the insertion point). However, if we
+                                                                             directly clip at the real-time layer, this will largely mit-
+                                                                             igate the issue without the need to constrain the RL
+                                                                             policy to small actions. It will not block the free space
+                                                                             movement of the RL policy as long as 𝑀 ⋅ |Δ| ≥ |𝑎|𝑚𝑎𝑥 ,
+                                                                             where 𝑀 is the number of control time-steps inside
+                                                                             a block, as in Fig. 4. This value is usually large (e.g.,
+Figure 3: Visualization of controller logs from the robot when
+                                                                             𝑀 = 100). At the same time, we strictly enforce the
+commanded with different movements, for the z-axis of the end-
+effector. The orange line is the commanded target (the output of             reference constraint at the real-time level whenever
+RL), red is the smoothed target sent to the real-time controller, blue       in contact. One might also wonder if it’s possible to
+is the clipped target, and green is the robot position after executing       achieve the same result by using an external force/-
+this controller. Left: The robot end-effector was commanded to
+                                                                             torque sensor. This may be undesirable for several
+move into contact with a hard surface and continue the movement
+despite the contact. The reference limiting mechanism clipped the            reasons: (1) force/torque sensors can have significant
+target to avoid a hard collision. Right: The command is a fast               noise, and obtaining the right hardware and calibration
+free-space movement, which our reference limiting mechanism                  can be difficult; (2) even if we get such a threshold value,
+does not block, allowing fast motion to the target.                          it’s nontrivial to design robot motions to accommodate
+                                                                             policy learning as well as obeying the force constraint.
+                                                                             In practice, we found that clipping the reference in this
+                                                                             way is simple but very effective, and is crucial to enable
+                                                                             RL-based contact-rich manipulation tasks. We tested
+                                                                             our controller on a Franka Panda robot and included
+Figure 4: A typical controller hierarchy for robotics RL. The
+                                                                             the Franka Panda implementation with our package.
+output from the RL policy is tracked within a block of time by the           However, this principle can be easily implemented on
+downstream controller.                                                       any torque-controlled robot. To verify the actual perfor-
+                                                                             mance of the proposed controller, we report the actual
+this objective will then be converted into joint space                       tracking performance of moving the robot in free space
+torques by multiplying Jacobian transpose and offset by                      and in contact with a table surface as in Fig. 3, where
+nullspace torques. It acts like a spring-damper system                       we can see the controller indeed clamps the reference
+around the equilibrium set by 𝑝𝑟𝑒𝑓 with the stiffness                        whenever in contact, while permitting fast movement
+coefficient being 𝑘𝑝 and the damping coefficient being                       in free space.
+𝑘𝑑 . As described above, this system will yield large
+forces if 𝑝𝑟𝑒𝑓 is far away from the current pose, which                      4.6. Relative Observation and Action Frame
+can lead to a hard collision or damage when the arm                          The choice of action space is particularly important
+is in contact with something. Therefore it’s crucial to                      both for the ease of the RL training process and the
+constrain the interaction force generated by it. How-                        ability of the learned policy to generalize to perturba-
+ever, directly reducing gains will hurt the controller’s                     tions at test time. While SERL can operate on various
+accuracy. Thus, we should bound 𝑒 so that |𝑒| ≤ Δ,                           action representations via a standard RL environment
+and then the generated force from the spring-damper                          interface, we found that a convenient mechanism of
+system will be bounded to 𝑘𝑝 ⋅ |Δ| + 2𝑘𝑑 ⋅ |Δ| ⋅ 𝑓 , 𝑓 is the                representing observations and actions in a relative co-
+control frequency.                                                           ordinate system.
+    One might wonder if we should directly clip the                             To develop an agent capable of adapting to a dynamic
+action output by the RL policy. This might seem rea-                         target, we propose a training procedure that simulates a
+sonable, but can be impractical in some scenarios: some                      moving target without the need for physical movement.
+objects such as the PCB board may require a very small                       The target, for instance, the PCB insertion socket holes,
+interaction force, implying a very small Δ, usually on                       is fixed relative to the robot base frame, and the reward
+the order of micrometers; if the RL policy is only al-                       can be specified using any of the standard methods
+lowed to move at increments of micrometers, it would                         provided in Sec. 4.2. At the beginning of each train-
+result in an extremely long learning process or very un-                     ing episode, the pose of the robot’s end-effector was
+
+
+                                                                         6
+                                       SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+
+Figure 5: Illustration of the robot performing each task with our method: PCB Insertion (top left), Cable Routing (top right), Object
+Relocation - Forward (bottom left), and Object Relocation - Backward (bottom right). The green box indicates a state where the robot
+receives a high reward for completing the task.
+
+                  Package                              Task           Training time    Success rate   Demos   Shaping?   Vision?   Open-sourced?
+ Guided Policy Search(Levine et al., 2016b)        Peg insertion          3 hours           70%         0       Yes       Yes           Yes
+       DDPGfD (Vecerik et al., 2018)             Peg/clip insertion    1.5-2.5 hours    97% / 77%      30       No        Yes           No
+ Visual Residual RL (Schoettler et al., 2020)   Connector insertion   Not mentioned    52% ∼ 100%       0       Yes       Yes           No
+          SHIELD (Luo et al., 2021)             Connector insertion      1.5 hours         99.8%       25       No        Yes           No
+  InsertionNet (Spector and Castro, 2021)       Connector insertion       40 mins      78.5% - 100%     0       Yes       Yes           No
+               SERL (Ours)                        PCB Insertion          20 mins           100%        20       No        Yes           Yes
+
+Table 1: Comparison to results reported on similar tasks in prior work. The overall success rates for our method are generally higher,
+and the training times are generally lower, as compared to prior results. Note also that the PCB board assembly task, shown in Figure 1,
+has very tight tolerances, likely significantly tighter than the coarser peg and connector insertion tasks studied in the prior works.
+
+
+randomized uniformly within a pre-defined area in the                            is tracked by the low-level controller. The evaluation
+workspace. The robot’s proprioceptive information is                             tasks are illustrated in Fig. 5 and described below:
+expressed with respect to frame of the end-effector’s ini-                       PCB insertion: Inserting connectors into a PCB board
+tial pose; the action output from the policy (6D twist) is                       demands fine-grained, contact-rich manipulation with
+relative to the current end-effector frame. This is equiv-                       sub-millimeter precision. This task is ideal for real-
+alent to physically moving the target when viewed                                world training, as simulating and transferring such
+relatively from the frame attached to the end-effector.                          contact-rich interactions can be challenging. At the
+More details on are described in the appendix 7. As a                            beginning of each training and evaluation episode, the
+result, the policy can succeed even if the object moves                          initial end effector pose is sampled uniformly from a
+or, as in some of our experiments, is perturbed in the                           starting region, as described in Table 2.
+middle of the episode.                                                           Cable routing: This task involves routing a de-
+                                                                                 formable cable into a clip’s tight-fitting slot. This task
+                                                                                 requires the robot to perceive the cable and carefully
+5. Experiments                                                                   manipulate it so that it fits into the clip while holding it
+Our experimental evaluation aims to study how effi-                              at another location. This is particularly difficult for any
+ciently our system can learn a variety of robotic manip-                         method that relies on model-based control, or makes
+ulation tasks, including contact-rich tasks, deformable                          rigid-object assumptions, since both visual perception
+object manipulation, and free-floating object manipu-                            and handling of deformable objects is essential for ac-
+lation. These experiments demonstrate the breadth of                             cess. Tasks of this sort often arise in manufacturing and
+applicability and efficiency of SERL. We use a Franka                            maintenance scenarios. Similarly to the PCB task, the
+Panda arm and two wrist cameras attached to the end-                             initial end effector pose is sampled uniformly within a
+effector to get close-in views. Further details can be                           starting region, as described in Table 2.
+found at https://serl-robot.github.io/. We use an Ima-                           Object relocation: This task requires moving a free-
+geNet pre-trained ResNet-10 (He et al., 2015) as a vision                        floating object between bins, requiring grasping and
+backbone for the policy network and connect it to a                              relocation. The intricacies of reward inference and
+2-layer MLP. Observations include camera images and                              reset-free training become especially pronounced in the
+robot proprioceptive information such as end-effector                            manipulation of such free-floating objects. We define
+pose, twist, force, and torque. The policy outputs a 6D                          the forward task as picking up the object from the bin
+end-effector delta pose from the current pose, which
+
+
+                                                                             7
+                                 SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+                Task                    # of Demos       Image Input           Random Reset    Reward Specification    Bin Size     Training Time
+       PCB Component Insertion              20          2 wrist camera              True           Ground Truth       10cm × 10cm      20 mins
+             Cable Routing                  20          2 wrist camera              True          Binary Classifier   20cm × 20cm      31 mins
+ Object Relocation (Forward-Backward)       20       1 wrist, 1 side camera         False         Binary Classifier   20cm × 30cm     105 mins
+
+
+Table 2: Task parameters: During demo collection for both BC and RL, as well as online training, each episode’s initial end-effector pose
+resets uniformly at random within a fixed region for the PCB and Cable task, while the free-floating object relocation task resets above
+the center of each bin.
+
+
+
+
+Figure 6: Success rate comparisons: When evaluated for 100 trials             Figure 7: Cycle time comparison: We recorded the average time
+per task, learned RL policies outperformed BC policies by a large             taken for the robot to succeed in each task. RL policies are at least
+margin, by 1.7x for Object Relocation, by 5x for Cable Routing,               2x faster than BC policies trained with 100 high-quality human
+and by 10x for PCB Insertion.                                                 teleoperated demonstrations for all three tasks.
+
+
+on the right side and placing it on the left, while the                       time amounts to less than an hour per policy. For the
+backward task moves the object back to the starting                           cable routing task and PCB insertion task, our policies
+bin, undoing the forward task.                                                outperform BC baselines by a large margin, despite
+   For each task, we initialize RL training from 20 tele-                     training with 5x fewer demonstrations than BC, sug-
+operated demonstrations using a Space Mouse. To con-                          gesting that demos alone are insufficient. We report
+firm that demonstrations alone are insufficient to solve                      the results in terms of success rate and cycle time in
+the task, we include a behavioral cloning (BC) baseline                       Fig. 6 and Fig. 7. The learned RL policies not only out-
+using 100 high-quality expert teleoperated demonstra-                         performed their BC counterparts by as much as 10x in
+tions, roughly matching the total amount of data in the                       terms of success rate but also improved on the cycle
+RL replay buffer when RL converges. Note that this is 5                       time of the initial human demonstrations by up to 3x.
+times more demonstrations than the amount provided
+by our method. Both RL and BC demonstrations are                              Comparison to prior systems: While it’s difficult
+collected using the initial end effector randomization                        to directly compare our results to those of prior sys-
+scheme described in Table 2. All training was done on                         tems due to numerous differences in the setup, lack
+a single Nvidia RTX 4090 GPU.                                                 of consistently open-sourced code, and other discrep-
+                                                                              ancies, we provide a summary of training times and
+Results: We report the results in Table 2, and show                           success rates reported for tasks that are most similar
+example executions in Fig. 5. We evaluated both BC                            to our PCB board insertion task in Table 2. We chose
+and RL policies under the same conditions and proto-                          this task because similar insertion or assembly tasks
+cols as detailed in Section 5. Our RL policies achieve                        have been studied in prior work, and such tasks often
+perfect success rates on all three tasks over all 100 trials.                 present challenges with precision, compliant control,
+For the PCB insertion and cable routing task, our RL                          and sample efficiency. Compared to these prior works,
+policies converge in under 30 minutes of real-world                           our experiments do not use shaped rewards, which
+training, which includes all computation, resets, and                         might require extensive engineering, though we do
+intended stops. The free-floating object relocation task                      utilize a small amount of demonstration data (which
+learns two policies (forward and backward), and total                         some prior works eschew). The results reported in
+
+
+                                                                        8
+                             SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+                                                                     that it can learn a range of diverse manipulation tasks
+                                                                     very efficiently, with under an hour of training per
+                                                                     policy when provided with a small number of demon-
+                                                                     strations. These results qualitatively compare well to
+                                                                     state-of-the-art results in RL for manipulation in the
+                                                                     literature, indicating that the particular choices in our
+                                                                     framework are well-suited for obtaining very good real-
+Figure 8: Peg Insertion Task at University of Washington
+                                                                     world results even from image observations. Our frame-
+                                                                     work does have a number of limitations. First, we do
+these prior works generally have either lower success                not aim to provide a comprehensive library with every
+rates or longer training times, or both, suggesting our              possible RL method, and some tasks and settings might
+implementation of sample-efficient RL matches or ex-                 be outside of our framework (e.g., non-manipulation
+ceeds the performance of state-of-the-art methods in                 tasks). Second, the full range of reward specifications
+the literature, at least on this type of task. The closest           and reset-free learning challenges still constitute an
+performance to ours in the work of Spector et al. (Spec-             open problem in robotic RL research. Our classifier-
+tor and Castro, 2021) includes a number of design deci-              based rewards and forward-backward controller might
+sions and inductive biases that are specific to insertion,           not be appropriate in every setting. Further research on
+whereas our method is generic and makes minimal task-                these topics is needed to make robotic RL more broadly
+specific assumptions. Although the components of our                 applicable. However, we hope that our software pack-
+system are all based on (recent) prior work, the state-              age will provide a reasonable “default” starting point
+of-the-art performance of this combination illustrates               for both researchers and practitioners wanting to ex-
+our main thesis: the details of how deep RL methods                  periment with real-world RL methods.
+are implemented can make a big difference.
+
+Reproducibility: A core mission of SERL is to lower                  Acknowledgments
+the setup barriers and encourage reproducible robotic                This research was partially supported by Intrinsic In-
+RL on different robot systems. To this end, we demon-                novation LLC, the National Science Foundation under
+strate the successful integration of SERL software suite             IIS-2150826, and ARO W911NF-21-1-0097. We would
+on a robot arm operated at a different institution.                  like to thank Rehaan Ahmad and Siri Gadipudi for par-
+   Researchers at the University of Washington set up                ticipating in the discussion of this project.
+a Peg Insertion task using 3D printed parts from the
+Functional Manipulation Benchmark (Luo et al., 2024)
+and used SERL to solve this challenging task. The over-              7. Appendix
+all preparation time including setting up the relevant               7.1. Details on Relative Observation and Ac-
+hardware and software is less than 3 hours. The policy                    tion Frame
+converged in 19 minutes and achieved a 100/100 success
+                                                                     Let the robot’s base frame be {𝑠}; for the 𝑖-th episode
+rate with 20 initial human demonstrations, successfully
+                                                                     of rolling out the policy, we denote {𝑏𝑡(𝑖) } as the end-
+reproducing our results.
+                                                                     effector frame expressed w.r.t. {𝑠} at a particular time
+                                                                     step 𝑡; where 1 ≤ 𝑖 ≤ 𝑀, 0 ≤ 𝑡 ≤ 𝑁 . For each episode,
+6. Discussion                                                        {𝑏0(𝑖) } is sampled from a uniform distribution specifying
+We described a system and software package for robotic               the area of randomization. We want to express such
+reinforcement learning that is aimed at making real-                 proprioceptive information with respect to {𝑏0(𝑖) }. Thus,
+world RL more accessible both to researchers and prac-               the policy will be applicable to a new location provided
+titioners. Our software package provides a carefully de-             that the relative spatial distance between the robot’s
+signed combination of ingredients for sample-efficient               end-effector and the target remains consistent. This
+RL, automating reward design, automating environ-                    approach prevents overfitting to specific global loca-
+ment resets with forward-backward controllers, and a                 tions within the reference frame {𝑠}. We achieve this by
+controller framework that is particularly well-suited for            applying the following homogeneous transformation:
+contact-rich manipulation tasks. Furthermore, our ex-
+perimental evaluation of our framework demonstrates                                         𝑇𝑏(𝑖) 𝑏(𝑖) = 𝑇𝑏−1
+                                                                                                           (𝑖) ⋅ 𝑇𝑏(𝑖)
+                                                                                              0   𝑡         0      𝑡
+
+
+
+
+                                                                 9
+                                 SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+where we use 𝑇𝑎𝑏 to denote the homogeneous trans-                          muscular robots. IEEE Trans. Robotics, 38(6):3850–
+formation matrix between frame {𝑎} and {𝑏}. We feed                        3860, 2022. doi: 10.1109/TRO.2022.3176207. URL
+the position and rotation information extracted from                       https://doi.org/10.1109/TRO.2022.3176207.
+𝑇𝑏(𝑖) 𝑏(𝑖) to the policy. Here we use 𝑇𝑎𝑏 to denote the ho-
+  0 𝑡                                                                    Yuqing Du, Ksenia Konyushkova, Misha Denil, Akhil
+mogeneous transformation matrix between frame {𝑎}
+                                                                           Raju, Jessica Landon, Felix Hill, Nando de Freitas,
+and {𝑏}, defined as:
+                                                                           and Serkan Cabi. Vision-language models as success
+                             𝑅𝑎𝑏 𝑝𝑎𝑏                                       detectors. arXiv preprint arXiv:2303.07280, 2023.
+                    𝑇𝑎𝑏 =             .
+                            [01×3 1 ]                                    Benjamin Eysenbach, Shixiang Gu, Julian Ibarz, and
+The policy generates a six degrees of freedom (6 DoF)                      Sergey Levine. Leave no trace: Learning to reset
+twist action, which is expressed in the reference frame                    for safe and autonomous reinforcement learning. In
+from which it currently receives observations, i.e., {𝑏𝑡(𝑖) }.             6th International Conference on Learning Representa-
+Mathematically, the 6 DoF twist action 𝑡(𝑖) expressed in                  tions, ICLR 2018, Vancouver, BC, Canada, April 30 -
+frame {𝑏𝑡(𝑖) } at timestep 𝑡. To interface with the robot’s                May 3, 2018, Conference Track Proceedings. OpenRe-
+                                                ′
+control software, which expects actions 𝑡(𝑖) expressed                    view.net, 2018. URL https://openreview.net/forum?id=
+in the base frame {𝑠}, we apply the Adjoint mapping:                       S1vuO-bCW.
+
+                       ′             −1                                  Linxi Fan, Guanzhi Wang, Yunfan Jiang, Ajay Man-
+                   𝑡(𝑖) = [Ad(𝑖)  (𝑖)
+                              𝑡 ] 𝑡                                       dlekar, Yuncong Yang, Haoyi Zhu, Andrew Tang,
+                                                                           De-An Huang, Yuke Zhu, and Anima Anandkumar.
+where [Ad(𝑖)
+          𝑡 ] is a function of the homogeneous trans-                      Minedojo: Building open-ended embodied agents
+formation 𝑇𝑏(𝑖) defined as:
+              0                                                            with internet-scale knowledge. In NeurIPS, 2022.
+                                                                           URL http://papers.nips.cc/paper_files/paper/2022/hash/
+                              𝑅𝑏(𝑖)         03×3                           74a67268c5cc5910f64938cac4526a90-Abstract-Datasets_
+             [Ad(𝑖)
+                𝑡 ]=
+                                  𝑡                 .
+                        [[𝑝𝑏(𝑖) ] × 𝑅𝑏(𝑖)
+                             𝑡         𝑡
+                                            𝑅𝑏(𝑡) ]
+                                               𝑡
+                                                                           and_Benchmarks.html.
+
+                                                                         Justin Fu, Avi Singh, Dibya Ghosh, Larry Yang, and
+                                                                           Sergey Levine. Variational inverse control with
+References
+                                                                           events: A general framework for data-driven reward
+Michael Ahn, Henry Zhu, Kristian Hartikainen, Hugo                         definition. Advances in neural information processing
+  Ponte, Abhishek Gupta, Sergey Levine, and Vikash                         systems, 31, 2018.
+  Kumar. ROBEL: robotics benchmarks for learn-
+  ing with low-cost robots. In Leslie Pack Kaelbling,                    Scott Fujimoto, Herke van Hoof, and David Meger.
+  Danica Kragic, and Komei Sugiura, editors, 3rd An-                       Addressing function approximation error in actor-
+  nual Conference on Robot Learning, CoRL 2019, Os-                        critic methods. In Jennifer G. Dy and Andreas
+  aka, Japan, October 30 - November 1, 2019, Proceed-                      Krause, editors, Proceedings of the 35th International
+  ings, volume 100 of Proceedings of Machine Learn-                        Conference on Machine Learning, ICML 2018, Stock-
+  ing Research, pages 1300–1313. PMLR, 2019. URL                           holmsmässan, Stockholm, Sweden, July 10-15, 2018,
+  http://proceedings.mlr.press/v100/ahn20a.html.                           volume 80 of Proceedings of Machine Learning Re-
+                                                                           search, pages 1582–1591. PMLR, 2018. URL http:
+Philip J Ball, Laura Smith, Ilya Kostrikov, and Sergey                     //proceedings.mlr.press/v80/fujimoto18a.html.
+  Levine. Efficient online reinforcement learning with
+  offline data. arXiv preprint arXiv:2302.02948, 2023.                   Ian Goodfellow, Jean Pouget-Abadie, Mehdi Mirza,
+                                                                           Bing Xu, David Warde-Farley, Sherjil Ozair, Aaron
+Greg Brockman, Vicki Cheung, Ludwig Pettersson,                            Courville, and Yoshua Bengio. Generative adversar-
+  Jonas Schneider, John Schulman, Jie Tang, and Wo-                        ial nets. Advances in neural information processing
+  jciech Zaremba. Openai gym. arXiv preprint                               systems, 27, 2014.
+  arXiv:1606.01540, 2016.
+                                                                         Sergio Guadarrama, Anoop Korattikara, Oscar Ramirez,
+Dieter Büchler, Simon Guist, Roberto Calandra, Vin-                        Pablo Castro, Ethan Holly, Sam Fishman, Ke Wang,
+  cent Berenz, Bernhard Schölkopf, and Jan Peters.                         Ekaterina Gonina, Neal Wu, Efi Kokiopoulou, Lu-
+  Learning to play table tennis from scratch using                         ciano Sbaiz, Jamie Smith, Gábor Bartók, Jesse
+
+
+                                                                    10
+                            SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+  Berent, Chris Harris, Vincent Vanhoucke, and Eu-                  Zhimin Hou, Jiajun Fei, Yuelin Deng, and Jing Xu.
+  gene Brevdo. TF-Agents: A library for reinforcement                 Data-efficient hierarchical reinforcement learning
+  learning in tensorflow. https://github.com/tensorflow/              for robotic assembly control applications. IEEE Trans-
+  agents, 2018. URL https://github.com/tensorflow/agents.             actions on Industrial Electronics, 68(11):11565–11575,
+  [Online; accessed 25-June-2019].                                    2020.
+
+Abhishek Gupta, Justin Yu, Tony Z. Zhao, Vikash                     Zheyuan Hu, Aaron Rovinsky, Jianlan Luo, Vikash Ku-
+  Kumar, Aaron Rovinsky, Kelvin Xu, Thomas De-                        mar, Abhishek Gupta, and Sergey Levine. REBOOT:
+  vlin, and Sergey Levine. Reset-free reinforcement                   reuse data for bootstrapping efficient real-world dex-
+  learning via multi-task learning: Learning dexterous                terous manipulation. arXiv preprint arXiv:2309.03322,
+  manipulation behaviors without human interven-                      2024.
+  tion. In IEEE International Conference on Robotics
+  and Automation, ICRA 2021, Xi’an, China, May 30                   Stephen James, Zicong Ma, David Rovick Arrojo, and
+ - June 5, 2021, pages 6664–6671. IEEE, 2021. doi:                    Andrew J. Davison. Rlbench: The robot learning
+  10.1109/ICRA48506.2021.9561384. URL https://doi.                    benchmark & learning environment. IEEE Robotics
+  org/10.1109/ICRA48506.2021.9561384.                                 Autom. Lett., 5(2):3019–3026, 2020. doi: 10.1109/LRA.
+                                                                      2020.2974707. URL https://doi.org/10.1109/LRA.2020.
+Tuomas Haarnoja, Aurick Zhou, Pieter Abbeel, and                      2974707.
+  Sergey Levine. Soft actor-critic: Off-policy maxi-
+  mum entropy deep reinforcement learning with a                    Tobias Johannink, Shikhar Bahl, Ashvin Nair, Jianlan
+  stochastic actor. In International conference on ma-                Luo, Avinash Kumar, Matthias Loskyll, Juan Aparicio
+  chine learning, pages 1861–1870. PMLR, 2018.                        Ojea, Eugen Solowjow, and Sergey Levine. Resid-
+                                                                      ual reinforcement learning for robot control. CoRR,
+Weiqiao Han, Sergey Levine, and Pieter Abbeel. Learn-                 abs/1812.03201, 2018. URL http://arxiv.org/abs/1812.
+ ing compound multi-step controllers under un-                        03201.
+ known dynamics. In 2015 IEEE/RSJ International
+ Conference on Intelligent Robots and Systems (IROS),               Dmitry Kalashnikov, Jacob Varley, Yevgen Chebotar,
+ pages 6435–6442. IEEE, 2015.                                        Benjamin Swanson, Rico Jonschkowski, Chelsea
+                                                                     Finn, Sergey Levine, and Karol Hausman. Mt-opt:
+Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian                    Continuous multi-task robotic reinforcement learn-
+  Sun. Deep residual learning for image recognition,                 ing at scale. CoRR, abs/2104.08212, 2021. URL
+  2015.                                                              https://arxiv.org/abs/2104.08212.
+
+Minho Heo, Youngwoon Lee, Doohyun Lee, and                          Vijay R. Konda and John N. Tsitsiklis. Actor-critic al-
+ Joseph J. Lim. Furniturebench: Reproducible real-                    gorithms. In Sara A. Solla, Todd K. Leen, and Klaus-
+ world benchmark for long-horizon complex manip-                      Robert Müller, editors, Advances in Neural Informa-
+  ulation. In Kostas E. Bekris, Kris Hauser, Sylvia L.                tion Processing Systems 12, [NIPS Conference, Den-
+  Herbert, and Jingjin Yu, editors, Robotics: Science and             ver, Colorado, USA, November 29 - December 4, 1999],
+  Systems XIX, Daegu, Republic of Korea, July 10-14,                  pages 1008–1014. The MIT Press, 1999. URL http:
+  2023, 2023. doi: 10.15607/RSS.2023.XIX.041. URL                     //papers.nips.cc/paper/1786-actor-critic-algorithms.
+  https://doi.org/10.15607/RSS.2023.XIX.041.
+                                                                    Ilya Kostrikov, Laura M. Smith, and Sergey Levine.
+Todd Hester and Peter Stone. Texplore: real-time                       Demonstrating A walk in the park: Learning to walk
+  sample-efficient reinforcement learning for robots.                  in 20 minutes with model-free reinforcement learn-
+  Machine learning, 90:385–429, 2013.                                  ing. In Kostas E. Bekris, Kris Hauser, Sylvia L. Her-
+                                                                       bert, and Jingjin Yu, editors, Robotics: Science and
+Ashley Hill, Antonin Raffin, Maximilian Ernestus,                      Systems XIX, Daegu, Republic of Korea, July 10-14,
+  Adam Gleave, Anssi Kanervisto, Rene Traore, Pra-                     2023, 2023. doi: 10.15607/RSS.2023.XIX.056. URL
+  fulla Dhariwal, Christopher Hesse, Oleg Klimov, Alex                 https://doi.org/10.15607/RSS.2023.XIX.056.
+  Nichol, Matthias Plappert, Alec Radford, John Schul-
+  man, Szymon Sidor, and Yuhuai Wu. Stable baselines.               Sergey Levine, Chelsea Finn, Trevor Darrell, and Pieter
+  https://github.com/hill-a/stable-baselines, 2018.                   Abbeel. End-to-end training of deep visuomotor
+
+
+                                                               11
+                            SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+  policies. J. Mach. Learn. Res., 17:39:1–39:40, 2016a.             Jianlan Luo, Charles Xu, Fangchen Liu, Liam Tan,
+  URL http://jmlr.org/papers/v17/15-522.html.                          Zipeng Lin, Jeffrey Wu, Pieter Abbeel, and Sergey
+                                                                       Levine. Fmb: a functional manipulation benchmark
+Sergey Levine, Chelsea Finn, Trevor Darrell, and Pieter                for generalizable robotic learning. arXiv preprint
+  Abbeel. End-to-end training of deep visuomotor                       arXiv:2401.08553, 2024.
+  policies. The Journal of Machine Learning Research,
+  17(1):1334–1373, 2016b.                                           Yecheng Jason Ma, Vikash Kumar, Amy Zhang, Os-
+                                                                      bert Bastani, and Dinesh Jayaraman. LIV: language-
+Sergey Levine, Peter Pastor, Alex Krizhevsky, Julian
+                                                                      image representations and rewards for robotic
+  Ibarz, and Deirdre Quillen. Learning hand-eye coor-
+                                                                      control. In Andreas Krause, Emma Brunskill,
+  dination for robotic grasping with deep learning and
+                                                                      Kyunghyun Cho, Barbara Engelhardt, Sivan Sabato,
+  large-scale data collection. Int. J. Robotics Res., 37
+                                                                      and Jonathan Scarlett, editors, International Confer-
+  (4-5):421–436, 2018. doi: 10.1177/0278364917710318.
+                                                                      ence on Machine Learning, ICML 2023, 23-29 July 2023,
+  URL https://doi.org/10.1177/0278364917710318.
+                                                                      Honolulu, Hawaii, USA, volume 202 of Proceedings
+Kevin Li, Abhishek Gupta, Ashwin Reddy, Vitchyr H.                    of Machine Learning Research, pages 23301–23320.
+  Pong, Aurick Zhou, Justin Yu, and Sergey Levine.                    PMLR, 2023a. URL https://proceedings.mlr.press/v202/
+  MURAL: meta-learning uncertainty-aware rewards                      ma23b.html.
+  for outcome-driven reinforcement learning. In Ma-
+                                                                    Yecheng Jason Ma, Shagun Sodhani, Dinesh Jayaraman,
+  rina Meila and Tong Zhang, editors, Proceedings of
+                                                                      Osbert Bastani, Vikash Kumar, and Amy Zhang. VIP:
+  the 38th International Conference on Machine Learn-
+                                                                      towards universal visual reward and representation
+  ing, ICML 2021, 18-24 July 2021, Virtual Event, vol-
+                                                                      via value-implicit pre-training. In The Eleventh In-
+  ume 139 of Proceedings of Machine Learning Re-
+                                                                      ternational Conference on Learning Representations,
+  search, pages 6346–6356. PMLR, 2021. URL http:
+                                                                      ICLR 2023, Kigali, Rwanda, May 1-5, 2023. OpenRe-
+  //proceedings.mlr.press/v139/li21g.html.
+                                                                      view.net, 2023b. URL https://openreview.net/pdf?id=
+Jianlan Luo, Eugen Solowjow, Chengtao Wen,                            YJ7o2wetJ2.
+   Juan Aparicio Ojea, and Alice M Agogino. Deep
+                                                                    Jeffrey Mahler, Jacky Liang, Sherdil Niyaz, Michael
+   reinforcement learning for robotic assembly of
+                                                                       Laskey, Richard Doan, Xinyu Liu, Juan Aparicio
+   mixed deformable and rigid objects. In 2018 IEEE/RSJ
+                                                                       Ojea, and Ken Goldberg. Dex-net 2.0: Deep learning
+   International Conference on Intelligent Robots and
+                                                                       to plan robust grasps with synthetic point clouds
+   Systems (IROS), pages 2062–2069. IEEE, 2018.
+                                                                       and analytic grasp metrics. In Nancy M. Amato,
+Jianlan Luo, Eugen Solowjow, Chengtao Wen,                             Siddhartha S. Srinivasa, Nora Ayanian, and Scott
+   Juan Aparicio Ojea, Alice M Agogino, Aviv Tamar,                    Kuindersma, editors, Robotics: Science and Systems
+   and Pieter Abbeel. Reinforcement learning on                        XIII, Massachusetts Institute of Technology, Cam-
+   variable impedance controller for high-precision                    bridge, Massachusetts, USA, July 12-16, 2017, 2017.
+   robotic assembly. In 2019 International Conference on               doi: 10.15607/RSS.2017.XIII.058. URL http://www.
+   Robotics and Automation (ICRA), pages 3080–3087.                    roboticsproceedings.org/rss13/p58.html.
+   IEEE, 2019.
+                                                                    Parsa Mahmoudieh, Deepak Pathak, and Trevor Dar-
+Jianlan Luo, Oleg Sushkov, Rugile Pevceviciute, Wen-                  rell. Zero-shot reward specification via grounded
+   zhao Lian, Chang Su, Mel Vecerik, Ning Ye, Stefan                  natural language. In Kamalika Chaudhuri, Stefanie
+   Schaal, and Jonathan Scholz. Robust Multi-Modal                    Jegelka, Le Song, Csaba Szepesvári, Gang Niu, and
+   Policies for Industrial Assembly via Reinforcement                 Sivan Sabato, editors, International Conference on
+   Learning and Demonstrations: A Large-Scale Study.                  Machine Learning, ICML 2022, 17-23 July 2022, Bal-
+   In Proceedings of Robotics: Science and Systems, Vir-              timore, Maryland, USA, volume 162 of Proceedings
+   tual, July 2021. doi: 10.15607/RSS.2021.XVII.088.                  of Machine Learning Research, pages 14743–14752.
+                                                                      PMLR, 2022. URL https://proceedings.mlr.press/v162/
+Jianlan Luo, Perry Dong, Yuexiang Zhai, Yi Ma, and                    mahmoudieh22a.html.
+   Sergey Levine. Rlif: Interactive imitation learn-
+   ing as reinforcement learning. arXiv preprint                    Mayank Mittal, Calvin Yu, Qinxi Yu, Jingzhou Liu,
+   arXiv:2311.12996, 2023.                                           Nikita Rudin, David Hoeller, Jia Lin Yuan, Poo-
+
+
+                                                               12
+                           SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+  ria Poorsarvi Tehrani, Ritvik Singh, Yunrong Guo,                  and Systems, Pittsburgh, Pennsylvania, June 2018.
+  Hammad Mazhar, Ajay Mandlekar, Buck Babich,                        doi: 10.15607/RSS.2018.XIV.049.
+  Gavriel State, Marco Hutter, and Animesh Garg. Or-
+  bit: A unified simulation framework for interactive              Martin Riedmiller, Thomas Gabel, Roland Hafner, and
+  robot learning environments, 2023.                                Sascha Lange. Reinforcement learning for robot soc-
+                                                                    cer. Autonomous Robots, 27:55–73, 2009.
+Volodymyr Mnih, Koray Kavukcuoglu, David Silver,
+  Alex Graves, Ioannis Antonoglou, Daan Wierstra,                  Gerrit Schoettler, Ashvin Nair, Jianlan Luo, Shikhar
+  and Martin Riedmiller. Playing atari with deep rein-               Bahl, Juan Aparicio Ojea, Eugen Solowjow, and
+  forcement learning. arXiv preprint arXiv:1312.5602,                Sergey Levine. Deep reinforcement learning for in-
+  2013.                                                              dustrial insertion tasks with visual inputs and natural
+                                                                     rewards. In 2020 IEEE/RSJ International Conference
+Anusha Nagabandi, Kurt Konolige, Sergey Levine, and                  on Intelligent Robots and Systems (IROS), pages 5548–
+  Vikash Kumar. Deep dynamics models for learn-                      5555, 2020. doi: 10.1109/IROS45743.2020.9341714.
+  ing dexterous manipulation. In Leslie Pack Kael-
+  bling, Danica Kragic, and Komei Sugiura, editors,                Takuma Seno and Michita Imai. d3rlpy: An offline deep
+  3rd Annual Conference on Robot Learning, CoRL 2019,                reinforcement learning library. Journal of Machine
+  Osaka, Japan, October 30 - November 1, 2019, Proceed-              Learning Research, 23(315):1–20, 2022. URL http://
+  ings, volume 100 of Proceedings of Machine Learn-                  jmlr.org/papers/v23/22-0017.html.
+  ing Research, pages 1101–1112. PMLR, 2019. URL                   Archit Sharma, Kelvin Xu, Nikhil Sardana, Ab-
+  http://proceedings.mlr.press/v100/nagabandi20a.html.               hishek Gupta, Karol Hausman, Sergey Levine, and
+Ashvin Nair and Vitchyr Pong. rlkit. Github. URL                     Chelsea Finn. Autonomous reinforcement learn-
+  https://github.com/rail-berkeley/rlkit.                            ing: Benchmarking and formalism. arXiv preprint
+                                                                     arXiv:2112.09605, 2021.
+Ashvin Nair, Murtaza Dalal, Abhishek Gupta, and
+  Sergey Levine. Accelerating online reinforcement                 Archit Sharma, Ahmed M. Ahmed, Rehaan Ahmad,
+  learning with offline datasets, 2020.                              and Chelsea Finn. Self-improving robots: End-to-
+                                                                     end autonomous visuomotor reinforcement learning.
+Ivaylo Popov, Nicolas Heess, Timothy Lillicrap, Roland               CoRR, abs/2303.01488, 2023. doi: 10.48550/arXiv.2303.
+  Hafner, Gabriel Barth-Maron, Matej Vecerik, Thomas                 01488. URL https://doi.org/10.48550/arXiv.2303.01488.
+  Lampe, Yuval Tassa, Tom Erez, and Martin Riedmiller.
+  Data-efficient deep reinforcement learning for dex-              Oren Spector and Dotan Di Castro. Insertionnet – a
+  terous manipulation. arXiv preprint arXiv:1704.03073,              scalable solution for insertion, 2021.
+  2017.                                                            Jonas Tebbe, Lukas Krauch, Yapeng Gao, and Andreas
+Rafael Rafailov, Tianhe Yu, Aravind Rajeswaran, and                  Zell. Sample-efficient reinforcement learning in
+  Chelsea Finn. Offline reinforcement learning from                  robotic table tennis. In 2021 IEEE international confer-
+  images with latent space models. In Ali Jadbabaie,                 ence on robotics and automation (ICRA), pages 4171–
+  John Lygeros, George J. Pappas, Pablo A. Parrilo,                  4178. IEEE, 2021.
+  Benjamin Recht, Claire J. Tomlin, and Melanie N.                 Mel Vecerik, Oleg Sushkov, David Barker, Thomas
+  Zeilinger, editors, Proceedings of the 3rd Annual                 Rothörl, Todd Hester, and Jon Scholz. A practical
+  Conference on Learning for Dynamics and Control,                  approach to insertion with variable socket position
+  L4DC 2021, 7-8 June 2021, Virtual Event, Switzer-                 using deep reinforcement learning, 2018.
+  land, volume 144 of Proceedings of Machine Learn-
+  ing Research, pages 1154–1168. PMLR, 2021. URL                   Tyler Westenbroek, Fernando Castaneda, Ayush
+  http://proceedings.mlr.press/v144/rafailov21a.html.                Agrawal, Shankar Sastry, and Koushil Sreenath. Lya-
+                                                                     punov design for robust and efficient robotic rein-
+Aravind Rajeswaran, Vikash Kumar, Abhishek Gupta,                    forcement learning. arXiv preprint arXiv:2208.06721,
+  Giulia Vezzani, John Schulman, Emanuel Todorov,                    2022.
+  and Sergey Levine. Learning complex dexterous
+  manipulation with deep reinforcement learning and                Philipp Wu, Alejandro Escontrela, Danijar Hafner,
+  demonstrations. In Proceedings of Robotics: Science                Pieter Abbeel, and Ken Goldberg. Daydreamer:
+
+
+                                                              13
+                            SERL: A Software Suite for Sample-Efficient Robotic Reinforcement Learning
+
+
+
+  World models for physical robot learning. In Karen                Henry Zhu, Justin Yu, Abhishek Gupta, Dhruv Shah,
+  Liu, Dana Kulic, and Jeffrey Ichnowski, editors, Con-               Kristian Hartikainen, Avi Singh, Vikash Kumar, and
+  ference on Robot Learning, CoRL 2022, 14-18 December                Sergey Levine. The ingredients of real world robotic
+  2022, Auckland, New Zealand, volume 205 of Proceed-                 reinforcement learning. In 8th International Confer-
+  ings of Machine Learning Research, pages 2226–2240.                 ence on Learning Representations, ICLR 2020, Addis
+  PMLR, 2022. URL https://proceedings.mlr.press/v205/                 Ababa, Ethiopia, April 26-30, 2020. OpenReview.net,
+  wu23c.html.                                                         2020. URL https://openreview.net/forum?id=rJe2syrtvS.
+
+Annie Xie, Fahim Tajwar, Archit Sharma, and
+  Chelsea Finn. When to ask for help: Proac-
+  tive interventions in autonomous reinforce-
+  ment learning.     In NeurIPS, 2022.  URL
+  http://papers.nips.cc/paper_files/paper/2022/hash/
+  6bf82cc56a5fa0287c438baa8be65a70-Abstract-Conference.
+  html.
+
+Yuxiang Yang, Ken Caluwaerts, Atil Iscen, Tingnan
+  Zhang, Jie Tan, and Vikas Sindhwani. Data efficient
+  reinforcement learning for legged robots. In Confer-
+  ence on Robot Learning, pages 1–10. PMLR, 2020.
+
+Tianhe Yu, Deirdre Quillen, Zhanpeng He, Ryan Julian,
+  Karol Hausman, Chelsea Finn, and Sergey Levine.
+  Meta-world: A benchmark and evaluation for multi-
+  task and meta reinforcement learning. In Leslie Pack
+  Kaelbling, Danica Kragic, and Komei Sugiura, edi-
+  tors, 3rd Annual Conference on Robot Learning, CoRL
+  2019, Osaka, Japan, October 30 - November 1, 2019,
+  Proceedings, volume 100 of Proceedings of Machine
+  Learning Research, pages 1094–1100. PMLR, 2019.
+  URL http://proceedings.mlr.press/v100/yu20a.html.
+
+Albert Zhan, Ruihan Zhao, Lerrel Pinto, Pieter Abbeel,
+  and Michael Laskin. A framework for efficient
+  robotic manipulation. In Deep RL Workshop NeurIPS
+  2021, 2021.
+
+Tony Z. Zhao, Jianlan Luo, Oleg Sushkov, Rugile Pevce-
+  viciute, Nicolas Heess, Jon Scholz, Stefan Schaal, and
+  Sergey Levine. Offline meta-reinforcement learning
+  for industrial insertion. In 2022 International Confer-
+  ence on Robotics and Automation (ICRA), pages 6386–
+  6393, 2022. doi: 10.1109/ICRA46639.2022.9812312.
+
+Henry Zhu, Abhishek Gupta, Aravind Rajeswaran,
+  Sergey Levine, and Vikash Kumar. Dexterous ma-
+  nipulation with deep reinforcement learning: Effi-
+  cient, general, and low-cost. In International Confer-
+  ence on Robotics and Automation, ICRA 2019, Mon-
+  treal, QC, Canada, May 20-24, 2019, pages 3651–3657.
+  IEEE, 2019. doi: 10.1109/ICRA.2019.8794102. URL
+  https://doi.org/10.1109/ICRA.2019.8794102.
+
+
+                                                               14
+

@@ -1,0 +1,583 @@
+                                         IEEE ROBOTICS AND AUTOMATION LETTERS. PREPRINT VERSION. ACCEPTED JANUARY, 2022                                                                                                     1
+
+
+
+
+                                                    Residual Learning from Demonstration:
+                                                 Adapting DMPs for Contact-rich Manipulation
+                                                                     Todor Davchev†•∗ Kevin Sebastian Luck Michael Burke◦ Franziska Meier
+                                                                                 Stefan Schaal‡ and Subramanian Ramamoorthy†
+
+
+
+                                            Abstract—Manipulation skills involving contact and friction                                 Base Policy                      Residual Policy        Range of Considered Tasks
+                                         are inherent to many robotics tasks. Using the class of motor                                    Position DMP                     Mode-free RL
+
+
+
+
+arXiv:2008.07682v5 [cs.RO] 22 Mar 2022
+                                         primitives for peg-in-hole like insertions, we study how robots                                 Orientation DMP
+
+
+                                         can learn such skills. Dynamic Movement Primitives (DMP) are                                        100 Hz
+                                                                                                                                                            abase
+                                                                                                                                                                               10 Hz
+
+
+                                                                                                                                                                           aadapt
+                                         a popular way of extracting such policies through behaviour
+                                         cloning (BC) but can struggle in the context of insertion. Policy                              Final Policy
+                                                                                                                                                                afinal
+                                         adaptation strategies such as residual learning can help improve                           s   Impedance Control
+                                                                                                                                                                            Process
+
+                                         the overall performance of policies in the context of contact-                                      500 Hz
+
+                                         rich manipulation. However, it is not clear how to best do this
+                                         with DMPs. As a result, we consider several possible ways for                                        ...                            ...
+                                         adapting a DMP formulation and propose “residual Learning
+                                         from Demonstration“ (rLfD), a framework that combines DMPs                            t0                                   tm                     tn
+                                         with Reinforcement Learning (RL) to learn a residual correction
+                                         policy. Our evaluations suggest that applying residual learning                     Fig. 1: Left: outline of the proposed framework. We collect demon-
+                                         directly in task space and operating on the full pose of the                        strations using an HTC Vive tracker, and extract an initial full pose
+                                         robot can significantly improve the overall performance of DMPs.                    policy using Dynamical Movement Primitives (DMPs, running at
+                                         We show that rLfD offers a gentle to the joints solution that                       100Hz). The control command produced by the DMP is corrected
+                                         improves the task success and generalisation of DMPs and                            by an additional residual policy trained using model-free RL (run at
+                                         enables transfer to different geometries and frictions through                      10Hz). The resulting motor command is then fed into a real time
+                                         few-shot task adaptation. The proposed framework is evaluated                       impedance controller (running at 500Hz) in a Franka Panda arm that
+                                         on a set of tasks. A simulated robot and a physical robot have                      performs peg, gear or LAN cable insertion in our physical setup.
+                                         to successfully insert pegs, gears and plugs into their respective                  Right: The peg (top), gear (middle) and LAN cable (bottom) insertion
+                                         sockets. Other material and videos accompanying this paper are                      tasks considered in this work.
+                                         provided at https://sites.google.com/view/rlfd/.
+                                           Index Terms—Learning from Demonstration; Reinforcement                            in a variety of practical applications, ranging from the home
+                                         Learning; Sensorimotor Learning
+                                                                                                                             to manufacturing environments [1]. It remains surprisingly
+                                                                                                                             difficult to find robust and general solutions for this class
+                                                                  I. INTRODUCTION                                            of tasks without depending on specialised fixtures or other
+                                                                                                                             aids. Engineers have long devised ingenious methods for part
+                                         P     ART insertion, e.g. plugs, USB connectors, house keys
+                                               or car refuelling nozzles, is a manipulation skill required                   insertion. However, these are either highly case-specific in
+                                                                                                                             manufacturing or not very robust in the face of hardware
+                                            Manuscript received: September, 9, 2021; Revised: December, 4, 2021;             wear and tear or other environmental uncertainties. Humans
+                                         Accepted: January, 24, 2022.                                                        solve such tasks without difficulties using visual or tactile per-
+                                            This paper was recommended for publication by Editor Tetsuya Ogata upon
+                                         evaluation of the Associate Editor and Reviewers’ comments.                         ception, dexterous manipulation, and learning. This problem
+                                            This research was supported by: the EPSRC iCASE award with Thales                scenario is the focus of our work.
+                                         Maritime Systems provided to Todor Davchev; EPSRC UK RAI Hub NCNR
+                                         (EPR02572X/1) and Academy of Finland Flagship programme: Finnish Cen-
+                                                                                                                                Learning from demonstration (LfD) [2] is a popular ap-
+                                         ter for Artificial Intelligence funding Kevin S. Luck; the Alan Turing Institute,   proach for effective and rapid skill acquisition in physical
+                                         as part of the Safe AI for surgical assistance project, funding Subramanian         robots. Existing solutions to LfD [3], [4] have shown that
+                                         Ramamoorthy and Michael Burke at the University of Edinburgh.
+                                            ∗ Corresponding Author.                                                          robots can gain proficiency on tasks even when we may not
+                                            • Research done in part during a Google X AI Residency.                          have detailed models or simulations of complex environments.
+                                            † Authors are with the School of Informatics, University of Edin-
+                                                                                                                             However, generalising to a range of scenarios without ex-
+                                         burgh, 10 Crichton St, EH8 9AB, United Kingdom, {t.b.davchev,
+                                         s.ramamoorthy}@ed.ac.uk
+                                                                                                                             plicitly modelling and identifying the effects of contacts and
+                                              Author is with the Department of Electrical Engineering and Au-                friction remains difficult, hence inhibiting robot learning in
+                                         tomation, Intelligent Robotics, Aalto University, 02150 Espoo, Finland,             these contact-rich settings. Model-free RL is beneficial for
+                                         kevin.s.luck@aalto.fi                                                               solving challenging tasks [5], [6], but requires large amounts
+                                           ◦   Author is with ECSE, Monash University, Melbourne, Australia,
+                                         michael.g.burke@monash.edu                                                          of data and often impractical numbers of training episodes.
+                                           ‡   Author is with [Google X] Intrinsic, Mountain View, CA, USA,                  Furthermore, many hours of training can result in higher levels
+                                         stefan.k.schaal@gmail.com                                                           of equipment wear and tear and increase the risk of more
+                                              Author    is   with    Facebook    AI   Research,    Menlo     Park,   CA
+                                         fmeier@fb.com                                                                       severe hardware damage due to the inherently exploratory
+                                           Digital Object Identifier (DOI): see top of this page.                            nature of RL.
+2                                                    IEEE ROBOTICS AND AUTOMATION LETTERS. PREPRINT VERSION. ACCEPTED JANUARY, 2022
+
+
+
+   Roboticists have recognised the need for adaptive learning        control [1]. Compliant control generally relies on a human
+from demonstration schemes that occupy a middle ground [1].          engineer to characterise the underlying friction and contact
+This paper follows this spirit by combining LfD and model-           model [12]. Recent approaches demonstrate high-precision
+free RL in a residual pose correction framework comprised of         assembly through the use of additional force information [13].
+two complementing policies. DMPs [7] act as a base policy            These methods require careful design of the manipulated
+acquired by LfD. The DMP approach has always included an             objects and the external environment, e.g. assuming a flat
+additive coupling term that allows for online modulation of a        surface surrounding the hole. These assumptions may not hold
+DMP policy – i.e., DMPs are naturally interpreted as a form          in many practical and day-to-day settings encountered in the
+of residual learning. We instantiate this coupling term as a         real world, e.g. for RJ-45 connector insertion tasks (Figure 1,
+state-based policy using variants of state-of-the-art on-policy      bottom row). Also, it tends to be challenging to obtain accurate
+and off-policy RL trained in an online fashion (Figure 1, left).     models of nonlinear changes in contact dynamics over time,
+This yields a learning approach that is more sample-efficient        which affects reliability. In contrast, rLfD seeks to overcome
+and generalises to a range of start positions, orientations,         these limitations by relying on strategies extracted from human
+geometries as well as levels of friction. We study the efficacy      demonstrations, and a learned policy that adapts and optimises
+of this framework using peg, gear and LAN cable insertions -         the end-effector pose directly in task space.
+both in simulation and on a physical robot (Figure 1, right).           Learning from Demonstration (LfD) Learning policies for
+   DMPs are ubiquitous in behaviour cloning settings and a           complex robot tasks can benefit from expert demonstrations
+popular technique for learning from demonstration. Although          [14]. LfD [2] is a widely adopted approach formalising this
+existing work has explored directly adapting DMP or coupling         idea and has been applied previously in the context of peg-
+terms to improve task generalisation [8]–[10], it is still unclear   in-hole insertion tasks [15], but does not account for model
+how best to do this for contact-rich insertion tasks. This           imperfections. DMPs [7] have been shown to improve the
+paper explores DMP correction techniques and shows that a            generality of demonstrations in a variety of manipulation tasks
+residual correction policy that adapts directly in task space,       [3], [8]–[10], [16]–[22]. However, these works do not consider
+outside the canonical formulation, and uses reinforcement            full pose online adaptation behaviours in task space.
+learning is the most effective strategy among all considered            In cases where the error signal is a linear combination
+ways for learning insertion skills. Furthermore, this framework      of basis functions throughout movement executions, such as
+explicitly accounts for orientation-based policy corrections in      minimising force/torque feedback control error in bimanual
+task space. Our results show that orientation-based correction,      manipulation tasks [18], [19], DMPs can be adapted by
+which is typically not applied to existing residual learning         employing linear adaptive policies. Gams et al. [20] directly
+frameworks such as [11], is essential for reliable and robust        modify the forcing term (i.e. adaption in parameter space) of
+peg-in-hole insertion. This is partly challenging because ad-        a DMP iteratively and apply it to the task of wiping a surface.
+ditive orientations can introduce catastrophic singularities and     Abu-Dakka et al. [21] use fixed feedback models as constant
+locks, while formulating residual orientation-based corrections      gains and focus on adaptation by learning the error term with
+in quaternion space can be challenging to learn.                     iterative learning control and adding it to the DMP trajectory.
+   Contributions The key contributions of this paper are:            However, this does not target generalisation in the context of
+C1 An extensive comparison of the adaptation of different            wide range of start configurations or complex geometries like
+parts of the DMP formulation using a range of adaptation             RJ-45 connector insertion as we do in this work.
+and exploration strategies for contact-rich insertion;                  Previous work has also used Reinforcement Learning of
+C2 A framework for applying full pose residual learning on           feedback models, e.g. PoWER [9] or FDG [10], to learn or
+DMPs applied directly in task space, and the demonstration           adjust nominal behaviours within a few iterations in parameter
+of its utility to three types of physical insertion tasks;           space of the DMP formulation. However, these approaches are
+C3 Showing that using full-pose residual nonlinear policies          limited to linearly weighted combinations of phase-modulated
+(e.g. RL-driven) to adapt DMPs results in more accurate,             features, which are less expressive and can lead to unsatisfac-
+gentle and more generalisable DMP solutions.                         tory performance for contact-rich manipulation tasks. Alter-
+                                                                     natives, such as eNAC [8] have proposed adapting DMPs in
+     II. RELATED WORK AND CONTRIBUTIONS                              the phase-based coupling term space instead, which is helpful
+   Insertion skills are essential in many robot manipulation         for tasks that require reactive movement such as wiping [3]
+applications. They are a crucial part of manufacturing assem-        or hitting a baseball [8]. This formulation does not allow
+bly, home automation, laboratory testing and even surgical           for random local task space exploration (e.g. jiggling), which
+automation [1]. Existing literature on this problem can be           is helpful in contact-rich manipulation tasks (see Figure 2).
+organised into two broad categories based on whether or not          Instead, we propose to adapt DMPs directly in task space
+the proposed methods split the task execution into phases            avoiding these limitations.
+based on contact times. We provide an overview of some of               In cases where selecting arbitrary desired points of a tra-
+these methods and position our work in this context.                 jectory can be done without affecting performance - such as
+   Modelling Contacts It is common practice in extant ap-            in smooth surface painting or handover [4], both translational
+proaches to first model the time(s) of contact and then              and orientation-based behavioural cloning (BC) policies can be
+to structure the insertion strategy in terms of two sepa-            adapted with an analytical approach. However, large perturba-
+rate sub-problems - contact-state recognition and compliant          tions of a robot’s start configuration in the context of insertion
+DAVCHEV et al.: RESIDUAL LEARNING FROM DEMONSTRATION                                                                                     3
+
+
+
+often leads to dramatic differences between a demonstrated          conditions, especially when executed in free space. However,
+trajectory and the desired one. This can invalidate such modes      it cannot adapt well to previously unseen task settings and
+of teaching due to the significant distance between both trajec-    environmental perturbations, which are typical for contact-rich
+tories. Instead, we propose a generalisation of such methods’       manipulation tasks. In this work, we study how to alleviate this
+structure and describe it as a framework that allows learning       limitation using an additional residual policy, πθ by employing
+to adapt DMPs directly in task space. We show that this allows      state-of-the-art model-free RL that can act directly on the end-
+us to rely on nonlinear model-free approaches, which can            effector twist.
+benefit contact-rich insertions. Our results show that using this
+residual learning formulation leads to a robust to perturbations    A. Problem Formulation
+and sample efficient solution.                                         We consider a finite-horizon discounted Markov decision
+   Residual RL Acknowledging the difficulties of running            process (MDP), M = (S, A, P, r, γ, T ) with transition proba-
+RL on physical systems, approaches like Johannink et                bility P : S×A×S 7→ [0, 1] and a reward function r(x, a) ∈ R.
+al. [23] combine conventional contact model-based control           Let x ∈ S ⊆ Rnx be an element in the state space S, and
+with model-free reinforcement learning but do not handle            a ∈ A ⊆ Rna denote the desired robot end-effector velocity
+orientation-based corrections. Instead, they focus on sliding       (action). Then, a stochastic control policy parameterised by θ,
+at low levels of friction. Schoettler et al. [11] propose using     πθ (a|x) defines the probability of selecting an action a given
+stronger priors and combine SAC with a proportional con-            a state x. Let ζ = (st0 , . . . , sT ) be a trajectory with a discrete
+troller to solve industrial position-only insertion tasks. They     horizon T , a discount function γ(·) and a P        state-action tuple
+do not scale to full pose corrections and encourage the use                                                               T
+                                                                    st = (xt , at ) and a trajectory return R(ζ) = t=t0 γr(xt , at ).
+of higher forces via a dense reward function. This works well       In this context, we can define an optimal policy as π ∗ =
+in Cartesian space settings with very low perturbations but is      arg maxπ∈π̄ J(π), where J(π) = Es0 ∼p(s0 ),at ∼π(s) [R(ζ)] and
+limiting in the context of insertion. Tuning such dense rewards     π̄, the set of all policies.
+requires additional insights and potentially increases the risk        We can use a policy gradient method to optimise the
+of hardware damage. Zeng et al. [24], employ adaptive policies      objective from the sampled trajectories. By relying on a DMP
+for learning how to throw. However, none of these works             to extract a fixed and pre-computed offline continuous base
+shows how best to apply residual learning to DMPs, a broadly        policy, πb , we significantly reduce the complexity of the task
+applicable and flexible class of models of significant interest     for πθ . The residual policy has to learn how to deviate from
+in robotics. Our extensive evaluation sets out to answer this.      the base policy by correcting model inaccuracies and potential
+   Summary It is clear that there has been substantial work on      environmental changes during execution. The final policy can
+DMP adaptation using residual policies. However, it remains         compensate for system uncertainties through an adaptive term
+unclear how best to do so for contact-rich insertion tasks.         obtained from πθ while using a base policy, πb acquired
+This paper explores this and finds that a framework bridging        through human demonstrations. A core question in this context
+reinforcement learning and DMP learning from demonstration          is what part of the DMP formulation should πθ be applied to.
+in task space (rLfD) is most effective when paired with             We propose to adapt base policies directly in task space as
+orientation aware corrections. This framework is evaluated          described in the following subsections.
+in both simulated and physical systems, running under real-
+time constraints. Results show that the proposed formulation        B. Translation-based Residual Corrections for DMPs
+significantly reduces the sample requirements during training
+                                                                       Contact-rich manipulation has inherent non-linear dynami-
+and allows for the use of a sparse reward while preserving
+                                                                    cal effects between the robot and the surrounding environment.
+the overall improved accuracy achieved by model-free RL. In
+                                                                    In most insertion tasks, slight perturbations can have drastic
+practice, this is important as it limits the risk of hardware
+                                                                    consequences on the performance of πb . To this end, utilising
+damage and thus makes this approach feasible for real-world
+                                                                    model-free solutions can help relax the challenge of modelling
+applications.
+                         III. METHODS                               contact dynamics.
+                                                                       Adapting DMP formulations is a well known approach as
+   In this paper, we learn a base policy, πb , from expert          discussed in Section II. Consider a point-to-point movement
+demonstrations, represented directly in task space. We extract      with a DMP defined as, ẏ = τ12 (αv (βv (g−x)−τ y)+fω +Ct ).
+separate policies for each individual task in (Figure 1, right).    In this context, an online adaptation term can be learnt by us-
+We use two separate formulations for πb - namely translational      ing exploration noise η that is applied to different components
+and orientational DMPs [7], [16]. The learned behaviour is          of this equation, e.g. to the parameters, ω of the forcing term
+then executed by a suitable robot controller, i.e. in position      fω , the phase-modulated coupling term Ct or outside the phase
+or impedance control, to produce the final robot motion. The        modulated DMP formulation (e.g. in task space). For brevity,
+translation-based base policy π̂b is described by position and      consider describing these different ways of applying η with
+velocity terms, (x, ẋ), in 3D Cartesian space. The orientation-    colour-coding, and namely
+based base policy, π̃b is described using the orientation in
+quaternion and angular velocity, (q, ω). The resulting base                 1
+                                                                       ẏ =   (αv (βv (g − x) − τ y) + zfω+η + Ct (η)) + η. (1)
+policy, πb is capable of imitating the full pose trajectory of             τ2
+the demonstrated behaviour. Such a formulation can gener-           Most existing work focuses on adapting nominal behaviours
+alise well to perturbations of the initialisation and timing        by learning a forcing term with some exploration signal η,
+4                                                             IEEE ROBOTICS AND AUTOMATION LETTERS. PREPRINT VERSION. ACCEPTED JANUARY, 2022
+
+
+
+
+Fig. 2: Types of exploration perturbations with Gaussian noise, η, for a simple Archimedian spiral. Applied on a translational DMP policy
+(purple - A), shown as equation above. Perturbing directly in task space (green - D) results in local exploration that is important for contact-
+rich manipulation. In contrast, perturbing the phase-modulated coupling term, Ct (blue - B) or the parameters ω of the forcing term, fω
+(orange - C) results in locally smooth trajectories. Not perturbing the DMP is depicted in purple.
+
+applied in parameter space (shown in orange) [9], [10], [20],                   introduce a residual formulation capable of accommodating
+[21]. At the same time, some have studied the effects of                        orientations. Quaternion based representations lead to smooth
+learning a phase-modulated coupling term1 (shown in blue)                       interpolations that are compact and do not suffer from Gimbal
+[3], [8]. Recent work, [4] uses adaptive analytical models that                 locks. Therefore, we propose the following orientation-based
+can be applied directly in task space, too (shown in green).                    residual framework.
+All of these different modes of exploration lead to learning                          b) Orientation based residual corrections in Task Space:
+different residual terms that have their benefits. However, very                In this context, a normalised quaternion Q = [q w , q x , q y , q z ]
+little has been done to compare the different residual signals                  such that ||Q|| = 1 is defined as a vector with a real scalar
+that are learnt using the different colour-coded exploration                    value q w and a vector [q x , q y , q z ] of imaginary components.
+noise from Equation 1. Similar in spirit to [25], this work                     We define composition ◦ between two quaternions using Shus-
+studies the benefits of those different adaptive formulations                   ter’s notation [26]. An orientation Qf along some orientation
+and proposes correcting directly in task space. We conjecture                   trajectory is produced from a policy π̃. In this work, π̃
+that exploration in task space (Figure 2.D) encourages jiggling                 is composed of two separate policies: a stochastic residual
+motion strategies that are useful in the context of insertion. A                orientation policy π̃θ which operates in task space and a base
+learnt policy that adapts in task space should thus be superior                 orientation policy π̃b from an orientational DMP [16].
+for contact-rich insertions.                                                          c) Learning residual corrections in quaternion space:
+      a) Residual Learning in Task Space: In light of our                       Residual orientation is composed in quaternion space and
+conjecture, we propose to adopt recent advances of residual                     adapts the orientation of the end-effector. The policy predicts
+learning [11], [23] and extract a residual translational policy                 the parameters of an angle-axis representation which consists
+π̂θ , parameterised by θ that adapts a base prior policy, π̂b                   of a 3D unit vector r around which the robot end-effector
+outside of the canonical system and directly in task space. The                 is rotated by a scalar angle α. This results in a residual
+final translational policy can then be defined as π̂f = π̂b + π̂θ .             orientation vector {α, r}. Assuming that α ∈ [−π, π], which
+A key aspect of this formulation is that π̂θ is a complementary                 covers all rotations, it follows that cos(α/2) is strictly positive.
+                                                                                                                w x        y    z
+policy that operates in task space alongside the DMP policy πb .                Then, a correction Q∆ = {q∆        , q∆ , q∆ , q∆ } can be computed
+We now extend this formulation to orientation-based DMPs.                                w
+                                                                                where q∆ = cos(α/2) is the real part of the quaternion. The
+                                                                                orientation-based adaptation relative to the base orientation can
+C. Generalising to Full Pose Corrections                                        be described as quaternion, [27] by
+   Given environmental uncertainties and assuming also some                                                              r
+                                                                                               Q∆ = [cos(α/2),              sin(α/2)],           (2)
+inaccuracies in the robot control itself, the translational resid-                                                    ||r||
+ual formulation introduced above can correct this by combin-
+ing an adapting policy π̂θ using the DMP as a prior policy π̂b ,                where ||r|| is the L2 norm of the rotation vector. This allows
+resulting in π̂f = π̂b + π̂θ .                                                  us to obtain a quaternion correction term using real numbers.
+                                                                                Then, adding the correction to the prior orientation is achieved
+     a) Orientation-based Corrections: The additive correc-
+                                                                                with quaternion multiplication as
+tion introduced above is unsuitable for orientations due to
+the risk for singularities or locks associated with Euler rep-                                           Qf = Q∆ ◦ Qb .                          (3)
+resentations. Assuming fixed orientations or constant angular
+velocity could, in principle, relax this constraint. However,                   The final quaternion Qf is then converted to angular velocity
+such approximations restrict applicability as motion is rarely                  using a log transform [16].
+fixed in orientation by nature. In order to address this, we                         d) A Framework for Full Pose Residual Corrections: In
+                                                                                summary, we propose a complete, twist policy πf as
+  1 We will refer to this as adapting in coupling term space to differentiate
+between additive terms.                                                                                  πf = [π̂f , π̃f ]T .                    (4)
+DAVCHEV et al.: RESIDUAL LEARNING FROM DEMONSTRATION                                                                                                    5
+
+
+
+In practice, we combine the work introduced in [4] and
+[11] and extend it to a general framework for full pose
+residual learning. The individual components of our policy
+can be extracted independently from each other and can be                              4.8cm                                     4.8cm
+
+of different nature. They can be learnt (e.g. by using RL)
+or analytically defined (e.g. by using recursive least squares                        5.7cm
+                                                                                                                             5.3cm
+(RLS) or similar to [4]). Like [11] we complement a base
+policy with a residual component. However, instead of using a
+basic proportional controller, we focus on improving DMPs for
+contact-rich tasks. Residual learning in task space happened       Fig. 3: An easy task (left) and a harder task (right). The robot is
+to work best. We extend this by adding residual corrections        initialised with a position sampled uniformly within ±12cm along
+and control with RL in real-time.                                  all axes of the initial position of the demo. Difficulty is defined by
+                                                                   the size of the hole. A task is complete when a peg is fully inserted.
+D. Execution Details
+      a) DMPs: We used a single demonstration to build the         efficient and improves the performance of DMPs on contact-
+base policy. This was sufficient to extract 100% successful        rich manipulation tasks. We split this section into two main
+insertions when an episode starts up to 3mm away from that         parts: studying the effects of using residual corrections on
+starting position. We used 40 and 70 basis functions for π̂b and   a simulated environment and applying rLfD in the physical
+π̃b respectively. These values were chosen from a grid search      world on three different complexity insertion tasks.
+of parameter sizes (see web page for details).
+                                                                   A. Applying Residual Corrections
+      b) Model-free Policies: SAC: We found that this off-
+policy approach requires a recurrent neural policy to work            Next, we conduct a thorough study in simulation. We apply
+in the lower frequency regime given the higher frequency           different types of corrections to a DMP in the context of
+controller. We used a recurrent policy with a cell state of 40.    contact-rich manipulation.
+The actor policy comprised 400 and 300-dimensional feed-                 a) Experimental Details: We study the utility of applying
+forward layers with ReLU activation functions. The critic had      residual corrections in the context of learning to insert in
+a single feed-forward layer of size 300. Those parameters were     simulation. We utilise two separate tasks we refer to as ’easy’
+chosen in a grid search across policy network sizes. We used       and ’hard’. The difficulty of a task is defined by the size of
+32 policy update steps per iteration.                              the hole a peg has to be inserted in (see Figure 3). A tighter
+   PPO We utilise the clipped objective as in Schulman et          hole indicates more difficulties, such as potential jamming due
+al. [28]. We used a curriculum for the physical experiments to     to friction during insertion. The task with a larger hole could
+reduce the sample requirements by varying the starting con-        be solved using only translation-based corrections. Here, we
+figuration. As the agent improves we increase task complexity      train on the easy task but evaluate on both.
+until it becomes 1.5 cm away from the start configuration of
+                                                                   TABLE I: Accuracy of applying exploration during learning on
+the demonstration. PPO was less sensitive to network sizes.        different parts of the DMP formulation (Type colour from Fig. 2).
+      c) Implementation Details: Both environments are built       Eff. is efficiency- the number of episodes a model was trained for.
+using Tf-Agents [29]. Training is performed using a sparse         Type    Exploration Type       Model       Easy       Hard      Average Eff. Reward
+                                                                    A        No corrections      DMP [7] 24.0% ±2.5 8.0% ±1.4 16.0% ±2.0 n/a       n/a
+reward. All policies rely on a normal projection for continuous     B phase modulated coupling eNAC [8] 7.2% ±1.9 3.4% ±2.2 5.3% ±2.1 8K exp{−L1}
+actions, which uses tanh to limit its output.                       C   forcing-term parameters FDG [10] 23.6% ±4.3 16.2% ±1.9 19.9% ±3.1 8K exp{−L1}
+                                                                    C   forcing-term parameters PoWER [9] 32.2% ±2.8 14.4% ±2.7 23.3% ±2.8 8K exp{−L1}
+   We use MuJoCo [30] and SL [31] for experimenting in              D   task space translation rLfD (ours) 94.8% ±1.3 55.0% ±2.7 74.9% ±2.0 700 1[L2 ≤ κ]
+simulation and the physical world, respectively. In simulation,
+                                                                         b) Adapting different parts of a DMP: We summarise
+we utilise Robosuite [32] and use their position controller
+                                                                   the effect of using a range of RL approaches that apply
+applied on low-level actions obtained with inverse kinematics.
+                                                                   exploration noise during learning to different components of
+To evaluate rLfD in the physical world, we used a Jacobian
+                                                                   the movement primitives formulation (see website for baseline
+transpose Cartesian impedance control run in real-time (details
+                                                                   details). Our findings, reported in Table I, further confirmed the
+on the website). Both controllers run at 500Hz, while πb at
+                                                                   conjecture from Figure 2 that exploring directly in task space
+100Hz and πθ at 10Hz (see Figure 1).
+                                                                   is more effective for learning in terms of accuracy. As a result,
+   The framework supplies set-points to a real-time running
+                                                                   the learnt task corrections can achieve more sample efficient
+controller and uses a real-time clock to synchronise the concur-
+                                                                   solutions using only sparse rewards, which is of essential
+rently running modules. We extrapolate the DMP corrections
+                                                                   importance to applying RL in practical settings.
+using a standard fifth-order polynomial while assuming static
+                                                                         c) Adaptive strategy selection in task space: Choosing
+repetition of the produced residual term.
+                                                                   what part of a DMP to explore to train an RL agent is essential
+           IV. EXPERIMENTAL EVALUATION                             to their successful application in contact-rich settings. How-
+   We evaluate the effects of using different adaptive correc-     ever, it is unclear whether using a nonlinear RL-based adaptive
+tions in the context of skill acquisition for manipulation. We     strategy is, in fact, necessary for contact-rich insertions. We
+perform a sequence of empirical evaluations using a 7 DoF          compare using two different types of nonlinear correcting
+Franka Emika Panda arm. Our results show that rLfD with            strategies to a recursive least-squares linear policy [33] and
+model-free reinforcement learning techniques is both sample        random adaptive noise [34] applied directly in task space.
+6                                                                                                                                       IEEE ROBOTICS AND AUTOMATION LETTERS. PREPRINT VERSION. ACCEPTED JANUARY, 2022
+
+
+
+                                         Easy Task: Successful insertions                                              Easy Task: Failed insertions                                                  Hard Task: Successful insertions                                              Hard Task: Failed insertions
+                                     Hybrid                                                                   Hybrid                                                                        Hybrid                                                                        Hybrid
+                                     SAC                                                                      SAC                                                                           SAC                                                                           SAC
+                                     rLfD                                                                     rLfD                                                                          rLfD                                                                          rLfD
+
+
+
+
+Average Total Generalised Force                                             Average Total Generalised Force                                           Average Total Generalised Force                                                   Average Total Generalised Force
+                                     DMP                                                                      DMP                                                                           DMP                                                                           DMP
+
+
+
+
+                                                                                                                                 Timestep                                                                      Timestep                                                                    Timestep
+
+
+
+
+Fig. 4: Comparison between using residual, hybrid, DMP and model-free policies. The residual policy (green) consistently results in
+experiencing generalised forces comparable to the forces experienced using only a DMP (red) when succeeding. It experiences even smaller
+forces across both the easy and hard tasks when failing to insert. Lower is better.
+
+Results (Table II) show that nonlinear adaptive strategies are,                                                                                                                         based and model-free policies. We compare against a similar
+in fact, helpful in the context of adapting DMPs for contact-                                                                                                                           switching strategy to the proprioceptive state representations
+rich manipulation tasks. In all cases, only the DMP policy is                                                                                                                           used by rLfD, switching between a base policy (learned via
+                                                                                                                                                                                        DMP) and a model-free policy. Using hybrid switching is
+TABLE II: Residual adaptive policies in task space for DMPs                                                                                                                             appealing as it does not require prior knowledge of combining
+(Exploration type colour from Fig. 2). Insertion accuracy table.
+                                                                                                                                                                                        RL with a DMP formulation. In our tasks, we found switching
+                              Type Corrections Adaptive Policy    Easy       Hard      Average   Eff. Reward                                                                            to perform worse than rLfD. This indicates that rLfD may
+                               A translation Random [34] 25.8% ±4.3 9.0% ±1.8 17.4% ±3.1 n/a             n/a
+                               A translation    Linear [33]    25.4% ±3.6 8.0% ±2.6 16.7% ±3.1 n/a       n/a                                                                            perform well if the more informative, visual representations
+                               D translation       SAC         94.8% ±1.3 55.0% ±2.7 74.9% ±2.0 700 1[L2 ≤ κ]
+                               D translation       PPO         87.6% ±1.5 69.0% ±4.6 78.3% ±3.1 25.5K 1[L2 ≤ κ]
+                                                                                                                                                                                        proposed in Lee et al. [36] are included. We leave this study
+                                                                                                                                                                                        for future work.
+used for the first half of an episode, with both the base and                                                                                                                                e) Gentle part insertion, analysis: Our analysis (Fig-
+residual policies for the rest of the execution. While using                                                                                                                            ure 4) shows that relying on SAC in both hybrid (blue)
+PPO [28] performs better both on average and in terms of                                                                                                                                and purely model-free (orange) approaches results in a more
+generalising to more challenging tasks, it requires a higher                                                                                                                            forceful solution when compared to rLfD (green) possibly
+number of steps to reach this level of performance. In contrast,                                                                                                                        due to the larger magnitude of the action space required to
+SAC [35] can produce similar results in only a fraction of                                                                                                                              compensate for the lack of a base policy. The DMP (red) failed
+the required steps but requires an increased number of update                                                                                                                           at times by constantly pushing downwards, which contrasts
+iterations and thus a longer time to train. The baselines                                                                                                                               with the less forceful searching of rLfD (green).
+perform worse on average but require less training as they
+                                                                                                                                                                                        B. Pose Corrections with Concurrent Real-time Control
+did not rely on iterative exploration.
+      d) Utilising nonlinear policies applied in task space:                                                                                                                               In this subsection, we scale rLfD to correct the full pose
+Nonlinear policies can significantly improve DMPs perfor-                                                                                                                               in a sequence of physical insertion tasks using a less precise
+mance for contact-rich insertion tasks as shown above. In this                                                                                                                          impedance controller ran in real-time.
+section we compare rLfD against a hybrid and an RL-only                                                                                                                                       a) Tasks Description: We consider three tasks of differ-
+solution applied in task space. We report results in Table III.                                                                                                                         ing complexity - peg insertion, similar in setup to the simu-
+                                                                                                                                                                                        lated tasks above; gear; and RJ-45 connector insertions (see
+TABLE III: Comparing different ways of using nonlinear policies                                                                                                                         Figure 1). Each of those tasks introduces an additional mode
+(Exploration type colour from Fig. 2). Insertion accuracy table.                                                                                                                        of complexity within the context of insertion. While physi-
+                          Type Corrections   Policy Type      Easy       Hard      Average  Eff.    Reward                                                                              cal peg insertion poses challenges due to the friction-heavy
+                           A     None           DMP        24.0% ±2.5 8.0% ±1.4 16.0% ±2.0 n/a        n/a
+                           D translation (pure) SAC [35] 94.4% ±1.2 41.8% ±7.2 68.1% ±4.2 12.5K −(α ∗ L1 + L2β− )
+                                                                                                                                                                                        interactions with the highly nonlinear surrounding world, it
+                           D translation    (hybrid) SAC   57.2% ±2.5 45.6% ±2.7 46.4% ±2.6 8K     1[L2 ≤ κ]                                                                            can be solved by mainly relying on translational corrections.
+                           D translation (rLfD) SAC (ours) 94.8% ±1.3 55.0% ±2.7 74.9% ±2.0 700    1[L2 ≤ κ]
+                                                                                                                                                                                        On the other hand, the gear insertion task requires perfect
+   Using a model free RL solution is known to be appealing                                                                                                                              alignment of the squared peg with the hole. Due to the tight fit,
+due to its tremendous success in improving accuracy [35].                                                                                                                               it also requires a certain amount of downward force to achieve
+Our findings confirm this too. Table III shows that using just                                                                                                                          insertion. Finally, inserting an RJ-45 connector requires both
+SAC with no prior πb can get comparable performance to                                                                                                                                  perfect position and orientation. Moreover, the connector’s
+rLfD. However, a pure RL agent requires carefully engineered                                                                                                                            plastic tip requires that a precise amount of force be applied to
+rewards and significantly longer training to reach that level of                                                                                                                        avoid breaking, further increasing task complexity (webpage
+performance. We used α = 10, β = 0.002,  = 0.0001 for the                                                                                                                              for more details).
+engineered dense reward case reported in row 2 of Table III. In                                                                                                                               b) Experimental Details: In this subsection we provide
+contrast, rLfD generalised better to the harder task and allowed                                                                                                                        additional experimental setup details for the tasks we use.
+for a sparse reward function using a fraction of the training                                                                                                                              Peg Insertion The peg’s width, depth and height are 28 ×
+requirements.                                                                                                                                                                           28×77mm with a hole with 0.4mm clearance. Evaluation was
+   Using a hybrid formulation is a promising related approach.                                                                                                                          done on 500 starting points that were sampled randomly from
+Lee et al. [36] learn policies from visual pre-trained state-                                                                                                                           six, 3D uniform distributions, each centred at up to +/- 3cm
+space representations with SAC by switching between model-                                                                                                                              away along each axis from the demonstrated position.
+DAVCHEV et al.: RESIDUAL LEARNING FROM DEMONSTRATION                                                                                                                                     7
+
+
+
+
+Fig. 5: Successful peg, gear and RJ-45 insertions. Peg insertion results along the x axis are cm away from the initial position (illustrated
+by a red vertical line). Gear and RJ-45 results are plotted along the x axis as degrees away from the initial orientation. Higher is better.
+
+   Gear and Lan Insertion The gear is of size 79.2×79.85×                                   (±3cm and ≥ 20◦ ) across all three tasks. This indicates that
+10.79mm with a square hole of 23 × 23 × 10mm. Lan cable is                                  an RL policy can be more effective at coping with latent
+standard RJ-45. Evaluation uses 160 uniformly sampled unit                                  external variability factors. This is likely due to the better
+vectors per task, split into 8 bins of 20 samples of up to 40◦                              generalisation of the full-pose RL corrections when compared
+and ±1cm away from the demo orientation.                                                    to translation-only, analytical or non-residual solutions. While
+   Execution Details Each episode lasted at most 10 seconds.                                pure RL solutions may perform just as well, training them
+We used πθ after 3.9 seconds of executing the base policy.                                  is challenging in real-world settings and often impractical, as
+     c) Using full pose corrections: Translation based cor-                                 discussed in Section IV-A.d As a result, we could not extract a
+rections rely on unnatural assumptions such as moving on a                                  successful pure RL policy on the physical robot. More details
+3D plane only. A full pose correction is more general and                                   are available on the website.
+can address a broader range of tasks. We evaluate this next.                                      e) Speed of Execution: The final speed of insertion is
+We compare DMPs with no adaptive terms (None / None),                                       another important factor. Ideally, a successful policy will be
+translation-only linear adaptations, similar to [33] (Linear /                              highly accurate, safe and fast. We report our findings in
+None), translation-only RL policy (PPO / None), similar to                                  Table V. The nonlinear adaptation policy was the fastest. rLfD
+[11]. We also compare against different types of residual
+adaptive full-pose terms. We use the same linear policy from                                TABLE V: Achieved speed of insertion comparison. Pose baselines
+above and add Uniform random orientation corrections (Linear                                are named as: translation policy / orientation policy.
+/ Random), a full pose random policy (Random / Random),                                      Type Corrections      Adaptive Policy         Peg        Gear        RJ-45      Average
+                                                                                              A No corrections       None / None       7.0sec ±0.1 8.1sec ±0.2 10sec ±0.0 8.6sec ±0.1
+similar to [34] and our full-pose RL policy (PPO / PPO).                                      A    full pose    Linear / Random (ours) 7.1sec ±0.2 6.6sec ±0.1 8.7sec ±0.1 7.5sec ±0.1
+                                                                                              A    full pose   Random / Random (ours) 6.3sec ±0.1 6.2sec ±0.1 8.6sec ±0.1 7.0sec ±0.1
+Table IV summarises our results. Full-pose rLfD performs                                      D    full pose      PPO / PPO (ours)     5.1sec ±0.1 5.9sec ±0.1 8.4sec ±0.0 6.5sec ±0.1
+
+TABLE IV: Utilising full pose accuracy comparison. Pose baselines                           significantly improves the performance of a base DMP policy
+are named as: translation policy / orientation policy.                                      and generalisation to out of distribution start configurations.
+Type Corrections      Adaptive Policy          Peg        Gear       RJ-45      Average          f) Transferring Residual Policies across Tasks: A key
+ A No corrections       None / None       52.6% ± 0.7 41.5% ± 1.5 0.0% ± 0.0 31.4% ± 0.7
+ A   translation       Linear / None      80.7% ± 4.0 58.7% ± 1.1 14.6% ± 1.6 51.3% ± 2.2   benefit of rLfD is that it allows residual skill transfer in a few
+ D   translation        PPO / None         94.2% ±0.9 50.0% ±0.4 57.2% ±2.1 67.4% ±1.1
+ A    full pose    Linear / Random (ours) 60.3% ± 2.9 76.2% ± 2.6 57.3% ± 2.5 64.6% ± 2.7
+                                                                                            update steps, thanks to its jiggling exploration in task space.
+ A    full pose   Random / Random (ours) 91.0% ±1.9 86.9% ±1.7 64.8% ±1.2 80.9% ±1.6        Next, we evaluate the performance of a policy trained on a
+ D    full pose      PPO / PPO (ours)     97.9% ± 1.2 92.2% ± 2.6 70.6% ± 1.4 86.9% ± 1.7
+                                                                                            source task src (either Gear or RJ-45) and then transfer to an
+best. A translation-only RL policy can be useful for simpler                                associated target task targ (either RJ-45 or Gear). Table VI
+tasks, such as the round peg, but not when orientation matters.
+                                                                                            TABLE VI: Successful insertions on transfer, comparison. Pose
+Random can harm performance on translation-only tasks (such                                 baselines are named as: translation policy / orientation policy.
+as peg), but it can be useful for tasks like Gear, which heavily
+                                                                                             Type Corrections Adaptive Policy         Gear        RJ-45      Average Eff.
+depends on accurate orientations. Random noise may result in                                  D    full pose (full training) πtarg 92.2% ± 2.6 70.6% ± 1.4 81.4% ± 2.0 500
+better accuracy but it requires larger magnitude actions which                                D    full pose (full training) πsrc 85.4% ± 1.4 54.5% ± 3.2 69.9% ± 2.3 500
+damages fragile tips like RJ-45 so it should be preferably                                    D    full pose    (3-shot) πtarg     70.3% ± 4.0 59.1% ± 3.1 64.7% ± 3.6 60
+                                                                                              D    full pose (3-shot) πsrc→targ 92.0% ± 2.1 70.6% ± 1.7 81.3% ±1.9 60
+avoided.
+     d) Utilising full-pose nonlinear policies: Linear and ran-                             shows the performance of the transferred policies. Columns 4
+dom solutions are susceptible to latent external factors in the                             5 refer to the target tasks. We use one demo for πb and transfer
+environment, reducing performance. Compared to the perfectly                                residual policies trained on the src tasks to targ using three
+levelled simulated surface, our physical set-up has a 1◦ slope                              update steps (or 60 episodes). This equates to ∼15 minutes
+of the surface a socket is positioned on. Such changes may be                               of training, including resets. We denote transferred policy as
+hard to notice, but coping with them is not always straight-                                πsrc→targ and policies trained only on the targ or src tasks
+forward and is therefore important. Figure 5 disentangles the                               as πtarg and πsrc . We consider πtarg and πsrc trained with
+results from Table IV. It can be seen that RL significantly                                 the full budget of 500 episodes (or ∼2 hours) and also training
+increases accuracy on out-of-distribution start configurations                              πtarg from scratch for 3 update steps only (60 episodes).
+8                                                                IEEE ROBOTICS AND AUTOMATION LETTERS. PREPRINT VERSION. ACCEPTED JANUARY, 2022
+
+
+
+Results show that rLfD allows for successful policy transfer                        [15] Z. Zhu, H. Hu, and D. Gu, “Robot performing peg-in-hole operations by
+on both tasks, requiring eight times less training.                                      learning from human demonstration,” in 2018 10th Computer Science
+                                                                                         and Electronic Engineering (CEEC). IEEE, 2018, pp. 30–35.
+                      V. CONCLUSIONS                                                [16] A. Ude, B. Nemec, T. Petrić, and J. Morimoto, “Orientation in cartesian
+                                                                                         space dynamic movement primitives,” in IEEE International Conference
+   This work explores DMP adaptation for contact-rich inser-                             on Robotics and Automation. IEEE, 2014, pp. 2997–3004.
+tion tasks. Results show that residual learning from demonstra-                     [17] F. Stulp, E. A. Theodorou, and S. Schaal, “Reinforcement learning
+                                                                                         with sequences of motion primitives for robust manipulation,” IEEE
+tion (rLfD) using RL adaptive policies in task space improves                            Transactions on robotics, vol. 28, no. 6, pp. 1360–1370, 2012.
+the generalisation abilities of DMPs both in simulation and                         [18] A. Gams, B. Nemec, A. J. Ijspeert, and A. Ude, “Coupling movement
+real-world experiments. Results show that rLfD with full pose                            primitives: Interaction with the environment and bimanual tasks,” IEEE
+                                                                                         Transactions on Robotics, vol. 30, no. 4, pp. 816–830, 2014.
+corrections is highly effective and produces a gentle to the                        [19] N. Likar, B. Nemec, L. Žlajpah, S. Ando, and A. Ude, “Adaptation
+joints solution that can transfer across tasks. Finally, rLfD with                       of bimanual assembly tasks using iterative learning framework,” in
+nonlinear policies was shown to find better solutions when                               2015 IEEE-RAS 15th International Conference on Humanoid Robots
+                                                                                         (Humanoids). IEEE, 2015, pp. 771–776.
+compared to linear and random policies. Future extensions                           [20] A. Gams, T. Petric, B. Nemec, and A. Ude, “Learning and adaptation of
+to this work include consideration of difficulty in terms of                             periodic motion primitives based on force feedback and human coaching
+sequences of contacts, optimising the parameterisation of the                            interaction,” in 2014 IEEE-RAS International Conference on Humanoid
+                                                                                         Robots. IEEE, 2014, pp. 166–171.
+solution and investigating ways to reduce the overall forces                        [21] F. J. Abu-Dakka, B. Nemec, J. A. Jørgensen, T. R. Savarimuthu,
+applied during insertion. We also envision using rLfD to other                           N. Krüger, and A. Ude, “Adaptation of manipulation skills in physical
+contact-rich manipulation tasks, such as painting [4], for visual                        contact with the environment to reference force profiles,” Autonomous
+                                                                                         Robots, vol. 39, no. 2, pp. 199–217, 2015.
+policy inputs and learning generalised across skills policies.                      [22] L. Koutras and Z. Doulgeri, “Dynamic movement primitives for moving
+                    ACKNOWLEDGMENT                                                       goals with temporal scaling adaptation,” in 2020 IEEE International
+   The authors would like to thank Giovanni Sutanto, Ning Ye,                            Conference on Robotics and Automation (ICRA). IEEE, 2020, pp.
+                                                                                         144–150.
+Daniel Angelov, Martin Asenov and Michael Mistry for the                            [23] T. Johannink, S. Bahl, A. Nair, J. Luo, A. Kumar, M. Loskyll, J. A. Ojea,
+valuable insights and discussions on drafts of this work.                                E. Solowjow, and S. Levine, “Residual reinforcement learning for robot
+                                                                                         control,” in 2019 International Conference on Robotics and Automation
+                               R EFERENCES                                               (ICRA). IEEE, 2019, pp. 6023–6029.
+                                                                                    [24] A. Zeng, S. Song, J. Lee, A. Rodriguez, and T. Funkhouser, “Tossing-
+ [1] O. Kroemer, S. Niekum, and G. Konidaris, “A review of robot learning                bot: Learning to throw arbitrary objects with residual physics,” IEEE
+     for manipulation: Challenges,” Representations, and Algorithms., 2019.              Transactions on Robotics, vol. 36, no. 4, pp. 1307–1319, 2020.
+ [2] S. Schaal, “Learning from demonstration,” in Advances in neural infor-         [25] F. Sehnke, C. Osendorfer, T. Rückstieß, A. Graves, J. Peters, and
+     mation processing systems, 1997, pp. 1040–1046.                                     J. Schmidhuber, “Parameter-exploring policy gradients.” Neural Net-
+ [3] G. Sutanto, Z. Su, S. Schaal, and F. Meier, “Learning sensor feedback               works, 2010.
+     models from demonstrations via phase-modulated neural networks,”               [26] M. D. Shuster, “The nature of the quaternion,” The Journal of the
+     in 2018 IEEE International Conference on Robotics and Automation                    Astronautical Sciences, vol. 56, no. 3, pp. 359–373, 2008.
+     (ICRA). IEEE, 2018, pp. 1142–1149.                                             [27] C. Grubin, “Derivation of the quaternion scheme via the euler axis and
+ [4] Y. Huang, F. J. Abu-Dakka, J. Silvério, and D. G. Caldwell, “Toward ori-           angle,” Journal of Spacecraft and Rockets, vol. 7, no. 10, pp. 1261–1263,
+     entation learning and adaptation in cartesian space,” IEEE Transactions             1970.
+     on Robotics, 2020.                                                             [28] J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov, “Prox-
+ [5] M. Večerı́k, T. Hester, J. Scholz, F. Wang, O. Pietquin, B. Piot, N. Heess,        imal policy optimization algorithms,” arXiv preprint arXiv:1707.06347,
+     T. Rothörl, T. Lampe, and M. Riedmiller, “Leveraging demonstrations                2017.
+     for deep reinforcement learning on robotics problems with sparse               [29] S. Guadarrama, A. Korattikara, O. Ramirez, P. Castro, E. Holly,
+     rewards,” arXiv preprint arXiv:1707.08817, 2017.                                    S. Fishman, K. Wang, E. Gonina, N. Wu, E. Kokiopoulou, L. Sbaiz,
+ [6] J. Luo, E. Solowjow, C. Wen, J. A. Ojea, A. M. Agogino, A. Tamar, and               J. Smith, G. Bartók, J. Berent, C. Harris, V. Vanhoucke, and E. Brevdo,
+     P. Abbeel, “Reinforcement learning on variable impedance controller for             “Tf-agents: A library for reinforcement learning in tensorflow,” https:
+     high-precision robotic assembly,” in 2019 International Conference on               //github.com/tensorflow/agents, 2018, [Online; accessed 25-June-2019].
+     Robotics and Automation (ICRA). IEEE, 2019, pp. 3080–3087.                     [30] E. Todorov, T. Erez, and Y. Tassa, “Mujoco: A physics engine for
+ [7] A. J. Ijspeert, J. Nakanishi, H. Hoffmann, P. Pastor, and S. Schaal,                model-based control,” in 2012 IEEE/RSJ International Conference on
+     “Dynamical movement primitives: learning attractor models for motor                 Intelligent Robots and Systems. IEEE, 2012, pp. 5026–5033.
+     behaviors,” Neural computation, vol. 25, no. 2, pp. 328–373, 2013.             [31] S. Schaal, “The sl simulation and real-time control software package,”
+ [8] J. Peters and S. Schaal, “Applying the episodic natural actor-critic                Technical report, University of Southern California, Tech. Rep., 2009.
+     architecture to motor primitive learning.” in ESANN, 2007, pp. 295–            [32] Y. Zhu, J. Wong, A. Mandlekar, and R. Martı́n-Martı́n, “robosuite: A
+     300.                                                                                modular simulation framework and benchmark for robot learning,” in
+ [9] J. Kober and J. R. Peters, “Policy search for motor primitives in                   arXiv preprint arXiv:2009.12293, 2020.
+     robotics,” in Advances in neural information processing systems, 2009,         [33] V. Kumar, E. Todorov, and S. Levine, “Optimal control with learned
+     pp. 849–856.                                                                        local models: Application to dexterous manipulation,” in 2016 IEEE
+[10] J. Peters and S. Schaal, “Reinforcement learning of motor skills with               International Conference on Robotics and Automation (ICRA). IEEE,
+     policy gradients,” Neural networks, vol. 21, no. 4, pp. 682–697, 2008.              2016, pp. 378–383.
+[11] G. Schoettler, A. Nair, J. Luo, S. Bahl, J. Aparicio Ojea, E. Solowjow,        [34] C. Pottle, “The digital adaptive control of a linear process modulated by
+     and S. Levine, “Deep reinforcement learning for industrial insertion tasks          random noise,” IEEE Transactions on Automatic Control, vol. 8, no. 3,
+     with visual inputs and natural rewards,” in International Conference on             pp. 228–234, 1963.
+     Intelligent Robots and Systems (IROS), 2020, pp. 5548–5555.                    [35] T. Haarnoja, A. Zhou, P. Abbeel, and S. Levine, “Soft actor-critic: Off-
+[12] D. E. Whitney, “Quasi-static assembly of compliantly supported rigid                policy maximum entropy deep reinforcement learning with a stochastic
+     parts,” Journal of Dynamic Systems, Measurement, and Control, vol.                  actor,” in Proceedings of the 35th International Conference on Machine
+     104, no. 1, pp. 65–77, 1982.                                                        Learning, J. Dy and A. Krause, Eds., vol. 80, 2018, pp. 1861–1870.
+[13] T. Inoue, G. De Magistris, A. Munawar, T. Yokoya, and R. Tachibana,            [36] M. A. Lee, C. Florensa, J. Tremblay, N. Ratliff, A. Garg, F. Ramos,
+     “Deep reinforcement learning for high precision assembly tasks,” in                 and D. Fox, “Guided uncertainty-aware policy optimization: Combining
+     2017 IEEE/RSJ International Conference on Intelligent Robots and                    learning and model-based strategies for sample-efficient policy learning,”
+     Systems (IROS). IEEE, 2017, pp. 819–825.                                            in 2020 IEEE International Conference on Robotics and Automation
+[14] I. Havoutis and S. Ramamoorthy, “Motion planning and reactive con-                  (ICRA). IEEE, 2020, pp. 7505–7512.
+     trol on learnt skill manifolds,” The International Journal of Robotics
+     Research, vol. 32, no. 9-10, pp. 1120–1150, 2013.
+

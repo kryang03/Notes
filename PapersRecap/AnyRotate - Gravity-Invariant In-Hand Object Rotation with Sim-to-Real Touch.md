@@ -5,6 +5,7 @@ tags:
   - tactile-sensing
   - sim-to-real
   - in-hand-manipulation
+  - reinforcement-learning
 aliases:
   - AnyRotate
 paper-year: 2024
@@ -16,384 +17,762 @@ related:
   - "[[ContactMechanics]]"
   - "[[SignalProcessing]]"
   - "[[RepresentationLearning]]"
+  - "[[ControlTheory]]"
 ---
 
 # AnyRotate: Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch
 
 > [!abstract] 核心贡献
-> 针对"手内旋转大多只在 palm-up 验证、回避重力破坏抓取稳定，且触觉多为二值/端到端图像迁移 gap 大"两个瓶颈，提出 AnyRotate：用 **Auxiliary Goal Formulation** 把连续多轴旋转转成移动目标重定向（化解角速度奖励的探索困难），用**稠密触觉特征**（接触姿态 $(R_x,R_y)$ + 力幅度 $\|F\|$）替代二值接触并经 CNN 实现 zero-shot sim-to-real，再用**随机化手朝向**学出重力不变策略，实现任意手方向、任意轴的统一旋转。结构性洞见：**sim-to-real 的可迁移单元不是原始触觉图像、而是物理可解释的接触中间表征；连续旋转的可学习形式不是角速度、而是移动子目标。**
+> AnyRotate 提出一个统一策略，使 16-DoF Allegro Hand + 4 个视觉触觉指尖能在任意期望旋转轴和不同手朝向下进行 in-hand object rotation：它把连续旋转转写为 moving auxiliary goal reorientation，以 dense tactile features（contact pose $(R_x,R_y)$ + contact force magnitude $\|F\|$）替代 binary/discrete touch，并通过 teacher-student distillation 把带 privileged object/gravity/goal information 的 PPO teacher 蒸馏成只依赖本体+触觉历史的 student；真实端用 tactile perception model 从触觉图像预测显式接触特征，实现 10 个未见物体上的 zero-shot sim-to-real。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] - 教师-学生策略蒸馏
-> - [[ContactMechanics]] - 稠密接触特征表示
-> - [[SignalProcessing]] - 触觉感知模型预测接触姿态与力
-> - [[RepresentationLearning]] - 触觉图像到接触特征的表征
+> - [[ReinforcementLearning]] — 这是 goal-conditioned PPO + privileged teacher / student distillation；auxiliary goal 是探索友好的任务重写，不应过度说成严格不改变最优策略的 potential shaping。
+> - [[ContactMechanics]] — dense touch 把接触降维为 contact pose 和 force magnitude；它比 binary touch 更接近滑移/接触边界，但仍缺切向剪切和多点接触。
+> - [[SignalProcessing]] — raw TacTip/DigiTac-style optical tactile image 经灰度处理、SSIM contact mask 和 CNN 预测接触特征。
+> - [[RepresentationLearning]] — 可迁移单元不是原始触觉图像，而是显式物理中间表征 $(P,F)$。
+> - [[ControlTheory]] — policy 输出相对关节位置，经 EMA 平滑后由 300Hz PD controller 执行；策略不是 torque controller。
 >
-> **核心技术**: Dense Featured Tactile Representation, Gravity-Invariant RL, Auxiliary Goal Formulation
+> **核心技术**: Dense Featured Touch, Auxiliary Goal Formulation, Gravity-Invariant In-Hand Rotation, Teacher-Student Distillation, Sim-to-Real Tactile Perception, PPO
 
-## 1. 核心直觉与宏观定位 (The Big Picture)
+## 0. 阅读定位与范本价值
 
-### 一句话核心
-训练统一策略实现任意手方向、任意旋转轴的手内物体旋转，通过稠密触觉特征实现 zero-shot sim-to-real 迁移。
+AnyRotate 是触觉灵巧操作簇中非常接近“转笔”但仍有关键差异的一篇。它已经走出 palm-up 单轴旋转，进入：
 
-### 直观隐喻
-就像人类可以在闭眼情况下通过手指触觉感知物体位置并完成旋转——AnyRotate 让机器人手具备了这种"盲操作"能力，无论手掌朝上还是朝下。
+- 任意旋转轴 $\hat k$；
+- 多个手朝向相对重力；
+- 真实未见物体；
+- 触觉 sim-to-real；
+- moving hand / rotating hand 的部署示例。
 
-### 现有方法的局限
-- **HORA**: 仅使用本体感觉 + RMA 适应器，缺乏触觉反馈导致无法检测滑移前兆，palm-down 场景失败率高
-- **Touch Dexterity**: 引入触觉但仅支持 z 轴旋转（单自由度），且触觉表示为离散二值接触
-- 多数手内操作方法仅在 palm-up 验证，回避了重力对抓取稳定性的破坏性影响
-- 现有触觉 sim-to-real 多端到端迁移原始触觉图像，domain gap 大
+但它仍然是 stable precision grasp 下的 in-hand object rotation，不是无支撑、带 aerial phase 的高速 pen spinning。对你的 WMTS / LinkerHand 项目，它最有价值的不是“直接复刻任务”，而是三条设计原则：
 
-### 领域定位
-```
-HORA (2023): 本体感觉 + RMA 适应
-    ↓
-Touch Dexterity (2023): 纯触觉 z 轴旋转
-    ↓
-AnyRotate (2024): 稠密触觉 + 重力不变多轴旋转 ← 本文
-    ↓
-未来: 触觉驱动的任意手内操作
-```
+1. **连续旋转奖励要改写成可达子目标**，否则 angular velocity reward 在多轴/重力扰动下容易卡住。
+2. **触觉不要过早二值化**；contact pose + force magnitude 的 dense features 明显提高 OOD mass/shape 和 real-world robustness。
+3. **重力不变性不能靠 palm-up 训练外推**；必须在训练中让策略经历不同 hand orientation / gravity-in-hand-frame。
 
-## 2. 核心创新与贡献 (Contributions & Novelty)
+最低标准映射：
 
-### Delta 分析
-| 前人工作 | 限制 | AnyRotate 突破 |
-|---------|------|---------------|
-| HORA | 仅本体感觉 | 稠密触觉特征 |
-| Touch Dexterity | 仅 z 轴旋转 | 任意旋转轴 |
-| 多数工作 | 仅 palm-up | 重力不变（6 种手朝向） |
-| 离散触觉 | 二值接触/位置离散化 | 连续接触姿态+力幅度 |
+| 四支柱 | 本文 recap 的落点 | 必须抓住的判断 |
+|---|---|---|
+| 逻辑与价值 | §1, §4 | 本文的优势是“任意轴 + 任意手朝向 + dense tactile sim-to-real”的组合 |
+| 原理与理论 | §2 | 从 goal-conditioned MDP、EMA action、auxiliary goal、dense tactile、teacher-student loss 推导 |
+| 实验与验证 | §3 | Table 1-3 证明 dense touch 在 OOD mass/shape、手朝向、旋转轴上均优于 proprio/binary |
+| 未来与结合 | §5-§7 | 对转笔要保留 auxiliary subgoal 思想，但必须扩展到高速接触切换、切向滑移和更高控制频率 |
 
-### 关键贡献点
-1. **Auxiliary Goal Formulation**: 将多轴旋转问题转化为移动目标重定向问题，避免角速度奖励的探索困难
-2. **Dense Tactile Representation**: 接触姿态 (Rx, Ry) + 接触力幅度 ||F|| 的稠密表示
-3. **Sim-to-Real Touch**: 训练 CNN 从触觉图像预测显式接触特征，实现 zero-shot 迁移
-4. **Gravity-Invariant Training**: 通过随机初始化手朝向实现重力不变性
+## 1. 问题设定与动机
 
-## 3. 理论原理深度解析 (Theoretical Deep Dive)
+### 1.1 一句话核心
 
-### 3.0 变量来源追踪
+AnyRotate 要解决的是：机器人手如何在没有支撑面的情况下，面对任意重力相对方向和任意目标旋转轴，利用触觉维持稳定抓持并连续旋转物体。
 
-AnyRotate 同属 in-hand rotation 簇的 Teacher-Student 范式（与 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] / [[RotateIt - General In-Hand Object Rotation with Vision and Touch|RotateIt]] 同构），核心区分在 teacher 的**特权重力方向**与 student 只能靠触觉/本体隐式推断。
+### 1.2 直观隐喻
+
+Palm-up rotation 像把物体放在手心托着转；gravity 帮你把物体压进手里。Palm-down 或 thumb-up rotation 像在空中用指尖夹着物体转；重力随时把物体拉出接触。AnyRotate 的策略必须像人手一样，一边转、一边摸、一边补救即将滑走的接触。
+
+Dense touch 在这里不是“额外传感器”，而是策略的报警系统：当接触跑到边界、力幅度异常、接触姿态周期变化被破坏时，手指能做 reactive finger-gaiting。
+
+### 1.3 现有方法的局限
+
+| 方法 | 注入了什么先验 | 关键局限 |
+|---|---|---|
+| HORA / RMA-style proprioception | 用历史本体推断隐变量 | 没有局部触觉，无法直接看到指尖接触边界和滑移前兆 |
+| RotateIt / vision+touch rotation | 多模态感知支持 general rotation | 多轴/不同轴常需要分别处理；对 gravity-invariant moving hand 不是核心 |
+| Touch Dexterity / purely tactile rotation | 强调触觉在 in-hand rotation 中的价值 | 常限于主轴或较低维 tactile representation |
+| Binary touch | 只知道接触有/无 | 不知道接触在指尖哪里、力多大、是否逼近边缘 |
+| Raw tactile image sim-to-real | 保留高分辨率触觉图像 | 触觉图像 domain gap 大，实时渲染/迁移成本高 |
+| Angular velocity reward | 直接奖励 $\omega\cdot \hat k$ | 多轴稳定抓持早期 reward noisy，容易学成“抓稳但不转” |
+
+### 1.4 Delta 分析
+
+| 维度 | 前人常见做法 | AnyRotate 的增量 |
+|---|---|---|
+| 旋转目标 | 单轴或分轴策略 | 统一策略 conditioned on desired rotation axis $\hat k$ |
+| 重力 | palm-up 为主 | 训练随机化 hand orientation，评测 6 个 key orientations |
+| 触觉 | binary contact / discrete contact location | contact pose $(R_x,R_y)$ + force magnitude $\|F\|$ |
+| 奖励 | angular velocity reward | moving auxiliary goal + keypoint distance + goal bonus |
+| sim-to-real | 端到端 tactile image 或 low-dim contact | tactile perception model 预测物理中间特征 |
+| 部署 | 静态手姿态 | 展示 rotating hand / changing gravity vector in hand frame |
+
+这篇论文讲故事最有力的地方，是 Table 1-3 都在回答同一个机制问题：**更细的触觉接触信息是否真的让策略更稳？** 答案是 yes，但边界也清楚：尖角/边缘物体仍困难，Allegro Hand 在某些 orientation 下 actuation 明显弱。
+
+## 2. 核心方法与理论
+
+### 2.1 变量来源追踪
 
 | 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
-|------|-----------|----------|------------|----------------|----------|
-| $q_t,\bar{q}_t$ | $\mathbb{R}^{16}$ | 观测/目标 | 否 | 当前/目标关节位置 | $\bar{q}_t$ 由 auxiliary goal 反解 |
-| $ft_p,ft_r$ | $\mathbb{R}^{12},\mathbb{R}^{16}$ | 观测/FK | 否 | 指尖位置/姿态 | 手坐标系 |
-| $c_t$ | $\{0,1\}^4$ | 观测（触觉） | 否 | 二值接触 | 信息量远少于稠密 $P,F$ |
-| $P_t$ | $S^2{\times}4$ | 触觉 CNN 预测 | CNN 带梯度 | 接触姿态(极角+方位) | **球面量非欧氏**；sim 真值监督、真机 CNN |
-| $F_t$ | $\mathbb{R}^4_{\ge 0}$ | 触觉 CNN 预测 | CNN 带梯度 | 接触力幅度 | softplus 保非负；是 $f_n$ 标量近似，丢切向 |
-| $\hat{k}$ | $S^2$ | 任务指令 | 否 | 期望旋转轴 | 指令轴 $\neq$ 实际角速度 |
-| $g_i$ | $SO(3)$ | 计算（沿 $\hat{k}$ 递增 $\delta\theta$） | 否 | 移动子目标 | 达标即刷新；$\delta\theta\approx15°$ |
-| 重力方向 | $S^2$ | **特权**（teacher） | 否 | $R_{hand}^T g$ | student 无此量，靠触觉/本体隐式推断 |
-| $\Delta\theta$ | $[-0.026,0.026]^{16}$ | 网络输出 | 是 | 相对关节位置增量 | **增量、非绝对、非力矩** |
-| $z_t/\bar{z}_t$ | latent | student TCN / teacher 编码 | 是 | 蒸馏对齐的隐表征 | $\bar{z}_t$ detached 作监督 |
+|---|---|---|---|---|---|
+| $q_t$ | $\mathbb R^{16}$ | Allegro joint observation | 否 | 当前关节位置 | student/real 可见 |
+| $\bar q_t$ | $\mathbb R^{16}$ | target joint command state | 否 | EMA 后的目标关节位置 | 不是 object goal；是 hand joint target |
+| $a_t$ | $\mathbb R^{16}$ | policy output | 是 | 相对关节位置增量 $\Delta\theta$ | 限制在 $[-0.026,0.026]^{16}$ rad |
+| $\tilde a_t$ | $\mathbb R^{16}$ | EMA action | 计算图中间量 | 平滑后的动作增量 | $\tilde a_t=\eta a_t+(1-\eta)a_{t-1}$ |
+| $fp_t$ | $\mathbb R^{12}$ | forward kinematics | 否 | 4 指尖位置 | 真实端由 FK 算 |
+| $fo_t$ | $\mathbb R^{16}$ | forward kinematics | 否 | 4 指尖姿态 | 每指四元数或等价姿态表示 |
+| $c_t$ | $\{0,1\}^4$ | tactile contact detection | 否 | 4 指尖 binary contact | 真实端 SSIM threshold 0.6；仿真 force threshold 0.25N |
+| $P_t$ | $\mathbb R^8$ | sim contact / tactile CNN | CNN 有梯度 | 4 指尖 contact pose $(R_x,R_y)$ | 姿态角范围约 $[-28^\circ,28^\circ]$，不是接触点三维位置 |
+| $F_t$ | $\mathbb R^4$ | sim contact / tactile CNN | CNN 有梯度 | 4 指尖 contact force magnitude | 来自 $F_x,F_y,F_z$ 的 magnitude，丢切向方向 |
+| $\hat k$ | $S^2$ | task command | 否 | desired rotation axis | 指令轴，不等于当前实际旋转轴 |
+| $g$ | goal pose | auxiliary goal generator | 否 | 当前 moving object reorientation target | 达到后刷新 |
+| $z_t$ | $\mathbb R^8$ | student TCN encoder | 是 | 从历史本体+触觉预测的 latent | student 部署可用 |
+| $\bar z_t$ | $\mathbb R^8$ | teacher privileged encoder | detached supervision | privileged latent target | student loss 的监督，不可在真实部署访问 |
+| $\hat g_{\mathrm{gravity}}$ | $\mathbb R^3$ | privileged information | 否 | gravity vector in simulation | paper 说显式给 policy 没明显收益，history 可隐式推断 |
 
-### 3.1 MDP 建模
+### 2.2 Goal-conditioned MDP
 
-$$
-\mathcal{M} = (\mathcal{S}, \mathcal{A}, \mathcal{R}, \mathcal{P}, \mathcal{G})
-$$
-
-**观测空间** $O_t$：
-- 当前/目标关节位置 $q_t, \bar{q}_t \in \mathbb{R}^{16}$
-- 指尖位置/姿态 $ft_p \in \mathbb{R}^{12}, ft_r \in \mathbb{R}^{16}$
-- 二值接触 $c_t \in \{0,1\}^4$
-- **稠密触觉**: 接触姿态 $P_t \in S^8$，接触力幅度 $F_t \in \mathbb{R}^4$
-- 期望旋转轴 $\hat{k} \in S^2$
-
-**动作空间**: 相对关节位置 $\Delta\theta \in [-0.026, 0.026]^{16}$ rad，20Hz 控制
-
-### 3.2 Auxiliary Goal Formulation
-
-> [!important] 核心设计
-> 将连续旋转问题转化为到达移动目标的问题
+论文定义 finite-horizon goal-conditioned MDP：
 
 $$
-\text{Goals}: \quad g_i = R(\hat{k}, i \cdot \delta\theta) \cdot q_0
+\mathcal M=(\mathcal S,\mathcal A,\mathcal R,\mathcal P,\mathcal G).
 $$
 
-- 当达到当前目标时，生成新目标（沿旋转轴再转 $\delta\theta$）
-- 使用关键点距离定义目标到达：$K(||k_o^i - k_g^i||) < d_{tol}$
-
-### 3.3 稠密触觉表示
-
-```
-触觉图像 I_tactile
-    ↓ CNN
-接触特征 (P, F)
-    ├── 接触姿态 P = (Rx, Ry) ∈ S^2  // 球坐标：极角+方位角
-    └── 接触力幅度 ||F|| ∈ R
-```
-
-**为什么有效**：
-- 接触姿态捕获物体在指尖上的位置（比二值接触更精确）
-- 力幅度反映抓取稳定性（检测滑动前兆）
-
-### 3.4 奖励设计
+策略：
 
 $$
-r = r_{\text{rotation}} + r_{\text{contact}} + r_{\text{stable}} + r_{\text{terminate}}
+\pi_\theta(a_t|s_t,g).
 $$
 
-| 奖励项 | 含义 |
-|-------|------|
-| $r_{\text{rotation}}$ | 关键点距离 + 目标达成 bonus + 增量旋转 |
-| $r_{\text{contact}}$ | 最大化指尖接触，惩罚非指尖接触 |
-| $r_{\text{stable}}$ | 角速度惩罚 + 姿态偏差 + 做功/力矩惩罚 |
-| $r_{\text{terminate}}$ | 掉落或旋转轴偏离的早终止惩罚 |
-
-### 3.5 自适应课程
+目标是最大化：
 
 $$
-\text{Total Reward} = r_{\text{rotation}} + \lambda_{\text{rew}}(r_{\text{contact}} + r_{\text{stable}})
+\mathbb E_{\tau\sim p_\pi(\tau),g\sim q(g)}
+\left[
+\sum_{t=0}^{T}\gamma^t r(s_t,a_t,g)
+\right].
 $$
 
-- $\lambda_{\text{rew}}$ 随平均旋转数线性增长
-- 避免在"稳定抓取但不旋转"的局部最优中卡住
+Real-world observation 包括：
 
-### 3.6 Teacher-Student Distillation
+| 类别 | 变量 | 维度 |
+|---|---|---:|
+| Proprioception | joint position $q$ | 16 |
+| Proprioception | fingertip position $fp$ | 12 |
+| Proprioception | fingertip orientation $fo$ | 16 |
+| Proprioception | previous action $a_{t-1}$ | 16 |
+| Proprioception | target joint positions $\bar q$ | 16 |
+| Tactile | binary contact $c$ | 4 |
+| Tactile | contact pose $P$ | 8 |
+| Tactile | contact force magnitude $F$ | 4 |
+| Task | target rotation axis $\hat k$ | 3 |
 
-```
-Stage 1: Teacher (Privileged Info)
-├── 物体位置/姿态/角速度
-├── 重力方向
-└── 当前目标姿态
+因此 proprioception-only input dim 是 79，binary touch 是 83，dense touch 是 95。这个数字和 Table 7 对齐。
 
-Stage 2: Student (Real-World Obs)
-├── 本体感觉 + 触觉
-├── TCN Encoder 处理历史序列
-└── MSE(z_t, z̄_t) + NLL(a_t, ā_t) 损失
-```
+### 2.3 Action space 与控制接口
 
-### 3.7 核心代码逻辑（精简 PyTorch）
+Policy 输出：
 
-**触觉特征预测 CNN**:
-```python
-# 触觉图像 → 稠密接触特征
-class TactileEncoder(nn.Module):
-    def __init__(self):
-        self.cnn = nn.Sequential(
-            nn.Conv2d(3, 32, 3, stride=2), nn.ReLU(),
-            nn.Conv2d(32, 64, 3, stride=2), nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1), nn.Flatten()
-        )
-        self.head_pose = nn.Linear(64, 2)    # 接触姿态 (Rx, Ry)
-        self.head_force = nn.Linear(64, 1)   # 力幅度 ||F||
+$$
+a_t:=\Delta\theta\in[-0.026,0.026]^{16}.
+$$
 
-    def forward(self, tactile_img):  # (B, 4, 3, H, W) 4 fingers
-        feats = [self.cnn(tactile_img[:, i]) for i in range(4)]
-        feats = torch.stack(feats, dim=1)  # (B, 4, 64)
-        P = torch.tanh(self.head_pose(feats))  # (B, 4, 2) ∈ S^2
-        F_mag = F.softplus(self.head_force(feats))  # (B, 4, 1) ≥ 0
-        return P, F_mag  # 稠密触觉特征
-```
+为了让手指动作平滑，先做 exponential moving average：
 
-**Student 蒸馏损失**:
-```python
-# Teacher latent → Student latent 对齐 + 动作分布匹配
-z_teacher = teacher.encode(privileged_obs)  # 特权信息编码
-z_student = student.tcn_encode(obs_history)  # TCN 编码历史序列
+$$
+\tilde a_t
+=
+\eta a_t+(1-\eta)a_{t-1}.
+$$
 
-loss_latent = F.mse_loss(z_student, z_teacher.detach())
+再更新 target joint positions：
 
-mu_t, std_t = teacher.policy(z_teacher)
-mu_s, std_s = student.policy(z_student)
-loss_action = -Normal(mu_t, std_t).log_prob(mu_s).mean()  # NLL
+$$
+\bar q_t
+=
+\bar q_{t-1}+\tilde a_t.
+$$
 
-loss = loss_latent + loss_action
-```
+真实系统中 policy / tactile-proprioception stream 是 20Hz，Allegro Hand 的 PD controller 在 300Hz 将 target joint commands 转成 torque commands。
 
-**Auxiliary Goal 生成逻辑**:
-```python
-# 关键点距离判断是否达标 → 生成下一个旋转增量目标
-kp_dist = (obj_keypoints - goal_keypoints).norm(dim=-1)  # (B, N_kp)
-goal_reached = (kp_dist < d_tol).all(dim=-1)  # (B,)
+这个细节对迁移到 LinkerHand 很关键：AnyRotate 不是 torque-level RL；它依赖底层 PD 控制器和硬件能跟踪位置目标。
 
-# 达标后沿旋转轴 k_hat 旋转 delta_theta 生成新目标
-new_goal_quat = axis_angle_to_quat(k_hat * delta_theta)  # (B, 4)
-current_goal[goal_reached] = quat_mul(new_goal_quat, current_goal)[goal_reached]
-```
+### 2.4 Auxiliary goal：把连续旋转改写成移动重定向
 
-### 3.8 前置理论从零推导
+直接用 angular velocity reward：
 
-**(A) 为什么 Auxiliary Goal 能化解稀疏奖励——势函数奖励塑形。**
-1. 经典困境：连续旋转的自然奖励 $r=\omega\cdot\hat{k}$（角速度投影）梯度稀疏——策略在学会旋转前几乎拿不到信号，易陷入"稳定抓持不旋转"局部最优（§4 消融"去 Auxiliary Goal→不收敛"）。
-2. 重定向视角：定义沿轴递增的目标序列 $g_i=R(\hat{k},i\cdot\delta\theta)\,q_0$，奖励改为关键点距离 $-\|k_o-k_g\|$，这是**dense** 信号：每步都有梯度指向当前子目标。
-3. 与最优性的关系：达标刷新 $g_i\to g_{i+1}$ 等价于势函数塑形 $F(s,s')=\gamma\Phi(s')-\Phi(s)$，取势 $\Phi=-\text{dist to goal}$。按 Ng et al. (1999) **势函数塑形定理**，这不改变最优策略、只重塑梯度密度——所以 Auxiliary Goal 是"无偏"的 reward shaping，不引入次优解。
-4. $\delta\theta$ 的 sweet spot（§4.5 ~15°）：太小→目标切换过频、塑形项抖动；太大→单步不可达、退化回稀疏。
+$$
+r_{\mathrm{av}}
+=
+\mathrm{clip}(\omega\cdot\hat k,-c_2,c_2),
+\qquad c_2=0.5,
+$$
 
-**(B) 重力不变 = 对重力方向的边际化。**
-1. 物体在手内的动力学含重力项（[[ContactMechanics|软指接触]] + 刚体）：
-$$M_o\ddot{q}_o + C_o\dot{q}_o + g_o(R_{hand}^T g) = J_c^T f_c,$$
-重力在**手坐标系**的投影 $R_{hand}^T g$ 随手朝向 $R_{hand}$ 改变——palm-up 时重力把物体压向指尖（稳），palm-down 时把物体拉离指尖（易掉）。
-2. 暴力枚举 6 朝向 = 对 $R_{hand}$（从而 $R_{hand}^T g$）采样，训练目标变成在重力方向分布上的期望回报 $\mathbb{E}_{R_{hand}}[J(\pi)]$——策略被迫学到**不依赖特定重力方向**的抓取力调度。
-3. 这是"以采样近似对称性"：理论上更优是从 SE(3) 对称性设计 gravity-equivariant 网络（§5 理论局限已指出），AnyRotate 用枚举换实现简单。
+在多轴 rotation 中训练失败。原因不是公式错，而是早期 exploration 太脆弱：物体无支撑、指尖稍微错位就掉落，策略会倾向于保守抓稳，角速度很低时 $\omega\cdot\hat k$ 又 noisy，无法把策略推出 local optimum。
 
-### 3.9 概念边界与符号陷阱
-- **动作是相对关节位置增量**（$\pm0.026$ rad/步），非绝对位置、非力矩。
-- **稠密触觉 $P_t\in S^2$ 是球面量**（极角+方位角），不能当欧氏向量直接做差；$\|F\|$ 是法向力标量近似，丢了切向力与力矩。
-- **触觉特征 sim 用真值监督、真机靠 CNN 预测**：可迁移单元是 $(P,F)$ 这层中间表征，不是原始触觉图像。
-- **重力方向是 teacher 特权**，student 部署时无，靠触觉+本体历史隐式推断。
-- **关键点距离用 8 个表面点**作旋转度量，刻意避开四元数（双覆盖）与欧拉角（万向锁）。
-- **Auxiliary Goal 假设旋转可离散为可达子目标**——对转笔 aerial phase（手指脱离）该假设破裂（§8 已指出）。
+AnyRotate 将目标改成 moving reorientation goal：
 
-## 4. 实验与验证 (Experiments)
+1. 给定 desired axis $\hat k$；
+2. 生成当前 target orientation；
+3. 用 object keypoints 与 goal keypoints 的距离作为 dense signal；
+4. 当 keypoint distance 小于 tolerance $d_{\mathrm{tol}}$ 时，沿 $\hat k$ 生成下一个 goal。
 
-### 实验设置
-- **硬件**: 16-DoF Allegro Hand + UR5 + 4 个视觉触觉传感器
-- **任务**: 6 种手朝向（palm up/down, thumb up/down, base up/down）× 多旋转轴
-- **测试物体**: 10 种未见过的真实世界物体
+Keypoint distance：
 
-### 训练细节
-- **仿真器**: IsaacGym, 4096 并行环境
-- **算法**: [[ReinforcementLearning|PPO]]，学习率 $5 \times 10^{-4}$，Horizon 16，Mini-batches 4
-- **训练规模**: Teacher ~5000 iterations，Student ~2000 iterations
-- **域随机化**: 物体质量 ±50%，摩擦系数 0.4–1.5，重力方向扰动 ±5°
-- **触觉 CNN 训练**: 仿真中收集 ~50k 对 (触觉图像, 接触姿态+力) 配对，监督学习预训练
-- **控制频率**: 20 Hz 关节位置指令
+$$
+d_{\mathrm{kp}}
+=
+\frac{1}{N}
+\sum_{i=1}^{N}
+\|k_o^i-k_g^i\|.
+$$
 
-### 关键结果
+附录写明 $N=6$，keypoints 放在 object origin 的 six principal axes 上，距离 5 cm。
 
-| 消融条件 | 平均连续旋转数 | 相对完整系统 |
-|---------|--------------|------------|
-| 完整系统（稠密触觉） | **~15 rotations** (palm-up) | 100% |
-| 仅二值接触 | ~8 rotations | ~53% |
-| 无触觉（仅本体感觉） | ~3 rotations | ~20% |
-| 无 Auxiliary Goal | 训练不收敛 | — |
-| 无自适应课程 $\lambda_{\text{rew}}$ | ~6 rotations | ~40% |
+Goal bonus：
 
-**Sim-to-Real 迁移**: 10 种未见物体上 zero-shot 迁移成功，palm-up/down 均可完成多轴旋转。
+$$
+r_{\mathrm{goal}}
+=
+\begin{cases}
+1,& d_{\mathrm{kp}}<d_{\mathrm{tol}},\\
+0,& \text{otherwise}.
+\end{cases}
+$$
 
-### Ablation 因果链分析
+重要批判：这是一种很有效的 dense subgoal formulation，但不应过度声称它严格等价于 Ng-style potential-based shaping 且“不改变最优策略”。因为这里 goal 本身被动态刷新，且作为 MDP goal state 参与训练；它更像把任务重写为 goal-reaching sequence。
 
-| 去除组件 A | 效果 B | 因果机制 C |
-|-----------|--------|----------|
-| 去除稠密触觉 → 仅二值接触 | 旋转数降至 ~53% | 二值接触无法检测滑移前兆（力幅度变化），策略无法提前调整抓取力 |
-| 去除所有触觉 | 旋转数降至 ~20%，palm-down 几乎完全失败 | 无接触反馈 → 无法感知物体在指尖上的漂移，尤其重力对抗场景 |
-| 去除 Auxiliary Goal → 直接角速度奖励 | 训练不收敛 | 连续旋转的角速度奖励梯度稀疏，策略容易陷入"静止抓持"局部最优 |
-| 去除自适应课程 $\lambda_{\text{rew}}$ | 旋转数降至 ~40% | 过早施加旋转奖励 → 策略在学会稳定抓取前就尝试旋转 → 频繁掉落 |
-| 去除 Teacher-Student → 直接端到端 | Sim-to-Real 失败 | 端到端依赖特权信息（物体姿态），真实世界无法获取；蒸馏提供可部署的感知接口 |
+### 2.5 Reward 结构
 
-**发现**: 稠密触觉能检测不稳定抓取并触发反应性行为，提高策略鲁棒性。
+总体：
 
-## 4.5 工程关键细节 (Engineering Tricks)
+$$
+r
+=
+r_{\mathrm{rotation}}
++
+r_{\mathrm{contact}}
++
+r_{\mathrm{stable}}
++
+r_{\mathrm{terminate}}.
+$$
 
-1. **触觉特征归一化**: 接触姿态 $(R_x, R_y)$ 归一化到 $[-1, 1]$，力幅度使用 softplus 保证非负性，避免网络输出异常值导致策略不稳定
-2. **Auxiliary Goal 的 $\delta\theta$ 选择**: 过小导致目标切换过频（策略抖动），过大导致单步不可达（奖励稀疏）；论文取 $\delta\theta \approx 15°$ 作为 sweet spot
-3. **自适应课程的线性调度**: $\lambda_{\text{rew}}$ 与平均旋转数线性挂钩而非固定 schedule，自动适配不同难度的手朝向
-4. **TCN 历史窗口**: Student 使用 TCN 编码最近 50 步观测历史（2.5s @ 20Hz），提供隐式速度/加速度估计
-5. **关键点选择**: 使用物体表面 8 个关键点而非质心/四元数作为旋转度量，避免四元数双覆盖问题和万向节锁
-6. **域随机化的接触参数**: 摩擦系数范围 [0.4, 1.5] 覆盖从光滑金属到粗糙橡胶，确保策略不依赖单一摩擦条件
-7. **早终止条件**: 物体掉落 OR 旋转轴偏离 > 30° → 立即终止并给大惩罚，加速无效 trajectory 的淘汰
+附录细分：
 
-## 5. 批判性分析 (Critical Analysis)
+$$
+r_{\mathrm{rotation}}
+=
+\lambda_{\mathrm{kp}}r_{\mathrm{kp}}
++
+\lambda_{\mathrm{rot}}r_{\mathrm{rot}}
++
+\lambda_{\mathrm{goal}}r_{\mathrm{goal}}.
+$$
 
-### 优势
-- **首次重力不变**: 6 种手朝向的统一策略
-- **Zero-shot Sim-to-Real**: 无需真实世界微调
-- **稠密触觉的价值**: 实验证明比离散触觉更有效
+$$
+r_{\mathrm{contact}}
+=
+\lambda_{\mathrm{rew}}
+(\lambda_{\mathrm{gc}}r_{\mathrm{gc}}+\lambda_{\mathrm{bc}}r_{\mathrm{bc}}).
+$$
 
-### 理论层面局限
-- [[ContactMechanics|接触模型]]假设刚体接触 + Coulomb 摩擦，未建模软体指垫的粘弹性和面接触分布
-- Auxiliary Goal Formulation 隐含"旋转可分解为离散子目标"的假设，对连续高速旋转（如转笔的 aerial phase）不适用
-- 重力不变性通过暴力枚举 6 个离散朝向实现，而非从 SE(3) 对称性出发的结构化方法
+$$
+r_{\mathrm{stable}}
+=
+\lambda_{\mathrm{rew}}
+(\lambda_{\omega}r_\omega
++\lambda_{\mathrm{pose}}r_{\mathrm{pose}}
++\lambda_{\mathrm{work}}r_{\mathrm{work}}
++\lambda_{\mathrm{torque}}r_{\mathrm{torque}}).
+$$
 
-### 算法层面局限
-- Teacher-Student 两阶段训练引入信息瓶颈：Student 的 TCN 编码能力限制了可迁移的特权信息量
-- [[ReinforcementLearning|PPO]] 的 on-policy 采样效率低，4096 环境并行仍需数千 iteration
-- 触觉 CNN 需要仿真中的监督数据对，假设仿真触觉渲染足够真实
+其中：
 
-### 工程层面局限
-- 触觉传感器标定和维护成本高（4 个视觉触觉传感器）
-- 20Hz 控制频率可能不足以应对高速动态操作
-- 仅在 Allegro Hand（16-DoF）上验证，未迁移至其他灵巧手
+| Term | 作用 |
+|---|---|
+| $r_{\mathrm{kp}}$ | 用 keypoint distance 拉近当前 object pose 和 goal pose |
+| $r_{\mathrm{rot}}$ | clip 后的沿目标轴增量旋转，$c_1=0.025$ rad |
+| $r_{\mathrm{goal}}$ | 达到当前 auxiliary goal 的 sparse bonus |
+| $r_{\mathrm{gc}}$ | tip contacts 数量至少 2 时奖励 |
+| $r_{\mathrm{bc}}$ | 惩罚非指尖接触 |
+| $r_\omega$ | object angular velocity 超过 $\omega_{\max}=0.6$ 时惩罚 |
+| $r_{\mathrm{pose}}$ | 偏离 canonical grasp pose 的惩罚 |
+| $r_{\mathrm{work}},r_{\mathrm{torque}}$ | controller work / torque regularization |
+| $r_{\mathrm{terminate}}$ | object falls 或 rotation axis deviation 超阈值时惩罚 |
 
-### 替代方案对比
-| 替代方案 | 优势 | 劣势 |
-|---------|------|------|
-| 端到端触觉图像策略 | 无需特征工程 | Domain gap 大，sim-to-real 困难 |
-| Model-based + 接触力估计 | 可解释性强 | 高维灵巧手建模复杂 |
-| 纯视觉方案（如 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]]） | 无需触觉硬件 | 遮挡严重时性能退化 |
-| [[ControlTheory\|阻抗控制]] + 力反馈 | 稳定性保证 | 需精确力传感器，难以自适应 |
+权重：
 
-### 未来方向
-- 扩展到 finger-gaiting 操作
-- 结合视觉进行物体追踪
-- 更复杂的力控制策略
+| 权重 | 值 |
+|---|---:|
+| $\lambda_{\mathrm{kp}}$ | 1.0 |
+| $\lambda_{\mathrm{rot}}$ | 5.0 |
+| $\lambda_{\mathrm{goal}}$ | 10.0 |
+| $\lambda_{\mathrm{gc}}$ | 0.1 |
+| $\lambda_{\mathrm{bc}}$ | 0.2 |
+| $\lambda_\omega$ | 0.5 |
+| $\lambda_{\mathrm{pose}}$ | 0.5 |
+| $\lambda_{\mathrm{work}}$ | 0.1 |
+| $\lambda_{\mathrm{torque}}$ | 0.05 |
+| $\lambda_{\mathrm{penalty}}$ | 50.0 |
 
-## 6. 与知识体系的联系 (Knowledge Graph Links)
+### 2.6 Adaptive curriculum
 
-### 与 [[ReinforcementLearning]] 的联系
-- **Auxiliary Goal Formulation** 对应 [[ReinforcementLearning|奖励塑形]]思想：将稀疏的"持续旋转"奖励转化为密集的"子目标到达"奖励
-- **Teacher-Student Distillation** 对应 [[ReinforcementLearning|Sim-to-Real]]中的特权学习范式：
-  $$\mathcal{L}_{\text{distill}} = \underbrace{\|z_s - z_t\|^2}_{\text{latent alignment}} + \underbrace{-\log \pi_t(a_s | z_t)}_{\text{action NLL}}$$
-- **自适应课程** $\lambda_{\text{rew}}$ 是[[Curriculum Learning|课程学习]]在奖励权重维度的实例化
+Contact 和 stability rewards 有双刃剑效应：
 
-### 与 [[ContactMechanics]] 的联系
-- 稠密触觉特征 $(P, F)$ 是 [[ContactMechanics|软指接触模型]]的简化参数化：
-  $$\text{Full Contact State} = (p_c, n_c, f_n, f_t, \tau) \xrightarrow{\text{降维}} (R_x, R_y, \|F\|)$$
-  接触姿态 $(R_x, R_y)$ 编码了接触法线方向，力幅度 $\|F\|$ 是法向力 $f_n$ 的标量近似
-- 关键点距离度量 $K(\|k_o^i - k_g^i\|)$ 与 [[ContactMechanics|抓取品质度量]]在精神上一致
+- 太早强调稳定，策略会学会“抓稳但不转”；
+- 太晚强调稳定，策略会学会“乱转但掉落”。
 
-### 与 [[SignalProcessing]] 的联系
-- 触觉图像 → 接触特征的 CNN 是 [[SignalProcessing|光度立体视觉]]的学习版本：从 marker 变形图像反演接触几何
-- TCN 编码历史观测对应 [[SignalProcessing|滑移检测]]的时序推理：通过力幅度的时间变化趋势判断滑移风险
+AnyRotate 用平均 achieved goals 调度：
 
-### 与 [[RepresentationLearning]] 的联系
-- 稠密触觉表征是 [[RepresentationLearning|多模态触觉智能]]的实例化：从高维触觉图像提取低维但物理可解释的接触特征
-- 这种"先提取显式特征再输入策略"的范式体现了 [[RepresentationLearning|物理重构]]原则
+$$
+\lambda_{\mathrm{rew}}
+=
+\frac{g_{\mathrm{eval}}-g_{\min}}
+{g_{\max}-g_{\min}},
+\qquad
+[g_{\min},g_{\max}]=[1.0,2.0].
+$$
 
-### 启发总结
-1. **稠密触觉很重要**: 不要过早将触觉信息降维到二值接触
-2. **重力不变性**: 通过手朝向随机化实现，而非显式建模重力补偿
-3. **Auxiliary Goal > 角速度奖励**: 目标到达比持续旋转更容易学习
-4. **Sim-to-Real Touch**: 显式接触特征（姿态+力）比端到端触觉图像更易迁移
+这让训练先学会 goal-reaching rotation，再逐步加大 contact/stability 的约束。
 
-## 7. 演进脉络定位 (Evolution Context)
+### 2.7 Teacher-student distillation
 
-```
-前置工作: 
-├── OpenAI Rubik's Cube (2019): 视觉 + Domain Randomization
-├── HORA (2023): 本体感觉 + RMA
-└── Touch Dexterity (2023): 纯触觉 z 轴
+Teacher 使用 privileged information：
 
-本论文: AnyRotate
-├── 稠密触觉特征（姿态+力）
-├── 重力不变多轴旋转
-└── Auxiliary Goal Formulation
-```
+| Privileged group | Variables |
+|---|---|
+| Object information | position, orientation, angular velocity, dimensions, COM, mass |
+| Environment | gravity vector |
+| Auxiliary goal | goal position, goal orientation |
 
-> [!note] 领域级 insight（与簇内综述互参）
-> AnyRotate 是 in-hand rotation 簇里唯一攻下**任意旋转轴**的工作，代价是物体仍需多指稳定支撑（非 [[Lessons from Learning to Spin Pens|Spin Pens]] 的无支撑笔）。放进 [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2 三轴坐标]]，它占据"⟨有支撑⟩×⟨任意轴⟩×⟨稠密触觉⟩"格；与 [[RotateIt - General In-Hand Object Rotation with Vision and Touch#7.2 演进脉络|RotateIt]]（多轴但 x/y/z 分别训练、视触觉）的关键差是"单一策略任意 $\hat{k}$" vs "分轴训练"。沿 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]]→RotateIt→AnyRotate 的感知-自由度阶梯，领域空白仍是"**无支撑 + 任意轴 + 纯本体**"：AnyRotate 贡献"任意轴 + 稠密触觉 sim-to-real"，Spin Pens 贡献"无支撑数据引擎"，合流是 WMTS/转笔的开放问题。其 §3.8(A) 证明的"Auxiliary Goal = 势函数塑形"是该空白可直接复用的无偏奖励工具。
+Student 部署时不能访问这些信息，只能用历史 real-world observations。Student latent：
 
-### 跨方法结构性对比
+$$
+z_t
+=
+\phi(O_t,O_{t-1},\dots,O_{t-n}).
+$$
 
-| 维度 | AnyRotate | [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | HORA | PPO Baseline |
-|-----|-----------|-----------|------|-------------|
-| **感知模态** | 本体感觉 + 稠密触觉 | 本体感觉 + 视觉 | 本体感觉 + RMA | 本体感觉 |
-| **旋转自由度** | 多轴 (任意 $\hat{k}$) | 多轴 | z 轴为主 | 单轴 |
-| **重力不变** | ✅ 6 种朝向 | ❌ palm-up 为主 | ❌ palm-up | ❌ |
-| **Sim-to-Real 策略** | Teacher-Student + 稠密触觉特征 | 课程 + 演示引导 | RMA 适应器 | 域随机化 |
-| **奖励设计** | Auxiliary Goal（子目标到达） | 任务奖励 + 课程 | 角速度奖励 | 角速度奖励 |
-| **课程机制** | 自适应 $\lambda_{\text{rew}}$ | 演示引导自动课程 | 无显式课程 | 无 |
-| **关键优势** | 触觉 sim-to-real 闭环 | 演示加速探索 | 在线适应 | 简单 |
-| **关键劣势** | 触觉硬件成本 | 依赖高质量演示 | 无触觉反馈 | 泛化差 |
+论文使用 TCN encoder，history length 30。Student policy 与 teacher actor-critic 架构相同，输出 diagonal Gaussian：
 
-> [!tip] 与 PPO 转笔策略的对比启发
-> PPO 转笔中常用角速度奖励 → AnyRotate 实验证明这导致探索困难。**Auxiliary Goal Formulation** 将连续旋转离散化为子目标序列，为转笔的"指间传递"阶段提供了替代奖励设计思路：每个手指接触阶段定义一个中间目标姿态。
+$$
+a_t\sim\mathcal N(\mu_\theta,\Sigma_\theta).
+$$
 
-## 8. 与用户研究的启发（灵巧手转笔/Sim-to-Real）
+训练损失：
 
-**直接可迁移的思想**：
-1. **Gravity-Invariant Framework**: 转笔任务中手的姿态变化导致重力对笔的作用方向不断变化，可借鉴本文的重力不变性训练策略，在[[ReinforcementLearning|域随机化]]中加入手部姿态随机化
-2. **Auxiliary Goal Formulation**: 将「转笔角速度维持」和「接触力稳定」作为辅助目标而非直接的奖励信号，可能比精心设计的 dense reward 更鲁棒。具体地，转笔可分解为："指1→指2传递"、"aerial phase"、"指2 catch" 三个子目标
-3. **触觉信号处理**: 本文将触觉抽象为姿态+力的稠密特征，对于转笔中指腹触觉传感器的 sim-to-real 对齐有参考价值。关键洞察：**不迁移原始触觉图像，而是迁移物理可解释的接触中间表征**
-4. **自适应课程 $\lambda_{\text{rew}}$**: 转笔训练中可类似地设计——初期重点学习稳定抓持，平均旋转数达标后逐步增加旋转速度奖励权重
+$$
+\mathcal L_{\mathrm{student}}
+=
+\|z_t-\bar z_t\|_2^2
++
+\mathrm{NLL}
+\left(
+\pi_s(a|\cdot),
+\bar a_t
+\right),
+$$
 
-**局限性对比**:
-- AnyRotate 处理的是**准静态旋转**（20Hz 控制 + 低角速度），转笔是**动态高速操作**（需 ≥50Hz + 惯性效应显著）
-- AnyRotate 的 Auxiliary Goal 假设每个子目标间有充分的控制余量，但转笔 aerial phase 中手指完全脱离物体，子目标范式需本质性修改
-- AnyRotate 的触觉特征在持续接触场景有效，但转笔涉及频繁的接触-脱离切换，[[ContactMechanics|接触不连续性]]更严重
+其中 $\bar z_t$ 和 $\bar a_t$ 来自 teacher。论文还指出 student 因缺少 explicit object/goal information，goal-reaching accuracy 会下降，因此 student training 中把 goal update tolerance 提高到 $d_{\mathrm{tol}}=0.25$。
+
+### 2.8 Dense tactile representation
+
+AnyRotate 的触觉不是 raw image，也不是二值 contact，而是：
+
+$$
+\text{dense touch}
+=
+(P,F),
+$$
+
+其中：
+
+$$
+P=(R_x,R_y)
+$$
+
+表示 contact pose 的 spherical coordinates：polar angle $R_x$ 与 azimuthal angle $R_y$；
+
+$$
+F=\|[F_x,F_y,F_z]\|.
+$$
+
+真实端数据采集：
+
+| 项 | 设置 |
+|---|---|
+| Robot | UR5 moves tactile sensor |
+| Label source | F/T sensor on workspace platform |
+| Samples | 3000 images per fingertip sensor；2400 train / 600 test |
+| Labels | contact depth $z$, pose $R_x,R_y$, forces $F_x,F_y,F_z$ |
+| Pose range | $R_x,R_y\in[-28^\circ,28^\circ]$ |
+| Force range | up to 5 N |
+| Raw image | RGB 640×480, up to 30 FPS |
+| Processing | grayscale, resize to 240×135 |
+| Binary contact | SSIM threshold 0.6 |
+| Dense prediction | CNN predicts 6 outputs, then use $R_x,R_y,\|F\|$ |
+
+CNN training parameters:
+
+| 参数 | 值 |
+|---|---|
+| Conv filters | [32, 32, 32, 32] |
+| Kernels | [11, 9, 7, 5] |
+| Max pooling | kernel/stride [2,2,2,2] |
+| Output dim | 6 |
+| Batch norm | true |
+| Activation | ReLU |
+| LR | $10^{-4}$ |
+| Batch size | 16 |
+| Epochs | 100 |
+| Optimizer | Adam |
+
+### 2.9 Simulated tactile processing
+
+仿真用 rigid body contact 信息近似 soft tactile sensor：
+
+Binary contact：
+
+$$
+c=
+\begin{cases}
+1,&\|F\|>0.25\mathrm N,\\
+0,&\text{otherwise}.
+\end{cases}
+$$
+
+Force delay EMA：
+
+$$
+F_t^{\mathrm{smooth}}
+=
+\alpha F_t+(1-\alpha)F_{t-1},
+\qquad
+\alpha=0.5.
+$$
+
+Force saturation/rescaling：
+
+$$
+F=\beta_F\ \mathrm{clip}(F,F_{\min},F_{\max}),
+$$
+
+with $\beta_F=0.6$, $F_{\min}=0$, $F_{\max}=5.0\mathrm N$.
+
+Pose saturation/rescaling：
+
+$$
+P=\beta_P\ \mathrm{clip}(P,P_{\min},P_{\max}),
+$$
+
+with $\beta_P=0.6$, $P_{\min}=-0.53$ rad, $P_{\max}=0.53$ rad.
+
+最后用 binary contact mask 掉无接触时的 pose/force prediction，减少噪声。
+
+## 3. 训练、数据与实验
+
+### 3.1 系统与训练设置
+
+| 项 | 设置 |
+|---|---|
+| Real hand | 16-DoF Allegro Hand |
+| Arm | UR5 provides hand orientations |
+| Tactile sensors | 4 front-facing vision-based tactile fingertips, modified DigiTac/TacTip style |
+| Control | policy/tactile-proprioception 20Hz；PD controller 300Hz |
+| Simulator | IsaacGym |
+| Sim timestep | $dt=1/60$s |
+| Training objects | capsule and box |
+| Simulation OOD tests | OOD Mass, OOD Shape |
+| Real objects | 10 unseen everyday objects |
+| Evaluation length | 600 steps = 30s |
+| Metrics | Rotation Count (Rot), Time to Terminate (TTT) |
+
+Policy training Table 7:
+
+| 参数 | Teacher | Student |
+|---|---:|---:|
+| Num envs | 8192 | 8192 |
+| Learning rate | $5\times10^{-3}$ | $3\times10^{-4}$ |
+| Teacher MLP hidden | [256,128,8] | - |
+| Student TCN input | - | [30,N] |
+| Student latent dim | - | 8 |
+| Policy hidden | [512,256,128] | [512,256,128] |
+| Rollout steps | 8 | - |
+| Minibatch / batch | 32768 | 8192 |
+| Discount | 0.99 | - |
+| GAE | 0.95 | - |
+| Goal update $d_{\mathrm{tol}}$ | 0.15 | 0.25 |
+
+### 3.2 Domain randomization 与 system identification
+
+System identification：对 Allegro Hand 的 16 DoF，每个 DoF 优化 stiffness、damping、mass、friction、armature，共 80 个参数，用 CMA-ES 最小化 sim/real trajectory MSE。
+
+Domain randomization Table 6：
+
+| 类别 | 参数 |
+|---|---|
+| Object geometry | capsule radius [0.025,0.034] m；capsule width [0,0.012] m；box width/height [0.045,0.06] m |
+| Object mass | [0.025,0.20] kg |
+| Friction | object 10.0；hand 10.0 |
+| COM | [-0.01,0.01] m |
+| Disturbance | scale 2.0；probability 0.25；decay 0.99 |
+| Hand PD | stiffness/damping $\times U(0.9,1.1)$ |
+| Observation noise | joint 0.03；fingertip position 0.005；orientation 0.01 |
+| Tactile noise | pose 0.0174；force 0.1 |
+
+旧稿中写“摩擦 0.4-1.5”不是本文 Table 6 的数值；本文给的是 object/hand friction 10.0。
+
+### 3.3 Table 1：仿真 OOD mass / shape
+
+| Tactile Observation | OOD Mass Rot | OOD Mass EpLen(s) | OOD Shape Rot | OOD Shape EpLen(s) |
+|---|---:|---:|---:|---:|
+| Fixed Hand Orn | 0.55±0.06 | 11.8±0.2 | 0.55±0.04 | 19.1±0.5 |
+| Proprioception | 1.34±0.07 | 21.5±0.5 | 0.82±0.02 | 25.1±0.3 |
+| Binary Touch | 1.90±0.04 | 20.8±0.5 | 1.57±0.05 | 25.3±0.2 |
+| Discrete Touch | 1.95±0.15 | 22.2±0.4 | 1.67±0.08 | 26.5±0.1 |
+| Dense Force (w/o Pose) | 2.05±0.04 | 22.0±0.8 | 1.60±0.02 | 25.5±0.4 |
+| Dense Pose (w/o Force) | 2.05±0.05 | 21.9±0.1 | 1.73±0.03 | 26.7±0.0 |
+| Dense Touch (Ours) | **2.18±0.05** | **22.8±0.8** | **1.77±0.01** | **27.2±0.3** |
+
+因果解释：
+
+- Fixed hand orientation policy 只有 0.55 rotations，证明 gravity-invariant training 不是可选项。
+- Binary touch 明显优于 proprioception，说明触觉存在/不存在本身已经补了 contact state。
+- Dense force 对 OOD mass 很有用，Dense pose 对 OOD shape 更有用；这正好对应论文说法：force 捕捉 interaction physics，pose 捕捉 contact geometry。
+- Full dense touch 最好，说明 $(R_x,R_y)$ 和 $\|F\|$ 是互补而非重复信息。
+
+### 3.4 Table 2：真实世界不同手朝向
+
+任务：z-axis rotation，10 个真实未见物体，6 个 hand orientations。
+
+| Observation | Palm Up Rot/TTT | Palm Down Rot/TTT | Base Up Rot/TTT | Base Down Rot/TTT | Thumb Up Rot/TTT | Thumb Down Rot/TTT |
+|---|---|---|---|---|---|---|
+| Proprioception | 1.47±0.69 / 27.6 | 1.05±0.37 / 25.3 | 0.84±0.30 / 26.8 | 0.87±0.46 / 22.8 | 0.78±0.53 / 20.3 | 0.51±0.65 / 9.5 |
+| Binary Touch | 1.32±0.52 / 25.5 | 0.89±0.28 / 23.8 | 0.86±0.32 / 25.3 | 0.77±0.28 / 23.0 | 0.83±0.49 / 22.6 | 0.47±0.32 / 13.2 |
+| Dense Touch | **1.57±0.57 / 30.0** | **1.33±0.44 / 28.2** | **1.32±0.32 / 29.8** | **1.17±0.38 / 29.4** | **1.08±0.47 / 27.9** | **0.91±0.33 / 29.2** |
+
+因果解释：
+
+- Dense touch 在所有方向上 TTT 接近 28-30s，说明它真正提高了“不断开/不掉落”的稳定性。
+- Thumb up/down 最难，论文解释为手指水平时 gravity loading acts against actuation，Allegro actuation 被削弱。
+- Binary touch 不总是优于 proprioception，特别是 palm-up/z-axis 上略低；这说明低维触觉如果没有足够空间/力信息，可能只带来噪声或不充分信息。
+
+### 3.5 Table 3：真实世界不同旋转轴
+
+任务：palm-down configuration，比较 x/y/z axes。
+
+| Observation | x-axis Rot/TTT | y-axis Rot/TTT | z-axis Rot/TTT |
+|---|---:|---:|---:|
+| Proprioception | 0.35±0.33 / 16.6 | 0.17±0.19 / 8.33 | 1.05±0.37 / 25.3 |
+| Binary Touch | 0.87±0.43 / 26.5 | 0.25±0.18 / 15.9 | 0.89±0.28 / 23.8 |
+| Dense Touch | **1.33±0.50 / 28.6** | **0.79±0.37 / 27.8** | **1.33±0.44 / 28.2** |
+
+因果解释：
+
+- z-axis 最容易，x/y 更需要复杂 finger-gaiting，因为要两指稳住物体、另两指提供旋转。
+- Dense touch 对 x/y 的提升尤其重要，证明 contact pose/force 不只是提升稳定 z-axis，还支持更复杂多指协调。
+- y-axis 仍最低，说明“任意轴”并不等于所有轴等难；任务几何和手形态仍决定难度。
+
+### 3.6 Table 11：auxiliary goal 设计选择
+
+| Goal Update Tolerance | Rot | TTT(s) | #Success |
+|---|---:|---:|---:|
+| $d_{\mathrm{tol}}=0.15$ | 0.75 | 28.1 | 3.07 |
+| $d_{\mathrm{tol}}=0.20$ | 1.36 | 27.7 | 4.48 |
+| $d_{\mathrm{tol}}=0.25$ | **1.77** | 27.2 | **5.26** |
+
+| Goal Increment | Rot | TTT(s) | #Success |
+|---|---:|---:|---:|
+| $\theta=30^\circ$ | **1.77** | 27.2 | **5.26** |
+| $\theta=40^\circ$ | 1.50 | 26.7 | 4.36 |
+| $\theta=50^\circ$ | 1.30 | 27.1 | 3.86 |
+
+因果解释：
+
+- student 的 $d_{\mathrm{tol}}$ 太小，会因为缺少 privileged goal/object 信息而频繁错过 goal，导致 OOD data 和低 rotation。
+- goal increment 太大，单个子目标更难 reach，dense reward 变弱；Table 11 中 30° 最好。
+- 旧稿写 $\delta\theta$ sweet spot 约 15° 不符合附录；本文明确比较的是 30/40/50°。
+
+### 3.7 Emergent tactile behavior
+
+Figure 7 在 rollout 第 300 step 施加 grasp offset。Dense tactile policy 展现两个重要行为：
+
+1. $R_y$ 中能看到 object rolling along fingertips 的周期；
+2. 当 contact pose 接近边界时，fingers extend to reduce contact angle in subsequent cycles。
+
+这说明 dense touch 不只是提高表格平均分，而是让 policy 学到 reactive recovery：检测 unstable grasp under boundary contact，然后通过 finger-gaiting 防止继续滑落。论文明确说这种行为在 proprioception 或 binary touch 中没有出现。
+
+## 4. 核心洞见
+
+### 4.1 AnyRotate 的真正 insight
+
+AnyRotate 的核心不是“加触觉就更好”，而是三件事必须同时成立：
+
+$$
+\text{multi-axis goal formulation}
++
+\text{gravity-invariant training distribution}
++
+\text{dense sim-to-real tactile features}.
+$$
+
+只加任意一项都不够：
+
+- 没有 auxiliary goal，多轴训练会卡住；
+- 没有 gravity randomization，fixed hand orientation policy 泛化差；
+- 没有 dense touch，真实手朝向/轴变化下稳定性不足。
+
+### 4.2 为什么 dense touch 有效
+
+Binary touch 只回答：
+
+$$
+\text{finger in contact?}
+$$
+
+Dense touch 回答：
+
+$$
+\text{contact where on the fingertip? how strong?}
+$$
+
+对 in-hand rotation，这两类信息对应不同控制需求：
+
+| 信息 | 控制意义 |
+|---|---|
+| contact pose $R_x,R_y$ | 判断物体是否滚到指尖边界，决定是否 finger extend / regrasp |
+| force magnitude $\|F\|$ | 判断抓持是否过松/过紧，尤其在 OOD mass 下有用 |
+| contact temporal history | 通过 TCN 推断趋势、重力方向和滑移风险 |
+
+这也是为什么 Dense Force 和 Dense Pose 各自在 OOD mass / OOD shape 上有不同作用。
+
+### 4.3 与转笔的关键差异
+
+AnyRotate 的 object 始终被多指支撑；转笔会出现：
+
+- object 与手指完全脱离的 aerial phase；
+- 碰撞式 catch；
+- 高速角动量主导；
+- 瞬时接触切换；
+- 更强的切向摩擦和滚动/滑动模式。
+
+因此 AnyRotate 的 auxiliary goal 思想可以迁移，但它的 quasi-stable precision grasp 假设不能直接迁移。
+
+## 5. 替代方案与理论局限
+
+### 5.1 理论维度
+
+AnyRotate 的接触表征是：
+
+$$
+(R_x,R_y,\|F\|).
+$$
+
+它是 full contact state 的低维投影：
+
+$$
+(p_c,n_c,f_n,f_t,\tau,\mathrm{contact\ patch})
+\rightarrow
+(R_x,R_y,\|F\|).
+$$
+
+这会丢失：
+
+- 切向力方向；
+- 接触 patch 形状；
+- 多点接触；
+- torsional friction；
+- incipient slip 的局部剪切场。
+
+对 stable rotation 已经很有用；对 pen spinning / high-speed rolling 可能不够。
+
+### 5.2 算法维度
+
+| 局限 | 影响 |
+|---|---|
+| Teacher-student bottleneck | student 只能通过 30-step history 推断 privileged object/goal/gravity 信息 |
+| PPO sample cost | 8192 env + large-scale sim 仍需要复杂工程 |
+| Tactile perception assumes single combined contact | 边缘/多点接触或复杂物体可能预测不准 |
+| Auxiliary goal 依赖可达子目标 | aerial phase 或高速动态操作中子目标可能不可连续跟踪 |
+| Goal tolerance/increment 敏感 | Table 11 显示 $d_{\mathrm{tol}}$ 和 $\theta$ 选择显著影响结果 |
+
+### 5.3 工程/实验维度
+
+- 触觉传感器是定制前向光学触觉指尖；侧面 casing 接触滑，论文通过传感器安装角度 offset 缓解。
+- 真实传感器 30 FPS，policy 20Hz；对高速转笔可能不够。
+- 论文报告 10 个物体，但 sharp corners / edges 仍困难，需要 edge feature 或视觉 shape。
+- Allegro 在 thumb up/down 等方向 actuation weakened，说明硬件形态与重力方向强耦合。
+
+## 6. 对用户研究的启发
+
+### 6.1 对 LinkerHand / 转笔可迁移的部分
+
+| AnyRotate 元件 | 转笔/WMTS 迁移方式 | 必须修改 |
+|---|---|---|
+| Auxiliary goal | 把连续转笔拆成 phase/subgoal：push → release → aerial → catch → regrasp | 子目标不能只用 object orientation，要包含 contact phase |
+| Dense touch $(P,F)$ | 用 tactile tensor 预测 contact pose / force / slip probability | 增加 tangential shear 和 contact patch |
+| Gravity-invariant training | 随机化 hand/object orientation、重力在手坐标系方向 | 转笔还要随机化角动量和初始接触 |
+| Teacher-student | PPO Oracle 用特权 object/contact state，student 用真实 tactile/proprio history | student 需要更高频历史和 uncertainty |
+| Reactive recovery | 用 tactile boundary/slip detection 触发 correction | catch phase 要允许离散重接触冲击 |
+
+### 6.2 对 WMTS pipeline 的结合
+
+| WMTS 模块 | AnyRotate 启发 |
+|---|---|
+| latent task generation | 生成 moving auxiliary goals，而不是只给最终旋转目标 |
+| PPO Oracle | teacher 可用 privileged object pose/contact/goal/gravity，训练高质量 oracle |
+| Diffusion/Flow generalist | student/diffusion policy 条件化 tactile dense features 和 phase goal |
+| Ensemble World Model | 预测 contact pose/force/slip 的未来分布，发现 unstable grasp |
+| real fine-tuning | 用真实 tactile perception model 对齐接触中间表征 |
+
+最值得复用的是：**让 world model / scheduler 选择下一个 auxiliary goal，而不是让 policy 直接追最大角速度。** 这会把转笔从“一个长期稀疏动态任务”拆成可验证的小阶段。
+
+### 6.3 可验证实验建议
+
+| 实验 | 设计 | 证伪条件 |
+|---|---|---|
+| angular reward vs auxiliary subgoal | LinkerHand 转笔比较直接 $\omega$ reward 与 phase/subgoal reward | auxiliary subgoal 不提升 exploration 或导致不自然动作 |
+| binary touch vs dense tactile | 二值接触、contact pose/force、pose/force/shear 三档 | dense tactile 不提升 catch/slip recovery |
+| gravity-hand randomization | palm-up-only vs randomized wrist orientation | randomized policy 不提升姿态泛化 |
+| teacher-student privileged gap | teacher 用 object pose/contact truth，student 用 tactile/proprio | student distillation 后性能断崖，说明观测不足 |
+| reactive recovery probe | 人为扰动笔/物体接触，观察 tactile policy 是否恢复 | 没有恢复行为，说明触觉特征未被策略利用 |
+
+### 6.4 不应过度外推的点
+
+- AnyRotate 的 object 没有自由飞行；转笔 aerial phase 是本质不同的动力学模式。
+- 它的 dense touch 没有显式 shear/slip direction；转笔更依赖切向信息。
+- 20Hz control 和 30FPS tactile 对高速 pen spinning 可能太低。
+- 成功依赖 Allegro + 4 个定制 tactile sensors；LinkerHand 的 actuator/tactile layout 需要重新建模。
+
+## 7. 与知识体系的联系
+
+### 7.1 与 [[ReinforcementLearning]] 的联系
+
+AnyRotate 是 PPO 在高难接触任务上的一个很好的 reward/task formulation 案例。关键不是 PPO 本身，而是把 multi-axis rotation 改写成 moving auxiliary goal，让 exploration 有 dense progress signal。Teacher-student distillation 属于 privileged learning / sim-to-real 策略压缩。
+
+### 7.2 与 [[ContactMechanics]] 的联系
+
+Dense touch 是接触状态的低维物理表征。它承认 in-hand rotation 的核心不是“关节角轨迹”，而是接触位置和法向力如何随物体滚动循环变化。Figure 7 的 reactive recovery 正是 contact boundary feedback 的体现。
+
+### 7.3 与 [[SignalProcessing]] 的联系
+
+触觉图像处理包括灰度化、resize、SSIM contact detection、CNN regression。重要的是 signal pipeline 产生的是显式接触变量，而不是让策略端到端处理 raw image。
+
+### 7.4 与 [[RepresentationLearning]] 的联系
+
+AnyRotate 是“物理中间表征优先”的例子：$(R_x,R_y,\|F\|)$ 比 raw tactile image 更容易 sim-to-real，比 binary contact 更有信息。它和 Tacmap 的共同点是都在寻找触觉的 gap-invariant observation subspace。
+
+### 7.5 与 [[ControlTheory]] 的联系
+
+策略输出相对位置增量，底层 PD 控制执行。AnyRotate 的稳定性依赖 action smoothing、PD tracking、actuation strength 和 tactile recovery。若迁移到 LinkerHand，需要先确认低层位置/力控接口能支持类似的快速 finger-gaiting。
+
+## 8. 应主动追问的颗粒度
+
+| 用户式追问 | recap 应主动补充 |
+|---|---|
+| “AnyRotate 为什么比角速度奖励好？” | 写出 angular reward 在 early exploration 中 noisy，auxiliary goal 用 keypoint distance 给 dense signal |
+| “Dense touch 到底多了什么？” | contact pose $(R_x,R_y)$ 定位指尖接触边界，$\|F\|$ 表示抓持强度；Table 1 分别显示 mass/shape 作用 |
+| “重力不变怎么来的？” | 训练随机化 hand orientation，teacher 有 gravity vector，student 用 tactile/proprio history 隐式推断 |
+| “结果最强证据是什么？” | Table 2/3 中 Dense Touch 在所有 hand orientations / axes 上 Rot 和 TTT 最好 |
+| “对转笔怎么用？” | 用 auxiliary phase goals + dense tactile/slip features，但必须处理 aerial phase、shear 和更高频控制 |
+
+## References
+
+- Yang, M. et al. **AnyRotate: Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch**. CoRL 2024.
+- [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map]]
+- [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]]
+- [[RotateIt - General In-Hand Object Rotation with Vision and Touch]]
+- [[Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture]]
+- [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]]
+- [[ReinforcementLearning]]
+- [[ContactMechanics]]
+- [[SignalProcessing]]
+- [[RepresentationLearning]]
+- [[ControlTheory]]

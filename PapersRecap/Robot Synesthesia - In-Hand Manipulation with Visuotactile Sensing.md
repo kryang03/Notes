@@ -21,299 +21,708 @@ related:
 # Robot Synesthesia: In-Hand Manipulation with Visuotactile Sensing
 
 > [!abstract] 核心贡献
-> 针对"视触觉多在特征级拼接、异质模态难自然融合，且 RGB/深度的 sim-to-real gap 大"这一瓶颈，提出 Robot Synesthesia：把触觉信号经 FK 投影成 3D **触觉点云**，与视觉点云、机器人增强点云在**同一坐标系输入级合并**后送单一 PointNet。结构性洞见：**把异质模态都抽象为几何点云，既让 PointNet 的置换不变聚合自然融合三种来源（靠 one-hot 区分），又因几何表示不含纹理/光照/力幅值而天然缩小 sim-to-real gap。** 由此实现双球同时旋转等复杂多物体操作。
-
-> [!note] 教科书背景
-> **接触信息的几何本质**：触觉点云实际上是 [[ContactMechanics|Montana 接触运动学方程]] 中“接触点在表面演化”的离散化观测。每个触觉点的 3D 坐标隐式编码了：
-> - **接触位置** $u_1, u_2$：在物体/手指表面的局部坐标
-> - **接触力分布**：通过点的密度/强度表示法向压力
-> 
-> 参见 Murray et al. "A Mathematical Introduction to Robotic Manipulation" Ch.5 关于**抓取几何**的讨论——本文将这些几何关系嵌入到神经网络的隐式表示中。
+> Robot Synesthesia 把视觉点云、机器人自身 mesh 采样点云、以及由二值 FSR 触发并经 FK 投影得到的触觉点云，放进同一个 palm-frame 3D point set 中，再用 PointNet 做输入级融合；它的核心价值是把“视觉-触觉异质融合”改写成“同一几何空间里的点集推理”，从而让 teacher-student dexterous rotation policy 能在 double-ball、wheel-wrench 和 multi-object 三轴旋转任务上 zero-shot transfer 到真机。
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning]] - PointNet 统一处理视觉和触觉点云
-> - [[ComputationalGeometry]] - 增强点云与触觉点云融合
-> - [[ContactMechanics]] - 触觉点云是表面几何的离散采样
-> - [[ContactMechanics]] - 接触点到物体力的映射
-> - [[ReinforcementLearning]] - 教师-学生训练框架
+> - [[ComputationalGeometry]] — point set representation：视觉、手部增强点、触觉点都被投到同一坐标系，靠几何关系表达 hand-object-contact layout。
+> - [[RepresentationLearning]] — PointNet symmetric aggregation：$f(\{p_i\})\approx g(\max_i h(p_i))$ 解释为什么变长、多来源点云可以输入级合并。
+> - [[ContactMechanics]] — contact point geometry：触觉点云给出接触位置 $r_{\text{contact}}$，它决定可产生的 contact wrench $\tau=r\times f$。
+> - [[ReinforcementLearning]] — PPO teacher + BC/DAgger student：用低维 privileged state 训 teacher，再蒸馏到高维 visuotactile point-cloud student。
 >
-> **核心技术**: Tactile Point Cloud, Unified 3D Representation, Teacher-Student RL
+> **核心技术**: tactile point cloud, visual-tactile input-level fusion, PointNet, teacher-student RL, DAgger, Sim-to-Real
 
-## 1. 核心直觉与宏观定位 (The Big Picture)
+## 0. 阅读定位与范本价值
 
-### 一句话核心
-将触觉数据"绘制"成 3D 点云，与视觉点云统一处理，让机器人能"看见"它的触觉交互。
+这篇论文的价值不在于“又用了视觉和触觉”，而在于它提出了一种很干净的 representation bet：
 
-### 直观隐喻
-人类的触觉-视觉联觉（Synesthesia）是指触摸时能"看到"颜色——Robot Synesthesia 让机器人触摸时能在心智中"看到"接触点的 3D 位置，实现视触觉的自然融合。
+> 如果视觉和触觉都最终服务于 contact-rich manipulation 中的空间关系推理，那么与其在 feature level 拼接两种异质模态，不如先把它们全部变成同一坐标系下的 3D 点。
 
-### 领域定位
-```
-RotateIt (2023): 分离处理视觉和触觉
-    ↓
-Robot Synesthesia (2024): 点云统一视触觉 ← 本文
-    ↓
-未来: 具身多模态统一表征
-```
+它和 RotateIt 的差异非常值得放在一起看：
 
-## 2. 核心创新与贡献 (Contributions & Novelty)
+| 论文 | 触觉表示 | 融合位置 | 主要瓶颈判断 |
+|---|---|---|---|
+| [[RotateIt - General In-Hand Object Rotation with Vision and Touch]] | 8-bin fingertip contact location + depth | transformer feature-level temporal fusion | 多轴旋转需要估计 object extrinsics |
+| **Robot Synesthesia** | FSR binary trigger → sensor mesh samples → 3D tactile point cloud | input-level point cloud fusion | 视触觉融合应先统一到几何空间 |
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | full-hand binary contact | policy input | binary contact 的 sim-real 稳定性 |
+| [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | dense tactile pose/force | policy / teacher-student | tactile dense signal 支持任意轴重力不变 |
 
-### Delta 分析
-| 前人工作 | 融合方式 | Robot Synesthesia 突破 |
-|---------|---------|---------------------|
-| 传统方法 | 特征级拼接 | 输入级 3D 点云统一 |
-| RotateIt | 分离编码器 | 单一 PointNet |
-| 多数工作 | 仅单球旋转 | **双球同时旋转** |
+最低标准：
 
-### 关键贡献点
-1. **触觉点云表示**: 将 FSR 触觉信号"投影"到传感器网格上形成 3D 点云
-2. **输入级融合**: 视觉、增强、触觉点云合并后送入单一 PointNet
-3. **双球旋转任务**: 证明方法能处理更复杂的多物体交互
+| 支柱 | 本文必须回答的问题 | 本 recap 的位置 |
+|---|---|---|
+| 逻辑与价值 | 为什么要把 tactile “画”成点云，而不是直接拼 FSR/RGB/depth feature？ | §1 |
+| 原理与理论 | FK 投影、PointNet 对称函数、contact wrench 三者如何连起来？ | §2 |
+| 实验与验证 | Table I/II/III 到底支持什么，哪些地方不支持过度宣传？ | §3 |
+| 未来与结合 | 触觉点云如何迁移到 LinkerHand/转笔，哪里会失效？ | §5-§6 |
 
-## 3. 理论原理深度解析 (Theoretical Deep Dive)
+## 1. 问题设定与动机
 
-### 3.0 变量来源追踪
+### 1.1 一句话核心
 
-与簇内 teacher-student 工作一致，核心区分在 teacher 的**特权几何**（物体位姿 $x_t,v_t,w_t$ + 预训练 shape feature $f$）与 student 只能用的**点云观测** $P_t$——这是 §5 蒸馏瓶颈的来源。
+Robot Synesthesia 要解决的是：
+
+> 在 in-hand object rotation 中，如何把 sparse binary tactile、dense camera point cloud、robot hand geometry 放进一个 policy 能直接理解的统一 3D representation，并通过 teacher-student learning 让它从仿真迁移到真实 AllegroHand。
+
+任务不是单一物体单轴旋转，而包含三个 benchmark：
+
+| Benchmark | 任务 | 为什么难 |
+|---|---|---|
+| Wheel-Wrench Rotation | 旋转四向 wheel wrench along z-axis | robot 要看见下一个可用 handle，同时通过触觉判断旋转/接触 |
+| Double-Ball Rotation | 两个同尺寸球相互绕 z-axis 旋转 | tactile alone 难区分两个球；动作小了转不动，大了会掉 |
+| Three-Axis Rotation | 多种物体绕 x/y/z fixed axis 旋转 | 需要跨物体 shape 和不同轴的 finger interaction |
+
+### 1.2 直观隐喻
+
+这篇论文的 synesthesia 隐喻不是文学包装。它的工程含义很具体：
+
+- 视觉点云告诉机器人“物体在哪里、形状如何”；
+- 触觉点云告诉机器人“我的手在哪些具体 3D 位置碰到了东西”；
+- augmented robot point cloud 告诉机器人“我的手指/掌面几何在哪里”；
+- 三者在同一 palm frame 中合并后，PointNet 可以直接看 hand-object-contact 的空间布局。
+
+也就是说，它不是让机器人“感觉更丰富”，而是把所有传感变成一个几何 scene graph 的点集近似。
+
+### 1.3 现有方法的局限
+
+| 方法范式 | 注入了什么先验 | 关键局限 |
+|---|---|---|
+| raw tactile vector / FSR binary | 接触事件很稳定，sim-real gap 小 | sparse、低维，不含 3D 空间关系；对非凸/多物体不够 |
+| RGB / tactile image feature fusion | 保留丰富外观/局部形变 | RGB/触觉图像各自有 domain gap，feature-level fusion 还要学跨模态对齐 |
+| depth / point cloud only | 几何 gap 小，可定位物体 | 遮挡和接触状态不完整；不知道真实 contact patch |
+| proprioception-only HORA/RMA | 从动作-响应历史隐式识别物体 | 对 z-axis 有效，但复杂 3D spatial reasoning 不足 |
+| visual RL from scratch | 不需要 teacher-student | 高维 point cloud + 高维 action 的 RL 样本效率极低，Table I 中几乎学不起来 |
+| teacher with privileged state | 训练高效 | teacher 不可部署，必须蒸馏到 sensor policy |
+
+### 1.4 Delta 分析
+
+本文的 delta 有三层：
+
+1. **Representation delta**：把触觉从 scalar/binary vector 变成 3D tactile point cloud。
+2. **Fusion delta**：不是各模态独立编码后 concat，而是视觉点、手部增强点、触觉点输入级合并，靠 one-hot 标记来源。
+3. **Training delta**：不是用高维点云直接 RL，而是 PPO teacher → 5120k transitions BC → DAgger student。
+
+一句话：
+
+> Robot Synesthesia 的 value add 是把 sparse tactile 的“发生了接触”升级成“接触发生在这个 3D 几何位置”，再让这个 contact geometry 和 camera/hand geometry 在同一 PointNet 里共同决定动作。
+
+## 2. 核心方法与理论
+
+### 2.1 变量来源追踪
 
 | 变量 | 维度/空间 | 来源阶段 | 是否带梯度 | 物理/算法意义 | 符号陷阱 |
-|------|-----------|----------|------------|----------------|----------|
-| $q_t,\hat{q}_t$ | $\mathbb{R}^{16}$ | 观测/目标 | 否 | 当前/目标关节位置 | — |
-| $o_t$ | $\{0,1\}^{16}$ | 观测（FSR） | 否 | 二值触觉触发 | 二值，触发后才采点 |
-| $k$ | 轴 | 任务指令 | 否 | 目标旋转轴 | 指令轴 |
-| $x_t,v_t,w_t$ | 位姿/速度 | **特权**（teacher, GT） | 否 | 物体位姿/线速/角速 | student 无，仅 teacher 用 |
-| $f$ | $\mathbb{R}^{32}$ | **特权**预训练 PointNet | 预训练后冻结 | 物体形状紧凑特征 | teacher 更强但**不可部署**（需 GT 几何） |
-| $P_t^{camera}$ | $N_c{\times}3$, $N_c{=}512$ | 观测（相机） | 否 | 视觉点云 | 同一坐标系 |
-| $P_t^{aug}$ | $N_a{\times}3$, $N_a{=}8n_{link}$ | FK 采样（机器人网格） | 否 | 机器人自身几何 | 提供手-物空间关系 |
-| $P_t^{touch}$ | $N_t{\times}3$, $N_t{\le}128$ | FK + 触觉触发采样 | 否 | 触觉点云 | **位置非力**；依赖 FK 标定 |
-| one-hot type | $\{0,1\}^3$ | 构造 | 否 | 区分三类点云来源 | 零成本但关键（§4 消融） |
-| $\Delta q$ | $\mathbb{R}^{16}$ | 网络输出 | 是（策略） | 关节位置增量 | 非力矩 |
+|---|---:|---|---|---|---|
+| $q_t$ | $\mathbb{R}^{16}$ | Allegro joint positions | policy input | 当前手姿态 | student/teacher 都用 |
+| $o_t$ | $\{0,1\}^{16}$ | 16 个 FSR thresholded contact | policy input | binary tactile trigger | 不是 force magnitude；只是触发/未触发 |
+| $k$ | $S^2$ | task command | fixed/observed | rotation axis | 指令轴，不是实际角速度 |
+| $\hat q_t$ | $\mathbb{R}^{16}$ | previous position target | policy input | 上一步 PD 目标 | action 以它为积分基准 |
+| $a_t$ | $\mathbb{R}^{16}$ | policy output | learned | relative control command | 不是 torque |
+| $\hat a_t$ | $\mathbb{R}^{16}$ | EMA-smoothed action | computed | low-pass 后的 command increment | $\eta=0.8$，降低动作抖动 |
+| $x_t,v_t,w_t$ | $\mathbb{R}^3$ each | simulator privileged state | teacher input | object position/linear/angular velocity | student/real world 不可直接获得 |
+| $f$ | $\mathbb{R}^{32}$ | pretrained PointNet shape encoder | frozen feature | object shape feature | teacher privileged feature，不是 sensor observation |
+| $P_t^c$ | $\mathbb{R}^{N_c\times3}$ | Azure Kinect / sim depth point cloud | student input | camera point cloud | $N_c=512$，转到 palm frame |
+| $P_t^a$ | $\mathbb{R}^{N_a\times3}$ | hand mesh sampling via FK | student input | augmented robot geometry | $N_a=8n_{\text{link}}=168$，$n_{\text{link}}=21$ |
+| $P_t^{touch}$ | $\mathbb{R}^{N_t\times3}$ | triggered FSR sensor mesh samples | student input | tactile point cloud | $N_t=8n_{\text{touch}}\le128$ |
+| one-hot type | $\{0,1\}^3$ | constructed feature | input feature | camera/aug/touch source label | 没有它会混淆点来源 |
+| $P_t$ | variable-size point set | concat of three point clouds | PointNet input | unified visuotactile geometry | concat(dim=0) for points, concat(dim=-1) for type |
+| CRR | scalar | simulation metric | eval | cumulative rotation reward | 仿真用 |
+| CRA | scalar, rounds | real metric | eval | cumulative rotation angle | 真机用 |
+| TTF | seconds | eval metric | eval | time-to-fall / duration | trial max: sim 50 s, real 60 s |
 
-### 3.1 触觉点云表示
+### 2.2 触觉点云：从 FSR binary 到 palm-frame contact geometry
 
-```python
-# 当 FSR 传感器 i 被触发时 (o_{t,i} = 1)
-# 在传感器网格上采样点形成触觉点云
-P_t^{touch} = sample_on_mesh(sensor_meshes[triggered_sensors])
-
-# 最终点云组合
-P_t = Concat([
-    P_t^{camera},      # 相机点云 (N_c × 3)
-    P_t^{augmented},   # 增强点云-机器人网格采样 (N_a × 3)  
-    P_t^{touch}        # 触觉点云 (N_t × 3)
-], dim=0)
-
-# 添加 one-hot 向量区分来源
-P_t_with_type = Concat([P_t, one_hot_type], dim=-1)
-```
-
-**采样数量**:
-- $N_c = 512$: 相机点云
-- $N_a = 8 \cdot n_{link}$: 增强点云（21 个连杆）
-- $N_t = 8 \cdot n_{touch}$: 触觉点云（0-16 个触发传感器）
-
-### 3.2 为什么点云优于 RGB
-
-```
-Sim-to-Real Gap 分析:
-├── RGB 图像: 纹理/光照/反射差异大
-├── 深度图像: 传感器噪声
-└── 点云: 几何结构保持 ✓
-```
-
-> [!note] 设计理由
-> 点云将视觉和触觉都抽象为几何信息，天然减小 sim-to-real gap。
-
-### 3.3 Benchmark 任务
-
-| 任务 | 描述 | 难点 |
-|-----|------|-----|
-| Wheel-Wrench | 旋转多把手扳手 | 视觉定位下一把手 + 触觉感知旋转 |
-| **Double-Ball** | 两球相互绕转 | 高 DoF + 复杂交互 + 仅触觉无法区分 |
-| Three-Axis | x/y/z 轴旋转多种物体 | 泛化到未见物体 |
-
-### 3.4 Teacher-Student Training
-
-**Teacher (RL with PPO)**:
-- 输入: $[q_t, o_t, k, \hat{q}_t, x_t, v_t, w_t, f]$
-- 其中 $f \in \mathbb{R}^{32}$ 是预训练 PointNet 的形状特征
-
-**Student (Behavior Cloning + DAgger)**:
-- 输入: $[q_t, o_t, k, \hat{q}_t, P_t]$
-- 点云通过 PointNet 编码
-
-### 3.5 奖励设计
+FSR 原始观测只是：
 
 $$
-r_t = c_1 r_{\text{rot}} + c_2 r_{\text{vel}} + c_3 r_{\text{dist}} + c_4 r_{\text{torq}} + c_5 r_{\text{work}} + c_6 r_{\text{ctrl}}
+o_{t,i}\in\{0,1\},
 $$
+
+表示第 $i$ 个触觉传感器是否超过 threshold $\theta_{\text{th}}$。
+
+如果直接把 $o_t$ 输入 policy，policy 只知道“第几个传感器被碰了”，不知道这个传感器在当前手姿态下的 3D 位置。Robot Synesthesia 的关键一步是用 forward kinematics 把它投到几何空间。
+
+设第 $i$ 个 sensor 在所属 link 坐标系下的 mesh/sample point 为 $u_{i,m}$。当前关节为 $q_t$，该 link 到 palm/world frame 的变换为：
+
+$$
+{}^{P}T_{\ell(i)}(q_t)
+=
+\begin{bmatrix}
+{}^P R_{\ell(i)}(q_t) & {}^P p_{\ell(i)}(q_t)\\
+0 & 1
+\end{bmatrix}.
+$$
+
+则触发 sensor 上的一个 tactile point 是：
+
+$$
+p_{i,m}^{touch}
+=
+{}^P R_{\ell(i)}(q_t)u_{i,m}
++{}^P p_{\ell(i)}(q_t).
+$$
+
+这一步把 tactile ID 变成了：
+
+$$
+\text{contact trigger on sensor } i
+\quad\to\quad
+\text{contact-relevant points in palm-frame } \mathbb{R}^3.
+$$
+
+这就是“机器人看见触觉”的数学实质。它不是恢复真实接触力，而是恢复接触发生处的几何位置。
+
+### 2.3 为什么 contact position 是 manipulation 里的物理量
+
+对接触力 $f_{\text{contact}}$，它对物体/手产生的力矩是：
+
+$$
+\tau_{\text{contact}}
+=
+r_{\text{contact}}\times f_{\text{contact}},
+$$
+
+其中 $r_{\text{contact}}$ 是从参考点到接触点的位置向量。
+
+FSR binary 只告诉你：
+
+$$
+\text{contact exists}.
+$$
+
+tactile point cloud 额外告诉你：
+
+$$
+r_{\text{contact}}\ \text{approximately lies here}.
+$$
+
+这对 wheel-wrench / double-ball / multi-axis rotation 很关键，因为这些任务不是简单“夹住不掉”，而是要通过不同接触点产生不同 torque。
+
+不过也要看到边界：FSR tactile point cloud 没有 $f_{\text{contact}}$ 的大小、法向、切向、滑移速度。它只给了 wrench 的几何杠杆臂，没给完整 wrench。
+
+### 2.4 PointNet：为什么三类点可以输入级合并
+
+PointNet 处理无序点集的经典形式是：
+
+$$
+F(\{p_1,\ldots,p_n\})
+\approx
+\gamma\left(
+\max_{i=1,\ldots,n} h(p_i)
+\right),
+$$
+
+其中 $h$ 是逐点特征 MLP，$\max$ 是对称聚合函数，因此对点的排列不敏感。
+
+Robot Synesthesia 令：
+
+$$
+P_t =
+P_t^c
+\cup
+P_t^a
+\cup
+P_t^{touch}.
+$$
+
+由于三类点来源不同，每个点附加 one-hot type：
+
+$$
+\tilde p_i = [p_i,\text{type}_i],
+\qquad
+\text{type}_i\in\{[1,0,0],[0,1,0],[0,0,1]\}.
+$$
+
+这样 PointNet 看到的不是“纯几何点”，而是“带来源标签的几何点”。这个 one-hot 很关键：
+
+- camera point 表示 object surface；
+- augmented point 表示 robot link/fingertip geometry；
+- tactile point 表示 activated contact-related region。
+
+如果没有 type，PointNet 无法知道某个点是物体表面、机器人手指，还是触觉触发点。
+
+### 2.5 为什么点云可能缩小 Sim-to-Real gap
+
+RGB gap 包含纹理、光照、反射、背景、相机色彩响应。FSR raw magnitude gap 包含材料、安装、threshold、压力响应。点云抽象丢掉很多这些 nuisance：
+
+$$
+\text{image/tactile raw signal}
+\to
+\text{geometry in palm frame}.
+$$
+
+因此 sim-real gap 从“外观/力幅值/传感器响应”转成：
+
+- depth point cloud 几何噪声；
+- camera extrinsic calibration error；
+- FK/model calibration error；
+- FSR threshold and contact-trigger mismatch。
+
+这是更小但不是没有 gap。真正的 critical thinking 是：点云不是魔法，它只是选择了一个对某些 gap 更不敏感的 observation subspace。
+
+### 2.6 MDP、动作与 EMA
+
+论文把任务写成 MDP：
+
+$$
+(\mathcal{S},\mathcal{A},P,R,\gamma),
+$$
+
+目标是最大化：
+
+$$
+\mathbb{E}\left[\sum_{t=0}^{T}\gamma^t r_t\right].
+$$
+
+policy 输出相对控制命令：
+
+$$
+a_t\in\mathbb{R}^{16}.
+$$
+
+实现中先做 exponential moving average：
+
+$$
+\hat a_t=\eta a_t+(1-\eta)\hat a_{t-1},
+\qquad
+\eta=0.8,\quad \hat a_0=0.
+$$
+
+再更新 position target：
+
+$$
+\hat q_{t+1}=\hat q_t+\hat a_t.
+$$
+
+这和很多 dexterous sim-to-real 论文一致：动作平滑不是小工程细节，而是在高维多指系统中降低 jerk、减少真实执行震荡的稳定性先验。
+
+控制频率在仿真和真实中都是 10 Hz。
+
+### 2.7 reward 结构
+
+reward 是：
+
+$$
+r_t =
+c_1 r_{\text{rot}}
++c_2 r_{\text{vel}}
++c_3 r_{\text{dist}}
++c_4 r_{\text{torq}}
++c_5 r_{\text{work}}
++c_6 r_{\text{ctrl}}.
+$$
+
+各项含义：
 
 | 奖励项 | 含义 |
-|-------|------|
-| $r_{\text{rot}}$ | 物体旋转角度 |
-| $r_{\text{vel}}$ | 惩罚线速度（防止平移） |
-| $r_{\text{dist}}$ | 鼓励手指接近物体 |
-| $r_{\text{torq/work/ctrl}}$ | 能量和控制正则化 |
+|---|---|
+| $r_{\text{rot}}$ | 奖励物体绕目标轴旋转 |
+| $r_{\text{vel}}$ | 惩罚物体线速度，避免平移/飞走 |
+| $r_{\text{dist}}$ | fingertip 与 object 距离的 decreasing function，鼓励靠近和交互 |
+| $r_{\text{torq}}$ | 惩罚大 torque |
+| $r_{\text{work}}$ | 惩罚 controller work |
+| $r_{\text{ctrl}}$ | 惩罚 command target 与真实运动的 control error |
+| fall penalty | object 掉落时大惩罚 |
 
-### 3.6 Critical Points 分析
+这个 reward 和表征设计互相配合：policy 要旋转但不能平移/掉落，因此需要 hand-object-contact geometry。否则高旋转奖励容易通过把物体甩出去来作弊。
 
-> [!important] 可解释性发现
-> PointNet 学会将注意力集中在: 1) 指尖, 2) 物体表面, 3) **触发的触觉点**
+### 2.8 Teacher-student training
 
-这表明触觉点云确实帮助网络定位关键交互区域。
+由于 point cloud observation 高维，直接 RL 很低效。论文采用：
 
-### 3.7 前置理论从零推导：触觉点云为何是"对的"统一表示
+**Teacher PPO：**
 
-把"点云统一视触觉"从优雅直觉提升到几何 + 置换不变性。
+输入低维 privileged state：
 
-**(A) 触觉点云 = 接触运动学的笛卡尔离散化。**
-1. 接触点在物体/手指表面演化由 Montana 接触运动学描述（[[ContactMechanics|Montana 方程]]），接触状态含表面局部坐标 $(u_1,u_2)$。
-2. 当传感器 $i$ 触发，其在连杆系的位置 $u_{sensor,i}$ 经 FK 投影到世界系：
-$$p_i = FK(q) + R_{link}(q)\, u_{sensor,i}\ \in\mathbb{R}^3.$$
-3. 这一步把"接触发生在哪个传感器(离散 id)"翻译成"接触发生在世界系哪个 3D 点"——与视觉点云**进入同一坐标系**。关键：触觉与视觉本是异质模态(电压 vs 像素)，但接触的**几何位置**是二者共同的物理底座，FK 投影正是把触觉拉到这个共同底座上。
+$$
+\left[
+q_t,\ o_t,\ k,\ \hat q_t,\ x_t,\ v_t,\ w_t,\ f
+\right],
+$$
 
-**(B) 为什么能输入级合并——PointNet 的置换不变性。**
-1. PointNet 用对称函数逼近 $f(\{x_1,\dots,x_n\})\approx g(\max_i h(x_i))$，max-pool 对输入顺序与数量不敏感。
-2. 因此三类点云 $P^{camera}\cup P^{aug}\cup P^{touch}$ 直接拼成一个**变长、混合来源**的集合也无妨——只需给每点附 one-hot 来源标记，置换不变聚合自动融合（§4 消融"去 one-hot→特征混淆"印证标记必要）。
-3. 这与 RotateIt/AnyRotate 的**特征级**融合(各模态独立编码器再拼接)形成对比：本篇是**输入级**融合，把"如何融合"交给几何 + 对称函数，而非手工设计融合结构。
+其中：
 
-**(C) 为什么点云缩小 sim-to-real gap——几何抽象吸收差异。**
-RGB 的 gap 在纹理/光照/反射，深度的 gap 在传感器噪声；点云只保留几何坐标，sim 与真机的物体几何一致，gap 退化为几何采样噪声(小)。这与 [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]] 的"二值化量化吸收 gap"是**两条不同的 gap 消除路径**：一个抽象掉力幅值、一个抽象掉表观，殊途同归（§8）。
+- $x_t,v_t,w_t$ 是 object position/velocity/angular velocity；
+- $f\in\mathbb{R}^{32}$ 是 pretrained PointNet shape feature；
+- 当前 state 与 3 个历史 state stack 起来输入；
+- policy/value 都是 MLP；
+- PPO 训练 teacher。
 
-### 3.8 概念边界与符号陷阱
-- **teacher 特权几何 vs student 点云**：teacher 用 GT 物体位姿 $x_t,v_t,w_t$ 和预训练 shape feature $f$，student 只看 $P_t$——蒸馏换来可部署性，代价是 §5 信息瓶颈。
-- **触觉点云是位置、非力**：二值 FSR 触发后采样几何点，不含法向/切向力幅值与滑动——丢的信息与 [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch|AnyRotate]] 的稠密 $(P,F)$ 互补。
-- **触觉点云依赖 FK 标定**：$p_i=FK(q)+R_{link}u_{sensor,i}$ 的精度受运动学标定影响，标定误差直接污染点云位置。
-- **one-hot 来源标记不可省**：否则 PointNet 无法区分视觉/增强/触觉点（§4 消融）。
-- **动作是关节增量、非力矩**；控制 10 Hz，真机瓶颈在 Kinect 点云预处理。
+**Student BC + DAgger：**
 
-## 4. 实验与验证 (Experiments)
+student 输入：
 
-### 实验设置
-- **硬件**: XArm6 + 16-DoF Allegro Hand + 16 个 FSR + Azure Kinect
-- **仿真**: Isaac Gym
-- **真实物体**: 8 种未见物体
+$$
+\left[
+q_t,\ o_t,\ k,\ \hat q_t,\ P_t
+\right],
+$$
 
-### 关键消融结果
+同样 stack 当前与 3 个历史 state。point cloud 经 PointNet encoder，latent 再与其他输入进 MLP。
 
-| 配置 | Double-Ball | Multi-Object x-axis |
-|-----|-------------|-------------------|
-| PS (仅本体感觉+触觉) | 较低 | 较低 |
-| Visual RL (从头训练) | 几乎不学 | 几乎不学 |
-| **Robot Synesthesia** | **最高** | **最高** |
+训练：
 
-**核心发现**:
-1. 视觉 RL 从头训练效率极低 → Teacher-Student 必要
-2. 触觉点云显著提升性能，尤其在遮挡场景
-3. 双球任务只有视触觉融合才能成功
+1. 收集 teacher dataset $\mathcal{D}$，大小 5120k transitions；
+2. 用 behavior cloning 预训练 student；
+3. 用 DAgger fine-tune，缓解 student 自己 rollout 后的 distribution shift。
 
-### Ablation 因果链
+DAgger 的目标可以写成：
 
-| 消融条件 | 效果变化 | 因果机制 |
-|---------|---------|---------|
-| 去掉触觉点云 $P_t^{touch}$ | Double-Ball 失败 | 仅视觉无法区分两球相对位姿 → 手指力分配错误 → 掉球 |
-| 去掉增强点云 $P_t^{augmented}$ | 性能下降 | 网络失去机器人自身几何信息 → 无法推理手指-物体空间关系 |
-| 视觉 RL 从头训练 | 几乎不收敛 | 高维点云观测 + 高维动作空间 → 探索空间指数爆炸 |
-| 去掉 one-hot 类型标记 | 性能下降 | 网络无法区分三类点云来源 → 特征混淆 |
-| Teacher 用 shape feature $f$ 替代点云 | Teacher 更强 | 低维紧凑表示 → 但不可部署（需 GT 几何） |
+$$
+\mathcal{L}_{\text{DAgger}}
+=
+\mathbb{E}_{s\sim d^{\pi_S}}
+\left[
+\|\pi_S(s)-\pi_T(s)\|^2
+\right].
+$$
 
-**关键因果链**: 触觉传感器触发 → 在传感器网格上采样 3D 点 → 与视觉点云在同一坐标系融合 → PointNet 的 critical points 自动聚焦交互区域 → 策略获得接触-几何联合感知
+这和单纯 BC 的区别在于采样分布来自 student policy，而标签来自 teacher。
 
-## 5. 批判性分析 (Critical Analysis)
+### 2.9 概念边界与符号陷阱
 
-### 工程关键细节 (Engineering Tricks)
+- **teacher 不是可部署 policy**：它用 object pose/velocity/angular velocity/shape feature，真实机器人没有这些。
+- **tactile point cloud 不是 force cloud**：它只表示 activated sensor mesh points，不表示力大小、法向、切向或滑移。
+- **visual point cloud vs RGB**：论文选择点云是为了几何和 sim-real，不是因为 RGB 信息不重要。
+- **Syn 不等于总是最高**：Table II/III 有些 regular multi-object 子项不是 Syn 最高；论文真正强的是难任务和真实部署总体趋势。
+- **point cloud fusion 依赖 calibration**：所有点都转到 palm frame；FK、camera extrinsic、sensor placement 错都会直接污染表示。
 
-- **触觉点云采样数**: 每个触发传感器采样 8 个点，总计 $N_t \leq 128$（16 传感器 × 8）——保持低 token 数下的信息密度
-- **One-hot 类型向量**: 3D 坐标后附加 one-hot $[1,0,0]$/$[0,1,0]$/$[0,0,1]$ 区分视觉/增强/触觉来源，零成本但显著提升性能
-- **Teacher 使用预训练 PointNet shape feature**: $f \in \mathbb{R}^{32}$ 作为紧凑几何先验，绕过训练中的高维点云瓶颈
-- **DAgger 蒸馏**: Student 不只做 BC，加入在线 DAgger 校正分布漂移——Teacher 充当在线 oracle
-- **控制频率 10Hz**: Isaac Gym 仿真中操作精度与推理速度的折中；真实部署中 Azure Kinect 点云预处理是瓶颈
-- **二值 FSR 传感器**: 仅检测接触/非接触，但点云表示将其提升为空间信息，成本极低（~$5/传感器）
+## 3. 训练、数据与实验
 
-### 优势
-- **优雅的统一表示**: 点云自然融合异质模态
-- **双球旋转突破**: 证明能处理复杂多物体场景
-- **可解释性**: Critical points 分析揭示网络注意力
+### 3.1 实验设置
 
-### 局限性
-- FSR 分辨率较低（仅二值接触）
-- 依赖机器人运动学将触觉映射到 3D
-- 控制频率仅 10Hz
+| 项目 | 设置 |
+|---|---|
+| Robot | XArm6 + 16-DOF Allegro Hand |
+| Tactile | 16 Force-Sensing Resistors on palm/finger links |
+| Vision | Microsoft Azure Kinect facing the robot |
+| Simulator | Isaac Gym |
+| Control frequency | 10 Hz in sim and real |
+| Camera point cloud | $N_c=512$ |
+| Augmented robot point cloud | $N_a=8n_{\text{link}}=168$, $n_{\text{link}}=21$ |
+| Tactile point cloud | $N_t=8n_{\text{touch}}\le128$ |
+| Student dataset | 5120k teacher transitions |
+| Real evaluation | 5 episodes per policy, each trial 60 s |
+| Sim evaluation | 500 episodes, each trial 50 s |
 
-### 三维度局限性分析
+### 3.2 Table I：为什么需要 teacher，而不是 visual RL from scratch
 
-| 维度 | 局限 | 替代方案 |
-|-----|------|---------|
-| **理论** | 触觉点云仅编码接触位置（二值），丢失法向力/切向力/滑动信息 | 密集触觉传感器 (如 DIGIT/GelSight) 提供连续力场 → 点云可附加力特征维度 |
-| **算法** | Teacher-Student 蒸馏存在信息瓶颈：Teacher 用 GT shape feature，Student 只看点云 | 端到端 RL + 点云（需更多样本但避免蒸馏损失） |
-| **工程** | 10Hz 控制频率限制快速动态操作（如转笔的高速旋转相） | 轻量化 PointNet 或 point transformer 推理加速 |
+Table I 比较三种 RL policy：
 
-### 未来方向
-- 更高分辨率的触觉传感器
-- 力/滑动信息的点云编码
-- 在线触觉点云动态更新
+- Visual RL：直接从 visuotactile high-dimensional observation 用 RL 学；
+- PS / Non-visual RL：只用 proprioception + contact signals；
+- Ours：用 teacher privileged low-dimensional state 训练。
 
-## 6. 对灵巧操作的启发 (Implications)
+| Obs Type | 4-way Wrench CRR/TTF | Double Balls CRR/TTF | x-axis CRR/TTF | y-axis CRR/TTF | z-axis CRR/TTF |
+|---|---:|---:|---:|---:|---:|
+| Visual RL | $10.9\pm2.2$ / $8.1\pm3.2$ | $127.8\pm78.6$ / $10.5\pm3.7$ | $15.3\pm8.2$ / $16.8\pm11.8$ | $22.4\pm8.8$ / $21.4\pm17.8$ | $29.5\pm7.1$ / $2.9\pm0.4$ |
+| PS | $440.7\pm590.3$ / $22.6\pm18.5$ | $620.9\pm39.9$ / $28.8\pm0.7$ | $446.1\pm137.7$ / $33.1\pm7.1$ | $552.1\pm318.7$ / $33.5\pm8.3$ | $878.7\pm528.3$ / $36.9\pm15.4$ |
+| Ours teacher | $1011.1\pm329.9$ / $47.5\pm0.4$ | $1045.3\pm64.9$ / $36.2\pm2.3$ | $985.9\pm174.1$ / $45.1\pm2.6$ | $987.3\pm141.9$ / $46.8\pm1.0$ | $1353.7\pm123.8$ / $48.2\pm0.4$ |
 
-1. **统一表示的力量**: 将不同模态映射到同一空间简化融合
-2. **点云的优势**: 几何表示天然抗 sim-to-real gap
-3. **触觉可视化**: 让网络"看见"触觉能提升空间推理
-4. **Teacher-Student 必要性**: 高维视觉 RL 效率太低
+因果解释：
 
-### 6.1 对转笔 / Sim-to-Real 的启发
+- Visual RL 几乎学不起来，说明“高维点云 + 高维 dexterous action”直接 RL 的样本效率太差；
+- PS 已经比 Visual RL 强很多，说明 proprio/contact history 是强 baseline；
+- Ours teacher 显著更强，说明 object pose/shape privileged information 对训练 robust manipulation 很关键。
 
-- **转笔中的触觉关键性**: 转笔的 finger gaiting 阶段（笔在指间过渡）中视觉被手指遮挡，触觉点云是唯一能提供笔-指接触位置的信号源
-- **点云天然缩小 Sim-to-Real gap**: 相比 RGB，点云几何表示在仿真→真实迁移时纹理/光照差异消失，直接适用于转笔的 sim-to-real
-- **二值 FSR → 低成本触觉方案**: 在转笔硬件中，每指尖贴 1-2 个 FSR（<$10）即可获得触觉点云表示，无需昂贵的高分辨率触觉阵列
-- **双球旋转 → 多物体操作**: 双球同时旋转的成功表明该表示可扩展至转笔中笔+橡皮等多物体场景
+这张表证明的是 teacher-student pipeline 的必要性，而不是直接证明 tactile point cloud。tactile point cloud 的证据在 Table II/III。
 
-## 7. 演进脉络定位 (Evolution Context)
+### 3.3 Table II：student sensing ablation 的 nuanced reading
 
-### 与 Foundation 的数学联系
+Table II 比较不同 student observation，在 simulation 中 distill teacher。
 
-#### 与 [[ComputationalGeometry]] 的联系
+| Obs Type | 4-way Wrench CRR/TTF | Double Balls CRR/TTF | x-axis CRR/TTF | y-axis CRR/TTF | z-axis CRR/TTF |
+|---|---:|---:|---:|---:|---:|
+| Touch | 363.2 / 23.6 | 317.1 / 13.6 | 390.9 / 24.2 | 710.9 / 42.6 | 702.4 / 35.6 |
+| Cam+Aug | 94.6 / 15.2 | 162.7 / 9.6 | 630.9 / 40.3 | 743.5 / 42.9 | 624.2 / 29.2 |
+| Touch+Cam+Aug | 344.1 / 21.1 | 148.6 / 9.6 | 881.1 / 47.4 | 619.0 / 41.3 | 909.8 / 37.7 |
+| Touch+Cam+Aug+Syn | 504.0 / 29.2 | 407.7 / 17.1 | 846.9 / 39.9 | 686.8 / 41.2 | 1035.0 / 41.3 |
 
-PointNet 的核心理论保证——对称函数逼近定理：
-$$f(\{x_1, \ldots, x_n\}) \approx g(MAX_{i=1}^n h(x_i)))$$
-其中 $h: \mathbb{R}^3 \to \mathbb{R}^K$ 是逐点特征提取，$MAX$ 是 max-pooling 对称聚合。触觉/视觉/增强三类点云合并后由同一 PointNet 处理，利用此不变性自动学习跨模态几何特征。
+这张表不能粗暴读成“Syn everywhere best”。真实情况是：
 
-#### 与 [[ContactMechanics]] 的联系
+- Syn 在 4-way wrench、double balls、z-axis 上最好；
+- x-axis 中 Touch+Cam+Aug 的 CRR/TTF 高于 Syn；
+- y-axis 中 Cam+Aug 的 CRR/TTF 高于 Syn；
+- 但 Syn 在难任务（wrench/double-ball）上明显有优势。
 
-触觉点云是 [[ContactMechanics|Montana 接触运动学方程]] 中接触点的离散化观测。传感器 $i$ 被触发时，采样点 $p_i \in \mathbb{R}^3$ 隐式编码：
-$$p_i \approx FK(q) + R_{link} \cdot u_{sensor,i}$$
-其中 $FK(q)$ 是前向运动学，$u_{sensor,i}$ 是传感器在连杆坐标系中的位置。将接触点提升到笛卡尔空间使网络能直接推理力-几何关系。
+更合理的解释是：
 
-#### 与 [[ReinforcementLearning]] 的联系
+> tactile point cloud 最适合那些需要显式接触几何、多物体/遮挡/非规则空间推理的任务；对于某些 regular single-object axis rotation，camera+augmented geometry 已经足够，额外 tactile point cloud 不一定总增益。
 
-Teacher-Student 框架中 DAgger 校正的数学本质：Student 策略 $\pi_S$ 在自身分布 $d^{\pi_S}$ 下收集数据，但标签来自 Teacher $\pi_T$：
-$$\mathcal{L}_{DAgger} = \mathbb{E}_{s \sim d^{\pi_S}} \| \pi_S(s) - \pi_T(s) \|^2$$
-这消除了纯 BC 的分布漂移 $d^{\pi_S} \neq d^{\pi_T}$，是 [[ReinforcementLearning]] 的直接应用。
+这比“多模态越多越好”更有研究价值。
 
-```
-前置工作:
-├── RotateIt (2023): 分离视触觉编码
-├── HORA (2023): 仅本体感觉
-└── PointNet (2017): 点云深度学习
+### 3.4 Table III：真实机器人部署结果
 
-本论文: Robot Synesthesia
-├── 触觉点云表示
-├── 输入级视触觉融合
-└── 双球旋转突破
+真实部署每个 policy 测 5 episodes，每次 60 s，指标是 CRA/TTF。
 
-后续影响:
-├── 具身 3D 表征统一
-├── 触觉的几何编码
-└── 多物体复杂操作
-```
+| Obs Type | 4-way Wrench | Double Balls | x-axis | y-axis | z-axis |
+|---|---:|---:|---:|---:|---:|
+| Non-visual RL | 0.25 / 60.0 | 0.2 / 28.6 | 0.35 / 60.0 | 1.0 / 60.0 | 8.6 / 60.0 |
+| Touch | 0.25 / 60.0 | 15.6 / 26.7 | 0.7 / 60.0 | 0.2 / 60.0 | 7.4 / 60.0 |
+| Cam+Aug | 0.25 / 60.0 | 10.1 / 20.8 | 0.25 / 60.0 | 1.0 / 33.3 | 5.1 / 60.0 |
+| Touch+Cam+Aug | 0.25 / 60.0 | 18.8 / 32.7 | 0.5 / 60.0 | 1.4 / 28.3 | 5.1 / 57.1 |
+| Touch+Cam+Aug+Syn | 1.5 / 43.0 | 22.9 / 36.6 | 2.1 / 26.6 | 0.9 / 29.3 | 10.2 / 60.0 |
 
-## 8. 与其他视触觉方法的对比
+因果解释：
 
-| 方法 | 触觉表示 | 融合方式 | 特点 |
-|-----|---------|---------|------|
-| RotateIt | 离散接触位置 | Transformer 特征融合 | 时序建模强 |
-| AnyRotate | 连续姿态+力 | TCN 特征融合 | 稠密触觉 |
-| **Robot Synesthesia** | **触觉点云** | **输入级点云合并** | **统一 3D 表示** |
-| HATO | FSR 数值 | MLP 特征融合 | 双手系统 |
+- 4-way wrench：只有 Syn 把 CRA 从 0.25 提到 1.5，说明 tactile point cloud 对 handle/contact geometry 有帮助。
+- double balls：Syn 22.9/36.6 最强，支持“视觉定位两球 + 触觉接触几何”对多物体操作必要。
+- x-axis：Syn 2.1/26.6 最强，但 TTF 下降，说明它更主动旋转，也更容易早掉；这是 performance/aggressiveness tradeoff。
+- y-axis：Syn 不是最高 CRA，Touch+Cam+Aug 为 1.4；因此不能宣称 Syn 全面支配。
+- z-axis：Syn 10.2/60.0 最强，说明它能在较稳定轴上保留旋转收益。
 
-> [!note] 领域级 insight（与簇内综述互参）
-> Robot Synesthesia 在 [[Lessons from Learning to Spin Pens#7.2 in-hand rotation 领域级综述（本篇的横向坐标）|Spin Pens §7.2 三轴坐标]]里占"⟨有支撑⟩×⟨多轴/双球⟩×⟨视触觉(点云)⟩"格，独特维度是**输入级几何统一 + 多物体(双球)**。把它与簇内其它 gap 消除路径并置最有洞见：[[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 用"在线辨识物体参数"、[[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]] 用"二值量化"、本篇用"几何点云抽象"——三者都在回答"如何让感知跨越 sim-to-real"，分别抽象掉了物体参数、力幅值、表观纹理。由此得一个领域级 **meta-insight**：**in-hand rotation 的 sim-to-real 本质是"找到一个对 gap 不变的观测子空间"，而非"缩小 gap 本身"**——这条思路可直接迁移到 WMTS/转笔的感知设计。
+这张表总体支持论文主张：真实部署中，输入级 tactile point cloud 在复杂任务上更能转化为实际收益。但它也暴露边界：不是所有 axis 和所有 metric 都单调提升。
+
+### 3.5 PointNet critical points：42.7% tactile points
+
+PointNet 逐点 MLP 后做 max pooling，因此每个输出维度实际由某个 critical point 决定。论文可视化 selected points，发现：
+
+> policy 平均使用 42.7% tactile-based points，其余主要来自 fingertips、finger edges 和 palm。
+
+这个分析的意义：
+
+- tactile points 不是被网络忽略的 decorative modality；
+- network 确实把 active tactile geometry 当作 decision-critical points；
+- augmented robot geometry 也重要，因为 fingertip/edge/palm 点被选中，说明 hand-object spatial relationship 是 PointNet 使用的对象。
+
+它比普通 attention visualization 更有说服力，因为 PointNet 的 max pooling 本身就定义了 critical point set。
+
+### 3.6 Ablation 因果链
+
+| 变化 | 观察结果 | 因果机制 | 启发 |
+|---|---|---|---|
+| Visual RL from scratch | CRR/TTF 极低 | 高维点云同时承担 representation learning 和 exploration，RL 样本效率崩 | 需要 teacher-student 或预训练 |
+| PS → Ours teacher | Table I 全任务大幅提升 | privileged object pose/shape 让 teacher 学到 robust manipulation | teacher 应使用仿真真值做上界 |
+| Touch only → Syn | wrench/double-ball/z 显著提升 | 触觉事件被转成 3D 接触几何，帮助空间推理 | 对遮挡/多物体任务尤其重要 |
+| Cam+Aug → Syn | real wrench/double-ball/x/z 多数提升 | camera geometry + tactile geometry 在同一空间互补 | input-level fusion 减少跨模态对齐负担 |
+| Syn 在 x/y sim 不总最高 | 部分任务 Touch+Cam+Aug/Cam+Aug 更高 | regular single-object axis 可能不需要额外 tactile point cloud，或 Syn 增加噪声 | 多模态不是无条件越多越好 |
+
+## 4. 核心洞见
+
+### 4.1 真正的 insight：把触觉变成几何，而不是把几何变成 feature
+
+很多 visuotactile 方法默认流程是：
+
+$$
+\text{vision}\to h_v,\qquad
+\text{touch}\to h_t,\qquad
+[h_v,h_t]\to \pi.
+$$
+
+Robot Synesthesia 改成：
+
+$$
+\text{vision, robot geometry, touch}
+\to
+\{(p_i,\text{type}_i)\}
+\to
+\text{PointNet}
+\to
+\pi.
+$$
+
+这个改动看起来只是 representation，实际改变了 inductive bias：
+
+- feature-level fusion 要网络自己学“触觉第 7 号 sensor 对应手掌哪里”；
+- point-cloud fusion 直接把这个 sensor 在当前 $q_t$ 下的 3D 位置告诉网络；
+- 因此网络学习的是 contact geometry 到 action 的映射，而不是传感器 ID 到 action 的黑箱映射。
+
+### 4.2 为什么这个设计有效
+
+它有效依赖三个条件：
+
+1. **FK 足够准**：触觉点的位置必须可信。
+2. **contact location 是任务 bottleneck**：如果只需要 contact existence，点云化收益有限。
+3. **PointNet 足够表达 hand-object-contact layout**：对当前任务，点集几何足以支持决策。
+
+Table III 的 double-ball/wrench 正好满足这些条件：遮挡、多物体、需要 3D 接触推理，因此 Syn 明显有帮助。
+
+### 4.3 什么时候会失效
+
+- tactile 需要 force/shear/slip，但 FSR 只给 binary；
+- 传感器分布太稀疏，触觉点云没有覆盖真实 contact patch；
+- FK 或 sensor mounting calibration 错，点云位置系统性偏；
+- 相机点云严重遮挡或 thin object 点云不稳定；
+- 任务动态太快，10 Hz policy + Kinect preprocessing 跟不上；
+- student 从 teacher 蒸馏的信息不足，尤其 teacher 使用真实 object state/shape 而 student 只能看到 noisy geometry。
+
+## 5. 替代方案与理论局限
+
+### 5.1 理论维度
+
+| 局限 | 根因 | 影响 |
+|---|---|---|
+| tactile point cloud 不含力 | FSR binary threshold | 只能知道接触位置，不能知道 normal/shear/slip |
+| PointNet 缺少显式时序建模 | 当前结构主要靠 state stacking | 对高速动态 manipulation 可能不够 |
+| contact point 不是 object contact point 真值 | sensor mesh sampled points 只是接触传感器位置 | 真实接触 patch 在物体表面的位置仍是间接推断 |
+| teacher-student 信息瓶颈 | teacher 用 $x,v,w,f$，student 用 $P_t$ | teacher 能做的策略未必可完全蒸馏 |
+
+### 5.2 算法维度
+
+| 替代方案 | 优势 | 相对本文风险 |
+|---|---|---|
+| RotateIt-style transformer | 强时序 extrinsics estimation | feature-level fusion 需要学跨模态对齐 |
+| full tactile image encoder | 保留 deformation/shear/texture | sim-to-real gap 和算力更高 |
+| DPF/belief state estimator | 可输出 uncertainty | 对复杂 point-cloud contact scene 可能太低维 |
+| point transformer / equivariant network | 更强局部关系建模 | 更重，真实 10 Hz 可能吃紧 |
+| model-based contact planner | 可解释 contact wrench | 多物体/多接触模型难准 |
+
+### 5.3 工程/实验维度
+
+- 真实评估只有 5 episodes per policy，统计强度有限。
+- Syn 在某些 sim/real 子项并非最好，说明方法不是无条件 dominating。
+- 需要 Azure Kinect + calibrated palm frame + FSR placement。
+- 10 Hz 适合相对慢的 in-hand rotation，不一定适合 pen spinning。
+- FSR 低成本但低信息量；如果任务需要 slip/shear，必须扩展点特征。
+- DAgger 仍在 sim teacher 下完成，没有 real-world online correction。
+
+## 6. 对用户研究的启发
+
+### 6.1 对 LinkerHand / 转笔的直接迁移
+
+这篇最值得迁移的是：
+
+> 把 LinkerHand tactile array 中被触发/受力的 taxels 通过 FK 投影成 palm-frame contact point cloud，再与视觉/物体点云/手部 mesh 点云一起输入 policy 或 world model。
+
+一个可能的 LinkerHand 表示：
+
+| Robot Synesthesia | LinkerHand / 转笔版本 |
+|---|---|
+| 16 FSR binary | tactile $5\times12\times6$ 中超过阈值的 taxels |
+| sensor mesh samples | taxel center / local patch samples |
+| $p=FK(q)u$ | each tactile cell transformed to palm/world frame |
+| one-hot type | camera / hand mesh / tactile / object prior / fingertip link id |
+| $P^c$ camera point cloud | pen point cloud or tracked pen axis endpoints |
+| $P^{touch}$ | contact patch points on finger/palm |
+| PointNet | PointNet/Point Transformer/SE(3)-aware encoder |
+
+对转笔尤其有价值的是遮挡时的 contact geometry：
+
+- 视觉经常被手指挡住；
+- 笔很细，depth point cloud 可能 sparse/noisy；
+- 触觉点云能告诉系统“笔现在压在哪个指节/指尖区域”；
+- 这可以补上 phase/contact-mode estimation。
+
+### 6.2 但转笔不能只用本文版本
+
+本文 FSR point cloud 不含：
+
+- 接触力大小；
+- shear/slip；
+- 接触持续时间；
+- 高频振动/冲击；
+- 笔的相位与角速度。
+
+转笔恰恰需要这些动态信息。因此应扩展点特征：
+
+| 点特征 | 原文 | 转笔建议 |
+|---|---|---|
+| position | $(x,y,z)$ | 保留 |
+| type | camera/aug/touch one-hot | 加 link id / taxel id / modality id |
+| contact intensity | 无 | 加 normal force / pressure |
+| shear/slip | 无 | 加 tactile shear 或 temporal displacement |
+| time | state stack | 加 timestamp / velocity feature |
+| uncertainty | 无 | 加 estimator confidence / dropout mask |
+
+### 6.3 对 WMTS 的结合
+
+| WMTS 模块 | 可吸收的设计 | 具体用法 |
+|---|---|---|
+| latent task generation | 生成接触几何子目标 | 例如“把 contact patch 移到 index-middle gap” |
+| PPO Oracle | teacher 使用 privileged pose/shape/contact state | actor/student 只能用 point-cloud/tactile observation |
+| Diffusion/Flow generalist | distill teacher action chunks | condition on geometric contact point cloud |
+| Ensemble World Model | model point-cloud contact dynamics | disagreement 标记 contact geometry 不确定 |
+| real fine-tuning | DAgger-style failure aggregation | 真机 correction 数据更新 student，而非只靠 sim teacher |
+
+关键 project judgment：
+
+> Robot Synesthesia 适合作为 WMTS 的 observation representation candidate，而不是完整 controller solution。它解决“怎么表示触觉/视觉”，不解决“怎么做高速动态任务调度”。
+
+### 6.4 可验证实验建议
+
+| 实验 | Baselines | 指标 | 证伪标准 |
+|---|---|---|---|
+| tactile point cloud 是否优于 tactile vector | binary/contact vector vs FK point cloud | real transfer, contact-mode accuracy | point cloud 不提升，则 FK geometry 不是瓶颈 |
+| force/shear 是否必要 | point position only vs position+force/shear | pen spin duration, slip recovery | force/shear 无提升，则可保持低维 |
+| PointNet vs temporal transformer | PointNet state-stack vs point transformer/RNN | phase prediction, closed-loop success | temporal model 不提升，则当前任务慢 enough |
+| augmented hand mesh 是否必要 | no hand mesh vs hand mesh points | occluded contact reasoning | 无差异则减少 tokens |
+| sim teacher vs real DAgger | sim-only BC/DAgger vs real failure aggregation | real drop recovery | real data 不提升则 sim coverage 充足 |
+
+### 6.5 不应过度外推的点
+
+- 不要把“点云 gap 小”理解成“sim-to-real 已解决”；FK/camera calibration 仍会造成系统误差。
+- 不要把 binary FSR 点云当成力觉；它只是 contact-location geometry。
+- 不要把 Table II 读成 Syn 全部最好；真实结论更细。
+- 不要直接用于高速转笔；10 Hz 和无 shear/slip 是硬限制。
+- 不要忽视 teacher-student 信息瓶颈；teacher 的 object state/shape feature 不一定能被 student 完整恢复。
+
+## 7. 与知识体系的联系
+
+### 7.1 与 [[ComputationalGeometry]] 的联系
+
+本文把多模态传感统一为点集：
+
+$$
+P_t=P_t^c\cup P_t^a\cup P_t^{touch}.
+$$
+
+所有点变换到 palm frame，这是几何统一的前提。否则 PointNet 学到的是不同坐标系的混乱集合。
+
+### 7.2 与 [[RepresentationLearning]] 的联系
+
+PointNet 的对称函数形式：
+
+$$
+F(P)=\gamma\left(\max_{p_i\in P}h(p_i)\right)
+$$
+
+解释了为什么不同数量的 camera/hand/tactile points 可以作为一个 set 输入。critical point visualization 又提供了 latent/feature 使用的可解释性证据。
+
+### 7.3 与 [[ContactMechanics]] 的联系
+
+触觉点云给出接触点几何位置，而 contact torque 满足：
+
+$$
+\tau=r_{\text{contact}}\times f_{\text{contact}}.
+$$
+
+本文只给了 $r_{\text{contact}}$ 的近似，没有给完整 $f_{\text{contact}}$。这正是它对转笔的不足。
+
+### 7.4 与 [[ReinforcementLearning]] 的联系
+
+训练流程是：
+
+$$
+\pi_T \xleftarrow{\text{PPO}} \text{privileged state},
+\qquad
+\pi_S \xleftarrow{\text{BC + DAgger}} \pi_T \text{ labels on sensor states}.
+$$
+
+这说明高维感知 dexterous policy 的有效路线往往不是直接 RL，而是 privileged teacher + deployable student。
+
+### 7.5 与 WMTS 论证线的联系
+
+Robot Synesthesia 支持一条很重要的 WMTS 设计线：
+
+> world model / policy 的 observation 不一定要是 raw image 或 flat tactile vector；可以先把多模态信息投到一个几何上更稳定的 contact-centric token space。
+
+它也提醒：
+
+- token space 应该带来源标签；
+- tactile token 应该来自 FK 和 contact calibration；
+- point/token 表征需要保留任务所需的物理量，不然会把 force/shear/slip 丢掉。
+
+## 8. 应主动追问的颗粒度
+
+| 用户式追问 | Agent 应主动补充 |
+|---|---|
+| “为什么叫 Synesthesia？” | 因为 tactile 被投影为 3D 点，与视觉在同一空间里被“看见” |
+| “触觉点云到底是什么？” | 触发 FSR 的 sensor mesh samples 经 FK 变到 palm frame，不是力点云 |
+| “PointNet 为什么能合并三类点？” | 对称 max aggregation 处理无序变长点集，one-hot type 区分来源 |
+| “实验是否证明 Syn 一定最好？” | 不；Table II/III 有例外，强结论主要在难任务和真实部署总体趋势 |
+| “对转笔最该迁移什么？” | FK tactile point cloud + contact geometry tokens，但必须加 force/shear/time |
+| “最大风险是什么？” | 10 Hz、无 shear/slip、FK/camera calibration error、teacher-student 信息瓶颈 |
+
+## References
+
+- Ying Yuan, Haichuan Che, Yuzhe Qin, Binghao Huang, Zhao-Heng Yin, Kang-Won Lee, Yi Wu, Soo-Chul Lim, Xiaolong Wang. *Robot Synesthesia: In-Hand Manipulation with Visuotactile Sensing*. arXiv:2312.01853v3, 2024.
+- Charles R. Qi et al. *PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation*. CVPR 2017.
+- Stéphane Ross et al. *A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning*. AISTATS 2011.
