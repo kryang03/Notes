@@ -24,9 +24,10 @@ related:
 > 提出 RialTo 系统，通过**快速构建真实场景的数字孪生**，在仿真中用 RL 鲁棒化模仿学习策略，再迁移回真实世界。关键创新是**逆向蒸馏 (Inverse Distillation)** 将真实演示迁移到仿真，以及简化的场景扫描流程，实现 **67%+ 鲁棒性提升**。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] - Real→Sim→Real 流程
-> - [[RepresentationLearning]] - 3D 场景重建
-> - [[RepresentationLearning]] - 点云策略
+> - [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|RL §9]] - Real→Sim→Real（R2S2R）是"迭代精炼"类 sim-to-real 的代表：demo-guided SAC 在几何孪生里练失败恢复，teacher-student 蒸馏回真机。
+> - [[RepresentationLearning]] - 3D 场景重建 + 点云策略（视觉↔仿真状态的桥）
+> - [[Dynamics#9. 适配层：可微物理与神经动力学|Dynamics §9]] - 数字孪生**只重建几何、不重建物理**（摩擦/质量/刚度），残留 $\Delta_T$ 需 System ID / 神经动力学补足——正对接 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]] 的关节级 grounding。
+> - [[ContactMechanics#7. Sim-to-Real 与工程实现|ContactMechanics §7]] - 高动态/软体/复杂多体接触是 RialTo 明确的失效域，接触保真度是几何孪生的天花板。
 >
 > **核心技术**: Digital Twin Construction, Inverse Distillation, RL Fine-tuning in Sim
 

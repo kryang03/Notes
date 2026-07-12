@@ -33,6 +33,11 @@ related:
 >
 > **核心技术**: IQC (Integral Quadratic Constraints), Partial Gradient Bounds, SDP/LMI 证书, KYP Lemma
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 本文 SDP 证书是 Lyapunov 直接法在神经策略上的实例：偏导数界→二次约束→存储矩阵 $P\succ0$，$V(x)=x^\top Px$ 扮演 Lyapunov/storage function 约束闭环 $\mathcal{L}_2$ 增益。
+> - [[ControlTheory#13. 数据驱动控制：模型不准时如何仍给稳定性证书]] — 同一母题：标称 LTI + IQC 刻画的非线性不精确时，用凸可行性（S-procedure/LMI）仍给出稳定性证书。
+> - **暗线**：本文 storage function $P$ 与 [[ReinforcementLearning#2.2 值函数与 Bellman 方程]] 的值函数、[[ControlTheory#10.4 被动性与"价值即 Lyapunov"]] 是同一 Lyapunov 对象——[[Safe Model-based Reinforcement Learning with Stability Guarantees|Berkenkamp]] 显式令 $V^\pi$ 作 Lyapunov 做**探索**，本文用 $P$ 证书约束 I/O 增益做**稳定极**（Delta：Berkenkamp 需 GP 动力学、model-based；本文只需标称 LTI + 偏导界、离线 SDP）。
+
 ## 1. 问题设定与动机 ← 逻辑与价值
 
 ### 1.1 一句话核心

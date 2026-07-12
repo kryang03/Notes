@@ -30,6 +30,8 @@ related:
 > - [[ReinforcementLearning]] — SAC + asymmetric critic：policy 只拿可部署观测，Q-function 拿 privileged ground-truth state，降低训练方差但不污染部署接口。
 > - [[ControlTheory]] — impedance-controlled hand：策略输出 desired joint-angle increment，经 $K_p$ 与 $\tau_{\max}$ 缩放后进入低层阻抗控制。
 > - [[ContactMechanics]] — 多接触、摩擦、spinning friction 让解析状态转移不可用，所以需要学习式 belief update。
+> - [[StochasticProcess#3.2 一个必须刻进脑子的区分：Aleatoric vs Epistemic|StochasticProcess §3.2]] — 挂 **认知不确定性三用** 暗线：DPF 的 belief $b_t(s_t)$ 表达的是对 cube pose 的 epistemic 不确定性；论文 future work"把 estimator uncertainty 喂给 policy"正是"探索/护栏/课程"三用里 policy 侧的缺口。真机 goal 6 更难、$x_3$ weakly observable 都是 belief 多模态/弱可观的具体表现。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — **电流≠关节力矩**暗线：policy 不输出 torque，而输出被 $\tau_{\max}/K_p$ 硬约束的 desired joint increment，经 impedance 层执行；Fig.7 的 spinning friction 敏感说明真机 gap 主要在接触/摩擦而非视觉。
 >
 > **核心技术**: modular RL, differentiable particle filter, belief-state policy, asymmetric observations, tactile-only Sim-to-Real
 
@@ -46,6 +48,7 @@ related:
 | [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | dense tactile + moving goal，policy 直接闭环 | 触觉能否让任意轴连续旋转跨重力方向泛化 |
 | [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | binary full-hand contact 直接给 policy | 1-bit 全手 contact 是否比 continuous force 更好迁移 |
 | [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map]] | deform map 作为几何公共空间 | tactile sim-to-real gap 能否通过几何表示消掉 |
+| [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)\|HORA]] | RMA adaptation module 隐式回归 extrinsics latent | 与本文构成"隐式 vs 显式 belief"对照：HORA 让 $\hat z_t$ 隐式吸收 hidden context、不可审计；本文 DPF 把 belief 显式化、可 debug、可传 uncertainty——同一 POMDP 的两种解 |
 | **本文** | DPF 显式估计 cube state，再交给 SAC controller | 在没有外部 state 的 goal-reaching 任务里，belief module 是否是更可审计的接口 |
 
 最低标准：

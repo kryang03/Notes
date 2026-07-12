@@ -32,6 +32,7 @@ related:
 > - [[ControlTheory]] — 低层连续控制（50Hz 四足/人形）；与 Hutter 组 locomotion 一脉。
 > - [[StochasticProcess]] — WM 预测下一观测的高斯分布（mean/std）；POMDP 部分可观；噪声下 rollout 稳定性。
 > - [[EmbodiedAI]] — collect→train WM→imagine→update policy 的真机数据飞轮；零样本硬件部署。
+> - [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] — RWM 属"想象里练策略（MBPO-PPO）"一支，但用 PPO/score-function 而非 analytic 梯度；它**缺** [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] 的 ensemble、只靠训练精度抗 model-exploitation，正是 WMTS 要补的 **认知不确定性三用** 空缺。
 > - [[Final_WMTS]] — **WMTS "通用 WM + PPO + 真机" 路线的最近先例**；autoregressive 训练 + 预测 privileged 接触 可直接借；其"靠精度而非 ensemble"是 WMTS 要超越的点。
 >
 > **核心技术**: 自监督 Autoregressive 训练 (Eq 1-2), Dual-Autoregressive (内层 GRU hidden + 外层预测反馈), Gaussian 观测预测, Privileged 接触预测, MBPO-PPO (Eq 3, Algo 1), 100+ 步 rollout
@@ -207,6 +208,9 @@ WM 预测下一观测的高斯分布（mean/std）；POMDP 部分可观；autore
 
 ### 与 [[EmbodiedAI]] 的联系
 collect→train WM→imagine→update policy 的真机数据飞轮；ANYmal D + Unitree G1 零样本硬件部署。
+
+### 与 [[WorldModels]] 的联系
+RWM 在 [[WorldModels#2.1 演进脉络：从 Dyna 到 RSSM 到 Transformer 世界模型]] 里代表"**无领域偏置的观测空间通用仿真器 + autoregressive 训练**"一支（区别于 Dreamer 的 latent、STORM 的 Transformer-latent）；用 PPO 在 100+ 步想象上练策略属 [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]]。关键分野在 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]：RWM **没有 ensemble**，靠训练精度抗 model-exploitation——论文自承"model 误差会被 PPO 利用、长 rollout 放大"，这正是 **认知不确定性三用** 暗线要补的洞（WMTS 用 ensemble disagreement 当护栏）。其 POMDP 靠历史编码补可观性，挂 **POMDP→belief→latent** 暗线。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS "通用 WM + PPO + 真机" 路线的最近 locomotion 先例；autoregressive 训练 + 预测接触可直接借；其"靠精度而非 ensemble、观测空间 GRU、仅当仿真器"三点局限，正是 WMTS 用 ensemble+不确定性、结构化接触 WM、调度器角色去超越的地方。

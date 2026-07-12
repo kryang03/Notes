@@ -29,6 +29,8 @@ related:
 > - [[ReinforcementLearning]] — 目标条件 DDPG+HER 的实战案例：如何把 sparse goal reward 改造成可学习信号，以及为什么 HER 不能无脑作用到所有维度。
 > - [[Optimization]] — Knowledge Transfer 是优化初值设计：用源任务的 actor/critic 参数把目标任务训练从“盲探索”移动到有用策略邻域。
 > - [[Dynamics]] — Sim-to-real 依赖先 nominal simulation 学策略、再 domain randomization fine-tune；但真实 contact/friction gap 仍是主要限制。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2]] — NDR→DR-tune 的 staged DR 是"三味药"里 **DR（增覆盖）** 一味的正确用法：先学 nominal 技能再加鲁棒，Table 3 证明 DR-from-scratch 反而最差。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — **电流≠关节力矩**暗线的反面样本：TriFinger action 是 9D **直接 torque**（不经 PD 位置层），执行器/摩擦 gap 直接暴露给策略，正是"无 real fine-tune 时真机 gap 残留"的物理来源之一；与 HORA/Spin Pens 的 position-target+PD 接口形成对照。
 >
 > **核心技术**: DDPG, HER, sparse+dense reward mixing, staged domain randomization, actor-critic knowledge transfer, TriFinger manipulation
 
@@ -504,6 +506,8 @@ $$
 - 用 world model 检测 source/target MDP 是否足够相似，避免 negative transfer。
 
 ### 6.2 对转笔/DNPM 的具体设计
+
+> 这套 coarse-to-fine 课程在转笔簇里已有两种互补实现：[[Lessons from Learning to Spin Pens|Spin Pens]] 用 **oracle replay 数据引擎** 代替参数迁移（本文迁 actor+critic 权重，Spin Pens 迁真机可 replay 的动作序列）；[[Learning Human-like Finger Gaiting on an Anthropomorphic Hand|FingerGaiting]] 用 **transition waypoint 重塑 $\rho_0$** 代替 teacher warm-start——三者都在解同一个"稀疏奖励下如何进入成功盆地"，只是把 curriculum 分别落在参数空间 / 数据空间 / 初始状态空间。
 
 转笔可以设计类似 curriculum：
 

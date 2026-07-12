@@ -612,6 +612,27 @@ $$
 | [[Lessons from Learning to Spin Pens]] | real pen-spinning data flywheel | DexTrack 提供更通用的 reference-to-action controller 视角 |
 | [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | tactile Sim-to-Real | 可补 DexTrack 缺的接触可观测性 |
 
+### 7.5 课程学习簇坐标：homotopy 就是 continuation / 同伦暗线
+
+> [!abstract] 暗线锚定：Continuation / 同伦 / 平滑化
+> DexTrack 的 homotopy optimization——把难 tracking 任务 $T_0$ 放到一串更可解 parent tasks 之后 $(T_K\to\cdots\to T_0)$，先解易者、把其 tracking result 当下一任务 baseline——是本簇 continuation 暗线**最字面**的一篇（论文直接用"homotopy"一词）。它对应 [[Curriculum Learning#3.2 与 Continuation Method 的联系|Curriculum Learning 的 $Q_0\to Q_1$]] 和 [[Optimization#5. 演进脉络：从模态预设到接触隐式（修复梯度流的四个阶段）|Optimization §5 修复梯度流]] 的同伦思想。**Delta**：本文的 homotopy path 不是手工线性插值，而是训练 conditional diffusion generator $M(T_p|T_c)$ 从任务库**学**"哪个相似但更可解的任务能当 baseline"——这把 continuation 从 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]] 的 Phase 1（手工课程）推到 Phase 3+（学习式任务生成器）。
+
+**补充 Foundation 锚点**（已 grep 验证，补 §7.1–7.3）：
+
+- [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|Optimization §5.4 平滑化]]：homotopy 用"先解易任务提供 baseline"外部平滑非凸 tracking 景观，与 §5.4 用可微物理内部平滑接触是同一"平滑化"母题的两条实现。
+- [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]]：diffusion homotopy generator 是 §7.3 谱系里"学习式课程/任务生成"的实例；其跨数据集 effective ratio 从 64%→28%（§3.7）正是 §7.3 强调的"课程生成器泛化受任务覆盖限制"。
+
+**簇内互链 + Delta**（补 §7.4 之外，指向课程/演示簇）：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills\|DeepMimic]] | **同根 reference-guided tracking**，DexTrack 是其多物体泛化版 | DeepMimic：单 clip、相位 $\phi$ 锁 wall-clock、RSI 均匀采相位；DexTrack：多 reference、next-goal 条件、homotopy 自适应挑 parent。二者 tracking reward（pose/wrist/finger/object）结构高度相似 |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | 都**挖 robot expert action labels**，非直接 BC 人类动作 | DemoStart 用 demonstration state 当 reset + ZVF 选 frontier；DexTrack 用 human reference 当 tracking goal + homotopy 挖 label。两者都把"人类数据"当**结构材料**而非动作监督 |
+| [[Curriculum Learning\|Curriculum Learning]] | DexTrack homotopy = 其 continuation 的**学习式**端点 | Bengio 人工 `difficulty_fn`；DexTrack 用 diffusion generator 学 parent-task 分布 |
+
+> [!tip] 一句话记忆锚
+> **DexTrack = 把 continuation 的"难度轴"升级成学出来的任务同伦图。** reference 提供坐标系、homotopy 提供平滑路径、data flywheel 提供 action label——它是 DeepMimic 单技能相位课程在"多物体 + 学习式 parent 选择"上的泛化。
+
 ---
 
 ## 8. 应主动追问的颗粒度

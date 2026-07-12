@@ -20,8 +20,12 @@ related:
 # Hierarchical Coordination Multi-Agent RL with Spatio-Temporal Abstraction (HSTCN)
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning]]**: 层次化 RL 与时间抽象
-> - **[[RepresentationLearning]]**: 时空图神经网络
+> - **[[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]]**: 本文是 **Dec-POMDP**——每个 agent 只见局部观测 $o_i$，正是 POMDP 部分可观的多智能体版本
+> - **[[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|ReinforcementLearning §7.4]]**: 高层每 $c$ 步下发内在目标 = 时间抽象/option，与 §7.4 的 action chunking「把有效 horizon 从 $T$ 砍到 $T/H$」同构
+> - **[[RepresentationLearning#4.1 集合函数：置换不变性|RepresentationLearning §4.1]]**: GNN 消息传递按邻居聚合，本质是置换不变的集合函数——与点云 PointNet 的 AGG 同源
+
+> [!note] 在 control-frequency / 时间抽象簇中的定位（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI（簇理论锚点）]] 互参）
+> HSTCN 虽以交通/星际为背景，但它的高层「每 $c$ 步决策一次」正是本簇的核心变量——**时间抽象间隔**。把它放进簇的三维坐标 ⟨单一/多变量⟩×⟨固定/自适应⟩×⟨强/弱保证⟩：HSTCN = ⟨单一·固定·弱保证⟩，$c\in[3,10]$ 是预设超参（§工程细节），与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI]] 的固定 $k$ 同格，但用途不同——PFQI 用 $k$ 改**控制频率**并离线选优，HSTCN 用 $c$ 划**分层目标**并注入内在奖励。它与 [[Reinforcement Learning for Control with Multiple Frequencies|AP-AC]] 的相位 $\phi(t,k)=t\bmod c^k$ 在代码上完全同构（HSTCN 的 `step % c`），差别在于 AP-AC 证明了周期非平稳的**最优性**，HSTCN 的周期只服务于目标下发、内在奖励最优性无保证（§局限）。与 [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]] 则同属**分层双层结构**（慢规划 + 快执行），但 EvoControl 低层走无梯度 Neuroevolution 绕开信用分配，HSTCN 低层走 CTDE + 内在稠密奖励绕开稀疏性——**两条正交的「治长 horizon」路线**。
 
 ## 元信息
 - **作者**: Tinghuai Ma, Kexing Peng, et al.
@@ -208,7 +212,8 @@ class HSTCN(nn.Module):
 ## 与知识体系的数学联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-- **Options Framework**: HSTCN 的高层策略 $\pi^{\text{high}}$ 类似 option 的 initiation/termination 机制，决策间隔 $c$ 对应 option 的持续时间
+- **Options Framework**: HSTCN 的高层策略 $\pi^{\text{high}}$ 类似 option 的 initiation/termination 机制，决策间隔 $c$ 对应 option 的持续时间——这与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI]] 的 persistence $k$、[[Reinforcement Learning for Control with Multiple Frequencies|AP-AC]] 的 $c^k$ 是同一个「时间粒度」变量的不同用法（见顶部簇定位）。
+- **POMDP → belief → latent 暗线**：Dec-POMDP 里单个 agent 的局部观测 $o_i$ 不足以恢复马尔可夫性；HSTCN 用 **GNN 消息传递把邻居信息聚合进 $h_i$**，本质是在构造充分统计量（belief）来逼近全局状态——这与 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|RL §2.1]] 「部分可观→用历史/信念补救」、[[StochasticProcess#2.3 马尔可夫性：它如何在推冰球里被破坏，又如何被"信念"救回|StochasticProcess §2.3]] 是同一条暗线：观测不全时，用聚合/历史重建可预测状态。
 - **内在奖励**: 与 [[ReinforcementLearning]] 中 curiosity-driven exploration 同源，通过 $r^{\text{int}}$ 解决稀疏奖励
 
 ### 与 [[RepresentationLearning]] 的联系

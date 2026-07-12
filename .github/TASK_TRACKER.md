@@ -5,7 +5,33 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-06-21 (Session #41 — PapersRecap 范本级升级 loop：impedance/compliance 簇收官 + Path-Constrained phase-admittance 升级 ✅)
+**最后更新**: 2026-07-12 (Session #42 — 知识图谱覆盖度审计 + 治理文档上移 loop 启动)
+
+## 🟡 Session #42 进行中 (2026-07-12) — Foundation 覆盖度审计与缺口填充 loop
+
+**触发**：用户 `/loop`（动态自定步）要求：①把管理偏好/风格总结成 Agent 可自动读取的文档；②更新并把 `.github` 规范移到自动观察位置；③以"资深教授+教育专家"双重身份审计 Foundation 覆盖度、按本库风格补齐缺口（关联优先、逻辑不跳步）；④删除已完全融入的 MergeBuffer 内容。
+
+### 本 Session 已完成（首轮）
+| 产出 | 内容 |
+|------|------|
+| `CLAUDE.md`（新建，库根自动读取入口） | 操作手册：目的/研究方向/叙事风格/教学法准则/MergeBuffer 铁律/文档索引。把过去散在 `.github` 的规范提到每会话自动读取层面 |
+| `.github/.../SKILL.md`（更新） | 补 Actuation 模块、指向 CLAUDE.md 入口、写入"角色切换+逻辑不跳步"教学法准则(§1.1 第7条) |
+| `.github/.../COVERAGE_AUDIT.md`（新建） | 覆盖度审计 + 缺口清单(G1–G8) + 填充进度追踪器 |
+| memory（3 条）+ MEMORY.md | user-profile / kg-narrative-style / kg-governance |
+
+### 缺口填充队列（详见 COVERAGE_AUDIT.md）
+- ✅ G1 WorldModels Foundation · ✅ G2 Optimization §4.4 CMA-ES · ✅ G3 RL §7.3 自动课程 · ✅ G4 RL §7.4 模仿学习 · ✅ G5/G6/G7 RepresentationLearning §4.5 6D旋转/§2.2.3 CFG/§4.6 注意力-ICL — 2026-07-12
+- ✅ **并行深化 R1**：11 Foundation 各深化（每 Agent 一模块，共享 ENHANCEMENT_BRIEF）~+957 行，主 Agent 评估：全库锚点扫描零断链、结构完整、抽检达标
+- ✅ **并行深化 R2 + 暗线图**：13 Agent（含 Actuation/WorldModels 首轮）施加入站反链双向化 + 第2轮深化 ~+531 行；[[taxonomy]] 新增"7 条跨 Foundation 暗线"导航图；全库真正零断链；Foundation 总量→8366 行
+- ✅ **book-control 已删**（6 缺口讲述方式吸收进 ControlTheory §1.5/§1.6/§7.4/§8.1/§11.1+§1.3）
+- ✅ **R3 PapersRecap 论文间关联**：6 并行 Agent 各领 WMTS RelatedPapersRecap 一不相交主题簇，47 篇补精确 Foundation 锚点+簇内Delta+暗线（~+430行）；全库零断链；修复4处既存断链（一次正则误伤已 git 还原+字面替换修好）
+- ✅ **机械+电气 893M 已删**（理论吸收 Actuation，MergeBuffer 仅剩 LLM/SFT 另一主题）
+- ✅ **R4 顶层 PapersRecap 87 篇**：9 并行 Agent 各领一不相交主题簇，把 bare/占位 Foundation 链接升级为精确锚点+簇内Delta+暗线（~+800行）；全库零断链；修 RL§14 缺失反链；补齐 KungfuBot 转储
+- 🏁 **主体完善达高完成度**：13 Foundation 两轮深化(8366行)+**8暗线图** · 138篇recap全接 Foundation · MergeBuffer 已清空理论内容（book-control/机械+电气/SFT-RL-OPD 组均吸收后删除，仅剩 HoverNotes .base 视图）· 全库零断链
+- ✅ **SFT/RL/OPD 脉络融入**：3 并行 Agent → RL §5.1/§5.4.2(SFT/RL统一+OPD+Bang-Bang) · InformationTheory §2.3.1(前向/反向KL几何) · EmbodiedAI §2.3.1(OPD演进+灵巧落点)；新增第8暗线「KL方向=covering/seeking」
+- 🔑 **4 条工作原则**（删除硬标准 / 并行优先 / loop=持续推进 / 复杂Unicode链接用字面替换勿正则），已入 CLAUDE.md/memory
+
+---
 
 ## 🟡 Session #41 进行中 (2026-06-17) — PapersRecap 范本级升级 loop
 

@@ -25,9 +25,10 @@ related:
 > 本文证明了一个 PWM 版本的采样定理：任意带宽为 $B$ 且峰值满足 $|x(t)|\le 2/\pi\approx0.637$ 的基带带限信号，都可以用频率 $2B$、单位幅值、变脉宽的 PWM 波形无失真表示；低通滤波可精确恢复原信号，且脉冲数等于 Nyquist samples 数。
 
 > [!tip] 与理论基础的关联
-> - [[SignalProcessing]] — 经典 Nyquist-Shannon 用“等间隔、变幅值”样本表示带限信号；本文改成“等幅值、变宽度”脉冲，并用 sinc side-lobes / ISI 分析其可逆性。
-> - [[ControlTheory]] — PWM 是功率 DAC / 电机驱动常用表示；它和 ZOH/PAM 都是在讨论连续控制信号如何被离散硬件承载。
-> - [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]] — 该文引用 PWM 采样定理类比“高频控制可用脉冲宽度承载连续动作信息”。
+> - [[SignalProcessing#1.1 采样与混叠：离散化不是无损记录|SignalProcessing §1.1]] — 经典 Nyquist-Shannon 用”等间隔、变幅值”样本表示带限信号；本文改成”等幅值、变宽度”脉冲，并用 sinc side-lobes / ISI 分析其可逆性。恢复端的”理想低通”正是 [[SignalProcessing#1.4 数字滤波器：去噪、延迟与可控性的三角权衡|SignalProcessing §1.4]] 讨论的滤波器。
+> - [[ControlTheory#1.3 频率响应：Bode、相位裕度与带宽|ControlTheory §1.3]] — PWM 是功率 DAC / 电机驱动常用表示；它和 ZOH/PAM 都是在讨论连续控制信号如何被离散硬件承载，而”能承载到多高频”由电流环/机械惯性的**带宽与相位裕度**决定。
+> - [[Actuation#5.2 电流环带宽、交叉耦合与量化延迟|Actuation §5.2]] — **电流≠关节力矩暗线的信号层根**：本文的 PWM 波形正是 [[Actuation#11.3 差分抗噪与位时序带宽|Actuation §11.3]] 里 MCU 输出、经内部驱动器隐藏的那一层；策略输出的”动作”要穿过 PWM→电流环→减速器才变成关节力矩。
+> - [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]] — 该文引用 PWM 采样定理类比”高频控制可用脉冲宽度承载连续动作信息”。
 >
 > **核心技术**: PWM Sampling Theorem, Worst-ISI Bound, Sequential Local Error Minimization, Matrix-Based Iterative Pulsewidth Solver
 
@@ -543,6 +544,8 @@ $$
 | [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI]] | 离散时间如何承载连续控制 | PFQI 改决策频率；本文改硬件编码方式 |
 | [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]] | 高频控制可表达复杂连续动作 | EvoControl 用进化/高频策略；本文给 PWM 类比的采样理论 |
 | [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]] | 时间粒度可变 | VTS 学 $\Delta t(s)$；本文固定 $T=1/(2B)$ 求 $w_n$ |
+| [[TARC - Time-Adaptive Robotic Control|TARC]] | 可变时间粒度的正确折扣 | TARC 学 $\Delta t(s)$ 并按物理时间 $e^{-c\Delta t}$ 折扣；本文固定周期、把自由度放进脉宽 $w_n$ 而非时间间隔 |
+| [[Reinforcement Learning for Control with Multiple Frequencies|AP-AC]] | 多路信号各自的采样率 | AP-AC 让每个动作变量按 $c^k$ 采样（多速率）；本文是单信号内幅值↔宽度的自由度转移 |
 | [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch|Touch Dexterity]] | 低比特硬件仍可承载结构信息 | Touch 用二值触觉/空间过采样；本文用 pulse width |
 
 ## 8. 应主动追问的颗粒度

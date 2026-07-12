@@ -33,7 +33,9 @@ related:
 > - [[ReinforcementLearning#5.1.2 PPO：用 clip 把硬约束"软化"|ReinforcementLearning §5.1.2]]：PPO 是本文的策略更新器，真正新增的是改变探索分布和观测表征。
 > - [[ReinforcementLearning#7. 探索：稀疏奖励下，如何"撞见"转笔成功|ReinforcementLearning §7]]：waypoint initialization 本质是在稀疏成功盆地附近重塑 $\rho_0(s)$。
 > - [[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|ContactMechanics §2.3]]：3D fingertip force 是接触 wrench 的观测代理，决定能否区分 support / propulsion / guiding。
-> - [[Dynamics#4.2 约束动力学：Lagrange 乘子与约束反力|Dynamics §4.2]]：手-笔接触力以 $J_c^\top f_c$ 形式进入关节动力学，是“手指步态”不是视觉姿态序列的根本原因。
+> - [[Dynamics#4.2 约束动力学：Lagrange 乘子与约束反力|Dynamics §4.2]]：手-笔接触力以 $J_c^\top f_c$ 形式进入关节动力学，是”手指步态”不是视觉姿态序列的根本原因。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]]：**电流≠关节力矩**暗线——action=$\Delta q^{tgt}$ 经 PD 转 torque（$\tau=K_p(q^{tgt}-q)-K_d\dot q$），把高频稳定性压给 PD 层；但本文停在仿真、privileged $f_{tip,i}$ 真机不可读，真机化必须补执行器 delay / CAN 带宽（§5.3）——正是 DexNDM 关节级 grounding 的切入口。
+> - [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3]]：Figure 6 的 local optimum（转不动的卡死态）正是 **认知不确定性三用** 里”课程/reject 信号”的落点——WMTS ensemble WM 应把这类状态标为高分歧，反向生成”该学处”。
 > **核心技术**: PPO, waypoint-guided initialization, privileged 3D net contact force, force normalization, dynamic finger gaiting.
 
 ---
@@ -520,6 +522,7 @@ $$
 | [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] | hidden context adaptation | 可补本文 object/contact variation，但不解决 transition waypoint |
 | [[RotateIt - General In-Hand Object Rotation with Vision and Touch]] | shape/contact-location identification | 可补 object generalization，但对细长笔的动态 handoff 不够 |
 | [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References]] | human reference tracking | 可提供 trajectory reference，但本文提醒不能盲目逐帧模仿 |
+| [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] | 关节级神经动力学 + residual 的真机 grounding | 直接补本文最大缺口：本文 privileged $f_{tip,i}$ 只在仿真、无 Sim-to-Real，DexNDM 提供 actuator-level 落地路线（但仍不补接触力可观测性） |
 
 领域级结论：in-hand rotation 不能只按“视觉/触觉/本体”分类，还必须加一根**形态-策略轴**。宽指尖低 DoF 更可能学 balancing；细长高 DoF 才有空间学 gaiting；触觉和 world model 的设计都要服务于这个形态前提。
 

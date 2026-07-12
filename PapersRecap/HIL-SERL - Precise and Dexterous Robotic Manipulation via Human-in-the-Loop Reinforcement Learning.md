@@ -32,6 +32,18 @@ related:
 >
 > **核心技术**: RLPD, human intervention, binary reward classifier, pretrained ResNet-10, ego-centric proprioception, impedance control, separate DQN gripper critic, real-world vision-based RL
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning|SERL]]：都真机高效 RL，**SERL 是其软件套件基座**；HIL-SERL 加 human intervention 采样 policy 诱导的失败边界（$d^\pi_{\text{near-failure}}$），把任务从短程扩到双臂/动态/长程。
+> - vs [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]]：都用人类纠正，但 HIL-SERL 把纠正**入 off-policy RL buffer**（Q 决定如何用，可超越人类），DexHiL 是 category-reweighted **imitation**（非 autonomous RL），且专攻高 DOF 灵巧手 VLA。
+> - vs [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]：都真机 RL 推到部署级；RL-100 用 diffusion sub-MDP + offline→online **无需人类在线**，HIL-SERL 靠 human correction。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#9.3 真机高效 RL：把"模仿×强化"缝合线收口|RL §9.3]] — HIL-SERL 是"校正 ≠ 演示"的缝合典范（§9.3 已点名）。
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4]] — [[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger]] 是其模仿学习前身；HIL-SERL = 把 gated 干预从纯监督换成入 replay 的 RL 转移 $(s,a_{human},r,s')$。
+>
+> **暗线**：**模仿×强化缝合线** §9.3 节点——同一份人类干预数据"模仿视角 = gating，强化视角 = correction"；**POMDP→belief→latent**：Q-value variance 标记的 critical states 即 belief 边界。
+
 ## 0. 阅读定位与范本价值
 
 HIL-SERL 是真实机器人 RL 簇里的强基线。它和刚处理的 data-generation 簇不同：MimicGen/CyberDemo/PhysicsGen 主要问“如何低成本生成离线数据”，HIL-SERL 问的是 **“如何让真实机器人在有限小时内通过 RL 直接把策略推到超越 imitation 的性能”**。

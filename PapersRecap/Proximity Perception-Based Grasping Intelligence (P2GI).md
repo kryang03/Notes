@@ -339,6 +339,25 @@ PCA 表征可解释性强但容量有限（仅线性子空间），PointNet 容�
 
 ---
 
+### 与触觉操作簇的定位与暗线锚点
+
+在“触觉表征丰富度谱”上，P2GI 位于**接触前（pre-contact）**这一极端：它感的是“接触即将发生”的 approach geometry，而非接触已发生的 mode/pose/force。它是全簇里唯一的**主动近距感知**样本，恰好补上其它论文缺失的接触前相位。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing\|Robot Synesthesia]] | 都建 point cloud + 几何特征（PCA / PointNet），但 P2GI 是 **pre-contact** proximity 点云（ToF ×16），Robot Synesthesia 是 **contact-triggered** tactile 点云。P2GI 感“接触前的手-物关系”，后者感“接触时的 $r_{\text{contact}}$”——拼成 pre-contact→contact 连续感知链。 |
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]] / [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]] | 触觉簇处理“接触已发生”的 contact mode / pose / force；P2GI 处理“接触即将发生”的 approach geometry——转笔 catch 相位前的指形预成形（pre-shaping）恰需这种前馈。 |
+| [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)\|HATO]] | 已在 §5 标为潜在下游：proximity 可作 HATO teleop 的抓取预成形先验，在接触建立前给出手-物相对位姿。 |
+
+**精确 Foundation 锚点（把 §6 的泛链落实）**：
+
+- [[SignalProcessing#6.1 近距传感 (Proximity)|SignalProcessing §6.1]]：P2GI 的 16 个 VL6180X ToF 阵列正是 §6.1 近距传感的直接实例——飞行时间 $d_i=c\,\Delta t_i/2$ 对手-物距离场做空间采样。
+- [[InformationTheory#1. 从被动观测到具身主动性|InformationTheory §1]]：reach-to-grasp 中移动 ToF 阵列采样距离场 = 主动感知——用手的运动降低对物体形状的认知不确定性。
+
+**暗线挂载（主动感知：接触前降 epistemic uncertainty）**：P2GI 的 shape estimator 从稀疏 proximity 读数推 object size/形状 = 在接触前构造 belief；这与 [[InformationTheory#4. 信念空间规划：从单点贪心到序列主动感知|InformationTheory §4]] 的“为感知而行动”同源——只是 P2GI 用被动前馈的一次性 approach 而非序列信念规划。
+
+---
+
 ## 7. 与用户研究的启发（灵巧手转笔 / Sim-to-Real）
 
 1. **近距离感知补充触觉**: 转笔任务中，近距离传感器可在接触前感知笔的位姿（轴向/距离），为接触规划提供前馈信息——类比人手在抓取前的「预成形」阶段

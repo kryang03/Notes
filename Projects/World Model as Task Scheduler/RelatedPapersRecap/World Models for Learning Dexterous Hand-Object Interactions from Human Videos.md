@@ -18,6 +18,7 @@ related:
   - "[[ReinforcementLearning]]"
   - "[[EmbodiedAI]]"
   - "[[StochasticProcess]]"
+  - "[[WorldModels]]"
   - "[[Final_WMTS]]"
 ---
 
@@ -27,10 +28,13 @@ related:
 > 学一个**专门面向灵巧手-物体交互**的 latent world model（JEPA 式：冻结 DINOv2 编码、预测 latent 而非像素）。三个关键点：(1) **动作用 3D 手部关键点之差**（MANO 21 点/手 + 相机运动，Eq 2，$\in\mathbb R^{44\times3}$）表示——细粒度灵巧，远胜 text/wrist/whole-body 粗动作；(2) 为绕开灵巧数据稀缺，**在 900+ 小时人类 egocentric 视频（EgoDex）+ 非灵巧机器人（DROID）上训练**，跨本体；(3) 发现**只预测视觉 latent 不足以抓住灵巧细节**，加 **hand-consistency 辅助损失**（预测指尖/腕热力图）后 PCK@20 从 26→60。把训好的 DexWM 当**状态转移模型在 MPC/CEM 里规划** waypoint，真机 Franka+Allegro **抓取成功率 83%**，平均**超过 Diffusion Policy 50%+**。**它是库内最贴近 WMTS 的灵巧 WM 论文，而其最重要的洞见——"latent 视觉特征不足以表达灵巧、必须加结构化手部监督"——正是 WMTS 必须在 latent 之外加触觉/接触/结构化状态的直接论据。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — WM 当状态转移模型做 MPC/CEM 规划（model-based planning，非端到端 RL）。
+> - [[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]] — WM 当状态转移模型做 MPC/CEM 规划（隐空间 WM，model-based planning，非端到端 RL）；被它超越的 DP 本体见 [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）]]。
 > - [[EmbodiedAI]] — 从人类 egocentric 视频学灵巧先验、跨本体（human↔robot）、zero-shot sim-to-real。
-> - [[StochasticProcess]] — Conditional Diffusion Transformer (CDiT) 架构 + AdaLN 动作条件（但直接回归 latent、不做迭代去噪）；CEM 采样规划。
+> - [[StochasticProcess]] — Conditional Diffusion Transformer (CDiT) 架构 + AdaLN 动作条件（但直接回归 latent、不做迭代去噪）；CEM 采样规划呼应 [[StochasticProcess#6.2 物理根：自由能最小化与重要性采样]]。
+> - [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] — DexWM 是**确定性单 WM**、无 epistemic 度量，规划会利用 WM 误差；WMTS 必须叠 ensemble-LCB（与 [[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]] 合流）。
 > - [[Final_WMTS]] — **WMTS 灵巧 WM 的最近范本**；HC-loss 洞见 = WMTS 需触觉/结构化状态的论据；WM-当-planner、超越 DP 印证 WMTS "WM 精炼/引导 generalist"。
+>
+> **暗线定位**：DexWM 从两侧碰到 **认知不确定性三用** 暗线——确定性单 WM 缺 epistemic 护栏（→ ensemble-LCB）；而其真正独有的一击是指出"视觉 latent 表达灵巧有上限，必须加结构化（手/接触）监督"，这对 WMTS 的"latent 之外还要触觉一等输入"是最强论据。
 >
 > **核心技术**: JEPA 式 latent WM (冻结 DINOv2), 手部关键点动作 (MANO, Eq 2), CDiT 预测器 (直接回归 latent), Hand-Consistency Loss (Eq 5), 人类视频 + 跨本体训练, CEM/MPC 规划 (Eq 6)
 
@@ -196,13 +200,16 @@ DexWM 是 JEPA 式 latent 预测 + MPC 规划：规划质量受 latent WM 保真
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-WM 当状态转移模型做 goal-conditioned MPC/CEM 规划（Eq 6），是 model-based planning（非端到端 RL）；与 Dreamer/TD-MPC 的 WM-for-control 一脉。
+WM 当状态转移模型做 goal-conditioned MPC/CEM 规划（Eq 6），是 model-based planning（非端到端 RL，[[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]]）；与 Dreamer/TD-MPC 的 WM-for-control 一脉。
 
 ### 与 [[EmbodiedAI]] 的联系
 从 829h 人类 egocentric 视频 + 跨本体（human↔二指↔Allegro）学灵巧先验，zero-shot sim-to-real 到 Franka+Allegro；体现"用人类数据 scale 灵巧"的具身路线。
 
 ### 与 [[StochasticProcess]] 的联系
-Conditional Diffusion Transformer (CDiT) + AdaLN 动作条件（但直接回归 latent、不去噪）；CEM 进化采样规划。
+Conditional Diffusion Transformer (CDiT) + AdaLN 动作条件（但直接回归 latent、不去噪）；CEM 进化采样规划，与 [[StochasticProcess#6.2 物理根：自由能最小化与重要性采样]] 的采样+加权同宗。
+
+### 与 [[WorldModels]] 的联系
+DexWM 是隐空间 WM 当 planner 的灵巧实例；但确定性单 WM 无 epistemic 度量（[[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]），规划会利用 WM 误差，是 WMTS 加 ensemble-LCB 的又一证。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS 灵巧 WM 的最近范本；HC-loss 洞见（latent 不足、需结构化监督）= WMTS 必须加触觉/接触/actuator 结构的论据；"WM-planner 超 DP"印证 WM 引导 generalist；其确定性单 WM 软肋 = WMTS 加 ensemble-LCB 的又一证。
@@ -213,3 +220,7 @@ WMTS 灵巧 WM 的最近范本；HC-loss 洞见（latent 不足、需结构化�
 - 灵巧 WM 同族：DexSim2Real2、DWM；互补 [[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]
 - 思想源：JEPA/V-JEPA2（LeCun）、DINOv2、CDiT、[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]
 - 项目入口：[[Final_WMTS]]
+- 簇内关系（Delta）：
+  - vs [[Diffusion Policy: Visuomotor Policy|Diffusion Policy]]：DP 直接回归动作（BC）；DexWM 把灵巧 latent WM 当 MPC planner，zero-shot 超 DP 50%+，论证"BC 直接出动作"泛化/规划弱。
+  - vs [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]：都用高保真生成 WM，但 World4RL 像素扩散 + PPO 端到端**训策略**；DexWM latent-JEPA + CEM/MPC **测试期规划**（不训策略）。
+  - vs [[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL|SafeDreamer]]：都在 WM 里做 CEM 前瞻规划，SafeDreamer 加 cost 约束做安全过滤，DexWM 只 goal-conditioned latent+关键点 cost，无安全通道。

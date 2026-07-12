@@ -15,6 +15,7 @@ paper-pdf: "[[World4RL- Diffusion World Models for Policy Refinement with Reinfo
 related:
   - "[[StochasticProcess]]"
   - "[[ReinforcementLearning]]"
+  - "[[WorldModels]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
@@ -25,10 +26,13 @@ related:
 > 与 [[DiWA- Diffusion Policy Adaptation with World Models|DiWA]] 同一目标（冻结 world model 里用 PPO 离线精炼预训练策略、零真实交互），但**把 DiWA 的 RSSM 换成扩散转移模型（diffusion transition model）**：RSSM 的 VAE latent 生成模糊、rollout 误差累积，而 diffusion backbone 给出**更锐利、时序一致**的想象 rollout，从而支撑稳定的端到端 PPO。配套两项关键设计：(1) **two-hot 动作编码**（承自 DreamerV3）——把连续动作无损可微地接进扩散模型；(2) **受控探索**（PPO 策略 std 收紧到 $\sigma\le e^0$ + 训练数据掺 random rollout）——压住"在学到的 WM 里刷 OOD 想象回报"。Meta-World 6 任务平均成功率 **67.5%（↑16）**，真机 6 任务 **↑25%**，video-prediction 保真度（FVD/FID/LPIPS）全面超过 DiWA/NWM/iVideoGPT。**它是 WMTS "world model 精炼 generalist" 这一步的更强候选骨架，且其"给失败轨迹会忠实预测失败、而 DiWA 会幻觉成功"的发现，是 WMTS 必须用高保真 WM + 抗 model-exploitation 的直接证据。**
 
 > [!tip] 与理论基础的关联
-> - [[StochasticProcess]] — 扩散模型（EDM 预条件去噪，Eq 4/7）作为转移模型；two-hot 编码（承自 DreamerV3）。
-> - [[ReinforcementLearning]] — 冻结 WM 内的 offline model-based policy refinement；PPO（Eq 8）+ value（Eq 9）；OOD/overestimation 视角。
+> - [[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]] — 扩散模型（EDM 预条件去噪，Eq 4/7）作为转移模型；two-hot 编码（承自 DreamerV3）。
+> - [[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]] — 冻结 WM 内的 offline model-based policy refinement；PPO（Eq 8）+ value（Eq 9）；被精炼的 DP 本体见 [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）]]。
+> - [[WorldModels#6.2 Dream RL 的对抗性风险]] — Fig 2"低保真 WM 幻觉成功"是该风险的实验证据；即便扩散高保真，单 WM 在 OOD 仍乐观，故 WMTS 需 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]。
 > - [[EmbodiedAI]] — IL 预训练 → WM 内 RL 精炼的两阶段机器人操作范式；真机零样本部署。
 > - [[Final_WMTS]] — **WMTS "PPO Oracle → DP generalist → world model 精炼"中精炼步的更强骨架**；其 fidelity / OOD 控制是 WMTS ensemble + uncertainty 设计的动机来源。
+>
+> **暗线定位**：World4RL 把 **认知不确定性三用** 暗线的"护栏"面推进一步——它用 std clip + random rollout 把策略关在 WM support 内（治标），但仍是单 WM 无 epistemic 度量；WMTS 用 ensemble disagreement/LCB 显式惩罚"WM 不确定处"（治本）。其扩散转移模型本身是 **Continuation/平滑化** 暗线（噪声→数据）在"WM 生成"上的实例。
 >
 > **核心技术**: Diffusion Transition Model (EDM), Two-hot Action Encoding (K=21), Frozen WM + PPO-in-imagination, Reward Classifier (binary), 受控探索 (std clip + random rollout), 多源数据混训 (expert+policy+random)
 
@@ -195,10 +199,13 @@ World4RL 是 offline model-based policy improvement：改进上界由**冻结扩
 ## 7. 与知识体系的联系
 
 ### 与 [[StochasticProcess]] 的联系
-扩散转移模型用 EDM 预条件去噪（Eq 4/7）生成下一帧观测；two-hot 编码（DreamerV3）把连续动作映成离散权重——随机生成模型在控制上的实例。
+扩散转移模型用 EDM 预条件去噪（Eq 4/7）生成下一帧观测（[[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]]）；two-hot 编码（DreamerV3）把连续动作映成离散权重——随机生成模型在控制上的实例。
 
 ### 与 [[ReinforcementLearning]] 的联系
-冻结 WM 内的 offline model-based policy refinement：PPO（Eq 8）+ value（Eq 9），用 importance ratio + clip；针对 offline RL 的 overestimation 与 WM 内 OOD 的受控探索处理。
+冻结 WM 内的 offline model-based policy refinement（[[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]]）：PPO（Eq 8）+ value（Eq 9），用 importance ratio + clip；针对 offline RL 的 overestimation 与 WM 内 OOD 的受控探索处理。
+
+### 与 [[WorldModels]] 的联系
+World4RL 证明 offline WM 精炼的第一性变量是**生成保真度**，但其单一扩散 WM 仍会在 OOD 乐观（[[WorldModels#6.2 Dream RL 的对抗性风险]]，Fig 2 幻觉成功）；WMTS 在其骨架上叠 ensemble（[[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]）+ LCB，把"高保真"补成"高保真且抗 exploitation"。
 
 ### 与 [[EmbodiedAI]] 的联系
 IL 预训练（BC/DP）→ WM 内 RL 精炼的两阶段机器人操作范式，真机零样本部署（Franka），HIL-SERL 采数。
@@ -212,3 +219,7 @@ WMTS "PPO Oracle → DP generalist → world model 精炼"中精炼步的更强�
 - 被精炼的策略：[[Diffusion Policy: Visuomotor Policy|Diffusion Policy]]
 - 相关 WM：[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]/DreamerV3（two-hot 来源）、TD-MPC2、IRASim/NWM、iVideoGPT
 - 项目入口：[[Final_WMTS]]
+- 簇内关系（Delta）：
+  - vs [[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]：唯一但要命的区别是 WM 生成模型——DiWA=RSSM（模糊/误差累积/幻觉成功），World4RL=扩散转移模型（锐利/时序一致）+ 受控探索。
+  - vs [[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL|SafeDreamer]]：都在冻结 WM 想象里跑 PPO，SafeDreamer 关注 cost 约束下的安全（Lagrangian + cost critic），World4RL 关注 WM 保真度与 model-exploitation。
+  - vs [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]：都用高保真生成 WM，但 World4RL 像素扩散 + PPO 端到端训策略，DexWM latent-JEPA + CEM/MPC 规划（test-time 动作优化，不训策略）。

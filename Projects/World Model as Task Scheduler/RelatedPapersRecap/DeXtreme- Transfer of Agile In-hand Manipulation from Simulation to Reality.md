@@ -27,7 +27,9 @@ related:
 > NVIDIA 把 OpenAI Dactyl 式的 in-hand 立方体重定向，**在廉价硬件（Allegro 手 + 普通相机）+ 可负担算力（8 张 A40，对比 OpenAI 的 400 台 CPU 服务器 + 32 张 V100）上复现并超越**。两大贡献：(a) 用 **PPO（LSTM 策略）+ 自动域随机化（ADR）** 在 Isaac Gym GPU 仿真里训出鲁棒重定向策略；(b) 训一个**纯仿真训练、真机可用的位姿估计器**，免 mocap。视觉策略**超过文献最佳视觉策略、逼近用 mocap 特权状态的策略**。**它是 WMTS 最重要的对照基线——纯 model-free + 大规模域随机化的 sim-to-real 范式：它证明这条路对立方体重定向 work，但也用自身的 sim→real 落差（仿真 35 连续成功→真机 15）和"任务必须可仿真 + 可随机化可解释参数 + 有清晰 reward"的前提，精确划出 WMTS 的 world model + 真机微调要补的地方。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — POMDP + PPO（LSTM actor-critic）；ADR 提供训练课程。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2 三味药]] — ADR 是"DR（增覆盖）"这一味药做到自动化极致；但纯 model-free、**缺"在线自适应"这味药**（部署即冻结），这正是 35→15 落差的病根。
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 / Phase 4 ADR]] — ADR = 把 DR 强度做成性能驱动 curriculum，自动"生长"随机化边界（对应 §7.3 的 Phase 4 ADR）。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — 78D 随机化含 Allegro 电机刚度/阻尼/延迟；**暗线「电流≠关节力矩」**：仿真把 $\tau$ 当输入直接施加、真机 $\tau$ 经电机→减速链输出，这段机械+电气差异正是 DR 要覆盖的物理来源。
 > - [[ControlTheory]] — 高 DoF 手内位置控制；reward shaping 引导。
 > - [[EmbodiedAI]] — sim-to-real 域随机化范式；纯仿真训练零样本迁移真机。
 > - [[Final_WMTS]] — **WMTS 的 model-free DR 对照基线**；其 sim→real 落差与"可仿真前提"= WMTS WM+真机微调的价值边界。
@@ -39,7 +41,7 @@ related:
 
 DeXtreme 在知识库里是 **WMTS 的"对照范式"锚点**——它代表 **纯 model-free + 大规模域随机化（DR）的 sim-to-real** 路线，与 WMTS 的 **world model + 真机微调** 路线正面对峙。读它的关键不是学某个公式，而是**把这条范式的能力边界看清**：它对"可仿真、可随机化、有清晰 reward、可评估成功"的任务（立方体重定向）极其有效，但对"难仿真、动力学难随机化"的任务（高速转笔）就是 WMTS 要接手的地方。
 
-它与 [[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]（真机在线学习，光谱另一端）、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]（真机 model-based）形成三角：**DeXtreme = 纯仿真 DR 零样本，DayDreamer = 纯真机在线，PDDM = 真机 model-based**。WMTS 取三者之间：sim Oracle（DeXtreme 式 PPO）+ WM + ≤1h 真机微调（DayDreamer/FOWM 式）。它也是灵巧 Sim-to-Real 簇（DexCtrl/ViserDex/Rubik's Cube 等）的范式标杆。
+它与 [[DayDreamer- World Models for Physical Robot Learning|DayDreamer]]（真机在线学习，光谱另一端）、[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]（真机 model-based）形成三角：**DeXtreme = 纯仿真 DR 零样本，DayDreamer = 纯真机在线，PDDM = 真机 model-based**。WMTS 取三者之间：sim Oracle（DeXtreme 式 PPO）+ WM + ≤1h 真机微调（DayDreamer/FOWM 式）。它也是灵巧 Sim-to-Real 簇的范式标杆：vs [[ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation|ViserDex]]（用 curriculum+蒸馏替 ADR、cube 上 CS 35.4 反超 DeXtreme 27.8）、vs [[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]（补上 DeXtreme 没做的**控制器增益级**在线自适应）、vs [[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]（ADR 的源头，DeXtreme 是其民主化版）。
 
 ## 1. 问题设定与动机（逻辑与价值）
 

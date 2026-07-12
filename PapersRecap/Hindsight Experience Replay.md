@@ -491,6 +491,24 @@ $$
 
 DemoStart 用 demonstration states 构造课程起点，HER 用 achieved states 构造 hindsight goals。二者互补：DemoStart 解决“怎么到达有学习信号的区域”，HER 解决“到达任何区域后如何最大化利用”。对灵巧手，先用 demo/curriculum 打开探索桥，再用 HER 复用失败 outcomes，比单独 HER 更现实。
 
+### 7.4 课程学习簇坐标：HER 是"隐式 continuation + 认知边界课程"
+
+> [!abstract] 暗线锚定：Continuation（隐式）+ 认知不确定性（该学处）
+> HER 触及本簇两条暗线。① **Continuation**：§2.6 的 $p_{\text{HER}}(g)\approx p_{\text{achieved}}(g;\pi_t)$ 让目标分布随策略能力自动从"当前可达 outcomes"平滑扩张到"更难 goals"，是 [[Curriculum Learning#3.2 与 Continuation Method 的联系|$Q_0\to Q_1$]] 的**隐式**版——无需人工设 $\lambda$，$\lambda$ 由 achieved-goal 支持集自己长出来。② **认知不确定性（该学处）**：achieved-goal frontier 恰好是"当前策略刚好够得到"的目标带，与 [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3 无知即课程]] 的"该学处"、以及 [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart ZVF 的 success frontier]] 是同一"能力边界即课程"思想的三种度量（achieved-goal 分布 / ensemble 分歧 / success variance）。
+
+**补充 Foundation 锚点**（已 grep 验证）：
+
+- [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]]：HER 的 implicit curriculum 是 §7.3 的经典范例——它不显式"选任务"，而让 relabeling 使课程涌现，对应 §7.3 Learning-Progress 之前的"隐式课程"原型。
+- [[ReinforcementLearning#8.2 奖励工程：最危险的自由度|RL §8.2 奖励工程]]：§3.5 的反直觉结果（最好的 shaped distance reward 反而让三任务全崩）是 §8.2 "奖励工程是最危险自由度"的最强实证——保持 binary success + relabeling，比设计一个错的 dense proxy 更安全。
+
+**簇内互链 + Delta**：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[Curriculum Learning\|Curriculum Learning]] | HER = 其 continuation 的**隐式**实现 | Bengio 显式排 $Q_\lambda$；HER 让 $p_{\text{achieved}}$ 随策略自动扩张，无需人工难度函数 |
+| [[EUREKA: Human-Level Reward Design via Coding Large Language Models\|EUREKA]] | 同攻 sparse reward，手法正交 | EUREKA **加密奖励**（LLM 生成 dense code）；HER **重标目标**（不改稀疏性，改条件 $g$）。§5.2 已述 PPO 不能直接 relabel，需 off-policy critic——恰是 EUREKA dense reward 可绕开的场景 |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | 上节已述：探索桥 vs 值利用 | reset-space（DemoStart）vs goal-relabel-space（HER），Solve/Probe/Reject 框架二者共享 |
+
 ## 8. 应复刻的提问颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

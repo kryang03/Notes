@@ -34,6 +34,18 @@ related:
 >
 > **核心技术**: human-in-the-loop VLA post-training, intervention-aware weighting, dexterous teleoperation, modular hand retargeting, weighted Flow Matching, data filtering
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]：都用人类纠正，但 HIL-SERL 把纠正**入 off-policy RL**（Q 决定利用、可超人类），DexHiL 是 category-reweighted **imitation**（$P^*(\text{itv})=0.5$，非 autonomous RL），且专攻高 DOF 灵巧手 VLA。
+> - vs [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]]：都 VLA 后训练；DexHiL 用**加权模仿**放大人类纠正，RLT 冻结 VLA 学 **RL 残差 token**。
+> - vs [[Learning Long-Horizon Robot Manipulation Skills via Privileged Action|Privileged Action]]：都定向解决"失败边界/长因果链"探索稀薄；DexHiL 用**人类介入**采样失败边界，Privileged Action 用**仿真特权动作**改变探索拓扑。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4]] — DexHiL = DAgger/HG-DAgger 的 dexterous VLA 工程化；intervention-aware weighting ≈ §7.4 权重表的 **category 版**加权 BC。
+> - [[EmbodiedAI#2.3 VLA 后训练：从模仿到强化|EmbodiedAI §2.3]] — 把 VLA 后训练放回 robot-in-the-loop 分布，解决纯 offline SFT 覆盖不到 learner-induced OOD 的问题。
+>
+> **暗线**：**模仿×强化缝合线**上 DexHiL 偏"weighted imitation"端（介于 BC 与 autonomous RL）；human intervention = **failure-boundary sampling**（prioritized，belief 能力边界的采样）。
+
 ## 0. 阅读定位与范本价值
 
 DexHiL 应该和 [[RECAP - A VLA that Learns from Experience|RECAP]] 放在一起读，但二者的角色不同：

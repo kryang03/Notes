@@ -26,7 +26,9 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[EmbodiedAI]] — 灵巧抓取；程序化抓取作为数据驱动策略的数据引擎。
-> - [[Optimization]] — 程序化搜索；Contact Field 解耦几何计算与优化以加速。
+> - [[Optimization#8. 深度专题：可微抓取合成 (Differentiable Grasp Synthesis)|Optimization §8 抓取合成]] — Contact Field 解耦"几何计算 vs 搜索/优化"，是可微抓取合成之外的**程序化/解析**路线（免能量函数与初始化模板）。
+> - [[ContactMechanics#3.2 力闭合 vs 形闭合：抓取稳定性的数学条件|ContactMechanics §3.2 力闭合]] — 接触场 = 物体表面所有**可行接触区**，域内选点搜稳定抓取本质是找满足力闭合的接触点集（**暗线「接触非光滑」**：接触区离散、非光滑，故用场结构而非连续优化）。
+> - [[ComputationalGeometry#4. 有向距离场 (SDF)：连续优化的基石|ComputationalGeometry §4 SDF]] — Contact Field 是几何数据结构，与 SDF 同类：把昂贵的接触检测/几何计算一次性预计算成可缓存接口。
 > - [[Final_WMTS]] — **数据引擎（多样抓取/接触参考）+ 解耦架构洞见**（几何↔搜索）；非动态技能。
 > - [[Dynamic Non-Prehensile Manipulation]] — 可生成转笔初始抓取，但不含动态 spin。
 >

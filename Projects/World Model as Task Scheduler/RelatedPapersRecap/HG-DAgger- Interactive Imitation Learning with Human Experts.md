@@ -25,7 +25,8 @@ related:
 > 改进 DAgger 使其适合**人类专家**的交互式 IL。原 DAgger 用 "Robot-Centric" 采样（novice 影响状态分布、专家给纠正标签但不完全掌控）→ 损训练安全 + 人类标签质量（感知执行器延迟、人对延迟敏感、行为被改）。**HG-DAgger（Human-Gated）让人类专家自行决定何时接管**（接管时完全掌控、直至手动交还）→ 高质量标签 + 训练安全。此外它**学一个基于 model-uncertainty 风险度量的安全阈值**，用以预测训练好的 novice 在状态空间不同区域的表现。自动驾驶（sim+real）上胜 DAgger 与 BC。**对 WMTS：本身是人类 IL 数据收集法（与 WMTS 偏好 RL Oracle 数据相比次要），但其"用 model-uncertainty 风险度量 + 学到阈值预测策略失败区域"是 WMTS reliability head / Solve-Probe-Reject 三队列的早期精神先例；亦是 DAgger（库内 DyWA/DexWM/UniDexGrasp++ 蒸馏用）的参照。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — IL / DAgger；分布偏移与 compounding error。
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度]] — **数学根**：HG-DAgger 是 DAgger 谱系一员；该节讲 BC→DAgger→HG-DAgger 的 no-regret 演进。
+> - [[ReinforcementLearning#复合误差定理：兑现 §1.5 的"雪崩"]] — HG-DAgger 要治的正是 BC 的 compounding error（$T^2$ 雪崩）。
 > - [[ControlTheory]] — 共享控制/切换稳定性（pilot-induced oscillation 类比）；人对延迟敏感。
 > - [[EmbodiedAI]] — 真实系统交互式 IL；人在回路数据收集。
 > - [[Final_WMTS]] — **uncertainty 风险度量 + 阈值预测失败区 = reliability/triage 先例**；DAgger 参照。
@@ -132,9 +133,14 @@ IL/DAgger 系；分布偏移与 compounding error；RC 采样 vs human-gated。
 ### 与 [[Final_WMTS]] 的联系
 uncertainty 风险度量 + 阈值预测失败区 = WMTS reliability head / Solve-Probe-Reject 先例（WMTS 用 ensemble-LCB 强化）；DAgger 参照（库内蒸馏用）。
 
+### 与本簇论文的关联（Delta 对比）
+- **vs [[Learning a Unified Policy for Position and Force|Unified Policy]]**（可比维度=喂给 IL 的数据质量）：都在"改善示范数据以提升 IL"——HG-DAgger 补**安全的高质量人类标签 + uncertainty triage**（治协变量漂移），Unified Policy 补**力/接触信息**（接触密集 +39.5%）；一个补"标签质量维度"，一个补"物理量维度"，对 WMTS Oracle 数据设计互补。
+- **vs [[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL 架构研究]]**（可比维度=可靠性边界）：都在回答"何时不可信"——HG-DAgger 学一个 **uncertainty 阈值显式预测失败区**（triage），ICL 揭示 **in-context 适应的外推上限**（能力边界）；二者在 WMTS 合流为 Solve-Probe-Reject：用不确定性判定越界即 probe/微调。
+
 ## References
 - 原始 PDF：[[HG-DAgger- Interactive Imitation Learning with Human Experts.pdf]]（Stanford，ICRA 2019，arXiv 1810.02890）
 - 对立（RL 数据 > 人类）：[[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training|Beyond Human Demonstrations]]
 - uncertainty-triage 同源：[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]、[[Finetuning Offline World Models in the Real World|FOWM]]（LCB）
 - DAgger 用户：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]、[[UniDexGrasp++- Improving Dexterous Grasping Policy Learning via Geometry-aware Curriculum and Iterative Generalist-Specialist Learning|UniDexGrasp++]]
+- 本簇（IL 数据/可靠性）关联：[[Learning a Unified Policy for Position and Force|Unified Policy（力感知数据）]]、[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL（外推上限）]]
 - 项目入口：[[Final_WMTS]]

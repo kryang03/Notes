@@ -33,6 +33,8 @@ related:
 > - [[Dynamics#4.2 约束动力学：Lagrange 乘子与约束反力|Dynamics §4.2]]：物体接触力作为 $\tau_{ext}$ / $J_c^\top f_c$ 进入关节动力学，但 DexNDM 不显式估计物体状态。
 > - [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|ReinforcementLearning §9]]：它是 $\Delta_T$ transition-gap 修正，不是视觉 gap 或 reward gap。
 > - [[Optimization#2.2 拉格朗日对偶：把约束"价格化"|Optimization §2.2]]：residual policy 的监督目标等价于让真实动力学下的下一状态逼近仿真参考转移。
+> - [[Actuation#10. 迁移层 II：数据驱动执行器模型 (Actuator Model)|Actuation §10]]：joint-wise $q^i_{t+1}=f_{\psi_i}(h^i_t)$ 正是 Actuator Net 的手内旋转版——学"仿真 PD 没覆盖的那段残差"；挂 **电流≠关节力矩** 暗线：它建模的是 command→真实关节响应的净效应（$H^{eff}\ddot q^i+G^{eff}=\tau^i$），刻意绕开显式 $\tau$。
+> - [[WorldModels#5.2 WMTS 的核心结构决策：Actuator + Rigid 解耦|WorldModels §5.2]]：DexNDM 只建 joint（actuator 侧）转移、刻意丢掉 object 状态，是 WMTS "Actuator + Rigid 解耦" 的 actuator 半边实证——WM 若缺这一层，会把真实执行偏差误判成高层任务失败。
 > **核心技术**: specialist-to-generalist distillation, joint-wise neural dynamics, KL information contraction, Chaos Box autonomous data, residual action compensation.
 
 ---

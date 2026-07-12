@@ -25,9 +25,9 @@ related:
 > 针对"真实系统不同执行器需不同控制频率（机械臂 50Hz、抓手 10Hz），但单一平稳策略无法兼顾"这一瓶颈，提出 **AP-AC (Action-Persistent Actor-Critic)**：在 Factored-Action MDP 上让每个动作变量保持各自的持续时间 $c^k$，并证明此时最优策略**必然是周期非平稳的**（周期 $T=\mathrm{lcm}(c^1,\dots,c^m)$），用按相位分头的网络直接优化。结构性洞见：**当多个动作变量频率不同，"在同一状态下永远做同一件事"（平稳策略）会任意次优——最优性要求策略显式依赖"当前处在周期的哪个相位"。**
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory]] — 多速率采样系统：每个动作变量采样率 $f^k=f_{base}/c^k$ 须满足各自子系统的 Nyquist 约束 $f^k\ge2\,\mathrm{BW}_k$
-> - [[ReinforcementLearning]] — 动作持续与 options/时间抽象互补；周期非平稳策略梯度是标准 PG 定理的多相位扩展
-> - [[Dynamics]] — 快/慢子系统分解对应双时间尺度（奇异摄动）动力学
+> - [[ControlTheory#1.3 频率响应：Bode、相位裕度与带宽|ControlTheory §1.3]] — 多速率采样系统：每个动作变量采样率 $f^k=f_{base}/c^k$ 须满足各自子系统的 Nyquist 约束 $f^k\ge2\,\mathrm{BW}_k$，即"$c^k$ 该取多少"由子系统**带宽**决定
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|ReinforcementLearning §7.4]] — 动作持续与 options/时间抽象互补；周期非平稳策略梯度是标准 PG 定理的多相位扩展
+> - [[Dynamics#3.6 小振动线性化：平衡点附近为何会"震"|Dynamics §3.6]] — 快/慢子系统分解对应双时间尺度（奇异摄动）动力学，各广义坐标特征频率 $\omega_i=\sqrt{K_i/M_{ii}}$ 差异巨大正是"该分频"的物理根
 >
 > **核心技术**: Factored-Action MDP, Action Persistence (多变量), Periodic Non-stationary Policy, AP-PI / AP-AC
 
@@ -159,7 +159,7 @@ $$\nabla_\theta J=\sum_{\phi=0}^{T-1}\mathbb{E}_{t:\,t\bmod T=\phi}\big[\nabla_\
 | 理论保证 | **最优性 + 收敛** | Bellman 收缩 + 损失界 | Lyapunov（弱） | 无 |
 | 时间抽象层级 | 低（动作级） | 低 | 低 | 中 |
 
-> [!note] 领域级 insight：control frequency 簇的三维分解（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning#6.4 领域级综述：control frequency / time-step 簇（本篇为理论锚点）|PFQI §6.4 簇综述]] 互参）
+> [!note] 领域级 insight：control frequency 簇的三维分解（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI（control-frequency 簇理论锚点）]] 互参）
 > 把 PFQI / VTS-RL / AP-AC 三篇并置，可把"控制频率问题"分解为**三个正交维度**：
 > 1. **单一 vs 多变量频率**：PFQI/VTS-RL 单一；**AP-AC 多变量**。
 > 2. **固定 vs 状态自适应**：PFQI/AP-AC 固定；**VTS-RL 状态依赖**。

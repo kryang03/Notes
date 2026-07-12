@@ -478,3 +478,12 @@ def train_vices_policy(env, policy):
 > VICES 是 impedance/compliance 簇的锚点——RL 学可变阻抗作 action space（簇内对比见 §10：[[FACET - Force-Adaptive Control via Impedance Reference Tracking\|FACET]] 跟踪参考模型 / [[Minimalist Compliance Control\|MCC]] 固定参数 / [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking\|Data-Driven VIC]] 凸优化辨识）。两个跨簇 insight：
 > **① 阻抗刚度 $K(s)$ 加入 $m(s)$ 家族**：VICES 的 $K(s)$（当前该多软硬）与 control frequency 的 $\Delta t(s)$、[[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control\|LipsNet]] 的平滑度 $K(x)$、[[TARC - Time-Adaptive Robotic Control\|TARC]]、[[Dynamic Reinforcement Learning for Actors\|Dynamic RL]] 的 $\lambda_{max}(s)$ 同属"**状态依赖元控制 $m(s)$**"——策略不只输出动作，还输出"当前控制**柔顺度**该是多少"。物理阻抗是 $m(s)$ 在柔顺度维度的实例。
 > **② "action space = 闭环控制空间"是贯穿的设计自由度**：VICES 揭示选对 action space（末端阻抗）比选算法更影响接触任务——与 control frequency 簇"频率也是 action 的一部分"（[[Elastic Time Step Reinforcement Learning, VTS-RL\|VTS-RL]] 输出 $\tau$、[[Reinforcement Learning for Control with Multiple Frequencies\|AP-AC]] 多频率动作）呼应。VICES 的"策略 20Hz + 阻抗 1kHz"分层正是 [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks\|EvoControl]] 双层频率的 impedance 版。
+
+> [!note] 簇内补链 · Foundation 精确锚点 · 暗线
+> **簇内互链 + Delta**（补 §10 表）：
+> - vs [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation|Residual LfD]]：VICES 的 action=$(\Delta x, K)$ 与 Residual LfD 的 task-space pose residual 正交——前者学"多软硬"、后者学"偏离 base 多少"。二者可组合：让 residual 输出 impedance 而非 position（Residual LfD §6.3 对比表已提示）。
+> - vs [[Path-Constrained Haptic Motion Guidance via Admittance Control|Path-Constrained Admittance]]：VICES 是**阻抗**（运动→力，作 action space），后者是**导纳**（力→运动，作 phase generator）——正是 [[ControlTheory#3.3 导纳控制与阻抗/导纳因果性校准|ControlTheory §3.3]] 的因果对偶两端。
+>
+> **Foundation 精确锚点**：末端阻抗律 = [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|ControlTheory §3.2]]；RL 学 $K(s)$ = [[ControlTheory#3.4 学习型变阻抗：RL × 阻抗的桥|ControlTheory §3.4]]；底层操作空间控制器 = [[ControlTheory#4. 操作空间公式化 (OSF)：在任务空间直接设计控制|ControlTheory §4]] + [[Dynamics#7.3 操作空间动力学 (Khatib)：在任务空间直接设计|Dynamics §7.3]]（$\Lambda=(JM^{-1}J^T)^{-1}$）；Surface Wiping 法/切向独立刚度 = [[ControlTheory#5. 力/位混合控制：正交分解任务空间|ControlTheory §5]] 的正交分解。
+>
+> **暗线 · 电流≠关节力矩（反驱动性）**：底层 $\tau=J^T\Lambda F+\mu+p$ 把 $\tau$ 当理想输入直接施加——真机上 $\tau$ 是电机→FOC→减速器输出，灵巧手关节刚度还要经腱映射 $K_j=R^T\mathrm{diag}(k_t)R$（§5.2），反驱动性差则期望阻抗被传动 backlash/摩擦污染（[[Actuation#8.2 三大非理想性——机械侧 gap 的主体|Actuation §8.2]]）。

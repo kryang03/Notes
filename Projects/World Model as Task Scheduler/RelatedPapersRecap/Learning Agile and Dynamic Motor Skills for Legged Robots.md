@@ -33,6 +33,16 @@ related:
 >
 > **核心技术**: Actuator Network (MLP 命令历史→力矩, 真实数据训), 三步法 (刚体 ID → actuator net → sim 训策略), rigid-body sim + actuator net, ~1000× 实时, 状态历史→关节目标策略
 
+> [!note] 簇内定位（运动迁移 sim-to-real 簇）与精确锚点
+> **本篇 = 执行器侧 gap 的数据驱动解药，"电流≠关节力矩"暗线的源头级落点。** 精确 Foundation 锚点：
+> - [[Actuation#10. 迁移层 II：数据驱动执行器模型 (Actuator Model)]]、[[Actuation#10.1 Actuator Net：学"仿真 PD 没覆盖的那段残差"]] — **actuator net 的原典即本文**：仿真把 $\tau$ 当理想力矩源直接施加，真机 $\tau$ 是"命令→电机→SEA→传动"的输出；actuator net（命令历史→实现力矩 MLP）正是学这段"命令≠实现力矩"的残差 → 挂**电流≠关节力矩 / τ 身份错位**暗线。
+> - [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机]]、[[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）]] — actuator net 是"System ID"这味药的**学习式极致**：不标定解析参数，直接从真机数据拟合命令→力矩映射。
+>
+> **簇内 Delta（vs 本簇其他 locomotion sim-to-real）：**
+> - vs [[Sim-to-Real: Learning Agile Locomotion For Quadruped Robots|Jie Tan 2018]]：**直接前身**——Jie Tan 用**手工解析** actuator model（命令→力矩），本文换成**数据驱动 MLP** actuator net（命令历史→力矩），从"人来建电机模型"进到"从真机数据学电机残差"。
+> - vs [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]：**互补拼图**——本文建**执行器侧**（命令→力矩），SSRL 建**刚体侧 Lagrangian**（力矩→加速度）+ **接触力残差**；两者串起 = WMTS 完整结构化动力学链。
+> - vs [[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills|ASAP]]：都"学残差弥合 gap"，但本文残差挂在**执行器力矩通道**（物理量、永久嵌 sim），ASAP 残差挂在**动作通道** $a+\Delta a$ 且**部署去除**——残差挂哪个物理量、是否保留，是两者分野。
+
 ## 0. 阅读定位与范本价值
 
 Hwangbo 2019 是 **actuator network 的原典**，对 WMTS 的价值是补上**结构化 WM 的执行器拼图**。WMTS 主张 "actuator+rigid 结构化 WM"，而库内已有：[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]] 给"刚体 Lagrangian + 接触力残差"，[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]] 给"自适应增益"——**本篇给"执行器命令→力矩"的 actuator net**。三者拼成 WMTS 完整的结构化动力学：

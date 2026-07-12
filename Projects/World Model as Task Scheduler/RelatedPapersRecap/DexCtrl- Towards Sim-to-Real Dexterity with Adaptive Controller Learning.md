@@ -26,9 +26,11 @@ related:
 > 指出一个被忽视的 sim-to-real gap：**低层控制器动力学的不匹配**——最终发给电机的力矩 $\tau=K_P(q^d-q^c)+K_D(\dot q^d-\dot q^c)$ 同时取决于轨迹**和控制参数（增益 $K$）**，同一轨迹在不同增益下产生迥异接触力。现有做法靠手调增益或增益随机化（费力、任务特定、增训练难度）。DexCtrl **联合预测动作 $\hat a_t$ 与控制参数 $\hat K_t$**，依据轨迹+控制器的历史窗口，**闭环自适应调增益**，并把控制参数显式放进 observation 以更好推理力交互。LEAP 手（16-DOF）rotation/flipping 上 sim+real 均超基线。**对 WMTS：这是 LAAA 的"控制器级适应"路线（前有 dynamics 级 DyWA/RMA、隐式 Rubik、不确定性 FOWM）——WMTS 的 LinkerHand 同样是 PD/力矩控制，应学自适应增益、把执行器状态入 observation。**
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory]] — PD/阻抗力矩控制 $\tau=K_P\Delta q+K_D\Delta\dot q$；自适应增益 = 学习式变阻抗。
-> - [[ReinforcementLearning]] — 策略联合输出 action + 控制参数；历史条件化。
-> - [[EmbodiedAI]] — sim-to-real 灵巧；控制器 gap 的闭环自适应。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — **暗线「电流≠关节力矩」的最直接落点**：$\tau=K_P\Delta q+K_D\Delta\dot q$ 说明发给电机的力矩由轨迹**和增益 $K$** 共同决定，$K$ 的 sim/real 不匹配 = 执行器 gap 的一个核心分量。
+> - [[Actuation#10.2 力矩反馈为何"能当输入、不能当目标"|Actuation §10.2]] — DexCtrl 把 $K$ 与执行器状态放进 observation 供策略推理力交互，呼应"力矩信息能当输入"的用法。
+> - [[ControlTheory#3.4 学习型变阻抗：RL × 阻抗的桥|ControlTheory §3.4 学习型变阻抗]] — 自适应预测 $\hat K_t$ = 学习式变阻抗（$K_P,K_D$ 被策略在线预测，非固定），是 RL×阻抗桥的具体实例。
+> - [[ControlTheory#12. 自适应控制与确定性等价|ControlTheory §12 自适应控制]] — DexCtrl = 把经典自适应控制的"在线辨识+调参"用 RL 历史条件化实现。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2 三味药]] — 控制器增益级适应 = "在线自适应（动态校正）"这味药在**增益维度**的落地。
 > - [[Final_WMTS]] — **LAAA 的控制器级适应**：学自适应增益、执行器状态入 obs；与 dynamics 级适应互补。
 > - [[Dynamic Non-Prehensile Manipulation]] — rotation/flipping 接触密集；转笔同需精确力/增益控制。
 >
@@ -38,7 +40,7 @@ related:
 
 DexCtrl 对 WMTS 的价值聚焦在 **LAAA（真机执行器适应）的一个具体、常被忽视的维度：控制器增益**。库内适应论文各管一段——[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]] 隐式 meta-learn 动力学、[[DyWA: Dynamics-adaptive World Action Model|DyWA]]/RMA 显式动力学嵌入、[[Finetuning Offline World Models in the Real World|FOWM]] 不确定性适配——而 **DexCtrl 补上"控制器增益级"适应**：力矩 = f(轨迹, 增益)，光适应动力学不够，还要适应/预测增益。读它要把它放进 WMTS 的 LAAA 多级适应图里。
 
-它与 [[DyWA: Dynamics-adaptive World Action Model|DyWA]]（变阻抗）、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]（接触力控制）相关，但独特在**把控制器参数当可学、可适应、可观测的一等对象**。
+它与 [[DyWA: Dynamics-adaptive World Action Model|DyWA]]（变阻抗）、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]（接触力控制）相关，但独特在**把控制器参数当可学、可适应、可观测的一等对象**。对照 [[ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation|ViserDex]]：二者都在 Allegro/LEAP 力矩控制上跨控制器 gap，但 ViserDex 靠**离线 SysID 固定增益**、DexCtrl 靠**闭环自适应学增益**——同一 gap 的静态 vs 动态两解。
 
 ## 1. 问题设定与动机（逻辑与价值）
 

@@ -34,6 +34,15 @@ related:
 >
 > **核心技术**: Fourier latent dynamics (扩展 PAE), 连续参数化 latent, 频域时空结构, latent 动力学预测, 运动控制器在线跟踪, fallback 机制 (拒危险→安全), open-ended 学习
 
+> [!note] 簇内定位（运动迁移 sim-to-real 簇）与精确锚点
+> **本篇 = 周期运动的频域结构化表示 + fallback 安全筛选。** 精确 Foundation 锚点：
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间]] — open-ended 学习"避开 unlearnable 区域" = 在运动 latent 空间上的自动课程。
+> - [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成]] — fallback 拒"不可学目标" ≈ **认知不确定性三用之课程用**（避开学不了处）；挂该暗线。
+>
+> **簇内 Delta：**
+> - vs [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]]：两者都做**可行性感知的目标/技能筛选**——本篇 fallback 在**连续 Fourier 运动 latent** 上拒危险/不可学目标，ANYmal capability-aware 在**离散技能库**上选可行技能；WMTS 的 Reject 队列可两者结合（连续参数 + 离散技能）。
+> - vs [[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills|ASAP]]：两者都源自 motion-tracking 谱系，但处理的轴不同——ASAP 学 **sim-real 物理残差**（动力学对齐），本篇学 **运动本身的频域结构表示**（相位/频率/幅值参数化）；WMTS 可组合：FLD 参数化转笔任务 latent、ASAP/结构化 WM 对齐物理。
+
 ## 0. 阅读定位与价值
 
 FLD 在知识库里是**周期运动结构化表示**的代表，对 **DNPM/转笔**有独特价值——**转笔是周期/准周期运动**（笔绕指循环），而 FLD 正是为此类运动设计。它有两条对 WMTS 直击的线：(1) **Fourier latent 参数化**——把转笔的相位/频率/幅值显式参数化，比让 scheduler 从离散 token 猜周期更结构化、可插值；(2) **fallback 机制**——控制器识别危险/不可学目标并退到安全动作，正是 WMTS 的 **Reject 队列 + 安全过滤**。作者 Chenhao Li 也是 [[Robotic World Model: A Neural Network Simulator|RWM]] 作者，两篇可对读（FLD 给运动表示，RWM 给 WM）。

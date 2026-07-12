@@ -31,6 +31,7 @@ related:
 > - [[ReinforcementLearning]] — model-based RL；学 $\hat p_\theta(s'|s,a)$ 用于在线规划（非学策略）。
 > - [[ControlTheory]] — 在线 MPC（receding-horizon，每步重规划）闭环控制。
 > - [[Optimization]] — 无梯度轨迹优化：random shooting → CEM → **MPPI 式 reward-weighted + 时间相关滤波**（Eq 1-4）。
+> - [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] — PDDM 的 bootstrap ensemble 动力学是 PETS 同宗的 epistemic-uncertainty 源头（"无 ensemble 高容量模型过度自信→有害动作"）；用 ensemble 内规划属 [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] 的**规划动作（MPC）**一支。挂 **认知不确定性三用** 暗线（ensemble 分歧当护栏）。
 > - [[Final_WMTS]] — **WMTS ensemble 动力学 + disagreement + 无梯度规划的源头**；filtering 降维 ≈ eigengrasp；WMTS 升级为结构化+触觉 WM + scheduler 角色。
 > - [[Dynamic Non-Prehensile Manipulation]] — **最直接经典先例**：handwriting（铅笔）+ Baoding 球 = 动态手内接触，DNPM/转笔的近亲。
 >
@@ -190,6 +191,9 @@ model-based RL：学 $\hat p_\theta(s'|s,a)$（ensemble）用于在线规划而�
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS ensemble 动力学 + disagreement + 无梯度规划的**源头**；WMTS 升级 mean→LCB、黑箱→结构化+触觉、MPC仿真器→scheduler；filtering 降维服务 21-DoF 规划。
+
+### 与 [[WorldModels]] 的联系
+PDDM 是 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] 在**灵巧手真机**上的最早实证——"ensemble 是使能因素，无 ensemble 的高容量模型过拟合、过度自信、产生有害动作"就是本库 **认知不确定性三用** 暗线（ensemble 分歧=epistemic 不确定性=规划护栏）的源头实验。它把 WM 当 [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] 里的**规划动作（MPPI-MPC）**而非训练策略，因为接触不可微必须用无梯度采样。WMTS 在其上把 reward 从 ensemble-mean 升级为显式 LCB（见 [[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]]），并把黑箱 NN 换成 [[WorldModels#5. 结构层：怎么让想象"物理真实"]] 的结构化物理 WM。
 
 ### 与 [[Dynamic Non-Prehensile Manipulation]] 的联系
 铅笔书写 + Baoding 球 = 动态手内接触，DNPM/转笔最直接的经典先例；DNPM 应先复刻再推向高速。

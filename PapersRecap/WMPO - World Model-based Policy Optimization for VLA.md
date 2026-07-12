@@ -29,10 +29,12 @@ related:
 > WMPO 把 VLA 的 RL 后训练从真实机器人交互搬到一个经过 policy-behavior alignment 的像素空间视频世界模型中：用真实初始帧启动、用当前 VLA 采样 action chunk、用 world model 生成完整 trial、用二值 reward model 评估成功，再用 GRPO 在 imagined trajectories 上做 on-policy policy optimization。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — 经典 Dyna / model-based RL 的轨迹分布替换、PPO clipped ratio、REINFORCE 的 baseline/advantage 是 WMPO 的数学根。
-> - [[StochasticProcess]] — action-conditioned video diffusion 负责近似 $p_\phi(I_{i:i+K}\mid I_{i-c:i},a_{i:i+K})$，noisy-frame conditioning 本质是在训练时把 conditioning distribution 扩宽到自回归生成会遇到的 noisy frames。
-> - [[RepresentationLearning]] — pixel-space rollout 的价值不是“像素更真实”这么简单，而是让 VLA 的预训练视觉编码器继续在自己的输入域上工作，避免 latent world model 和 VLA feature space 的接口错位。
-> - [[EmbodiedAI]] — VLA 后训练从 imitation learning 走向 experience-driven / self-correction；WMPO 是 RECAP、DexHiL、RL-100、World4RL、DiWA 之间的一条世界模型路线。
+> - [[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]] — WMPO 的核心取舍恰是"像素空间 vs 隐空间"：为复用 VLA 预训练视觉编码器，rollout observation 解码回像素域，而非 Dreamer 式 latent imagination。经典 Dyna / PPO clipped ratio / REINFORCE baseline-advantage 是其数学根。
+> - [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] — WMPO 属"在想象里练策略"分支（imagined GRPO），而非 CEM/MPPI 式在想象里规划动作。
+> - [[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）]] — reward model 判完整 trial 成败、dynamic sampling 过滤无信息组，本质是用 WM look-ahead 给 policy update 做筛选；但 WMPO 只有单 WM、无 ensemble，落到 **认知不确定性三用暗线** 就缺一条护栏（§5.2 指出需并入 ensemble epistemic 才能安全 Solve/Probe/Reject）。
+> - [[StochasticProcess]] — action-conditioned video diffusion 近似 $p_\phi(I_{i:i+K}\mid I_{i-c:i},a_{i:i+K})$，noisy-frame conditioning 把条件分布扩宽到自回归会遇到的 noisy frames。
+> - [[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器]] — pixel-space rollout 让 VLA 预训练视觉编码器继续在自己的输入域工作，避免 latent WM 与 VLA feature space 接口错位。
+> - [[EmbodiedAI#1.3 三种动作输出范式（横向对比）]] — VLA 后训练从 imitation 走向 experience-driven / self-correction；WMPO 是 RECAP、DexHiL、RL-100、World4RL、DiWA 之间的一条世界模型路线。
 >
 > **核心技术**: Pixel-Space Video World Model, Policy Behavior Alignment, Imagined On-Policy GRPO, Dynamic Sampling, Noisy-Frame Conditioning, Frame-Level Action Control
 

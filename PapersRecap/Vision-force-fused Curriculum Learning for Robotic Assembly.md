@@ -264,3 +264,28 @@ def curriculum_schedule(epoch, total_epochs):
 1. **视觉-力融合课程**: 转笔中可借鉴本文的多模态融合课程——先纯本体感觉，再叠加触觉，最后融合视觉
 2. **接触丰富任务的课程设计**: 本文在装配任务中的力控课程可映射到转笔的接触力度课程（从轻接触到快速 snap）
 3. **92% 成功率的参考**: 本文在 contact-rich 任务上的高成功率证明了和力融合课程的有效性
+
+---
+
+## 8. 簇内坐标与 Foundation 锚点
+
+> [!abstract] 暗线锚定：Continuation / 同伦 / 平滑化
+> 本文的四阶段感知权重调度 $w_v:1.0\to0.2,\ w_f:0.0\to0.8$（§3.2）是**"先解平滑子问题、再引入真难度"这条 continuation 暗线在感知维度的投影**：先在信息充足、易学的纯视觉子问题上收敛，再逐步把难以直接优化的力反馈"引入"。这与 [[Curriculum Learning#3.2 与 Continuation Method 的联系|Curriculum Learning 的 $Q_0\to Q_1$]] 数学同构——只是这里的 $\lambda$ 不是样本难度，而是**模态权重**。Ablation 中"反向课程（力→视觉）55%（↓37%）"正是 continuation 路径**走反**的代价：先学力控缺乏空间参考锚点，等价于从非凸难子问题起步。
+
+**Foundation 精确锚点**（已 grep 验证章节存在）：
+
+- [[ReinforcementLearning#8.2 奖励工程：最危险的自由度|RL §8.2 奖励工程]]：本文分层奖励 $r=r_{\text{distance}}+r_{\text{alignment}}+r_{\text{force}}+r_{\text{success}}$ 是"多分量 reward shaping"的典型；§8.2 关于"最危险的自由度"的告诫直接适用——`r_force` 权重过大策略会学会不接触（回避），呼应 [[Hindsight Experience Replay#3.5 Reward shaping 反直觉结果|HER 的 shaped-reward 反直觉失败]]。
+- [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|Optimization §5.4 平滑化]]：0.1mm 间隙装配是接触互补约束把优化景观撕成非凸的极端案例；本文用**感知课程**外部平滑，Optimization §5.4 用**可微物理**内部平滑，是同一非凸难题的两条解法。
+- [[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|ContactMechanics §2.3]]：力反馈之所以在接触后不可替代，是因为亚毫米偏差只在接触雅可比 $J_c$ 把关节运动映射到接触力时才可观测——视觉分辨率不足以检测（§Ablation "去掉力传感 45% ↓47%"）。
+
+**簇内互链 + Delta**：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[Curriculum Learning\|Curriculum Learning]] | 本文是其 continuation 思想在**感知模态维**的实例 | 本文课程轴 = 模态权重 $w_v,w_f$，而非 Bengio 原文的样本难度 $Q_\lambda$ |
+| [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation\|CSR]] | 感知维课程的**镜像对立** | 本文**渐增**感知（视觉→+力），CSR**渐减**感知（全特权→真实可得）；一个补信息、一个减依赖，共用 continuation 骨架 |
+| [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation\|Curriculum > Haptic]] | 都在问"课程 vs 传感"谁更重要 | 本文证明**融合时序（课程）> 直接融合**（92% vs 67%）；Curriculum>Haptic 证明**任务时序（课程）> 触觉有无**；两文互证"课程是比传感更基础的实验变量" |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | 本文的局限（预设 epoch 比例、非自适应）由其补齐 | DemoStart 用 ZVF success-variance **自动**决定课程推进，本文靠固定 25/50/75% 硬切换 |
+
+> [!tip] 一句话记忆锚
+> **本文 = "先看后摸"的感知 continuation。** 它把 [[Curriculum Learning\|Bengio 2009]] 的 $\lambda$ 具体化为模态权重，与 CSR 的"减感知"、Curriculum>Haptic 的"排任务"共同说明：**在接触丰富任务里，what you sense when 往往比 what you sense 更决定成败。**

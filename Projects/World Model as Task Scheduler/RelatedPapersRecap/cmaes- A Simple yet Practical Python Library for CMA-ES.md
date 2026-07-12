@@ -25,9 +25,9 @@ related:
 > **CMA-ES 的实用 Python 库**（[[The CMA Evolution Strategy: A Tutorial|CMA-ES 教程]]的实现伴侣），MIT 许可、450+ GitHub stars、已集成进 Optuna/Katib。设计哲学：**simplicity（高可读、可教学）+ practicality（纳入 CMA-ES 最新进展）**。四项对 WMTS 直接有用的进阶特性：(1) **自动学习率自适应**——在 multimodal/noisy 难题上无需昂贵超参调；(2) **transfer learning（warm-starting CMA-ES）**——从相关任务热启动；(3) **mixed-variable 优化**（离散+连续）；(4) **multi-objective 优化**。相对 pycma（功能全但复杂），cmaes 主打基础、简单、易集成。**对 WMTS：它是 [[The CMA Evolution Strategy: A Tutorial|CMA-ES]] 各应用（WM 规划、sim 参数搜索、课程优化）的现成工具，其 warm-start（跨转笔配置热启动）、auto-LR（真机噪声评估免调参）、mixed-var（技能选择+连续参数）、multi-obj（成功率+接触力+能耗）四特性正中 WMTS 需求。**
 
 > [!tip] 与理论基础的关联
-> - [[Optimization]] — 黑箱优化库；CMA-ES 实现 + 进阶特性。
-> - [[StochasticProcess]] — 多元正态采样分布自适应（Eq 1-8，同教程）。
-> - [[ReinforcementLearning]] — 策略/任务参数搜索的工具。
+> - [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]] — 本库正是该节 CMA-ES 的实现；进阶特性（auto-LR/warm-start/mixed-var/multi-obj）是其工程延伸。
+> - [[StochasticProcess#6.2 物理根：自由能最小化与重要性采样|StochasticProcess §6.2]] — 多元正态采样 + 按 fitness 加权重组，属"**采样+加权 统一优化**"暗线（与 MPPI/策略梯度同宗）。
+> - [[ReinforcementLearning#4. 策略梯度：在不可微世界中更新策略|RL §4]] — 策略/任务参数的无梯度搜索工具；ask/tell 接异步评估。
 > - [[Final_WMTS]] — **CMA-ES 应用的现成库**；warm-start/auto-LR/mixed-var/multi-obj 四特性对接 WMTS。
 >
 > **核心技术**: ask/tell API, 自动学习率自适应 (noisy/multimodal), warm-starting CMA-ES (transfer), mixed-variable, multi-objective, Optuna/Katib 集成, MIT
@@ -122,10 +122,10 @@ ask/tell 易接异步真机评估；auto-LR 免调参应对噪声；warm-start �
 ## 7. 与知识体系的联系
 
 ### 与 [[Optimization]] 的联系
-CMA-ES 黑箱优化库 + 进阶特性（auto-LR/warm-start/mixed-var/multi-obj）。
+CMA-ES 黑箱优化库 + 进阶特性（auto-LR/warm-start/mixed-var/multi-obj）；理论锚点 [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]]。
 
 ### 与 [[StochasticProcess]] 的联系
-多元正态采样分布自适应（Eq 1-8，同 [[The CMA Evolution Strategy: A Tutorial|教程]]）；natural gradient 相关。
+多元正态采样分布自适应（Eq 1-8，同 [[The CMA Evolution Strategy: A Tutorial|教程]]）；natural gradient 相关。精确落点：[[StochasticProcess#6.2 物理根：自由能最小化与重要性采样|StochasticProcess §6.2]]——"采样+加权挪分布"是 CMA-ES 与 [[Deep Dynamics Models for Learning Dexterous Manipulation|MPPI]] 的共同物理根。
 
 ### 与 [[ReinforcementLearning]] 的联系
 策略/任务参数搜索的工具；ask/tell 接异步评估。

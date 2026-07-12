@@ -25,9 +25,9 @@ related:
 > 针对"传统 RL 隐含固定控制频率 → 简单路况浪费算力、复杂路况反应不足"这一瓶颈，提出**弹性时间步长 RL**：让策略同时输出"做什么动作 $a$"和"该动作持续多久 $\tau$"，把控制频率变成可学的决策维度。核心是 SEAC/MOSEAC——在 SAC 上加 duration head + 含"步数(能量)惩罚"的多目标奖励，并用 **Lyapunov 稳定性**证明自适应权重下的收敛。结构性洞见：**控制频率不该是固定超参，而应随状态动力学复杂度自适应——在真机上这直接转化为 25%–70% 的算力节省（真实推理次数减少，而非逻辑跳步）。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — SAC 最大熵框架的扩展；把 MDP 推广到 **Semi-MDP**（动作带持续时间 $\tau$，折扣变 $\gamma^\tau$）
-> - [[ControlTheory|ControlTheory §3]] — 变频控制 = 自适应采样率；低复杂度段降频、高动态段升频以满足 Nyquist 约束
-> - [[Optimization]] — 多目标奖励的加权和标量化 + Lyapunov 候选函数 $L(\alpha_m)=(\alpha_m-\alpha_m^*)^2$ 证明非平稳权重不发散
+> - [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]] — SAC 最大熵框架的扩展；把 MDP 推广到 **Semi-MDP**（动作带持续时间 $\tau$，折扣变 $\gamma^\tau$），且状态增广 $\tilde s=[s,a_{t-1},\tau_{t-1}]$ 恢复马尔可夫性——是 §2.1「裸观测不足→补历史」的一个具体实例
+> - [[ControlTheory#1.3 频率响应：Bode、相位裕度与带宽|ControlTheory §1.3]] — 变频控制 = 自适应采样率；低复杂度段降频、高动态段升频以满足 Nyquist / 带宽约束
+> - [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]] — 多目标奖励的加权和标量化 + Lyapunov 候选函数 $L(\alpha_m)=(\alpha_m-\alpha_m^*)^2$ 证明非平稳权重不发散
 >
 > **核心技术**: SEAC (Soft Elastic Actor-Critic), MOSEAC (Multi-Objective, 自适应奖励缩放), Lyapunov 收敛证明, Semi-MDP
 
@@ -217,7 +217,7 @@ $$Q^\pi(s,a,\tau)=\int_0^\tau\gamma^t r(s_t,a)\,dt+\gamma^\tau V^\pi(s_\tau).$$
 | 状态依赖 | ✅ $\tau(s)$ | ✖ 全局 $k$ | 部分 | ✖ |
 | 适用场景 | 嵌入式部署 | Batch/离线 | 异构执行器 | Atari 等 |
 
-> [!note] 在 control frequency 簇中的定位（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning#6.4 领域级综述：control frequency / time-step 簇（本篇为理论锚点）|PFQI §6.4 簇综述]] 互参）
+> [!note] 在 control frequency 簇中的定位（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI（control-frequency 簇理论锚点）]] 互参）
 > VTS-RL 是该簇"**状态依赖频率**"一极的代表：它把 PFQI 的全局固定 $k$ 放松为 actor 端到端学出的 $\tau(s)$，换来真机算力大降。但代价正是簇综述指出的张力——**它丢了 PFQI 那种 Bellman 收缩的强保证**，只有 Lyapunov 这种对"参数不发散"的较弱保证（不保证收敛到最优频率）。于是 VTS-RL 与 PFQI 恰好标定了簇的两端：PFQI = 有界但僵、VTS-RL = 灵活但弱保证。**簇空白（状态依赖 + 强保证）= 二者的合取**，也是 WMTS 调度粒度可贡献理论之处。
 
 ## 8. 对用户研究的启发（灵巧手转笔 / Sim-to-Real）

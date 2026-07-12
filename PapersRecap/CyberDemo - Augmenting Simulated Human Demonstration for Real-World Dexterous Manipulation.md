@@ -30,6 +30,18 @@ related:
 >
 > **核心技术**: simulated human demonstrations, trajectory-level physical augmentation, sensitivity-aware SE(3) kinematic augmentation, automatic curriculum learning, ACT-style action chunking, few-real-demo fine-tuning
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations|MimicGen]]：都扩增演示数据，CyberDemo 侧重 **sim 物理增强 + sensitivity-aware SE(3) + 少量真机 fine-tune**，MimicGen 侧重长程 **object-centric segment 复用**。
+> - vs [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]：都改写演示，CyberDemo 改**空间覆盖**（增强分布），DemoSpeedup 改**时间结构**（熵引导加速）。
+> - vs [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]]：都 sim 数据 + DR；RoboTwin 用 MLLM 代码闭环生成双臂任务，CyberDemo 用 human demo seed 做**轨迹级增强 + learner-centered auto-curriculum**。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2]] — CyberDemo 的 trajectory-level augmentation = DR"增覆盖"的**离线数据版**（视觉/几何/pose 随机化 + success filter）。
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4]] — 本质仍是扩大 BC 训练分布支持集（$\mathcal L_{BC}$ objective 不变）。
+>
+> **暗线**：**模仿×强化缝合线**的"离线数据侧"（BC 分布漂移未根治，rotate 类动态任务仍需真机 fine-tune）；**Continuation/课程**暗线——auto-curriculum 用 learner success 而非 generator rate 升级难度。
+
 ## 0. 阅读定位与范本价值
 
 CyberDemo 在知识库里的位置不是“又一篇 domain randomization 论文”，而是 demonstration/data-generation 簇里的一个关键分叉点：

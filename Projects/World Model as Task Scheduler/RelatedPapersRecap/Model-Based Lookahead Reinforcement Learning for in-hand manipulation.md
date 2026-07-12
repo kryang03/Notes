@@ -28,6 +28,7 @@ related:
 > - [[ReinforcementLearning]] — hybrid MFRL（actor-critic/PPO）+ MBRL（学 $f$）；MDP $\{S,A,R,T,\gamma\}$。
 > - [[ControlTheory]] — 测试期 MPC（receding-horizon 轨迹评估）；短 horizon 选动作。
 > - [[EmbodiedAI]] — RH8DR 灵巧手（全驱/欠驱）在 Isaac Gym 上的手内重定向。
+> - [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] — lookahead = WM rollout + 价值 + 候选排序（"规划动作"一支）；其 top-E 平均是 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]] 的**粗糙抗乐观**，远弱于 ensemble-LCB。
 > - [[Final_WMTS]] — **WMTS "WM rollout + 价值 + ranking" 的小规模 in-hand 验证**；其单确定性模型 + top-E 平均的不足 = WMTS 用 ensemble-LCB 的反证。
 >
 > **核心技术**: Hybrid MFRL+MBRL, 轨迹采样 (Eq 1), 折扣奖励+终端价值评估 (Eq 2), Top-E 平均（抗过度乐观）, 确定性动力学模型, 小 horizon (H=2), PPO + Isaac Gym
@@ -187,6 +188,9 @@ RH8DR 灵巧手（全驱/欠驱腱）在 Isaac Gym 的手内重定向；欠驱�
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS "WM rollout + 价值 + ranking" 的小规模 in-hand 验证；其单确定性模型 + top-E 平均 + 小 horizon 三短板，精确标出 WMTS 该升级为 ensemble-LCB + 结构化 WM + autoregressive 训练之处。
+
+### 与 [[WorldModels]] 的联系
+本文把 WM 用作 [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] 的**规划/排序（lookahead）**，与 [[WorldModels#2. 预测层：在 latent 里推演未来]] 里 Dream-RL 端到端训策略相对。它诚实暴露了不确定性处理的软肋：top-E 平均只是 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]] 的启发式抗乐观，没有 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] 的 ensemble——收益完全押在单确定性模型精度上，H=2 暴露 compounding error。这与 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]/[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Robotic World Model: A Neural Network Simulator|RWM]] 合流指向 **认知不确定性三用** 暗线：WMTS 必须把抗乐观做成 ensemble-LCB。
 
 ## References
 - 原始 PDF：[[Model-Based Lookahead Reinforcement Learning for in-hand manipulation.pdf]]（IST Lisboa，arXiv 2510.08884）

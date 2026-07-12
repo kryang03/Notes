@@ -33,6 +33,17 @@ related:
 >
 > **核心技术**: System Identification, Actuator Model, Latency 仿真, Dynamics Randomization, 扰动力, 紧凑观测空间, open-loop 参考步态, Minitaur trot/gallop
 
+> [!note] 簇内定位（运动迁移 sim-to-real 簇）与精确锚点
+> **本篇 = sim-to-real 两路配方（提保真 + 鲁棒策略）的 2018 母板。** 精确 Foundation 锚点：
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖]] — 本篇的 **actuator model + latency 仿真** 正是执行器侧 gap（"命令→力矩"真实响应 + 传感/控制延迟）的早期显式建模 → 挂**电流≠关节力矩 / τ 身份错位**暗线。
+> - [[Actuation#10. 迁移层 II：数据驱动执行器模型 (Actuator Model)]] — 本篇 **手工** actuator model 是数据驱动 actuator net（[[Learning Agile and Dynamic Motor Skills for Legged Robots|Hwangbo]]）的前身。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）]] — 本篇 = 前两味药（System ID + DR）的奠基组合。
+>
+> **簇内 Delta：**
+> - vs [[Learning Agile and Dynamic Motor Skills for Legged Robots|Hwangbo actuator net]]：**直接后继**——本篇手工解析 actuator model → Hwangbo 学习式 MLP actuator net（命令历史→力矩），"人建电机模型"→"数据学电机残差"。
+> - vs [[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills|ASAP]]：都"提 sim 保真"，但本篇靠**静态先验标定**（sys-ID + 手工 actuator model），ASAP 靠**数据驱动学 delta-action 残差**动态对齐——静态标定 vs 学习残差。
+> - vs [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]：本篇两路配方 + sim 零样本，SSRL 换成 semi-structured WM + 真机 Dyna——从"缩 gap 零样本迁移"到"真机高效学 WM"。
+
 ## 0. 阅读定位与范本价值
 
 这是知识库里 **sim-to-real 配方的"源头"论文**（2018，比 DeXtreme/Hwangbo/ASAP 都早）。它确立的两路配方——**提 sim 保真（sys-ID + actuator model + latency）+ 鲁棒策略（DR + 扰动 + 紧凑观测）**——是后续所有 sim-to-real 工作的母板。对 WMTS 的价值：(1) 它是 **actuator model + latency 建模**的早期先例，[[Learning Agile and Dynamic Motor Skills for Legged Robots|Hwangbo actuator net]] 是其学习式精化；(2) **显式 latency 仿真**直接是 WMTS **LAAA（latency-conditioned 适应）**的祖先；(3) **紧凑观测空间**是观测设计原则。含 Hafner（Dreamer 作者），Google Brain 系。

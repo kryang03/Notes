@@ -33,6 +33,11 @@ related:
 >
 > **核心技术**: Lipschitz Value Iteration, OPE 区间估计, 上下包络线, 可证明上下界
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ReinforcementLearning#2.2 值函数与 Bellman 方程]] — 本文核心对象正是 $Q^\pi$，把 Bellman **等式**松弛成 Bellman **不等式**约束（$Q\lessgtr\mathcal{B}^\pi Q$）后在 Lipschitz 函数空间 $F_\eta$ 求 sup/inf，得可证明上下界。
+> - [[ControlTheory#10.4 被动性与"价值即 Lyapunov"]] — 值函数即 Lyapunov 对象：本文给该对象套上 Lipschitz 常数 $\eta$（表达力↔保证的旋钮），与 [[Safe Model-based Reinforcement Learning with Stability Guarantees|Berkenkamp]] 用 $L_v$ 约束 Lyapunov 外推同构。
+> - **暗线/簇内 Delta**：Lipschitz 约束的**对象**三分——本文在**值函数** $Q$（用途=OPE 区间），[[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks|On Robust RL]] 与 [[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]] 在**策略** $\pi$（用途=鲁棒/抗抖）。「松界=过约束」（决策端）与「$\eta$ 小=欠覆盖」（评估端）是同一权衡的镜像。
+
 > [!abstract] 核心贡献
 > 提出 **Lipschitz Value Iteration** 算法，为 Off-Policy Evaluation (OPE) 提供**可证明正确的上下界区间估计**。在 Lipschitz 函数空间中搜索与观测一致的 Q 函数的最大最小值，算法具有闭式更新、单调收敛、线性收敛率。
 

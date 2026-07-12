@@ -29,6 +29,7 @@ related:
 > - [[EmbodiedAI]] — 具身智能：WM 让 agent 理解上下文、想象后果、规划行动。
 > - [[ReinforcementLearning]] — WM 的两功能之一 Decision Support（规划/价值）；Richens"泛化⟹隐式 WM"。
 > - [[StochasticProcess]] — Latent Dynamics Modeling 范式（RSSM/JEPA/扩散）。
+> - [[WorldModels]] — 本综述的三范式/两功能/七挑战正是本库 [[WorldModels]] 大厦六层的外部坐标系：Training Facilitation↔[[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]]、物理感知挑战↔[[WorldModels#5. 结构层：怎么让想象"物理真实"]]、长程/一致性↔[[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]]。
 > - [[Final_WMTS]] — **WMTS 的领域坐标系**：定位 WMTS = Latent Dynamics + Decision Support&Training Facilitation + Physics-informed + 灵巧；其"物理感知 / 长程 / 记忆"挑战正是 WMTS 卖点。
 >
 > **核心框架**: 三范式 (Implicit / Latent Dynamics / Video Generation), 两功能 (Decision Support / Training Facilitation), 架构 (Flat/Hierarchical), 七挑战, Richens 定理
@@ -147,6 +148,9 @@ WM 作为具身智能的内部表示，支撑理解上下文、想象后果、�
 
 ### 与 [[StochasticProcess]] 的联系
 Latent Dynamics Modeling 范式（RSSM/JEPA/扩散）是随机隐变量序列模型在操作上的实例。
+
+### 与 [[WorldModels]] 的联系
+本综述给出的**三范式 × 两功能 × 架构 × 七挑战**是本库 [[WorldModels]] 六层大厦的外部对照地图：Latent Dynamics↔[[WorldModels#2. 预测层：在 latent 里推演未来]]、两功能之 Training Facilitation↔[[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]]、**物理感知**挑战↔[[WorldModels#5. 结构层：怎么让想象"物理真实"]]（WMTS 的 actuator+rigid 解耦所在）、长程/时空一致性↔[[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]]。Richens 定理（泛化⟹隐式 WM）为整座大厦提供理论动机。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS 的领域坐标系：定位 WMTS 在 Latent+显式物理残差 × 双功能 × 层级 × 物理感知；七挑战 = WMTS 设计自检表；Richens 定理 = WMTS 理论动机。

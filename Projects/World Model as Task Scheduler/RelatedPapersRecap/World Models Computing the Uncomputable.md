@@ -26,6 +26,7 @@ related:
 > [!tip] 与理论基础的关联
 > - [[EmbodiedAI]] — WM 作为物理世界控制的路径；"观察-计算-决策-行动"的具身循环。
 > - [[ReinforcementLearning]] — 动作条件化 $P(s_{t+1}\mid s_t,a_t)$ 是 MDP 转移核的本质。
+> - [[WorldModels]] — 本随笔的"动作条件化 + 固定成本想象"正是 [[WorldModels]] 大厦的**动机层**措辞；但它系统回避了 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]]（固定成本≠准确），仅可作动机引用、不作技术依据。
 > - [[Final_WMTS]] — **仅供 WMTS 动机段引用**：action-conditioned WM、固定成本实时推理；不作技术依据。
 >
 > **核心论点**: Action-conditioned 预测 $P(s_{t+1}\mid s_t,a_t)$ vs video $P(x_{t+1}\mid x_t)$；固定成本前向"算不可算"；WM 作为新基础模型类别（>LLM for 空间时序）
@@ -112,6 +113,9 @@ $$
 
 ### 与 [[ReinforcementLearning]] 的联系
 动作条件化 $P(s_{t+1}\mid s_t,a_t)$ 即 MDP 转移核；与 model-based RL 的 $P(s'\mid s,a)$ 一致，但本文不涉及学习/规划算法。
+
+### 与 [[WorldModels]] 的联系
+本随笔只触及 [[WorldModels]] 大厦的**动机层**：动作条件化（$a_t$ 是 world model 区别于被动 video model 的分界）+ 固定成本实时想象。但它系统回避 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]]（固定成本≠准确，OOD/接触处仍崩）与 [[WorldModels#5. 结构层：怎么让想象"物理真实"]]（无物理结构）——恰是 WMTS 的核心难题。可引其直觉措辞，技术决策一律回真论文（[[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] 的 ensemble、[[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]] 的 LCB）。
 
 ### 与 [[Final_WMTS]] 的联系
 仅供 WMTS 动机段引用（固定成本实时、动作条件化）；技术决策回真论文；亦为反面镜：WMTS 须用硬证据而非口号。

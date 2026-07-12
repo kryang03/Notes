@@ -540,6 +540,25 @@ CGP 可以理解为把 diffusion policy 的 action space 替换成“可执行�
 
 ---
 
+### 7.5 簇内定位与暗线锚点（触觉操作簇）
+
+把本簇按“触觉表征丰富度谱”排开，CGP 位于**生成/可执行**的最右端：接触不是被读，而是被预测并写回控制器。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | AnyRotate 把触觉降成 dense $(R_x,R_y,\|F\|)$ 当 **observation**（读接触）；CGP 把 tactile latent 当 diffusion **生成对象**并经 $M_\phi$ 映射成 controller target（写接触）。 |
+| [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map]] | 二者都不复刻 raw tactile image：Tacmap 把 sim/real 对齐到 penetration geometry **观测空间**，CGP 把触觉 latent 放进策略**生成回路**。互补——Tacmap 供输入，CGP 供输出。 |
+| [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]] | VT 把 binary tactile event 当感知**预训练监督**；CGP 把 tactile 当被预测且被执行的 contact latent。 |
+
+**精确 Foundation 锚点（补 §7.2 之外）**：
+
+- [[ContactMechanics#5.1 互补条件与 LCP 的构建|ContactMechanics §5.1]]：CGP 用 $(x_t,u_t,a_t)$ triplet 绕开 §5.1 的 contact-mode 组合式互补分支——不枚举 stick/slip，用 target-actual gap 隐式承载。
+- [[RepresentationLearning#5.2 交叉注意力融合：让触觉"询问"视觉|RepresentationLearning §5.2]]：CGP 的 coupled state-tactile diffusion 是视触觉耦合的另一支路，可与交叉注意力融合并列对照。
+
+**暗线挂载（POMDP → belief → latent）**：CGP 生成的 $Y_t=[x,h]$ 正是 world-model latent 的雏形；“predicted tactile latent 是否可执行”交给 WMTS ensemble 判别，即认知不确定性当护栏（见 §6.2）。参见 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]]。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

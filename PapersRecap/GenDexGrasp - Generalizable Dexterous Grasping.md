@@ -532,6 +532,20 @@ Aligned distance 是本文最实在的几何贡献。薄壳物体表面上，欧
 | “和转笔有什么关系？” | 静态 $\Omega$ 必须升级成 $\Omega_{1:T}$ contact schedule |
 | “有哪些不能照搬？” | 它不表示接触力/摩擦/动态切换，不能直接作为 manipulation planner |
 
+## 9. 簇内关联与暗线锚点
+
+> [!abstract] 抓取/几何/表征簇内定位
+> - **vs [[空间智能作为机器人的结构化表征|3D Flow / PointWorld]]**：两者都把任务从"手/构型坐标"挪到**载体无关中间表征**——GenDexGrasp 用 object-centric contact map $\Omega$，PointWorld 用 embodiment-agnostic 3D flow。Delta：GenDexGrasp 是**静态接触拓扑**（抓得稳），PointWorld 是**动态点流**（操作得动）；本文 §6.1 的 $\Omega\to\Omega_{1:T}$ contact schedule 正是从前者走向后者的桥。
+> - **vs [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]**：两者都以 **SDF 为几何基石**——GenDexGrasp 用 aligned distance/SDF 定义 contact value 与 penetration energy $E_p$，GeoPT 用 SDF 符号判定做粘壁边界。Delta：本文把 SDF 用作**抓取姿态优化的可微目标**，GeoPT 把 SDF 用作**生成伪动力学轨迹的自监督信号**。
+> - **vs [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]]**：两者对"手型差异"给出互补答案——GenDexGrasp 靠 object-centric 表征**绕开** joint topology，RodriNet 靠 kinematic-tree 算子**编码** joint topology。组合：RodriNet 生成 hand-specific 动作，GenDexGrasp 提供 object-centric 接触目标作条件。
+
+> [!tip] 暗线：对偶性 $J/G/P$
+> 本文 §2.2 的抓取矩阵 $G$（接触力→物体 wrench）是本库 **对偶性暗线** 的一环。$G$ 与手雅可比 $J_h$（关节→接触）、腱耦合矩阵 $P$（腱→关节）数学同构；force closure、内力、零空间工具三处复用。精确锚点：
+> - [[ContactMechanics#3. 接触静力学：能否夹稳这颗弹珠]] — $G$、force closure 的严格定义
+> - [[ContactMechanics#3.2 力闭合 vs 形闭合：抓取稳定性的数学条件]] — 本文 $\Omega$ 只说"哪里接触"、不证 force closure 的边界
+> - [[Optimization#8. 深度专题：可微抓取合成 (Differentiable Grasp Synthesis)]] — 可微力闭合能量 + SDF 引导，正是本文 pose optimization 的优化学根
+> - [[ComputationalGeometry#4. 有向距离场 (SDF)：连续优化的基石]] — aligned distance 的 SDF 底座
+
 ## References
 
 - Li, P., Liu, T., Li, Y., Geng, Y., Zhu, Y., Yang, Y., & Huang, S. **GenDexGrasp: Generalizable Dexterous Grasping**. ICRA 2023.

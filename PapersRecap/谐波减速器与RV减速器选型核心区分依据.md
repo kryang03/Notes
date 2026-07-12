@@ -148,3 +148,17 @@ $$
 
 > [!note] 启示
 > 直驱方案 (如 MIT Mini Cheetah 腿、LEAP Hand) 消除了传动弹性问题，但受限于扭矩密度——需要更大更重的电机。对灵巧手，谐波仍是当前紧凑性的最优解，但必须在仿真中显式建模其弹性以缩小 Sim-to-Real gap。
+
+## 10. 簇内关联与暗线锚点
+
+> [!abstract] 运动技能/Sim-to-Real 簇内定位（本文提供 gap 的"机械物理来源"，兄弟论文提供"治法"）
+> - **vs [[Learning Agile and Dynamic Motor Skills for Legged Robots|Learning Agile]]**：本文讲的谐波柔轮弹性 $K_\theta$、近零→衰退背隙、方向相关效率（正效 ~80% / 逆效 ~60%），正是 Learning Agile 的 **Actuator Network** 要用真机数据吸收的那段残差。Delta：本文给 gap 的**机械侧物理来源与解析模型**（双惯量、反谐振 $\omega_{ar}$），Learning Agile 给**数据驱动黑箱补偿**。这是"电流≠关节力矩"暗线的机械侧 ↔ 学习侧。
+> - **vs [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]**：OmniXtreme 的**力矩-速度包络** $\tau_{max}(v)$ + 非线性摩擦是"电机+减速器物理极限"的显式建模；本文的 $\omega_{ar}$ 反谐振与正/逆效率是同一 **actuation-aware** 理念在**减速器侧**的展开。两者拼出一条完整的 τ 传递链。
+
+> [!tip] 暗线：电流 ≠ 关节力矩 / τ 身份错位（减速器是传递链的机械环节）
+> 仿真把 $\tau$ 当输入直接施加；真机 $\tau$ 要经电机→FOC→**减速器**→传动链，减速器正是本文所讲的机械环节，其弹性/背隙/方向相关效率就是"机械侧 gap 的主体"。精确锚点（挂 [[Actuation]]）：
+> - [[Actuation#8. 机械层 II：减速器——背隙、摩擦、弹性的来源]] — 本文 7 维选型判据的理论总纲
+> - [[Actuation#8.2 三大非理想性——机械侧 gap 的主体]] — 背隙、摩擦、弹性三者正是本文谐波/RV 差异的根
+> - [[Actuation#7.2 Reflected Inertia：为什么减速比是把双刃剑]] — 减速比 $N$ 放大负载侧惯量、构成本文双惯量系统的一端
+> - [[Actuation#9.2 完整力矩传递链模型]] — 谐波弹性/效率如何进入 sim-to-real 的完整 τ 链
+> - 控制带宽侧见 [[ControlTheory]]：$\omega_{ar}\in20\text{–}50\,\mathrm{Hz}$ 的 -180° 相位跳变限制力控透明度

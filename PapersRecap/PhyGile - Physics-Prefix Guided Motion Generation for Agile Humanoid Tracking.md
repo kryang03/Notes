@@ -17,6 +17,9 @@ related:
   - "[[RepresentationLearning]]"
   - "[[Dynamics]]"
   - "[[ControlTheory]]"
+  - "[[KungfuBot: Physics-Based Humanoid Whole-Body Control for Learning Highly-Dynamic Skills]]"
+  - "[[COMET - Controllable Long-term Motion Generation with Extended Joint Targets]]"
+  - "[[WMPO - World Model-based Policy Optimization for VLA]]"
 ---
 
 # PhyGile: Physics-Prefix Guided Motion Generation for Agile General Humanoid Motion Tracking
@@ -25,13 +28,18 @@ related:
 > 提出 PhyGile 框架，通过 **physics-prefix 引导** 将机器人原生扩散运动生成与敏捷通用运动跟踪 (GMT) 闭环耦合：(1) 课程 MoE 训练实现长尾敏捷运动的鲁棒跟踪；(2) 262D 机器人骨骼空间的 TP-MoE 扩散模型实现细粒度文本-运动对齐；(3) 物理前缀引导微调弥合生成-执行鸠沟，实现真机 cartwheel、breakdance 等高难度全身运动。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — PPO 用于 GMT controller 微调
-> - [[ReinforcementLearning]] — 课程学习策略
-> - [[RepresentationLearning]] — 条件去噪扩散生成
-> - [[Dynamics]] — 262D 机器人骨骼空间动力学表示
+> - [[ReinforcementLearning#5.1.2 PPO：用 clip 把硬约束"软化"]] — PPO 用于 GMT controller 的 physics-prefix 微调
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间]] — 级别课程 + hard-biased routing 是显式难度课程；对应 continuation "先解平滑子问题"暗线
+> - [[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器]] — 262D 机器人骨骼空间的条件去噪扩散生成
+> - [[Dynamics]] — 262D 机器人骨骼空间动力学表示（6D 旋转避万向锁）
 > - [[ControlTheory]] — 运动跟踪控制器
 >
 > **核心技术**: Curriculum MoE + Robot-Native Diffusion + Physics-Prefix Guided Fine-tuning
+
+> [!tip] 簇内关联（人形 / 运动生成簇）
+> - **vs [[KungfuBot: Physics-Based Humanoid Whole-Body Control for Learning Highly-Dynamic Skills|KungfuBot]]**: 两者都是 **PPO + 课程 + 物理人形全身控制**，但正交互补。KungfuBot 是 **single-motion** 专精，用自适应 $\sigma$ 棘轮把追踪容忍度单调收紧（隐式自动课程）；PhyGile 是 **general multi-motion**，用 level-wise Curriculum MoE + 专家特化显式分层，并额外接一个 robot-native 扩散**生成器**。KungfuBot 只跟踪给定参考、PhyGile 还生成参考——physics-prefix 就是把 KungfuBot 式跟踪器的可执行片段回灌给生成器当动力学锚点。
+> - **vs [[COMET - Controllable Long-term Motion Generation with Extended Joint Targets|COMET]]**: 都解长时程生成的漂移/可行性。COMET 的 GMM Reference-Guided Feedback 是**运动学流形**纠偏（无物理），PhyGile 的 physics-prefix 是**动力学可行性**门控（靠 GMT 仿真 rollout 的 MPJPE 阈值 select）。PhyGile ablation 显示 physics-prefix 让 MPJPE 降 43.2%，是最关键组件——正说明"动力学可行"比"运动学自然"更硬。
+> - **vs [[WMPO - World Model-based Policy Optimization for VLA|WMPO]]**: physics-prefix 的 generate–simulate–select 循环（不通过的轨迹拒绝重采样）与 WMPO 用世界模型 look-ahead 过滤失败想象同构，都属 **[[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）]]** 的思路；差别是 PhyGile 用真物理仿真器当安全滤波器，WMPO 用学习的视频 WM。
 
 ## 1. 核心直觉与宏观定位 (The Big Picture)
 

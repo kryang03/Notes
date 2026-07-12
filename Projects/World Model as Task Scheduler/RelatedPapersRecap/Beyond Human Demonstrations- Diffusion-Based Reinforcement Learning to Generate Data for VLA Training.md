@@ -26,10 +26,12 @@ related:
 > 用 **diffusion RL 自动生成训练数据**替代昂贵的人类示范，喂给 generalist VLA。流水线：(a) 每任务用**轻量 diffusion policy（~12M 参数）在线 RL** 优化；(b) 用优化后的策略收集**高质量、低方差**轨迹（每任务近最优 demo）；(c) 用合成数据 finetune generalist VLA（π0）；(d) LIBERO 130 任务多任务评测。改进的 diffusion policy optimization 兼得**扩散的高表达力（探索多样行为）+ 去噪迭代的隐式正则（平滑一致 demo）**。结果：纯 diffusion-RL 数据训的 VLA 达 **81.9%**，**超人类数据 +5.3%、超 Gaussian RL 数据 +12.6%**，且轨迹比人类与 Gaussian RL 都更平滑一致。**对 WMTS：这直接验证 WMTS 的核心数据策略——"用 RL Oracle 生成数据训 generalist" 不仅可行、还胜过人类示范；且 diffusion RL Oracle 产的低方差数据比 Gaussian PPO 更利于 generalist。**
 
 > [!tip] 与理论基础的关联
-> - [[StochasticProcess]] — diffusion policy（去噪迭代）；隐式正则产平滑轨迹。
-> - [[ReinforcementLearning]] — diffusion policy optimization（DPPO 系）在线 RL；RL 生成数据。
+> - [[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]] — diffusion policy（去噪迭代）；去噪的隐式正则产平滑低方差轨迹。
+> - [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）]] — diffusion policy optimization（DPPO 系）在线 RL 生成数据；specialist→generalist 蒸馏对应 [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度]] 与 [[ReinforcementLearning#5.4.2 统一梯度视角：SFT、蒸馏与 RL 本是一家]]。
 > - [[EmbodiedAI]] — VLA generalist（π0）；RL 合成数据替人类 teleop。
 > - [[Final_WMTS]] — **验证 Oracle→generalist 数据策略**：RL 生成数据 > 人类数据；diffusion Oracle 低方差更优。
+>
+> **暗线定位**：本文把 **Continuation/平滑化** 暗线用在数据侧——扩散去噪的隐式正则等价于"平滑化"，产出低方差一致轨迹，正是 IL/generalist 好吸收的原因；与 DP 的噪声→数据去噪、课程学习的 $Q_0\to Q_1$ 同宗。
 >
 > **核心技术**: 轻量 diffusion policy (~12M) 在线 RL, 修改的 diffusion policy optimization, 低方差近最优轨迹生成, generalist VLA (π0) finetune, LIBERO 130 任务
 
@@ -133,10 +135,10 @@ VLA 强泛化但**依赖海量人类示范**（teleop 昂贵、限 scalability�
 ## 7. 与知识体系的联系
 
 ### 与 [[StochasticProcess]] 的联系
-diffusion policy（去噪迭代）；去噪的隐式正则产平滑低方差轨迹，是扩散生成在数据合成上的应用。
+diffusion policy（去噪迭代，[[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]]）；去噪的隐式正则产平滑低方差轨迹，是扩散生成在数据合成上的应用。
 
 ### 与 [[ReinforcementLearning]] 的联系
-diffusion policy optimization（DPPO 系）在线 RL；RL 自动生成数据替人类示范；specialist→generalist 蒸馏。
+diffusion policy optimization（DPPO 系）在线 RL（[[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）]]）；RL 自动生成数据替人类示范；specialist→generalist 蒸馏见 [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度]]。
 
 ### 与 [[EmbodiedAI]] 的联系
 VLA generalist（π0）；RL 合成数据替 teleop；LIBERO 多任务泛化。
@@ -149,3 +151,6 @@ VLA generalist（π0）；RL 合成数据替 teleop；LIBERO 多任务泛化。
 - DP/DPPO 基础：[[Diffusion Policy: Visuomotor Policy|Diffusion Policy]]、[[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]
 - specialist→generalist 同族：[[UniDexGrasp++- Improving Dexterous Grasping Policy Learning via Geometry-aware Curriculum and Iterative Generalist-Specialist Learning|UniDexGrasp++]]、[[DEXTERITYGEN- Foundation Controller for Unprecedented Dexterity|DexGen]]
 - 项目入口：[[Final_WMTS]]
+- 簇内关系（Delta）：
+  - vs [[Diffusion Policy: Visuomotor Policy|Diffusion Policy]]：DP 从人类示范 BC 训练；本文用 diffusion RL 生成低方差数据反过来训 generalist，证明 RL 数据可胜过人类数据（+5.3%）。
+  - vs [[DiWA- Diffusion Policy Adaptation with World Models|DiWA]] / [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]：三者同属 DPPO 家族，但 DiWA/World4RL 在**想象 WM** 里精炼一个部署策略；本文在**真实/仿真**里训 specialist 去**生成数据**喂 generalist，无 world model。

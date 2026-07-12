@@ -12,6 +12,7 @@ aliases:
 created: 2026-01-31
 related:
   - "[[ReinforcementLearning]]"
+  - "[[WorldModels]]"
   - "[[StochasticProcess]]"
   - "[[SignalProcessing]]"
   - "[[RepresentationLearning]]"
@@ -126,14 +127,43 @@ $$
 I(X;Z)=H(X)-H(X\mid Z)=\mathbb E_{z\sim p(z)}\big[D_{KL}(p(X\mid z)\,\|\,p(X))\big].
 $$
 
-（先验熵 − 观测后剩余熵 = 信息增益；亦等于"先验→后验"的期望 KL。）机器人选动作 $a$ 以最大化**预期信息增益 (EIG)**：
+（先验熵 − 观测后剩余熵 = 信息增益；亦等于"先验→后验"的期望 KL。）
+
+> [!note] 逐步推导：三个等价形式从哪来（不跳步）
+> 先把两个前置对象定义清楚，符号单位统一取 **nats**（$\log=\ln$；换 $\log_2$ 即得 bits）：
+> - **条件熵** $H(X\mid Z)=\mathbb E_{z\sim p(z)}\big[H(X\mid Z=z)\big]=-\iint p(x,z)\,\log p(x\mid z)\,dx\,dz$：观测到 $Z$ **之后**、对 $X$ **平均**还剩多少无知（单位 nats）。注意是先对每个具体 $z$ 求 $H(X\mid Z=z)$，再按 $p(z)$ 加权——**不是**某个特定 $z$ 的结果。
+> - **链式法则** $H(X,Z)=H(Z)+H(X\mid Z)=H(X)+H(Z\mid X)$：联合无知 = 先知道一个、再补另一个的条件无知（把 $\log p(x,z)=\log p(z)+\log p(x\mid z)$ 代入联合熵定义即得，无省略）。
+>
+> **① 互信息的对称性**。把定义 $I(X;Z)=\iint p(x,z)\log\frac{p(x,z)}{p(x)p(z)}\,dx\,dz$ 拆开：用 $p(x,z)=p(x)\,p(z\mid x)=p(z)\,p(x\mid z)$，两种拆法分别给出
+> $$I(X;Z)=H(X)-H(X\mid Z)=H(Z)-H(Z\mid X)=H(X)+H(Z)-H(X,Z).$$
+> 最后一式对 $X,Z$ 对称，故 $I(X;Z)=I(Z;X)$——**"$Z$ 告诉我们多少关于 $X$"恒等于"$X$ 告诉我们多少关于 $Z$"**。主动感知正利用这一点：难算的"观测能减少多少状态熵"可换算成好算的"状态如何切割观测分布"。
+>
+> **② 为什么等于期望 KL**。把外层 $p(z)$ 提出来：
+> $$I(X;Z)=\int p(z)\underbrace{\Big[\int p(x\mid z)\log\tfrac{p(x\mid z)}{p(x)}\,dx\Big]}_{=\,D_{KL}(p(X\mid z)\,\|\,p(X))}dz=\mathbb E_{z}\big[D_{KL}(p(X\mid z)\|p(X))\big].$$
+> 即：**每个观测把先验 $p(X)$ 推成后验 $p(X\mid z)$，推动幅度用 KL 量，按观测出现概率 $p(z)$ 一平均，就是互信息。** 摸钥匙每一下都在做一次这样的"推动"。
+>
+> **③ 为什么信息不会平均帮倒忙**。由 Jensen 不等式（$-\log$ 是凸函数）得 **Gibbs 不等式** $D_{KL}(\cdot\|\cdot)\ge0$，取等当且仅当两分布处处相等；故 $I(X;Z)\ge0$，即 $H(X\mid Z)\le H(X)$——**观测在期望意义下绝不增加无知**（对某个"倒霉" $z$，后验熵可能反而上升，但按 $p(z)$ 平均一定下降）。这是"多摸一下总不亏"的信息论保证，也是下面 EIG 恒为非负、值得优化的前提。
+
+机器人选动作 $a$ 以最大化**预期信息增益 (EIG)**：
 
 $$
 a^*=\arg\max_a\ \mathbb E_{z\sim p(z\mid a)}\big[I(X;Z)\big].
 $$
 
+> [!note] 把 EIG 写清楚：期望在"未来未知观测"上（最易写混的一步）
+> 上式紧凑但易误读——真正要最大化的是**给定动作 $a$ 后的条件互信息**，展开无跳步为：
+> $$\mathrm{EIG}(a)=I(X;Z\mid a)=\underbrace{H(X)}_{\text{当前无知，与 }a\text{ 无关}}-\underbrace{\mathbb E_{z\sim p(z\mid a)}\big[H(X\mid z,a)\big]}_{\text{执行 }a\text{ 后的期望剩余无知}}.$$
+> 逐符号：$a$=候选探测动作（去哪摸/传感器往哪放）；$p(z\mid a)=\int p(z\mid x,a)\,p(x)\,dx$=执行 $a$ 后的**边缘**观测分布（对当前信念 $p(x)$ 把未知真值积掉）；$H(X\mid z,a)$=**假设**看到 $z$ 后的后验熵（单位 nats）。因 $H(X)$ 是与 $a$ 无关的常数，故 $a^*=\arg\min_a\mathbb E_{z}[H(X\mid z,a)]$——**选那个让期望后验熵最低的动作**。全部难点都在这个对"尚未发生的 $z$"的期望：它逼出 §4 的蒙特卡洛**双重采样**（先从信念采假设真值、再从传感器模型采模拟观测）。
+
 > [!important] 这一式是所有主动感知策略的数学基石
 > 它说"去那个你预期能获得最多信息的地方"。难点在于：期望要对**未来未知的观测 $z$** 积分——这逼出蒙特卡洛采样（§4）或变分近似。摸钥匙时，大脑下意识算的就是这个 $a^*$：手指奔向"最可能一摸定音"的部位。
+
+> [!important] BALD：把"信息增益"锋利地对准 epistemic —— disagreement = 认知不确定性（暗线枢纽）
+> §1.2 立了铁律"只对 epistemic 探索"，但上面的 EIG 若把 $X$ 直接当"真值状态"，其熵里**混着不可消的 aleatoric 噪声**——机器人会被高噪声区（噪声电视机）骗走。**BALD (Bayesian Active Learning by Disagreement)** 用一个减法把 aleatoric 精确扣掉：把不确定性归到**模型参数 $\theta$**（epistemic 的载体），对候选查询 $x$ 求预测 $y$ 与 $\theta$ 的互信息作为采集函数：
+> $$\underbrace{I(Y;\theta\mid x,\mathcal D)}_{\text{采集函数}}=\underbrace{H\big[\,\mathbb E_{\theta\sim p(\theta\mid\mathcal D)}\,p(y\mid x,\theta)\,\big]}_{\text{①总预测熵（先平均后求熵）}}-\underbrace{\mathbb E_{\theta\sim p(\theta\mid\mathcal D)}\big[H(y\mid x,\theta)\big]}_{\text{②各模型平均熵（先求熵后平均）}}.$$
+> 逐项（单位 nats）：$\mathcal D$=已有触觉数据；$p(\theta\mid\mathcal D)$=参数后验（实践中用 ensemble / MC-dropout 近似）；**①** 把各模型预测先**平均**成一个 Bayesian model average 再求熵 = **总不确定 = epistemic + aleatoric**；**②** 对每个固定 $\theta$ 先求熵再平均 = 每个模型自认的**不可消噪声 = aleatoric**。此式正是 §2.2 的 $I=H(Y)-H(Y\mid\theta)$ 换了条件变量，二者之差 = **epistemic = 模型间分歧 (disagreement)**。
+> **为什么恰是"分歧"**：当所有模型个个自信（②小）却彼此不一致（①大）时差最大——"我们每个都很确定，但答案互相打架"正是"再采一个样最能长知识"的信号；反之若各模型都对同一点同样困惑（①②都大、差≈0），那是 aleatoric 噪声，BALD 自动**不去**。这就把 §1.2 的铁律从口号变成了可计算的公式。
+> **暗线归位（认知不确定性三用 = 信息增益）**：BALD 的分歧项，与 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性|PETS 里 Bootstrap Ensemble 的预测方差]] 是同一个 epistemic（规划里当护栏，别钻模型空子），也等同 [[StochasticProcess#3.2 一个必须刻进脑子的区分：Aleatoric vs Epistemic|随机过程里的 epistemic]]；把它当**采集函数**去主动采样，就是 [[ReinforcementLearning#7.1 用信息论刻画探索|RL 用信息论刻画探索]] 里的"信息增益探索罗盘"；把它当**任务难度信号**反向生成课程，就是 [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|无知即课程]]。**一个减法（总熵 − 期望条件熵），三处复用——这是全库最硬的一条暗线在信息论里的原始定义。**
 
 ### 2.3 KL 散度：信念跳变与"贝叶斯惊奇"
 
@@ -147,6 +177,83 @@ $D_{KL}(P\|Q)$ 衡量两分布的非对称差异，常用来量化先验信念 $
 
 > [!note] 跨原理联系
 > 互信息=期望 KL 这一等式，把 §2.2 与 §2.3 缝在一起；而"$Q-\beta\,$KL-到-参考"的最大熵 RL（[[ReinforcementLearning#5.0 先立统一框架：一切都是"在参考分布附近改进"|RL §5.0]]）、信息瓶颈（§5）、empowerment（§6）全是这三个度量的不同组合。**熵、互信息、KL 是信息论的"三原色"，后面所有算法都是它们的调色。**
+
+### 2.3.1 前向 KL vs 反向 KL 的几何：为什么方向决定 covering vs seeking（SFT vs RL）
+
+> [!tip] 本小节四拍
+> **直觉**（同一个 KL，方向一换训练行为就翻脸：一个"重召回、别漏"、一个"重精确、别越界"）→ **推导**（把 $\int p\ln(p/q)$ 的被积函数在 $q\to0$ 处摊开，逐符号标 nats，看惩罚落在谁头上）→ **对比**（前向 KL=SFT="学会做" vs 反向 KL=RL="学会选"）→ **联系**（[[ReinforcementLearning#5.0 先立统一框架：一切都是"在参考分布附近改进"|RL §5.0]] 的统一框架、[[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑|扩散的前向/反向]]、[[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器|模仿的均值坍缩]]）。
+
+§2.3 说 KL 度量"信念跳变"，但故意藏了一件事：**KL 不对称，而这份不对称恰好把"模仿"与"强化"两种学习范式在几何上分开了**。一句话点破根源——
+
+> [!abstract] KL 方向的唯一来源：期望在谁的分布上取
+> $D_{KL}(p\|q)=\mathbb E_{x\sim p}[\ln\frac{p(x)}{q(x)}]$。**期望符号下面站着谁，谁就是采样源、就是每个位置的权重来源**。某个 $x$ 在这个分布里越常被采到，它对 KL 总值的贡献权重就越大。$p\|q$ 与 $q\|p$ 差的不是被比较的两个分布，而是**从哪个分布采样去做这个平均**。摸钥匙母题里：前向 = "口袋里真实会出现的每样东西，我的信念都得接住"；反向 = "我信念里认定会摸到的，必须是口袋里真的有的"。
+
+**推导（被积函数在支撑错配处的行为，不跳步）**。约定自然对数 $\ln$，故单位 **nats**（换 $\log_2$ 即 bits）；$p,q$ 为概率密度（无量纲）。
+
+**① 前向 KL** $D_{KL}(p\|q)=\int p(x)\ln\dfrac{p(x)}{q(x)}\,dx$，取 $p$=**目标/数据分布**、$q$=**模型分布**。被积函数 $g(x)=p(x)\ln\dfrac{p(x)}{q(x)}$。
+- **情形 A（$p(x)>0$ 而 $q(x)\to0^+$）**：$\ln\frac{p}{q}\to+\infty$，且前面乘的是**正权重** $p(x)>0$ → $g(x)\to+\infty$，积分爆炸。**结论：凡 $p>0$ 处 $q$ 都不敢为 0**——$q$ 被迫铺满 $p$ 的**全部**支撑 = **mode-covering / mass-covering**。代价：为同时覆盖多个峰，$q$ 连峰间谷底都得摊概率，于是被"抹平"成跨峰的均值（这就是别名 **mean-seeking** 的来历）。
+- **情形 B（$p(x)=0$）**：$g(x)=0\cdot\ln\frac{0}{q}$，用极限约定 $\lim_{p\to0^+}p\ln p=0$ 得 $g\to0$——**不惩罚**。即 $q$ 在"目标本没有"的地方放概率，前向 KL 不管。$q$ 可以过度铺展、宁滥勿缺。
+
+**② 反向 KL** $D_{KL}(q\|p)=\int q(x)\ln\dfrac{q(x)}{p(x)}\,dx$，**期望改到 $q$（模型）上取**。被积函数 $h(x)=q(x)\ln\dfrac{q(x)}{p(x)}$。
+- **情形 A'（$q(x)>0$ 而 $p(x)\to0^+$）**：$\ln\frac{q}{p}\to+\infty$ 乘正权重 $q>0$ → $h\to+\infty$。**结论：凡 $p=0$ 处 $q$ 必须严格 =0**（**zero-forcing / 零强迫**）——$q$ 绝不敢跑到目标支撑之外。
+- **情形 B'（$q(x)=0$）**：$h\to0$，**不惩罚**。→ $q$ 可以**主动丢弃** $p$ 的某些峰（那里令 $q=0$ 零代价）。合起来：$q$ 缩到 $p$ 的**某一个高概率峰**、越贴越尖 = **mode-seeking / mode-selecting**。
+
+| 维度 | 前向 KL $D_{KL}(p\|q)$ | 反向 KL $D_{KL}(q\|p)$ |
+|:--|:--|:--|
+| 期望/采样源 | 目标 $p$（数据、老师） | 模型 $q$（自己生成） |
+| 无穷惩罚的触发 | 目标有、模型没有（漏峰） | 模型有、目标不认（越界） |
+| 几何行为 | mode-covering（抹平、跨峰均值） | mode-seeking（锐化、择一峰） |
+| 检索直觉类比 | 重召回（别漏） | 重精确（别错） |
+| 对应后训练 | **SFT / 传统蒸馏 = 学会做** | **KL 正则 RL/RLHF = 学会选** |
+
+**为什么 SFT ≈ 最小化前向 KL（"学会做"）**。SFT 是对人工演示 $y^\*\sim p_{\text{data}}$ 做最大似然：$\max_\pi\ \mathbb E_{x\sim D,\,y\sim p_{\text{data}}}[\ln\pi(y\mid x)]$。因为 $p_{\text{data}}$ 固定（其熵是与 $\pi$ 无关的常数），把它加进来配平即得
+$$\arg\max_\pi\ \mathbb E_{y\sim p_{\text{data}}}[\ln\pi]\ \equiv\ \arg\min_\pi\ \mathbb E_{y\sim p_{\text{data}}}\Big[\ln\tfrac{p_{\text{data}}}{\pi}\Big]=\arg\min_\pi D_{KL}(p_{\text{data}}\|\pi).$$
+期望在**数据分布**上取 → 前向 KL → covering：**演示里出现过的每一种答法，模型都被推着去覆盖**。好处=学会格式/风格/指令跟随；病灶=噪声答案、平庸答案、混杂风格全都照单全收，且**没有"选优"压力**。这正是灵巧操作里模仿学习的老毛病：多峰演示被抹成均值动作（[[RepresentationLearning#1.2 接触的非凸非光滑：神经网络的"均值化"陷阱|均值化陷阱]]），也是为什么要用[[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器|扩散策略]]把"覆盖"做对——扩散用 score matching 建**整条分布**而非其均值，于是 covering 多峰而不坍缩。
+
+**为什么 RL/RLHF ≈ 最小化反向 KL（"学会选"）**。带 KL 正则的 RLHF 目标 $\max_\pi \mathbb E_{y\sim\pi}[r(x,y)]-\beta\,D_{KL}(\pi\|\pi_{\text{ref}})$，其闭式最优是一个**由奖励诱导的目标分布** $p^\*(y\mid x)\propto\pi_{\text{ref}}(y\mid x)\,e^{r(x,y)/\beta}$，代回可整理成 $\arg\min_\pi D_{KL}(\pi\|p^\*)$。**期望在当前策略 $\pi$（模型自己生成的轨迹）上取** → 反向 KL → seeking：**先暴露自己的生成分布，再把概率质量往高奖励峰上收**，主动丢弃低奖励模式。好处=偏好对齐、行为压缩、"从会做到会选"；这与 [[ReinforcementLearning#5.0 先立统一框架：一切都是"在参考分布附近改进"|RL §5.0 的"KL-到-参考"统一框架]]、[[ReinforcementLearning#5.4.2 统一梯度视角：SFT、蒸馏与 RL 本是一家|§5.4.2 的统一梯度视角]] 是同一件事的信息论侧写，也接上 §2.4 由最大熵原理导出的 Boltzmann 目标分布 $p^\*\propto e^{r/\beta}$。
+
+> [!important] 更深一层：为什么反向 KL 的 RL "天然 KL 小"——交替投影 = EM
+> 反向 KL 优化在二元奖励下等价于信息几何的**交替投影 (Alternating Projection)**，即 EM：
+> - **I-projection（E 步）**：$q_t=\arg\min_{q\in\mathcal O}D_{KL}(q\|\pi_t)$，闭式解 $q_t(y\mid x)\propto\pi_t(y\mid x)\,e^{\beta R(x,y)}$——在二元奖励下就是"**把 $\pi_t$ 自采样的池子里奖励为 0 的样本删掉**"。这正是"采样并按奖励筛选"。
+> - **M-projection（M 步）**：$\pi_{t+1}=\arg\min_{\pi}D_{KL}(q_t\|\pi)$，等价于**对筛出的好样本做一次局部 MLE = 一次小 SFT**。
+>
+> 关键：$q_t$ 脱胎于 $\pi_t$ 自身支撑，两步都在**自己已经会说的话**里 reweight，参数只在流形上"拓扑保距"地小步滑动 → 这从数学底层解释了 RL 微调不易灾难性遗忘。对照之下，SFT 是朝**远方固定靶心** $p_{\text{data}}$ 的前向 KL 拉扯，梯度 $-\nabla_\theta\ln\pi(y^\*\mid x)$ 要强行拔高原本概率极低的答案，猛撕参数流形。**同一支笔：前向 KL 从外部拽，反向 KL 从内部收。**
+
+> [!warning] 边界澄清（别把两件事混成一件）：on-policy ≠ 反向 KL
+> "RL 对应反向 KL"只在 **KL 正则 / 最大熵 / 带 reference policy** 的框架下严格成立；纯粹最大化累计奖励的传统 RL 虽也在当前策略上采样，却不天然写成反向 KL。要拆成**两层独立的问题**：
+> - **第一层：轨迹从谁来？**（on-policy＝来自 student/model；off-policy＝来自 data/teacher）——这是**采样源**。
+> - **第二层：KL 往哪个方向写？**（$D_{KL}(\pi\|\cdot)$ 才是反向）——这是**分布比较方向**。
+>
+> 反例：on-policy distillation 的轨迹来自 student（on-policy），但每个 student 访问到的状态上仍可能用 teacher→student 的 token 级 $D_{KL}(\text{teacher}\|\text{student})$——**状态分布 on-policy，动作分布上的 KL 却是前向**。所以"老师先走学生学"（传统蒸馏，前向）和"学生先走老师纠"（on-policy distillation）区别在**采样源**，而非一定在 KL 方向。一句话：**谁在采样 ≠ 谁在评价**。
+
+**灵巧操作落点**。同一支笔（[[ReinforcementLearning#1.1 母题解剖：转一支笔到底在求解什么？|转笔母题]]）上，这条几何直接指导"先模仿后强化"的分工：
+- **模仿学习阶段 = 前向 KL covering**：BC / 扩散策略去**覆盖**人类演示里所有转笔打法（含平庸的、别扭的），先把动作分布铺开、把格式学会；
+- **RL 微调阶段 = 反向 KL seeking**：从覆盖好的分布里**挑出**那一种最稳、最高奖励的转法，把质量往它身上收、丢掉其余模式——这正是 [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|§7.4 把演示收编进统一梯度]] 与 [[ReinforcementLearning#9.3 真机高效 RL：把"模仿×强化"缝合线收口|§9.3 "模仿×强化"缝合]] 在做的事。**covering 给"会做的底"，seeking 给"选优的锐"——缺一不可。**
+
+> [!note] 提议第 8 条全库暗线：「KL 方向决定 covering vs seeking」
+> 这条几何贯穿多个 Foundation，值得单列为一条记忆暗线（区别于本讲"认知不确定性/主动感知"两条主线）：
+> **前向 KL（在目标上取期望）→ covering / 抹平 / 模仿 / "学会做"；反向 KL（在模型上取期望）→ seeking / 锐化 / 强化 / "学会选"。** 落点：本讲 §2（度量）· [[ReinforcementLearning#5.0 先立统一框架：一切都是"在参考分布附近改进"|RL §5.0/§5.4.2/§7.4]]（后训练分工）· [[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器|RepLearning §2.2]]（covering 多峰的正确做法）· [[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑|StochProc §6.4]]。
+> **一个必须澄清的假朋友**：扩散模型的"**前向/反向**"指的是加噪/去噪的**时间方向**（forward/reverse SDE），与这里 KL 的"前向/反向"（分布比较方向）**不是同一回事**——两者同属"方向性对偶"的美学，但机制无关，切勿混为一谈。（这类"名字撞车"正是逻辑跳步的高发地，特此点破。）
+
+### 2.4 最大熵原理：belief 从哪来，兼通往最大熵 RL 的桥
+
+> [!tip] 本小节补的是 §2 漏掉的一步——"度量都有了，可 belief/策略这个分布本身该长什么样？"
+
+前面 §2.1–2.3 全都**假设已有** belief $p(x)$，但闭眼摸钥匙的**第一瞬间**——还没摸、只知道"口袋里常见物件就那几样、平均重约几十克"——该拿什么当先验？**最大熵原理 (Maximum Entropy Principle, Jaynes 1957)**：在满足所有已知约束的分布里，选**熵最大**那个——因为熵最大 ⇔ 假设最少 ⇔ 只承认约束、绝不偷塞没有依据的信息。
+
+**直觉**：任何比"最大熵解"更尖的分布，都在某处悄悄断言"这里更可能"，而这份自信无数据支撑——那是幻觉式的过度确定，会让主动感知从错误先验出发、把手伸错地方。
+
+**推导（Lagrange 乘子，不跳步）**。设离散状态 $x\in\{1,\dots,n\}$，约束为若干期望 $\sum_x p(x)f_k(x)=\mu_k$（$f_k$=第 $k$ 个可测特征，如"是否金属""质量"；$\mu_k$=其已知均值）外加归一化 $\sum_x p(x)=1$。求
+$$\max_{p}\ H(p)=-\sum_x p(x)\ln p(x)\quad\text{s.t.}\ \sum_x p(x)f_k(x)=\mu_k,\ \sum_x p(x)=1.$$
+构造 Lagrangian（$\lambda_k,\nu$=乘子）：$\mathcal L=-\sum_x p\ln p-\sum_k\lambda_k(\sum_x pf_k-\mu_k)-\nu(\sum_x p-1)$。对**单个** $p(x)$ 求偏导并令零（用 $\partial_p(-p\ln p)=-\ln p-1$）：
+$$-\ln p(x)-1-\sum_k\lambda_k f_k(x)-\nu=0\ \Longrightarrow\ p(x)=\frac1Z\exp\!\Big(-\sum_k\lambda_k f_k(x)\Big),$$
+其中 $Z=\sum_x\exp(-\sum_k\lambda_k f_k(x))$=配分函数（吸收常数 $\nu$、保证归一），乘子 $\lambda_k$ 反解自约束 $\mu_k$。**结论：最大熵解一定是指数族/Boltzmann 分布。** 物理对应：$\lambda_k$ = "温度倒数 × 每单位特征的能量代价"——这正是统计力学 Boltzmann 分布 $p\propto e^{-E/kT}$ 的信息论来历（§1.1 "操作的热力学"在此闭合）。
+
+> [!important] 通往最大熵 RL 的桥（最大熵原理 = SAC 的地基）
+> 把上式的"状态 $x$"换成"动作 $a$"、"特征约束"换成"期望回报约束 $\mathbb E_\pi[Q(s,a)]\ge$ 常数"，**同一条 Lagrange 推导**立刻给出 **Boltzmann 策略** $\pi(a\mid s)\propto\exp\!\big(Q(s,a)/\alpha\big)$——"在给定平均回报下最随机"的策略。这正是 [[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 的"熵即柔顺"]] 与 [[ReinforcementLearning#5.0 先立统一框架：一切都是"在参考分布附近改进"|RL §5.0 的"KL-到-参考"统一框架]] 的信息论根：温度 $\alpha$（单位与 $Q$ 同，nats·回报量纲）就是这里乘子的倒数，$\alpha$ 大→熵项主导→策略软、探索广；$\alpha$ 小→回报主导→策略贪、尖锐。**最大熵原理 / Boltzmann 分布 / SAC 策略 / §4.3 的"熵→刚度"，是同一式子在 belief、统计力学、策略、阻抗四处的化身。**
+
+> [!note] 落回 belief——主动感知的初始条件（主动感知暗线）
+> 主动感知是一台"熵减机器"：§2–4 的 EIG/NBT/信念空间规划全在**降低** belief 的熵。最大熵原理补的是这台机器的**初始条件**——[[StochasticProcess#4.0 贝叶斯滤波的骨架：预测-更新递推（KF→EKF→UKF→PF 一张阶梯）|贝叶斯滤波的先验]] 应取"满足已知约束的最大熵分布"（最诚实的"我不知道"），随后每次触摸用 §2.2 的互信息把它一刀刀削尖。**先验不能拍脑袋，必须是最大熵；否则你从虚假的自信出发，越摸越偏。**
 
 ------
 
@@ -171,6 +278,10 @@ $D_{KL}(P\|Q)$ 衡量两分布的非对称差异，常用来量化先验信念 $
 
 > [!important] 轮廓跟随：把探索"钉"在物体表面
 > 单纯降低全局方差是不够的——我们只关心**物体表面附近**的方差。轮廓信息增益 $\alpha_{surface}=\sigma(x)\exp(-\mu^2/2w^2)$ 用高斯加权项当注意力，使探索集中在边界（"轮廓跟随"）。这就是闭眼摸钥匙的策略：**沿着已摸到的边缘往下摸，而不是把手伸到口袋空处乱抓。**
+
+> [!important] NBT 的 $\sigma^2(x)$ 就是 epistemic 不确定性——"认知不确定性三用"暗线的探索罗盘
+> GP 后验方差有闭式 $\sigma_*^2(x)=k(x,x)-\mathbf k_*^\top(K+\sigma_n^2 I)^{-1}\mathbf k_*$（$k(x,x)$=先验方差；$\mathbf k_*$=查询点与已测点的核向量；$K$=训练核阵；$\sigma_n^2$=观测噪声方差；单位=SDF 值的平方，离已测点越远越大）。它度量的是**"这里我还没摸过、模型没把握"——可通过采样消除的 epistemic 不确定性**，而非 §1.2 的 aleatoric 噪声（后者由核里的 $\sigma_n^2$ 项承载，采再多点也不降）。所以 NBT 去"表面附近最高 $\sigma$ 处"，本质就是把探测器对准 **epistemic 最大处**。
+> **暗线归位**：§2.2 BALD 的"模型分歧"、[[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性|PETS 里 Bootstrap Ensemble 的预测方差]]、这里 GP 的后验方差，是**同一个 epistemic 的三种估计器**（ensemble 分歧 / bootstrap 方差 / GP 闭式方差）；把它当采集函数去主动采样，正是 [[ReinforcementLearning#7.1 用信息论刻画探索|RL 用信息论刻画探索]] 里的"信息增益探索罗盘"（三用之第二用）。用 GP 而非神经网络给这个 epistemic 的理由（小样本、闭式方差、无需训一堆模型）见 [[StochasticProcess#5.2 为什么用高斯过程 (GP) 而非神经网络|随机过程 §5.2]]。**一句话：NBT 不是"去方差大处"，而是"去还能长知识（epistemic）的地方"——认知不确定性三用落在触觉探索上的样子。**
 
 ```python
 import numpy as np
@@ -283,6 +394,10 @@ def expected_information_gain(particles, weights, action,
 > 给定信源 $X\sim p(x)$ 与失真度量 $d(x,\hat x)$，在平均失真 $\le D$ 时的最小编码速率：
 > $$R(D)=\min_{p(\hat x\mid x):\,\mathbb E[d]\le D}I(X;\hat X).$$
 
+> [!note] 为什么 $R(D)$ 是"下界"、形状如何（不跳步）
+> **下界的来历**：任何把 $X$ 编码成 $\hat X$ 的方案都构成马尔可夫链 $X\to\text{码字}\to\hat X$，由**数据处理不等式**（$X-\text{码}-\hat X$ 上互信息不增），传输码率 $\ge I(X;\hat X)$；在失真约束 $\mathbb E[d]\le D$ 下对所有合法的 $p(\hat x\mid x)$ 取下确界，就得到"再省也省不过"的 $R(D)$——它是压缩率的**信息论地板**，不是某个算法的性能而是极限。
+> **形状（三个必背性质/端点）**：① $R(D)$ **非增且凸**（$I(X;\hat X)$ 关于 $p(\hat x\mid x)$ 是凸的，而约束集随 $D$ 增大只会放松，取 min 只会更小）；② $D=0$（无损）时 $R(0)=H(X)$——退回香农信源编码，无损压缩极限就是熵；③ 存在 $D_{\max}$（令 $\hat X$ 恒取最优常数即可达）使 $R(D_{\max})=0$，即"允许糊到某程度，一个 bit 都不用传"。触觉带宽设计就是在这条凸曲线上，按控制能容忍的失真 $D$ 反读所需 bit 数。$R(D)$ 无闭式时用 **Blahut–Arimoto** 交替迭代求解（与 §6.1 empowerment 变分界同源的交替优化思路）。
+
 **触觉含义**：GelSight 的 $640\times480$ 图是高带宽流，控制只需极低维信息（接触法向、滑移方向）。率失真给出"**最少多少 bit 才能保证控制精度**"的理论下界，直接指导传感器-控制器带宽与嵌入式触觉编码器的压缩率。
 
 > [!abstract] 好的压缩即好的去噪 — 压缩-去噪对偶（Song, Özgür & Weissman 2025）
@@ -302,6 +417,13 @@ $$
 $$
 
 $I(Z;X)$=表征复杂度（越小越压缩）、$I(Z;Y)$=预测能力（越大越有用）、$\beta$=权衡旋钮。$\beta\to0$ 过度压缩成废表征、$\beta\to\infty$ 不压缩则对噪声敏感、**适中 $\beta$ 才得鲁棒泛化**。
+
+> [!note] IB 的拉格朗日结构与 deterministic annealing：$\beta$ 是一支"温度旋钮"（不跳步）
+> **① 为什么是拉格朗日式**。IB 原问题是**带约束的压缩**：在"保留对 $Y$ 至少这么多预测信息" $I(Z;Y)\ge I_0$ 前提下最小化编码率 $I(Z;X)$。写成 Lagrangian（$\beta\ge0$=约束乘子）即 $\min_{p(z\mid x)}I(Z;X)-\beta\,I(Z;Y)$——正是上面的 $\mathcal L_{IB}$。所以 $\beta$ 不是随手加的权重，而是"预测信息约束"的**影子价格**（每多要 1 nat 预测信息，愿付几 nat 压缩率）。
+> **② 自洽方程（representation 的显式解）**。对 $p(z\mid x)$ 变分求极值（同 §2.4 的 Lagrange 套路，只是决策变量换成条件分布），得三条耦合的自洽方程，其编码器解为
+> $$p(z\mid x)=\frac{p(z)}{Z(x,\beta)}\exp\!\big(-\beta\,D_{KL}\big(p(y\mid x)\,\|\,p(y\mid z)\big)\big),$$
+> 逐符号（nats）：$D_{KL}(p(y\mid x)\|p(y\mid z))$=把 $x$ 归到码字 $z$ 造成的**预测失真**（$z$ 越不能代表 $x$ 的预测行为、失真越大）；$Z(x,\beta)$=逐样本配分函数。**读法**：$x$ 优先分给"预测行为最像它"的码字，$\beta$ 决定这偏好有多硬——与 §2.4 的 Boltzmann 解**同构**（把"能量"换成"预测失真"）。
+> **③ deterministic annealing = 沿 $\beta$ 的相变**。把 $\beta$ 视作**逆温度**：$\beta\to0$（高温）指数被抹平，所有 $x$ 塌成同一码字、$Z$ 什么也不编码（$I(Z;X)=0$）；缓慢升 $\beta$（降温），表征在一串**临界 $\beta$** 处发生"相变"——码字逐个**分裂**，先分出最能区分 $Y$ 的粗特征（钥匙 vs 非钥匙），再分细（哪把钥匙）。这条"先解糊、再逐步加清晰度"正是 [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|Continuation / 平滑化]] 暗线在表征学习里的化身：**annealing $\beta$ ≡ 课程/同伦——先学好分的、再学难分的**，远比直接在大 $\beta$ 处硬优化（非凸、易陷坏局部极小）稳。§5.1 的 Blahut–Arimoto 正是 $\beta$ 固定时求这组自洽方程的交替迭代。
 
 ### 5.3 变分信息瓶颈 (VIB) 与应用
 
@@ -352,10 +474,25 @@ $$
 
 把机器人看作发射机、环境看作信道、未来状态看作接收信号，empowerment = **信道容量** $C=\max_{p(a)}I(A;S'\mid s)$。物理意义：**高赋能**=稳定抓持（微小指尖动作就能精确改变物体位姿，"掌控"了物体）；**低赋能**=物体将滑落/手指卡死（无论怎么动，状态不可控）。**追求最大赋能 = 追求可操作性与稳定性**——即使不定义"抓取"为目标，仅最大化 $I(A;S)$，机器人就会自动学会抓取（抓取赋予对物体状态最大控制权）。这正是闭眼摸到钥匙后"自然捏稳并翻转"的动机。
 
+> [!note] 把"信道容量"讲透：$\max_{p(a)}$ 为何良定义且可算（不跳步）
+> 香农信道容量 $C=\max_{p(a)}I(A;S'\mid s)$ 是"这条'动作→未来状态'信道**每步最多能可靠传多少控制信息**"（单位 bits/step，取 $\ln$ 则 nats/step）。三点让它可算、可解释：
+> **① 上确界一定取得到**：$I(A;S')$ 作为**输入分布 $p(a)$ 的函数是凹的**（互信息对输入分布凹、对信道 $p(s'\mid a)$ 凸），而 $p(a)$ 落在概率单纯形（紧凸集）上——紧集上的凹函数必达最大。故 $\max$ 良定义，empowerment 是个良定义的标量场 $\mathcal E(s)$，可当势能函数来爬。
+> **② 怎么解——Blahut–Arimoto**：与 §5.1 率失真同一台交替迭代机（率失真是它对偶）。固定信道，交替更新输入分布 $p(a)$ 与后验 $p(a\mid s')$，单调收敛到容量；每步闭式、无需梯度，正适合 empowerment"每个状态 $s$ 上都要算一次容量"的场景。
+> **③ 物理直觉——注水 (water-filling)**：最优 $p(a)$ 把"动作预算"注到**最能改变未来、且改变可被区分**的动作维度上（类比频域注水把功率注到高信噪比子信道）。灵巧手上：稳定抓持时指尖微动即可精确、可区分地改变物体位姿→高容量；将滑落时动作与结果的关系混乱不可区分→容量塌陷。**empowerment 高 = 这条动作信道没被浪费。** 与 §5.3 "IB 管源压缩、empowerment 管控制信道"合起来，整套灵巧操作嵌进一张"感知信道 + 控制信道"的通信图。
+
 > [!important] 跨原理联系：Empowerment ↔ 可控性 Gramian
 > 对确定性线性系统 $s'=As+Ba$，empowerment 与控制论的**可控性 Gramian** 行列式成正比：$\mathcal E(s)\propto\log\det(BB^T)$。**高 empowerment = 高可控性**——这在信息论与经典控制论（[[ControlTheory#10. 稳定性理论的统一基石|稳定性/可控性]]）之间架了一座精确的桥。稳定抓取=完全可控、物体滑落边缘=丧失可控、手指卡死=约束致奇异。
 
-**变分下界与实现**：精确算 $I(A;S')$ 不可行，用 Blahut–Arimoto 风格变分界：$I(A;S'\mid s)\ge H(A\mid s)+\mathbb E_{s'}[\log\omega(a\mid s')]$，其中 $\omega(a\mid s')$ 是"规划分布"（逆模型）。深度实现：源/策略网络 $\pi_\theta(a\mid s)$ + 逆模型 $\omega_\phi(a\mid s')$，目标 $\max_{\theta,\phi}\mathbb E[\log\omega_\phi(a\mid s')-\log\pi_\theta(a\mid s)]$。直觉：**只有"不常见、却精准导致特定结果"的动作获高赋能**——这导致机器人学精细指尖调整而非随机大挥动。
+**变分下界与实现**：精确算 $I(A;S')$ 不可行（要边缘化出 $s'$ 上的真后验 $p(a\mid s')$），用 Barber–Agakov / Blahut–Arimoto 风格变分下界。
+
+> [!note] 变分下界逐步推导（不跳步）
+> 从 §2.2 的对称展开取 $I(A;S'\mid s)=H(A\mid s)-H(A\mid S',s)$。第二项按条件熵定义 $H(A\mid S',s)=-\mathbb E_{a,s'}[\log p(a\mid s')]$，其中 $p(a\mid s')$ 是"看到结果 $s'$ 反推是哪个动作"的**真后验（逆模型）**，一般算不出。引入任意变分分布 $\omega(a\mid s')$ 顶替，关键一步是**非负的 KL 差**（Gibbs 不等式，见 §2.2③）：
+> $$\mathbb E_{s'}\big[D_{KL}(p(a\mid s')\,\|\,\omega(a\mid s'))\big]\ge0\ \Longrightarrow\ \mathbb E_{a,s'}[\log p(a\mid s')]\ \ge\ \mathbb E_{a,s'}[\log\omega(a\mid s')].$$
+> 代回即得下界
+> $$I(A;S'\mid s)\ \ge\ \underbrace{H(A\mid s)}_{\text{动作要够丰富}}+\underbrace{\mathbb E_{a\sim\pi(\cdot\mid s),\,s'\sim p(\cdot\mid s,a)}[\log\omega(a\mid s')]}_{\text{结果要能反推动作}},$$
+> 当 $\omega=p$（逆模型完美）时取等——界紧。符号：$H(A\mid s)$=策略在状态 $s$ 的动作熵（鼓励多样尝试，单位 nats）；$\omega(a\mid s')$="规划/逆模型"分布，从达成的未来 $s'$ 反推"是哪个 $a$ 干成的"。
+
+深度实现：源/策略网络 $\pi_\theta(a\mid s)$ + 逆模型 $\omega_\phi(a\mid s')$，目标 $\max_{\theta,\phi}\mathbb E[\log\omega_\phi(a\mid s')-\log\pi_\theta(a\mid s)]$（正是上界两项）。直觉：**只有"不常见（$-\log\pi$ 大）、却精准导致特定结果（$\log\omega$ 大、$s'$ 可从 $a$ 反推）"的动作获高赋能**——这导致机器人学精细指尖调整而非随机大挥动。这台"无奖励也能长出抓取"的引擎，正是 [[ReinforcementLearning#7. 探索：稀疏奖励下，如何"撞见"转笔成功|RL 稀疏奖励下技能发现探索]] 的信息论内核。
 
 ### 6.2 内在动机的谱系：好奇心、惊奇、赋能、多样性
 

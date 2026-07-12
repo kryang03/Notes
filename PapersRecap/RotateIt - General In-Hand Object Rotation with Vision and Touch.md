@@ -30,7 +30,9 @@ related:
 > - [[ReinforcementLearning]] — privileged oracle policy + sensorimotor distillation：训练时可用 $z_t$，部署时只能用 $\hat z_t$。
 > - [[RepresentationLearning]] — PointNet shape encoder + transformer temporal fusion：从 point cloud / visuotactile history 到 task-relevant extrinsics。
 > - [[SignalProcessing]] — depth segmentation、contact-location discretization 和 temporal transformer 都是在做 noisy multimodal signal filtering。
-> - [[ContactMechanics]] — contact location 比 binary contact 更关键，因为多轴 finger-gaiting 需要知道接触在 fingertip 上的方向，而不只是“接触发生了”。
+> - [[ContactMechanics]] — contact location 比 binary contact 更关键，因为多轴 finger-gaiting 需要知道接触在 fingertip 上的方向，而不只是”接触发生了”。
+> - [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|RL §9]] — privileged oracle $\pi(p_t,z_t)$ → visuotactile 估计 $\hat z_t$ 的 teacher-student，是 §9 里”critic/teacher 可 privileged、actor 部署只能用可观测估计”的范本。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — **电流≠关节力矩**暗线：action=20 Hz position target 经 300 Hz PD 转 torque；RotateIt 的 sim-to-real 全压在 $\hat z_t$ 的感知估计上，而执行器 gap 由 PD 层与 randomization 兜底（与 HORA 同接口）。
 >
 > **核心技术**: privileged extrinsics, PointNet shape encoding, visuotactile transformer, contact-location tactile representation, multi-axis in-hand rotation
 
@@ -54,6 +56,7 @@ related:
 | [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | binary full-hand contact 足以跨 sim-real 做 blind rotation | 证明“少但稳”的 contact event 可以有价值 |
 | [[Dextrous Tactile In-Hand Manipulation Using a Modular Reinforcement Learning Architecture]] | 显式 belief estimator 比 opaque RNN 更可调试 | 给 hidden object-state estimation 的模块化模板 |
 | [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | dense tactile + moving goal 支持任意轴、任意重力方向 | 更接近最终 arbitrary-axis rotation controller |
+| [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] | 不补感知、而补**关节级动力学**：joint-wise 神经动力学 + residual | 与 RotateIt 互补——RotateIt 估计 object extrinsics（$\Delta_S$/感知侧），DexNDM ground 执行器/载荷响应（$\Delta_T$/动力学侧），二者攻的是同一 in-hand rotation gap 的两个正交半边 |
 | **RotateIt** | depth + contact location + proprio history 可回归 extrinsics | 说明多轴旋转需要 shape/contact-location observability |
 
 最低标准：

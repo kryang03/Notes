@@ -23,9 +23,9 @@ related:
 > 提出**时间自适应控制**框架，策略不仅输出动作，还输出该动作的**持续时间**，使机器人能像生物系统一样根据任务难度自动调节控制频率，兼顾效率与鲁棒性。
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory]] - 可变频率控制与阻抗调节的关联
-> - [[ReinforcementLearning]] - 频率自适应改善 Sim-to-Real 迁移
-> - [[Dynamics]] - 动力学时间尺度与控制频率的匹配
+> - [[ControlTheory#1.3 频率响应：Bode、相位裕度与带宽|ControlTheory §1.3]] - 可变频率 = 自适应采样率；策略隐式学 $f=1/\Delta t\ge2f_{dynamics}$，高动态段升频以保带宽/相位裕度
+> - [[ReinforcementLearning#2.3 估计价值的三种范式：DP → MC → TD（偏差-方差谱）|ReinforcementLearning §2.3]] - **折扣正确性**：$\Delta t$ 可变时按步数 $\gamma^k$ 折扣会系统性偏好短动作，须按物理时间 $e^{-c\Delta t}$ 折扣才不污染 TD 备份（§4.3 消融）
+> - [[Dynamics#3.6 小振动线性化：平衡点附近为何会"震"|Dynamics §3.6]] - $\Delta t$ 选择与各广义坐标特征频率 $\omega_i=\sqrt{K_i/M_{ii}}$ 的时间尺度分离匹配，TARC 隐式跟踪当前主导模态
 >
 > **核心技术**: Action Duration Learning, Variable Control Frequency, Sim-to-Real
 
@@ -308,6 +308,6 @@ $$
 | Sim-to-Real | 零样本 | 未验证 | 已有大量验证 | 竞赛验证 |
 | 适用场景 | 动态变化任务 (赛车/四足) | 离散决策间隔可接受的任务 | 动力学稳定的任务 | 固定频率即可的任务 |
 
-> [!note] 簇定位与新 insight（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning#6.4 领域级综述：control frequency / time-step 簇（本篇为理论锚点）|PFQI §6.4 簇综述]] 的三维分解互参）
+> [!note] 簇定位与新 insight（与 [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning|PFQI（control-frequency 簇理论锚点）]] 的三维分解互参）
 > 在 control frequency 簇三维坐标 ⟨单一/多变量⟩×⟨固定/自适应⟩×⟨强/弱保证⟩ 中，TARC = ⟨单一·状态自适应·弱保证⟩——**与 [[Elastic Time Step Reinforcement Learning, VTS-RL|VTS-RL]] 同格**。同格不等于重复：VTS-RL 侧重能效（$D_{min}/\tau$ 奖励缩放 + MOSEAC 自适应权重 + Lyapunov），TARC 侧重 sim-to-real + 一个被忽略的**正确性要件**。
 > **本篇开启的新 insight——"折扣正确性"是变时间步 RL 的隐藏维度**：当 $\Delta t$ 可变，按步数折扣 $\gamma^k$ 会系统性偏好短动作（§4.3 消融）。必须按**物理时间** $e^{-c\Delta t}$ 折扣，或用奖励缩放补偿。这是 PFQI（固定 $k$ 不涉及）、AP-AC（多变量但各 $c^k$ 固定）都回避了、而任何"可变时间步"方法必须正面处理的问题。于是三维分解多出一条隐含约束：**凡落在"自适应"维度的方法，都须解决折扣正确性**——这是 WMTS 若采用状态依赖调度粒度时必须内建的设计约束。

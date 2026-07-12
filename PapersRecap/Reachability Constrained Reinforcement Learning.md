@@ -31,6 +31,11 @@ related:
 >
 > **核心技术**: Hamilton-Jacobi Reachability, Safety Value Function, Self-consistency
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ControlTheory#9. 安全滤波：Control Barrier Function 与可达性]] — 本文 safety value function $V_s^*=\min_\pi\max_t h$ 是 HJ 可达性的 RL 版；可行集 $\mathcal{F}^*=\{V_s^*\le0\}$ 对应 CBF 的安全不变集，Bellman-max 递推替代 HJ PDE 求解。
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 可行集是比 Lyapunov 稳定更**宽松**的安全概念（允许在集内自由运动，不要求收敛到平衡点），构成「安全强度谱：可行集 ⊃ Lyapunov 稳定 ⊃ $\mathcal{L}_2$ 增益」。
+> - **暗线/簇内 Delta**：$V_s$ 是「价值即 Lyapunov」的安全变体（cf. [[ReinforcementLearning#2.2 值函数与 Bellman 方程]] 用 sum、本文用 **max** 取最坏时刻）。与 [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints|LatentCBF]] 互补：RCRL 把 CBF 训进策略（内禀）、LatentCBF 做部署时外挂滤波。
+
 ---
 
 ## 1. 核心直觉与宏观定位 (The Big Picture)

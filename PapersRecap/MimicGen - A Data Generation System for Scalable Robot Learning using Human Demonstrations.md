@@ -31,6 +31,18 @@ related:
 >
 > **核心技术**: object-centric subtask segmentation, $SE(3)$ segment transformation, interpolation stitching, action-noise data generation, success filtering, BC-RNN policy learning
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation|CyberDemo]]：都扩增演示数据，MimicGen 侧重 **object-centric segment 复用**（长程、刚体、准静态），CyberDemo 侧重 **sim 物理增强 + few-real fine-tune**（真机灵巧部署）。
+> - vs [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT]]：MimicGen 生成数据喂 BC-RNN，ACT 是 chunk 化 BC 算法——**数据侧 vs 表示侧**互补。
+> - vs [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]]：都合成机器人数据；RoboTwin 加 MLLM 代码生成 + 5 轴 DR + 跨 embodiment，MimicGen 只做 $SE(3)$ segment 变换（依赖 seed demos，无 task-code synthesis）。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4]] — MimicGen 是"data-side improvement for BC"，扩大 §7.4 谱系里模仿学习的训练分布支持集（objective 不变，$D_{src}\to D_{gen}$）。
+> - [[ReinforcementLearning#1.5 对比之二：纯模仿学习为何不够|RL §1.5]] — 它用生成数据扩支持集来压 covariate shift，但仍**不做 on-policy 纠错**（§1.5 的"雪崩"未根治）。
+>
+> **暗线**：**模仿×强化缝合线**的"纯 BC/离线数据"端；与 §9.3 真机 RL 互补——transform 覆盖不到的接触失败边界交给强化侧。
+
 ## 0. 阅读定位与范本价值
 
 MimicGen 是 demonstration/data-generation 簇的基础节点。它回答的问题比 “如何训练一个更强 policy” 更靠前：**如果人类只给 10 条 demo，能否自动把这些 demo 变成 1000 条甚至 50K+ 条有用数据？**

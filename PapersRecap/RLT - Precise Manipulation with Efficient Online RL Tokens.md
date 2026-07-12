@@ -33,6 +33,18 @@ https://www.pi.website/research/rlt
 >
 > **核心技术**: VLA RL Token + Lightweight Off-Policy Actor-Critic + Residual Action Editing
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]：都在生成式策略上做在线 RL；RLT **冻结 VLA 只学残差 RL token**（15 分钟、机上实时 hundreds updates/sec），RL-100 **微调整个 diffusion 去噪链**且 offline→online。
+> - vs [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]：都真机高效 RL 且可折叠人类纠正；RLT 是 VLA 后训练**残差编辑**，HIL-SERL 是从零 off-policy RLPD。
+> - vs [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]]：都 VLA 后训练；RLT 用轻量 **RL**（actor-critic）改进精密阶段，DexHiL 用 **weighted imitation** 放大人类纠正。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#9.3 真机高效 RL：把"模仿×强化"缝合线收口|RL §9.3]] — RLT 是"15 分钟真机数据把精密阶段加速 3×"的缝合线**极简端**（冻结先验 + RL 残差）。
+> - [[EmbodiedAI#2.3 VLA 后训练：从模仿到强化|EmbodiedAI §2.3]] — 定位在 VLA RL 后训练谱系的"精密阶段轻量级"（RECAP ⊃ RL-100 ⊃ RLT，可训练参数递减）。
+>
+> **暗线**：**POMDP→belief→latent**——RL token = VLA embedding 的信息瓶颈 belief 压缩（单 token latent state）；**模仿×强化缝合线**的"冻结先验 + RL 残差编辑"端。
+
 ## 1. 核心直觉与宏观定位 (The Big Picture)
 
 ### 一句话核心

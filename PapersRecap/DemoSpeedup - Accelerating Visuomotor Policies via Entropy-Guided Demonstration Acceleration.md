@@ -32,6 +32,17 @@ related:
 > - [[InformationTheory]]：条件动作熵 $H(a_t\mid o_t)$ 被当作“动作选择自由度/精度需求”的代理变量。
 > **核心技术**: action entropy estimation, KDE over action samples, HDBSCAN segmentation, replicate-before-downsample, geometrical consistency, ACT, Diffusion Policy.
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT]]：以 ACT/DP 为 proxy 与最终 policy；改的是 chunk 的**时间尺度**（RBD + geometrical consistency），不是 chunk 定义本身。
+> - vs [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation|CyberDemo]]：都改写演示，DemoSpeedup 改**时间**（熵引导加速），CyberDemo 改**空间覆盖**（物理增强）。
+> - vs [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations|MimicGen]] / [[RoboTwin 2.0 - A Scalable Data Generator and Benchmark for Robust Bimanual Manipulation|RoboTwin 2.0]]：数据生成簇中它占"**时间资源**"维度——压低信息段、保留高精度接触段，与二者的空间/多样性生成正交。
+>
+> **Foundation 精确锚点**（已 grep 验证，补于 tip 之上）
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4]] — 缩短有效 horizon 直接降低 §7.4 的复合误差 $O(\epsilon T^2)$（time-curation 版）。
+>
+> **暗线**：**POMDP→belief→latent**——熵 $\hat H(a_t\mid o_t)$ 由生成式 proxy 的 latent（CVAE-$z$ / denoising noise）采样估计；**模仿×强化缝合线**上属离线数据 curation（不改 BC objective，是 §7.4 之前的"喂什么数据"）。
+
 ---
 
 ## 0. 阅读定位与范本价值

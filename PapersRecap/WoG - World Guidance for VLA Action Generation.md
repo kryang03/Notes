@@ -27,10 +27,11 @@ related:
 > WoG 提出一种不同于“预测未来视频”或“预测 latent action”的 VLA 世界建模方式：先在训练时把未来观测经冻结视觉 foundation models 和 Q-Former 压缩成动作头可用的 condition tokens $O^c$，再让 VLM 从当前观测中预测这些 condition tokens，使推理时无需真实未来也能获得 future-aware action guidance。
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning]] — WoG 的核心是 information bottleneck 式的 action-condition representation：保留对动作有用的未来信息，压掉任务无关像素冗余。
-> - [[StochasticProcess]] — Rectified Flow 动作头把噪声动作和真实动作之间的线性路径作为生成过程，目标速度 $v^*=A-\epsilon$ 是方法的动作生成基础。
-> - [[EmbodiedAI]] — VLA 后训练不只有 RL/world-model rollout 路线，也可以把未来预测蒸馏为当前观测下的条件表征。
-> - [[WMPO - World Model-based Policy Optimization for VLA]] — WMPO 用 world model 生成 imagined trajectories 做 policy improvement；WoG 用 future-condition prediction 改进 single-step/closed-loop action generation，两者是互补而非同义。
+> - [[RepresentationLearning#2.2.3 Classifier-Free Guidance：用观测"引导"多峰采样的贝叶斯推导]] — WoG 名字里的 "guidance" 与 CFG 同属 **Continuation/平滑化(guidance) 暗线**：都在动作生成中注入一个把采样往期望区域拉的条件；区别是 CFG 用当前观测/标签引导，WoG 用蒸馏出的 future condition tokens $O^c$ 引导。
+> - [[RepresentationLearning]] — 核心是 information bottleneck 式 action-condition representation：保留对动作有用的未来信息（$I(O^c;A\mid z)$ 高），压掉任务无关像素冗余（$H(O^c\mid z)$ 不过高）。
+> - [[StochasticProcess]] — Rectified Flow 动作头把噪声动作与真实动作间的线性路径当生成过程，目标速度 $v^*=A-\epsilon$。
+> - [[EmbodiedAI#1.3 三种动作输出范式（横向对比）]] — WoG 给出 VLA world modeling 的第三路线：不是 full video prediction，也不是 latent action，而是面向 action head 的 condition-space 未来建模。
+> - [[WMPO - World Model-based Policy Optimization for VLA]] — WMPO 用 world model 生成 imagined trajectories 做 policy improvement；WoG 用 future-condition prediction 改进 single-step/closed-loop action generation，两者互补而非同义。
 >
 > **核心技术**: Condition-Space World Modeling, Future Encoder, Q-Former, Rectified Flow Action Head, Future Condition Distillation, Human Video Condition Learning
 

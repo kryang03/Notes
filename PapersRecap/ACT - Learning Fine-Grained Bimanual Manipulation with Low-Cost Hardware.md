@@ -32,6 +32,18 @@ related:
 >
 > **核心技术**: Action Chunking, Temporal Ensembling, CVAE Policy, Pixel-to-Joint Imitation Learning, Low-Cost Bimanual Teleoperation
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations|MimicGen]] / [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation|CyberDemo]]：都降低精细操作门槛，但 ACT 在**算法/表示侧**（chunk + CVAE 改造 BC 输出），二者在**数据侧**（segment 变换 / 物理增强）——正交互补。
+> - vs [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration|DemoSpeedup]]：DemoSpeedup 直接以 ACT 为 proxy/最终 policy，改写 chunk 的**时间尺度**（熵引导加速）；ACT 定义 chunk，DemoSpeedup 调 chunk 的执行速度。
+> - vs [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]：RL-100 把 chunked (diffusion) action 接入真机 RL fine-tuning，**突破 ACT 的 imitation ceiling**。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[RepresentationLearning#2.3 ACT：动作分块处理长时相关|RepresentationLearning §2.3]] — ACT 的数学根（CVAE + Transformer decoder）就在此节。
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4]] — action chunking 把有效 horizon 从 $T$ 砍到 $T/H$、缓解复合误差 $O(\epsilon T^2)$ 的落点在此。
+>
+> **暗线**：**POMDP→belief→latent**——action chunk 是 latent plan 的一种，CVAE 的 $z$ 吸收人类多模态 belief；**模仿×强化缝合线**的"纯 BC"端（缓解但未消除 covariate shift，需 §9.3 真机 RL 收口）。
+
 ## 0. 阅读定位与范本价值
 
 ACT 这篇论文容易被误读成“Transformer + CVAE 成功了”。更准确的读法是：**硬件采集分布、动作输出粒度、时序平滑和生成式 imitation objective 四件事共同成立，才让低成本硬件做精细操作。**

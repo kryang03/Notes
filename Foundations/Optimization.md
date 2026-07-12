@@ -18,6 +18,7 @@ related:
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"
   - "[[ComputationalGeometry]]"
+  - "[[WorldModels]]"
 ---
 
 # 灵巧操作中的优化理论：从可行域到实时接触隐式闭环
@@ -53,7 +54,7 @@ related:
 |:--|:--|:--|:--|:--|
 | **可行域层** | 什么状态/接触/力是允许的？ | 凸集、约束、KKT、互补条件 | 关节限位、摩擦锥、不可穿透 | §2 |
 | **目标层** | 什么轨迹算"好"？ | 代价函数、势函数、能量/风险项 | 成功、不洒、省力、平滑——不能糊成一团 | §2 |
-| **求解层** | 如何从当前轨迹改进？ | GD、Newton、SQP、内点、iLQR/DDP | 决定 MPC 能否在一个控制周期内收敛 | §4、§6 |
+| **求解层** | 如何从当前轨迹改进？ | GD、Newton、SQP、内点、iLQR/DDP、**零阶/CMA-ES** | 决定 MPC 能否在一个控制周期内收敛；黑箱目标只能零阶搜索 | §4、§6 |
 | **非凸层** | 为什么会卡住或失败？ | 鞍点、PL、strict saddle、平滑化 | 端杯时接触模式切换造成局部极小与梯度断裂 | §3 |
 | **接触层** | 模式未知时如何优化？ | CITO、LCP 松弛、隐式微分 | 让求解器自动发现"何时该碰杯壁、何时滑动" | §5、§6 |
 | **学习层** | 如何用数据加速/替代求解？ | 可微优化层、warm start、策略蒸馏 | RL/IL 学求解器先验，但绕不开物理约束 | §7、§5 |
@@ -178,6 +179,12 @@ $$
 > **强对偶 (Slater)**：若原问题凸且存在**严格可行点** $f_i(\tilde x)<0$，则 $p^*=d^*$（对偶间隙为零）。
 > **倒水含义**：力分配 QP 几乎总满足 Slater（只要存在一个严格落在摩擦锥内部的力分配），故可放心用对偶/内点法求解。
 
+> [!note] 对偶间隙到底是什么、为什么算法"离不开它"（补跳步 + 单位）
+> **定义**：对偶间隙 $\Delta=p^*-d^*\ge0$（非负由弱对偶保证），单位与目标 $f_0$ 相同（倒水里若 $f_0=\|f_c\|^2$，则 $\Delta$ 单位为 $\mathrm N^2$）。它量的是"用对偶下界 $d^*$ 近似原始最优 $p^*$，最坏差多少"。
+> **几何图像（为什么非凸才有缝）**：把每个 $x$ 映到点 $\big(f_1(x),\dots,f_m(x),\,f_0(x)\big)\in\mathbb R^{m+1}$，得值域集 $\mathcal G$。原始最优 $p^*$ 是 $\mathcal G$ 落在"约束轴 $\le0$"一侧的**最低高度**；对偶最优 $d^*$ 是 $\mathcal G$ 的**下凸包**在该处支撑超平面的高度。$\mathcal G$ 凸（凸问题）时支撑平面恰好顶到实体，$\Delta=0$；非凸时 $\mathcal G$ 有"凹陷"，支撑平面够不到底部，$\Delta>0$——**对偶间隙就是非凸留下的那道缝**。这也解释了 §3 一旦接触模式（非凸）进来，为何强对偶不再免费。
+> **为什么算法离不开它**：① 任何一个对偶可行的 $(\lambda,\nu)$ 都白送一个**在线可算的下界** $g(\lambda,\nu)\le p^*$，于是 $f_0(x)-g(\lambda,\nu)$ 是"当前解离最优还差多远"的**实时证书**——这正是内点法/原始-对偶法的**停机准则**（间隙压到 $\epsilon$ 即停，无需知道 $p^*$）；② §4.3 中心路径参数 $\mu$ 与间隙同阶（$\Delta\approx n\mu$，$n$＝不等式约束个数），"令 $\mu\to0$"字面就是"令对偶间隙 $\to0$"——内点法的整条中心路径，就是沿"间隙均匀收缩"的轨迹走。
+> **跨原理联系**：对偶函数 $g$ 作为"永不高估最优的下界证书"，与 [[ControlTheory#10.4 被动性与"价值即 Lyapunov"|"价值即 Lyapunov"]] 里值函数作为"界定最优代价的证书"是同一种数学角色（都从一侧夹逼最优）；把安全约束做拉格朗日对偶的 Safe RL（本节末 [[Reachability Constrained Reinforcement Learning]]）解的正是这套"原始-对偶夹逼"——对偶间隙即其"约束违反的价格是否收敛"的度量。
+
 ### 2.3 KKT 条件：约束最优的"语法"
 
 对一般 NLP（适当约束规范下），最优解 $x^*$ 满足 KKT 一阶必要条件：
@@ -190,6 +197,13 @@ $$
 $$
 
 **互补松弛**的物理意义：最优处要么约束不活跃（$f_i<0,\lambda_i=0$），要么恰好活跃（$f_i=0,\lambda_i>0$）。约束规范强弱链：LICQ ⇒ MFCQ ⇒ ACQ（Slater 是凸情形的 CQ）。
+
+> [!note] 逐条推导：KKT 四条各自从哪来（不跳步）
+> 设 $x^*$ 是局部最优，记活跃集 $\mathcal A=\{i\mid f_i(x^*)=0\}$（顶在边界上的约束）。在约束规范（如 LICQ：活跃约束梯度 $\{\nabla f_i,\nabla h_j\}$ 线性无关）下，逐条追溯：
+> 1. **驻点条件**（源自"最优点处没有可行下降方向"）：若 $x^*$ 最优，则不存在方向 $d\in\mathbb R^n$ 同时满足 $\nabla f_0^Td<0$（一阶下降）与 $\nabla f_i^Td\le0,\ i\in\mathcal A$、$\nabla h_j^Td=0$（保持可行）。由 **Farkas 引理**，"这样的 $d$ 不存在" $\iff$ $-\nabla f_0$ 落在活跃约束梯度张成的锥内，即存在系数 $\lambda_i\ge0,\nu_j\in\mathbb R$ 使 $\nabla f_0+\sum_{i}\lambda_i\nabla f_i+\sum_j\nu_j\nabla h_j=0$。物理图像：**目标下降的"拉力"被约束边界的"支持力"恰好顶住**——这与 [[Dynamics#4.2 约束动力学：Lagrange 乘子与约束反力|Dynamics 约束反力]] 里 $\lambda$ 作为约束反力是**同一个乘子**（对偶性暗线：约束的乘子＝维持约束所需的力/价格）。
+> 2. **原始可行** $f_i\le0,\ h_j=0$：$x^*$ 本就是可行解，天然成立（单位随 $f,h$ 的量纲——如距离约束 $[\mathrm m]$、力约束 $[\mathrm N]$）。
+> 3. **对偶可行** $\lambda_i\ge0$：乘子是约束的"影子价格"——把 $f_i\le0$ 放松成 $f_i\le\epsilon$，最优值改善约 $-\lambda_i\epsilon$。不等式约束只能被"单向"顶住（多推一点边界一定不会更差），故其价格非负；等式约束 $h_j$ 可双向变形，故 $\nu_j$ **无符号约束**。这正对应 §3.1 接触"只能推不能拉"$\lambda_n\ge0$ 的单边性。
+> 4. **互补松弛** $\lambda_if_i=0$（**不是额外假设，而是第 1 步的副产品**）：Farkas 锥**只由活跃约束构成**——对不活跃约束（$f_i<0$，离边界尚有余量）我们直接令 $\lambda_i=0$，于是 $\lambda_if_i=0$ 自动成立；对活跃约束则 $f_i=0$，故 $\lambda_if_i=\lambda_i\cdot0=0$。两种情形合起来即 $\lambda_if_i=0$。直觉：**只有顶在边界上的约束才可能有正影子价格，有余量的约束对最优毫无发言权**。这一条正是下一节 §3.1 接触互补、以及 §4.3 内点法所松弛的那个对象。
 
 > [!important] 跨原理联系：KKT 互补松弛 = 接触 LCP
 > 把 KKT 互补松弛 $\lambda_i f_i=0$ 与 [[ContactMechanics#5.1 互补条件与 LCP 的构建|接触 LCP]] 的 $0\le\phi(q)\perp\lambda_n\ge0$ 并排看——**它们是同一个数学对象**：距离 $\phi$ 是"约束 $f$"、法向力 $\lambda_n$ 是"乘子 $\lambda$"，"要么分离要么受力"就是"要么约束松要么乘子零"。**接触力学的核心约束，本质上是优化的 KKT 条件。** 这一眼看穿，你就同时拿到了 [[ContactMechanics]]、[[Dynamics]] 接触求解、与本讲 §3 的钥匙。
@@ -301,7 +315,16 @@ $$0\le\phi(q)\ \perp\ \lambda_n\ge0,$$
 | **单纯形法** | 指数 $O(2^n)$ | 多项式（平滑分析 Spielman–Teng 解释） |
 | **内点法** | $O(\sqrt n\log(1/\epsilon))$ 迭代 | 大规模首选 |
 
-内点法的核心是追踪**中心路径**：把 KKT 互补条件 $x_is_i=0$ 松弛为 $x_is_i=\mu$，令 $\mu\to0$。每步解一个 Newton 系统：
+内点法的核心是追踪**中心路径**：把 KKT 互补条件 $x_is_i=0$ 松弛为 $x_is_i=\mu$，令 $\mu\to0$。
+
+> [!note] 中心路径 Newton 系统的来历（从 KKT 到那个矩阵，逐步）
+> 取标准形 LP $\min c^Tx$ s.t. $Ax=b,\ x\ge0$（$x\in\mathbb R^n$ 决策变量，$A\in\mathbb R^{m\times n}$ 约束矩阵，$b\in\mathbb R^m$；$\lambda\in\mathbb R^m$ 为等式乘子，$s\in\mathbb R^n$ 为不等式 $x\ge0$ 的乘子＝对偶松弛/影子价格）。把 §2.3 的 KKT 特化到此：
+> $$\underbrace{A^T\lambda+s=c}_{\text{驻点/对偶可行}},\quad\underbrace{Ax=b}_{\text{原始可行}},\quad\underbrace{x_is_i=0}_{\text{互补}},\quad x,s\ge0.$$
+> **全部难点集中在互补** $x_is_i=0$：它非光滑——解被逼到"坐标轴的并集"上（$x_i=0$ **或** $s_i=0$，正是 §3.1 那个恶魔的 LP 版），Newton 法在这种折角上无从线性化。**内点法的一招**：把它松弛成 $x_is_i=\mu>0$，迫使解走在可行域**严格内部**、离每条边界至少 $\mu$ 远，于是得到一族**处处光滑**的非线性方程 $F_\mu(x,\lambda,s)=0$：
+> $$F_\mu=\begin{pmatrix}A^T\lambda+s-c\\ Ax-b\\ XS\mathbf1-\mu\mathbf1\end{pmatrix}=0,\qquad X=\mathrm{diag}(x),\ S=\mathrm{diag}(s).$$
+> 现在对光滑的 $F_\mu$ 做**一步 Newton**：$F_\mu(z+\Delta z)\approx F_\mu(z)+\nabla F_\mu(z)\,\Delta z=0$，即 $\nabla F_\mu\,\Delta z=-F_\mu$。逐块求雅可比 $\nabla F_\mu$：第一行 $A^T\lambda+s-c$ 对 $(x,\lambda,s)$ 的偏导为 $(0,\,A^T,\,I)$；第二行 $Ax-b$ 为 $(A,\,0,\,0)$；第三行 $XS\mathbf1$ 对 $x$ 是 $S$、对 $s$ 是 $X$（对 $\lambda$ 为 $0$）。拼起来正是下面的系数矩阵；右端第三块 $\mu\mathbf1-XS\mathbf1$ 就是 $-F_\mu$ 的第三块（前两块在**可行**迭代下已为零，故显示为 $0$）。**每追踪一步 $\mu$，就是解一次这样的线性系统——这就是"沿中心路径把约束问题变成一串 Newton"的字面含义。**
+
+每步解一个 Newton 系统：
 
 $$
 \begin{pmatrix}0&A^T&I\\A&0&0\\S&0&X\end{pmatrix}\!\begin{pmatrix}\Delta x\\\Delta\lambda\\\Delta s\end{pmatrix}=\begin{pmatrix}0\\0\\\mu\mathbf 1-XS\mathbf 1\end{pmatrix},\quad X=\mathrm{diag}(x),S=\mathrm{diag}(s).
@@ -310,6 +333,45 @@ $$
 > [!theorem] 内点法复杂度
 > 长步路径追踪在 $O(n\log(1/\epsilon))$ 次迭代内得 $\epsilon$ 解，每步 $O(n^3)$。Mehrotra 预测-校正在实践中远快于理论界。
 > **倒水含义**：内点法对初值不敏感、收敛快，是抓杯力分配 QP / MPC 子问题（§7）的首选——它每步在解的，正是 §2.3 那个扰动 KKT 系统。
+
+### 4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）
+
+> [!tip] 本节四拍
+> **直觉**（有些目标只能"跑一次才知道好不好"，压根没有梯度）→ **推导**（零阶梯度估计 → CMA-ES 四步机制）→ **对比**（CMA-ES vs MPPI vs 策略梯度：都是"采样+加权"，差在更新什么）→ **联系**（[[StochasticProcess#6. 随机最优控制：MPPI（用采样代替梯度）|MPPI]]、[[ReinforcementLearning#4.1 策略梯度定理：log-derivative 技巧|策略梯度]]、[[Final_WMTS|WMTS 任务生成器]]）。
+
+§4.1–4.3 的求解器都吃**梯度**（甚至 Hessian）。但灵巧操作里有一类目标**求不出梯度**：
+- **黑箱 rollout**：倒水"洒不洒"要跑完整条轨迹才知道，接触切换（§3）让它对控制参数**处处不可微**；
+- **离散/结构目标**：奖励函数超参、课程任务的"难度是否合适"；
+- **[[Final_WMTS|WMTS]] 隐空间任务生成**：任务 $\xi$ 的 fitness = 通才 zero-shot rollout 的成功率×轨迹误差——一个纯黑箱标量，无梯度可回传。
+
+这时只能**零阶 (zeroth-order) / 无导数 (derivative-free)** 优化：只用**函数值**改进。
+
+**从零阶梯度估计说起**（不跳步）。既然拿不到 $\nabla f$，就用采样**估**一个：在当前点 $x$ 附近撒 $\lambda$ 个扰动 $x+\sigma\epsilon_i$，用它们的函数值加权平均出一个"下降方向"。最朴素的是有限差分；更优雅的是**进化策略 (ES)** 的对数似然技巧——与 [[ReinforcementLearning#4.1 策略梯度定理：log-derivative 技巧|策略梯度]] **同一个 log-derivative 恒等式**：
+$$\nabla_\theta\,\mathbb E_{x\sim\mathcal N(\theta,\sigma^2 I)}[f(x)] = \frac{1}{\sigma^2}\,\mathbb E[(x-\theta)\,f(x)]\ \approx\ \frac{1}{\sigma^2\lambda}\sum_i \epsilon_i\, f(x+\sigma\epsilon_i).$$
+**这就是零阶与一阶的桥**：策略梯度是"在动作分布上"做这件事，ES 是"在参数空间"做同一件事——都不需要 $f$ 可微，只需能采样、能评估。
+
+**CMA-ES 的核心升级**：朴素 ES 用各向同性高斯 $\mathcal N(\theta,\sigma^2 I)$ 撒点，在**病态地形**（各方向曲率悬殊，如狭长山谷）里极慢。**CMA-ES (Covariance Matrix Adaptation ES)** 让采样分布 $\mathcal N(m,\sigma^2 C)$ 的**协方差 $C$ 自适应地贴合局部地形**——等价于在线学出一个**无需 Hessian 的二阶信息**。四步迭代：
+
+| 步 | 机制 | 直觉 |
+|:--|:--|:--|
+| **① 采样** | $x_k\sim m+\sigma\,\mathcal N(0,C)$，$k=1..\lambda$ | 按当前信念撒 $\lambda$ 个候选 |
+| **② 评估排序** | 跑黑箱 fitness，取前 $\mu$ 名 | 只用**排名**（对 fitness 单调变换不变，极鲁棒） |
+| **③ 均值更新** | $m\leftarrow\sum_i w_i x_{i:\lambda}$（加权重组，$\mu_{eff}=1/\sum w_i^2$） | 把均值挪向优胜者的加权中心 |
+| **④ 协方差自适应** | **rank-$\mu$**（当代优胜者的散布 $\sum w_i\Delta x\Delta x^T$）+ **rank-one / 累积进化路径** $p_c$（跨代方向相关，加速狭长谷） | 学出"该往哪个方向、以多大各向异性撒点" |
+
+外加**步长控制 (CSA)**：比较进化路径 $p_\sigma$ 的实际长度与随机游走期望长度——**比期望长**说明在稳步下山→增大 $\sigma$（迈大步）；**比期望短**说明在原地打转→减小 $\sigma$（精修）。
+
+> [!important] 三种"采样+加权"优化的统一视角（记忆锚点）
+> CMA-ES、MPPI、策略梯度**同宗**——都在"参考分布附近采样、按 fitness/return 加权、把分布挪向优胜者"。差别只在**更新什么**：
+> | 方法 | 采样空间 | 加权方式 | 更新对象 | 归属 |
+> |:--|:--|:--|:--|:--|
+> | **CMA-ES** | 参数 $\theta$ | 排名 (rank-based) | 分布均值 $m$ + **协方差 $C$** | 本节 |
+> | **MPPI** | 控制序列 $u_{0:H}$ | $\exp(-\tfrac1\lambda S)$ 软加权 | 名义控制序列 | [[StochasticProcess#6. 随机最优控制：MPPI（用采样代替梯度）\|随机过程 §6]] |
+> | **策略梯度** | 动作 $a$ | advantage $\times\nabla\log\pi$ | 策略网络参数 | [[ReinforcementLearning#4.1 策略梯度定理：log-derivative 技巧\|RL §4.1]] |
+> **一句话记忆**：CMA-ES 学的是"**在哪撒点**（协方差几何）"，MPPI 学的是"**这一时刻怎么动**"，策略梯度学的是"**给定状态怎么动**"。协方差自适应≈自然梯度/信息几何（用 Fisher 度量拉直参数空间），是 CMA-ES 逼近二阶而不算 Hessian 的秘密。
+
+> [!tip] 对 WMTS 的直接落点
+> [[Final_WMTS|WMTS]] 的隐空间任务生成器正是"CVAE 映射到低维隐空间 → **CMA-ES 在隐空间演化任务** → 通才 zero-shot rollout 评 fitness → 盲区任务派给 Oracle"。用 CMA-ES 而非梯度，是因为 fitness（成功率×误差×凸包距离）是**黑箱、非光滑、且要跨整条 rollout 才能算**。这条线与[[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|世界模型"无知即课程"]]、开放式演化（[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]）汇合——进化算法是自动课程搜索的天然引擎：它把"采样+加权"从**参数空间**（找一个好策略）**抬到任务空间**（找"此刻最该学的任务"），fitness 越低（越难、越落在通才盲区）的任务被赋越高权重、被优先生成——这在数学上等价于 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]] 里用 regret / learning-progress 当"还能学多少"的代理来选任务。**CMA-ES 恰是那台"任务空间搜索引擎"的一种实现**（POET 用群体进化、PLR 用优势幅度，与 CMA-ES 的协方差自适应同属"用采样+加权在任务分布上爬坡"）。
 
 > [!important] 本节落点（接 §5）
 > 求解器谱系告诉我们"梯度/Hessian 有了能多快收敛"。但 §3 说接触会**毁掉**梯度。于是真正的灵巧操作优化史，是一部"如何既保留物理接触、又让这些快速求解器能用上"的演进史——这就是 §5。
@@ -382,6 +444,19 @@ iLQR 是 DDP 的变体（略去二阶动力学项以提速）。它在当前轨�
 > [!note] iLQR 的 backward pass = 离散 Riccati = LQR
 > 每次迭代把非线性动力学线性化为 $\delta x_{k+1}=A_k\delta x_k+B_k\delta u_k$、代价二次近似，此时 backward pass **退化为标准离散时间 Riccati 递推**。其闭式解、稳定性与最优反馈律见 [[ControlTheory#11. 线性二次最优控制 (LQR)|ControlTheory §11]]。**理解 LQR 是理解 iLQR 收敛性的前提**——再次印证 §4.2 的"一个 Riccati 串起优化/控制/RL"。
 
+> [!note] Backward pass 每一步从哪来：Bellman → Q 二次展开 → 消 $\delta u$ → Riccati（逐行对应下方代码）
+> 记值函数 $V_t(x)$＝从 $t$ 步到末端沿最优控制的**剩余最小总代价**（cost-to-go，单位＝代价量纲）。它满足 **Bellman 最优性方程**（与 [[ReinforcementLearning#2.2 值函数与 Bellman 方程|RL 的 Bellman 方程]] 是同一个方程，只是这里最小化"代价"、RL 最大化"回报"，$\min\leftrightarrow\max$、$\ell\leftrightarrow r$）：
+> $$V_t(x)=\min_{u}\big[\underbrace{\ell(x,u)}_{\text{本步代价}}+\underbrace{V_{t+1}(f(x,u))}_{\text{下步 cost-to-go}}\big].$$
+> **第 1 步——展开方括号里的量为 $Q_t$**。在名义轨迹 $(\bar x_t,\bar u_t)$ 附近取扰动 $\delta x,\delta u$，把 $Q_t=\ell+V_{t+1}\!\circ f$ 二次展开，其一、二阶系数（用 $V'_x,V'_{xx}$ 记 $t{+}1$ 时刻的值函数导数、$f_x,f_u$ 即线性化的 $A_t,B_t$）为
+> $$Q_x=\ell_x+f_x^TV'_x,\quad Q_u=\ell_u+f_u^TV'_x,\quad Q_{xx}=\ell_{xx}+f_x^TV'_{xx}f_x,\quad Q_{uu}=\ell_{uu}+f_u^TV'_{xx}f_u,\quad Q_{ux}=\ell_{ux}+f_u^TV'_{xx}f_x.$$
+> **这正是下方代码的第 2 步那三行**——每个 $Q$ 项＝"本步代价的导数 $\ell_\bullet$" ＋ "动力学把下步值函数曲率 $V'_{xx}$ 折算回来"。
+> **第 2 步——对 $\delta u$ 求极小**。$Q_t$ 关于 $\delta u$ 是二次的，令 $\partial Q_t/\partial\delta u=Q_u+Q_{uu}\delta u+Q_{ux}\delta x=0$，解出最优扰动
+> $$\delta u^*=\underbrace{-Q_{uu}^{-1}Q_u}_{k\ \text{（前馈增益）}}+\underbrace{(-Q_{uu}^{-1}Q_{ux})}_{K\ \text{（反馈增益）}}\,\delta x,$$
+> 即代码第 4 步的 $k,K$。可解的前提是 $Q_{uu}\succ0$；接触任务里 $Q_{uu}$ 常不定，故第 3 步加 Levenberg–Marquardt 正则 $Q_{uu}+\lambda I$ 把它强行拉正（等价于给更新步长加阻尼、限制在信赖域内）。
+> **第 3 步——回代得 $V_t$，即 Riccati**。把 $\delta u^*$ 塞回 $Q_t$，$V_t$ 仍是 $\delta x$ 的二次型，其系数递推
+> $$V_x=Q_x+K^TQ_{uu}k+K^TQ_u,\qquad V_{xx}=Q_{xx}+K^TQ_{uu}K+K^TQ_{ux}+Q_{ux}^TK,$$
+> **正是代码第 5 步、也就是离散时间 Riccati 方程**。从 $t=T$（末端 $V_T$＝终端代价）反传到 $t=0$，值函数曲率 $V_{xx}$ 层层"卷"回来，等同 [[ControlTheory#11. 线性二次最优控制 (LQR)|LQR]] 里的 Riccati 矩阵 $P_t$。**一个反向递推同时是：最优控制的 Riccati、RL 的 Bellman、iLQR 的 backward pass**——[[ControlTheory#10.4 被动性与"价值即 Lyapunov"|"价值即 Lyapunov"]]这条暗线在此第三次显形（值函数 $V$ 既是"还要花多少代价"，又是控制论里那个下降的 Lyapunov 证书）。
+
 ```python
 import numpy as np
 # iLQR 核心逻辑（去除防御性代码，聚焦数学）
@@ -431,6 +506,11 @@ def forward_pass(model, x_seq, u_seq, k_seq, K_seq, alpha=1.0):
 | **B 隐式微分** | 保留硬 LCP，对解 $\lambda^*$ 用隐函数定理 $\frac{\partial\lambda^*}{\partial u}=-(\frac{\partial R}{\partial\lambda})^{-1}\frac{\partial R}{\partial u}$，**不必反传迭代求解器** | 物理真实、梯度精度与迭代数无关 | active set 变化时 $\partial R/\partial\lambda$ 奇异，需广义雅可比 |
 | **C 随机平滑** | 状态/参数加噪取期望，把非光滑 Cost 抹平 | 可用不可微/黑盒 Cost | 开销高，用于 MPPI / ES |
 
+> [!note] 隐函数定理为何给出方案 B 的梯度（逐步推导，不跳步）
+> 硬 LCP 的解 $\lambda^*$ **没有显式公式**（是求解器迭代出来的），但它由一组**最优性/互补残差**隐式定义：$R(\lambda^*,u)=0$，其中 $R$ 打包了动力学等式与互补条件（$u$ 为控制/参数，$\lambda^*$ 为接触力解，$R$ 与 $\lambda,u$ 同维）。我们要 $\partial\lambda^*/\partial u$（接触力对控制的灵敏度），却**不想反传求解器内部的几十步迭代**。招数：把 $\lambda^*$ 看成 $u$ 的隐函数，对恒等式 $R(\lambda^*(u),u)\equiv0$ 两边关于 $u$ 求全导数（链式法则，$\lambda^*$ 随 $u$ 变、$u$ 也直接进 $R$）：
+> $$\frac{\partial R}{\partial\lambda}\,\frac{\partial\lambda^*}{\partial u}+\frac{\partial R}{\partial u}=0\quad\Longrightarrow\quad \frac{\partial\lambda^*}{\partial u}=-\Big(\frac{\partial R}{\partial\lambda}\Big)^{-1}\frac{\partial R}{\partial u}.$$
+> **关键红利**：右端只用到**收敛点** $\lambda^*$ 处的两个偏导，与"求解器迭代了几步、用的是 PGS 还是内点"**完全无关**——这就是表中"梯度精度与迭代数无关"的来源，也是 [[ContactMechanics#6.2 实现可微的三条路径|可微接触物理]] 与可微优化层（OptNet 等）**共用的同一套数学**（接触非光滑暗线：三个领域都靠隐式微分把"不可反传的求解器"变成"一次线性解"）。**失效边界**：当 active set 切换（某接触点从"受力 $\lambda>0$"跳到"分离 $\phi>0$"）时，$\partial R/\partial\lambda$ 在折角处**奇异、逆不存在**，须退到广义雅可比或局部松弛——这正是 §3.1 非光滑性在梯度层的复现。
+
 > [!note] 跨原理联系
 > 方案 B 的隐函数定理梯度，与 [[ContactMechanics#6.2 实现可微的三条路径|可微接触物理]] 是同一套数学；方案 C 的随机平滑，与 [[StochasticProcess|MPPI]]、[[ReinforcementLearning#5.4.1 时间一致探索：从白噪声到自回归过程|RL 的探索噪声]] 同源。三个领域在"如何对不可微对象求可用梯度"上殊途同归。
 
@@ -443,6 +523,9 @@ def forward_pass(model, x_seq, u_seq, k_seq, K_seq, alpha=1.0):
 
 轨迹优化（§6）多是离线规划器。要上真机，须经 **Receding Horizon Control** 变成 MPC：每步只解一小段、只执行第一个动作、再重解。
 
+> [!note] 古典前置：一段 horizon 如何"凝聚"成一个 QP
+> 本节讲的都是接触隐式 / 非光滑 MPC；它们的**骨架**是最基础的线性 MPC——把 horizon 内的动力学等式约束 $x_{t+1}=A x_t+B u_t$ 逐步回代、消去中间状态，整段轨迹优化**凝聚 (condensation)** 成一个只以控制序列 $u_{0:H-1}$ 为变量的稠密 QP（状态被显式写成初态 $x_0$ 与控制序列的仿射函数）。这套"凝聚"构造、以及稀疏 (sparse) vs 稠密 (dense) QP 的规模取舍，是读懂下面 §7.2 SQP/RTI 的前置语言，详见 [[ControlTheory#8.1 古典前置：基础线性 MPC 的 QP 凝聚 (Condensation) 构造|ControlTheory §8.1]]。**一句话对接**：§7.2 SQP 每步解的那个 QP，正是这套凝聚 QP 在非线性动力学上"线性化一次 Newton"的版本——古典线性 MPC 是它的 $A,B$ 常值特例。
+
 ### 7.1 实时性挑战：接触事件比控制周期还快
 
 灵巧操作的接触事件 ~1–5ms，而 MPC 若 >20–30ms 才解完，机器人就出现"盲区"：指尖滑过杯沿、控制器还没反应，杯子已弹飞。这是 **Sim-to-Real Gap 在时间维度上的体现**——再准的模型，解得太慢也没用。
@@ -450,6 +533,16 @@ def forward_pass(model, x_seq, u_seq, k_seq, K_seq, alpha=1.0):
 ### 7.2 基于梯度：SQP 与实时迭代 (RTI)
 
 现代框架（OCS2、Acados）用 **SQP**：不每步重解完整 NLP，只做一次 QP 近似（**Real-Time Iteration**）。靠 **warm-start** 复用上一时刻的解 $x^{k+1}_{init}=\mathrm{Shift}(x^k_{sol})$——物理连续性使其通常很有效。**但接触瞬间（impact）解会跳变，warm-start 失效、求解器可能发散**。对策：**Contact Schedule Smoothing**——不强制接触发生在某一精确时刻，而是松弛互补约束、允许接触时间在窗口内浮动。
+
+> [!note] SQP 的 QP 子问题从哪来：对 KKT 系统做 Newton（不跳步）
+> **SQP (Sequential Quadratic Programming)** 直译"序贯二次规划"——把一个难的非线性规划 (NLP) 拆成一串 QP 来逼近。它与内点法（§4.3）是**同一个思想的两种落法**：都对 KKT 系统做 Newton，只是处理不等式的方式不同（内点法用障碍/中心路径把不等式变光滑，SQP 用活跃集直接线性化）。推导：对 NLP $\min_x f_0(x)$ s.t. $h(x)=0$（等式，含动力学约束）、$g(x)\le0$，其 KKT（§2.3）是关于 $(x,\nu,\lambda)$ 的**非线性方程组**。对它做**一步 Newton**，可证等价于求解如下 QP（决策变量为步长 $\Delta x$）：
+> $$\min_{\Delta x}\ \tfrac12\Delta x^T\big(\underbrace{\nabla^2_{xx}L}_{\text{拉格朗日量 Hessian}}\big)\Delta x+\nabla f_0^T\Delta x\quad\text{s.t. }\ h+\nabla h^T\Delta x=0,\ \ g+\nabla g^T\Delta x\le0.$$
+> **逐项对应**：① 目标的二次项是**拉格朗日量 $L=f_0+\nu^Th+\lambda^Tg$ 的 Hessian**（不是 $f_0$ 的——因为约束的曲率也必须进来，这一点常被跳过），实践中用 BFGS（§4.2）近似省掉二阶导；② 约束是原等式/不等式在当前点的**一阶线性化**。解出 $\Delta x$、更新 $x\leftarrow x+\alpha\Delta x$（$\alpha$ 为线搜索步长），重复至收敛。**Real-Time Iteration (RTI)** 是它的极致近似：每个控制周期**只做一次**这样的 QP（不迭代到收敛），把"没解完的误差"靠 warm-start 顺延到下一周期——用"每步最优性"换"实时性"。这与 iLQR（§6.1）互为表里：iLQR 利用**时序 Riccati 结构**消元、SQP 保留**一般约束结构**，但**内核都是 Newton-on-KKT**（§4.2 那句"Newton 是几乎所有高阶轨迹优化的计算内核"在此再次兑现）。
+
+> [!note] warm-start 为什么有效、RTI 为什么"一步就够"（补跳步 + 单位）
+> **warm-start 的数学理由**：把 MPC 每个周期的问题看成参数 $\theta$（当前状态 $x_0$，以及倒水里时变的质心/惯量）连续变化的一族 NLP。在满足 LICQ + 二阶充分条件的解处，**解映射 $\theta\mapsto z^*(\theta)$ 是 Lipschitz 连续的**（$z$＝整段轨迹的原始-对偶变量）。这不是新定理，正是 §6.2 那条**隐函数定理**作用在 KKT 系统 $F(z,\theta)=0$ 上：$\partial z^*/\partial\theta=-(\nabla_z F)^{-1}\nabla_\theta F$，只要 KKT 雅可比 $\nabla_z F$ 非奇异。于是相邻周期 $\|\Delta\theta\|$ 小 $\Rightarrow\|z^*(\theta_{k+1})-z^*(\theta_k)\|\le L_z\|\Delta\theta\|$ 也小（$L_z$＝解对参数的灵敏度/Lipschitz 常数，量纲＝轨迹变量/参数变量）——把上一时刻的解**沿时间平移一格**（$\mathrm{Shift}$），就落进新问题的 Newton 收敛域内。
+> **RTI 的"一步够"**：因 warm-start 已在收敛域内，SQP 的一次 Newton 步是**局部收缩**（$\|z_{k+1}-z^*\|\le c\|z_k-z^*\|^2$，二次收缩）；单步就把优化残差压到与"模型-真机失配"同阶——再多迭代的收益会被建模误差淹没，不划算。这就是"每周期只解一次 QP、把没解完的残差顺延到下周期"在数学上站得住的原因。
+> **跨原理联系（[[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|continuation 暗线]]）**：warm-start 本质是**在时间轴上做同伦**——把"上一时刻已解好的问题"当简单端点，沿真实动力学的连续形变把它推到"这一时刻的新问题"，连续参数就是**物理时间**本身。这与 §5.4 的同伦优化、[[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|课程即 continuation]] 共用同一把"从已解连续变形到难解"的钥匙。而接触 impact 让 $\theta$（接触模式）**突跳**、打断这条连续性——$\|\Delta\theta\|$ 不再小、Lipschitz 界失效，正是本节"warm-start 在 impact 处失效"的根，也再次落到"[[Optimization#3.1 互补约束：接触把可行域撕成"坐标轴的并集"|接触的非光滑性]]"这条全库暗线。
 
 ### 7.3 基于采样：MPPI（用并行换梯度）
 
@@ -460,6 +553,12 @@ $$u_t^*=\frac{\sum_k w_k u_t^{(k)}}{\sum_k w_k},\qquad w_k=\exp\!\big(-\tfrac1\l
 | | 优势 | 劣势 |
 |:--|:--|:--|
 | **MPPI** | ① 不需梯度（可用二值成功率等不可微 Cost）；② 天然处理多模态；③ 对模型误差不敏感 | **维数灾难**：24-DoF 手纯随机采样几乎采不到"指尖正好捏住杯沿"这种低概率高精度事件 |
+
+> [!note] "并行换梯度"的账怎么算：为什么 MPPI 天生吃 GPU（补跳步 + 单位）
+> **结构**：MPPI 每周期撒 $K$ 条控制序列 $u^{(k)}_{0:H-1}$（$K\sim10^3$–$10^4$ 条，$H$＝预测步数），每条独立 rollout 一遍动力学得代价 $S(u^{(k)})$（单位＝代价量纲）。**命门在"独立"**：$K$ 条 rollout 之间零耦合、不共享中间状态——这是**尴尬并行 (embarrassingly parallel)** 的教科书样例，正好铺满 GPU 数千个核，"一个物理步跑 $K$ 条"与"跑 1 条"几乎等时。于是 MPPI 用**宽度**（$K$ 条并行 rollout）换掉了梯度法要的**深度**（Newton 迭代必须串行）——这也是它必须配 Isaac Gym / Brax 这类 GPU 批量仿真器（§10）才实时的根本原因。
+> **温度旋钮**：权重 $w_k=\exp(-S_k/\lambda)\big/\sum_j\exp(-S_j/\lambda)$ 是对代价做 **softmin**（$\lambda>0$ 温度，单位＝代价量纲）：$\lambda\to0$ 退化成"只取最优那条"（贪心、高方差）、$\lambda\to\infty$ 退化成"所有样本等权平均"（保守、抹平多峰）。它与 §4.3 内点法的 $\mu$、[[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 温度 $\alpha$]] 是同一把"探索↔利用"旋钮（§9 暗线四）。
+> **维数灾难的定量**：要盲采到"指尖正好捏住杯沿"这类目标流形，随机命中概率随控制维度 $n_u\times H$ **指数衰减**，$K$ 必须指数增长才能覆盖——GPU 也救不了。这正是 §9 主张"iLQR 生成 nominal 轨迹 + 在其邻域采样"的原因：**把全空间盲采压缩成 nominal 附近的局部采样，让固定的 $K$ 重新够用**。
+> **跨原理联系（[[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|采样+加权 暗线]]）**：MPPI 的"撒 $K$ 条 → 按 $\exp(-S/\lambda)$ 加权 → 挪名义序列"，与 CMA-ES（§4.4）"撒 $\lambda$ 个 → 按排名加权 → 挪均值/协方差"、策略梯度"采动作 → 按 advantage 加权 → 挪网络"是**同一台机器的三种投影**，其共同物理根是 [[StochasticProcess#6.2 物理根：自由能最小化与重要性采样|自由能最小化 / 重要性采样]]。差别仅在采样空间（控制序列 vs 参数 vs 动作）与"挪什么"。
 
 > [!tip] 混合方案与跨域联系
 > 实践常用 **iLQR 生成 nominal 轨迹 + 在其附近做 MPPI 采样**：iLQR 是精准的"手术刀"、MPPI 是鲁棒的"大锤"。MPPI 的重要性采样权重 $w_k=\exp(-S/\lambda)$ 与 [[StochasticProcess|自由能最小化]] 同形，其温度 $\lambda$ 与 [[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 温度]]、§10 的 test-time RL 是同一探索-利用旋钮。MPC 正是 Optimization 与 [[ControlTheory#8. 接触隐式模型预测控制 (Contact-Implicit MPC)|ControlTheory 的接触隐式 MPC]] 的交界面。
@@ -476,6 +575,9 @@ $$u_t^*=\frac{\sum_k w_k u_t^{(k)}}{\sum_k w_k},\qquad w_k=\exp\!\big(-\tfrac1\l
 Ferrari-Canny $\epsilon$-metric 要算 6D wrench space 凸包、再求原点到凸包面的最短距离——纯几何、难对关节角 $q$ 求导（§2.1 已点出它是逐点上确界的产物）。塞进轨迹优化的 Cost 就无法回传梯度。
 
 ### 8.2 可微力闭合能量 + SDF 引导
+
+> [!note] 承接：我们到底在替换 $Q_1$ 的哪一处不可微（精确来历）
+> §8.1 只说"Ferrari-Canny $Q_1$ 不可微"，其**精确来历**在 [[ContactMechanics#3.4 抓取品质度量：抓得"有多好"|ContactMechanics §3.4]]：把 wrench 凸包写成 $\mathcal W=\{w:a_\ell^Tw\le b_\ell\}$ 后，$Q_1=\min_\ell b_\ell(G)$（原点到最近 facet 的距离，单位 N 或 N·m）是各 facet 距离的**逐点最小 (pointwise min)**。不可微来自两处：① 当"最近 facet"随关节角 $q$ 变化而**切换**时，$\mathrm{argmin}_\ell$ 跳变，$\min$ 在该处出现**次可微折点 (kink)**、梯度不连续；② 构成 $\mathcal W$ 的凸包顶点集本身随 $q$ 增删，是**组合不连续**。下面构造的可微能量 $L(q)$ 做的，正是把这个 hard-$\min$ 换成温度可调的**软最小 / 势场代理**——沿用本讲 §3.3、§5.4 的"非光滑 → 平滑化" [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|continuation]] 暗线（与 ContactMechanics §3.4 的"用 softmin 替 $Q_1$"是同一处修法的两端）。
 
 构造可微能量 $L(q)$，力闭合时最小：
 
@@ -596,6 +698,11 @@ def optimize_grasp_pose(hand_model, object_sdf, initial_q):
 - [[EUREKA: Human-Level Reward Design via Coding Large Language Models]] — LLM 奖励设计
 - [[Curriculum Learning]] — 课程学习理论（continuation method 与凸→非凸渐进，§5.4）
 - [[DemoSpeedup - Accelerating Visuomotor Policies via Entropy-Guided Demonstration Acceleration]] — 熵引导示范加速
+
+### 零阶与进化优化（§4.4）
+- [[The CMA Evolution Strategy: A Tutorial|CMA-ES 教程]] — 协方差自适应进化策略的权威推导（四步机制 + CSA 步长控制）
+- [[cmaes- A Simple yet Practical Python Library for CMA-ES|cmaes 库]] — CMA-ES 的实用实现（[[Final_WMTS|WMTS]] 隐空间任务生成器所用）
+- [[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]] — 进化算法驱动的开放式课程（环境-智能体协同进化）
 
 ### 约束优化与对偶方法
 - [[Reachability Constrained Reinforcement Learning]] — PPO/SAC-Lagrangian（拉格朗日对偶分解安全约束，§2.2）

@@ -174,3 +174,16 @@ ppo_update(policy, reward)
 ## 7. 局限与未来方向
 
 对灵巧手转笔，关键不是照搬四足 locomotion reward，而是照搬**物理归因方式**：将 reality gap 分解为 actuator gap、rigid dynamics gap、contact sensing gap，并分别给 WM 设计预测目标与损失。
+
+## 8. 簇内关联与暗线锚点
+
+> [!abstract] 运动技能/动力学簇内定位
+> - **vs [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]**：两者是 **actuator gap 的两种治法**——本文用**学习型 Actuator Network**（历史窗口吸收延迟/带宽/SEA 顺应），OmniXtreme 用**解析力矩-速度包络 + 摩擦 + 残差策略**。Delta：数据黑箱（无稳定性保证）vs 显式物理约束 + residual（可解释但需标定包络参数）。
+> - **vs [[谐波减速器与RV减速器选型核心区分依据|谐波/RV 减速器]]**：减速器篇给出 actuator gap 的**机械物理来源**（柔轮弹性 $K_\theta$、背隙、方向相关效率、双惯量反谐振），本文的 Actuator Network 学的正是这些残差的**输入-输出表现**。两者互为"病因 ↔ 数据拟合"。
+> - **vs [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]**（§5.2 note 已展开谱系）：neural dynamics 的作用对象谱——本文 = actuator（action→torque），PDDM = 系统级 forward dynamics。
+
+> [!tip] 暗线：电流 ≠ 关节力矩 / τ 身份错位（本文是该暗线的范式论文）
+> 本文的核心洞察"reality gap 不均匀分布、集中到 actuator（action→torque）、刚体保留解析"，就是 **actuation 暗线** 的方法论原型。精确锚点（挂 [[Actuation]]）：
+> - [[Actuation#10. 迁移层 II：数据驱动执行器模型 (Actuator Model)]] 与 [[Actuation#10.1 Actuator Net：学"仿真 PD 没覆盖的那段残差"]] — 本文 Actuator Network 正是这一层的开山之作
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖]] — reality gap 按物理来源分解（rigid/actuator/contact）的完整解剖
+> - 刚体侧仍由 [[Dynamics#5. 算法层：$O(N)$ 递推的"工业革命"]] 的解析多体动力学承担

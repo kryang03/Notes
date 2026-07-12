@@ -36,6 +36,18 @@ related:
 >
 > **核心技术**: MLLM Expert Code Generation, Simulation-in-the-Loop Feedback, Domain Randomization, RoboTwin-OD, Embodiment-Aware Grasp Adaptation, Bimanual VLA Benchmark
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations|MimicGen]]：都合成机器人数据；RoboTwin 加 **MLLM 代码生成闭环 + 5 轴强 DR + 跨 5 embodiment benchmark**，MimicGen 只做 $SE(3)$ segment 变换（依赖 seed demos）。
+> - vs [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation|CyberDemo]]：都 sim 数据 + DR；RoboTwin 用**程序化 expert + planner** 生成双臂数据，CyberDemo 用 **human demo seed** 做轨迹级物理增强 + few-real fine-tune。
+> - vs [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT]]：RoboTwin 的 50-task benchmark 用 ACT/DP/RDT/Pi0/DP3 评测；ACT/DP 在 Hard DR 下近乎崩溃（1.7%/0.6%），暴露无预训练 visuomotor policy 的鲁棒性缺口。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2]] — RoboTwin 的 5 轴 DR = "增覆盖"药方的数据生成实现（鲁棒优化经验近似，非 minimax）。
+> - [[EmbodiedAI#2.3 VLA 后训练：从模仿到强化|EmbodiedAI §2.3]] — 它是 VLA 后训练的**数据基础设施**（RDT/Pi0 强于 ACT/DP，但 Hard 仍掉 20-30 点）。
+>
+> **暗线**：**模仿×强化缝合线**"离线数据 / DR 侧"（下游仍是 BC/VLA FT，不解 on-policy covariate shift，宜作 PPO Oracle 前端）；**Continuation/课程**暗线——DR 分布覆盖是 continuation 的空间版。
+
 ## 0. 阅读定位与范本价值
 
 这篇论文不是又一个“仿真数据更多所以更好”的故事。它真正值得放进你的知识库，是因为它清楚展示了 synthetic robot data 要变成可用研究基础设施，至少要满足四个条件：

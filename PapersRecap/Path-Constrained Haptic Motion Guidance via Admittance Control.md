@@ -471,6 +471,13 @@ $$
 > **新 insight**：阻抗簇不只是在问“刚度 $K$ 怎么来”，还在问“交互响应性 $m_a$ 怎么来”。VICES/FACET/Data-Driven VIC 的核心元控制量是 $K(s)$ 或 $K(\phi)$，本文的核心元控制量是 $m_a(s)$。二者合起来形成柔顺控制的两维旋钮：**多硬/多软** 与 **人推一下系统走多快**。这把 $m(s)$ 家族扩展为：
 > 控制频率 $\Delta t(s)$ · 平滑度 $K(x)$ · 探索 $\lambda_{max}(s)$ · 安全裕度 · 阻抗刚度 $K(s)$ · **导纳质量 $m_a(s)$**。
 
+> [!note] Foundation 精确锚点 · 簇内 Delta · 暗线（补 §7 收官 note）
+> **Foundation 精确锚点**：$f_h\to\phi$ 的导纳映射 = [[ControlTheory#3.3 导纳控制与阻抗/导纳因果性校准|ControlTheory §3.3]]（导纳 = 力→运动，与阻抗因果相反）；底层机器人仍是阻抗 tracking = [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|ControlTheory §3.2]]；统一视角 [[ControlTheory#3.5 统一阻抗-导纳架构|ControlTheory §3.5]]；energy tank / passivity 证明 = [[ControlTheory#10.4 被动性与"价值即 Lyapunov"|ControlTheory §10.4]] 的被动性理论；operational-space 闭环 = [[Dynamics#7.3 操作空间动力学 (Khatib)：在任务空间直接设计|Dynamics §7.3]]。
+>
+> **簇内 Delta 补链**：vs [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]]——两者都在上层生成参考轨迹让底层阻抗跟踪，但 FACET 的参考=虚拟阻抗模型（RL 学参数）、本文的参考=路径 $x_d(\phi)$（人力驱动相位）；FACET 管"多软硬 $K_p$"、本文管"沿路径走多快 $m_a$"。vs [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking|Data-Driven VIC]]：两者都以相位 $\phi$ 为控制自变量，一个调阻抗、一个调 setpoint。
+>
+> **暗线 · 反驱动性**：导纳控制要求机器人能顺人力而动——底层需**可反驱**执行器或高质量力反馈，否则 $\tilde{x}$ tracking 会把人力当扰动硬顶（[[Actuation#10.2 力矩反馈为何"能当输入、不能当目标"|Actuation §10.2]]）。
+
 ## References
 
 - Shahriari, E., Svarny, P., Baradaran Birjandi, S. A., Hoffmann, M., & Haddadin, S. (2025). *Path-Constrained Haptic Motion Guidance via Adaptive Phase-Based Admittance Control*. IEEE Transactions on Robotics, 41, 1039-1060.

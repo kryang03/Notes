@@ -31,6 +31,11 @@ related:
 >
 > **核心技术**: Multi-dimensional Gradient Normalization (MGN), Adaptive Local Lipschitz $K(x)$, Jacobian Spectral Norm
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ControlTheory#10.3 输入-状态稳定性 (ISS)]] — 局部 Lipschitz 常数 $K(x)=\|\partial a/\partial s\|$ 正是策略把状态扰动放大到动作的增益；约束 $K(x)$ 即约束 ISS 意义下的输入-状态增益，抑制噪声→抖动的放大。
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 平滑（有界 Lipschitz）策略是闭环小增益/ISS 稳定的充分结构条件；LipsNet 从架构层直接给出该结构。
+> - **暗线**：LipsNet 约束的是**策略**的 Lipschitz；[[Off-Policy Interval Estimation with Lipschitz Value Iteration|Off-Policy Interval]] 约束的是**值函数**的 Lipschitz，而 [[How to Train Your Latent Control Barrier Function - Smooth Safety Filtering Under Hard-to-Model Constraints|LatentCBF]] 的核心 Theorem 证明「margin 光滑性线性传到值函数」——三者说明「价值即 Lyapunov」的证书要可用，其 Lipschitz 光滑性是前提（Delta：本文 $K(x)$ 状态自适应，Off-Policy 的 $\eta$ 全局固定）。
+
 ## 1. 问题设定与动机 ← 逻辑与价值
 
 ### 1.1 一句话核心

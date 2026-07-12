@@ -704,6 +704,25 @@ $$
 
 ---
 
+### 7.5 簇内定位与暗线锚点（触觉操作簇）
+
+在“触觉表征丰富度谱”上，HATO 位于**最朴素一端**：60 通道连续压力做 late fusion，不建模接触、不提取物理中间量。机制最弱，但采数据与部署最直接。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | AnyRotate 把触觉压成物理中间量 $(R_x,R_y,\|F\|)$ 求 sim-to-real 对齐；HATO 直接喂 raw 连续压力做 concat，靠真实数据规模而非表征设计。 |
+| [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding]] | CGP 把触觉当被预测+被执行的 contact latent；HATO 只把触觉当 observation late-fusion。CGP 有 contact grounding 机制，HATO 无。 |
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | 都靠低成本触觉，但 Touch Dexterity 二值化求 sim-to-real 一致（纯仿真训练）；HATO 用连续压力做真实 teleop BC（无仿真）。 |
+
+**精确 Foundation 锚点（补 §7.2 之外）**：
+
+- [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]]：Steak Serving 的“no-touch ActionMSE 0.07 却 success 0/10”是部分可观 MDP 的教科书案例——contact phase 是 unobserved 关键相位，权重在平均误差里被稀释。
+- [[SignalProcessing#4.1 早期滑移 (Incipient Slip) 检测|SignalProcessing §4.1]]：Ability Hand 的连续压力无 shear，做不了 §4.1 的 incipient slip，这是 HATO 迁移到转笔 release/catch 相位的硬边界。
+
+**暗线挂载（POMDP → belief）**：本文最重要 insight（MSE↔success 张力）本质是“关键接触相位不可观”；触觉是把这一相位重新带回 observation 的解药，但连续压力 late fusion 不构造显式 belief，故 rare init 才把差距显出来。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

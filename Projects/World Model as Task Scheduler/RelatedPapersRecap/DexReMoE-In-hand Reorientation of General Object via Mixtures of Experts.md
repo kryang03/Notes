@@ -26,9 +26,10 @@ related:
 > 用 **Mixture-of-Experts (MoE)** 解决"单一 monolithic 策略难泛化到多样复杂形状"的痛点：训练**多个专家策略**（不同复杂形状），用一个**软 router（gating 网络）按物体几何自适应分配专家权重**，最终动作 = 专家加权和。配 **extrinsics embedding**（局部几何+质量分布+位姿）+ point-cloud shape encoding + one-hot category 帮 router 分权。sim RL 训练，在最难场景（下垂手在空中持物、重力下）评测 150 物体，**平均连续成功 19.5**，且**最差情况从 0.69 提升到 6.05**（vs monolithic 基线）。**对 WMTS：router = 软 scheduler（按特征加权 skill-experts），是 "World Model as Task Scheduler" 的一种具体架构；而"MoE 大幅改善最差情况"正是 WMTS 要的——单一 DP generalist 在最难转笔配置会灾难性失败，专家+scheduler 能兜住。**
 
 > [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#Phase 6 — Generalist-Specialist：用蒸馏循环缝合多样性|RL §7.3 Phase 6 Generalist-Specialist]] — MoE 专家 = specialist、router = 缝合多样性的机制；与"单一 generalist"（[[Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning|Geometry-Dex]]）的张力正是本簇核心抉择。
 > - [[ReinforcementLearning]] — RL 训专家策略；MoE 多专家 + gating。
-> - [[EmbodiedAI]] — sim-to-real 灵巧泛化；OOD 物体重定向。
-> - [[Optimization]] — gating/router 软加权；extrinsics embedding 压缩表示。
+> - [[EmbodiedAI#2.2 Sim-to-Real：从仿真到真实|EmbodiedAI §2.2 Sim-to-Real]] — sim-to-real 灵巧泛化；150 OOD 物体空中重力重定向。
+> - [[Optimization]] — gating/router 软加权（凸组合）；extrinsics embedding 压缩表示。
 > - [[Final_WMTS]] — **router = 软 scheduler 的具体架构**；MoE 改善最差情况 = WMTS 专家+调度兜底。
 > - [[Dynamic Non-Prehensile Manipulation]] — 空中持物重定向（重力）；转笔需类似多专家覆盖难配置。
 >
@@ -132,6 +133,7 @@ MoE 是"分而治之 + 软组合"：泛化上界 = 专家覆盖 + router 分权�
 | 范式 | 代表 | 组合方式 |
 |---|---|---|
 | **软 router（MoE）** | 本文 DexReMoE | 专家加权和 |
+| 单一 generalist（好表示） | [[Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning|Geometry-Dex]] | 无专家、正迁移一策略兜全部（**反方**：任务够简单时 monolithic 即够） |
 | 硬选择 + residual | [[From Simple to Complex Skills- The Case of In-Hand Object Reorientation|From Simple to Complex]] | 选一技能 + 纠错 |
 | 动力学自适应单策略 | [[DyWA: Dynamics-adaptive World Action Model|DyWA]] | 单策略 + 动力学条件 |
 | 扩散先验 + 投影 | [[DEXTERITYGEN- Foundation Controller for Unprecedented Dexterity|DexGen]] | 生成 + guidance |

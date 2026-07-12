@@ -32,6 +32,16 @@ related:
 >
 > **核心技术**: Delta (residual) Action Model, 两阶段 (sim 预训→真实数据→对齐→微调), 人类动作 retarget, motion tracking, 部署去 delta, Unitree G1
 
+> [!note] 簇内定位（运动迁移 sim-to-real 簇）与精确锚点
+> **本篇 = sim-to-real 第三条哲学：保留物理 sim、学 delta-action 残差对齐。** 精确 Foundation 锚点：
+> - [[Dynamics#9. 适配层：可微物理与神经动力学]] — delta-action = 对已知物理 sim 动力学的**神经残差校正**（不重建、只对齐）。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）]] — delta-action 是"动态校正"这味药的学习式实现：用神经残差替 sys-ID 的参数标定。
+>
+> **簇内 Delta：**
+> - vs [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]：都"物理结构 + 学习残差"，但本篇残差在**动作通道** $a+\Delta a$ 且**部署去除**，SSRL 残差在**接触力通道** $F^e$ 且**永久作 WM**——本篇只为训练期对齐 sim，SSRL 的残差长期供规划/想象。
+> - vs [[Learning Agile and Dynamic Motor Skills for Legged Robots|Hwangbo actuator net]]：都学残差弥合 gap，但 Hwangbo 残差挂**执行器力矩**（物理量、永久嵌 sim），本篇挂**动作**（部署去除）——残差挂哪个物理量 + 是否保留，是分野。
+> - vs [[Sim-to-Real: Learning Agile Locomotion For Quadruped Robots|Jie Tan 2018]]：都"提 sim 保真"，但 Jie Tan 靠静态 sys-ID/手工 actuator model，本篇靠**学习 delta-action 动态对齐**——静态先验 → 数据驱动残差。
+
 ## 0. 阅读定位与范本价值
 
 ASAP 在知识库里是 **sim-to-real "第三条哲学" 的代表**，补全 sim-real gap 的处理谱系：

@@ -26,8 +26,9 @@ related:
 > 用**结构化 world model（GNN，关系归纳偏置）+ ensemble 估 epistemic uncertainty**，在 WM 内**规划朝向最大新颖性/不确定性（信息增益）**做内在动机的"好奇自由玩耍"——早期就与物体交互、逐渐复杂。自强化循环（好模型↔好探索）。**纯内在、任务无关探索后，用 model-based planning 零样本解 stacking/flipping/pick&place/throwing，并泛化到未见物体数/排列**。**对 WMTS：它给出 ensemble 不确定性的"探索（Probe）一面"——规划朝高 epistemic 不确定（GNN 集成 disagreement）去采信息丰富数据、降不确定、改进 WM；这正是 [[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]]/[[Finetuning Offline World Models in the Real World|FOWM]] 的 LCB（避不确定、安全 exploit）的对偶。WMTS scheduler 的 Solve/Probe/Reject 由同一 ensemble 不确定性驱动：Probe 求不确定（CEE-US）、Solve 避不确定（LCB）。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — 内在动机 RL；model-based planning；探索-利用。
-> - [[StochasticProcess]] — ensemble GNN 的 epistemic uncertainty；信息增益。
+> - [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性|WorldModels §3.2]] — ensemble GNN 估 epistemic；这是"**认知不确定性三用**"暗线的**探索面**，与 [[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）|§6.1 安全调度器]] 的 LCB（利用面，避不确定）互为对偶。
+> - [[InformationTheory#2.2 互信息：观测的"切割能力"]] — "规划朝最大信息增益"= 选能最大"切割"信念不确定性的动作；配 [[InformationTheory#6.2 内在动机的谱系：好奇心、惊奇、赋能、多样性|§6.2 内在动机谱系]]。
+> - [[StochasticProcess#3.2 一个必须刻进脑子的区分：Aleatoric vs Epistemic|StochasticProcess §3.2]] — ensemble disagreement 只在 epistemic 缺口张开、在 aleatoric 噪声上收敛，故天然抗 NoisyTV（与 [[Curiosity-Driven Exploration via Latent Bayesian Surprise|LBS]] 的 Bayesian surprise 同保证）。
 > - [[EmbodiedAI]] — 多物体操作；自由玩耍 → 零样本下游任务。
 > - [[Final_WMTS]] — **ensemble 不确定性的探索面（Probe）**，LCB（Solve）的对偶；结构化（关系）WM。
 >
@@ -121,10 +122,10 @@ CEE-US 给 WMTS 的 ensemble 不确定性补上**"探索（Probe）一面"**。�
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-内在动机 RL（信息增益）；model-based planning；探索-利用以 ensemble 不确定性统一。
+内在动机 RL（信息增益）；model-based planning；探索-利用以 ensemble 不确定性统一。精确落点：[[ReinforcementLearning#7.1 用信息论刻画探索|RL §7.1]]（信息论刻画探索）。
 
 ### 与 [[StochasticProcess]] 的联系
-ensemble GNN 的 epistemic uncertainty；规划朝信息增益（不确定性最大化）。
+ensemble GNN 的 epistemic uncertainty；规划朝信息增益（不确定性最大化）。精确落点：[[StochasticProcess#3.2 一个必须刻进脑子的区分：Aleatoric vs Epistemic|StochasticProcess §3.2]]——CEE-US 只朝可约 epistemic 探索，是"**认知不确定性三用**"暗线中"探索里当罗盘"的样板；与 [[Curiosity-Driven Exploration via Latent Bayesian Surprise|LBS]] 的 Bayesian-surprise 版互证。
 
 ### 与 [[EmbodiedAI]] 的联系
 多物体操作的好奇自由玩耍 → 零样本下游任务（stacking 等），泛化未见排列。

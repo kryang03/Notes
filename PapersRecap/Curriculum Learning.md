@@ -382,3 +382,26 @@ $$p_\lambda(s'|s,a) \text{ with } p_0 \text{ (simplified dynamics)} \to p_1 \tex
 | **[[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]]** | 演示轨迹 | 距演示起点的步数 | 中 | Sim-to-Real 灵巧操作 |
 | **EUREKA** | LLM 生成 | 奖励函数复杂度 | 高 | RL 奖励设计 |
 | **[[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation\|CSR]]** | 特征重要性 | 观测维度 | 中 | Sim-to-Real 传感缩减 |
+
+---
+
+## 11. 簇内坐标：本文是"课程学习簇"的总纲，也是 continuation 暗线的源头
+
+> [!abstract] 暗线锚定：Continuation / 同伦 / 平滑化
+> 本库有一条贯穿多个 Foundation 的暗线——**"先解平滑近凸子问题、再逐步引入真难度"**：接触平滑（[[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|Optimization §5.4]]）、课程学习的任务分布 $Q_0\to Q_1$、扩散的噪声→数据，都是同一思想的不同投影。本文 2009 年把"课程 = continuation method"这一等式**第一次形式化**（§3.2），因此它是这条暗线在 RL 侧的**源头文献**。簇内其余 8 篇都可读成"把 $Q_\lambda$ 的 $\lambda$ 换成不同物理量"的具体实例。
+
+本文的 $Q_\lambda(z)\propto W_\lambda(z)P(z)$ 直接对应 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]] 的开篇：该节的 [[ReinforcementLearning#Phase 1 — 手工课程与 continuation：先解平滑子问题|Phase 1 手工课程与 continuation]] 正是本文思想的 RL 化，随后 Phase 2–6（Learning Progress / PLR / ADR / POET / Generalist-Specialist）是"如何自动选 $\lambda$"的演进。本文只做到 Phase 1（人工设 `difficulty_fn`），簇内其它论文分别推进了自动化：
+
+| 簇内论文 | 把 $\lambda$（难度轴）换成了什么 | 相对本文的 Delta | 自动化到哪个 RL Phase |
+|:--|:--|:--|:--|
+| [[EUREKA: Human-Level Reward Design via Coding Large Language Models\|EUREKA]] | 奖励函数代码 + 转笔 $\omega_{target}:0.5\to2.0$ | 用 LLM 进化搜索**自动生成**课程与奖励，不再人工 `difficulty_fn` | Phase 1→自动（LLM 当课程设计器） |
+| [[Hindsight Experience Replay\|HER]] | achieved-goal 分布 $p_{\text{achieved}}(g;\pi_t)$ | 课程**隐式**涌现于 relabeling，无需显式排序难度 | Phase 2（能力边界自随策略推进） |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | demonstration reset states + ZVF success-variance | ZVF（$0<\hat p<1$）用 learning-progress **自动**选"该学处" | Phase 2/3（variance≈learning frontier） |
+| [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills\|DeepMimic]] | reference motion 的相位 $\phi$（RSI 初始分布 $\rho_0$） | 把 continuation 从"样本难度"搬到"初始状态相位覆盖" | Phase 1（相位课程仍需 reference clip） |
+| [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References\|DexTrack]] | 任务同伦路径 $T_K\to\cdots\to T_0$ | homotopy generator 从数据**学**"哪个易任务能给难任务当 baseline" | Phase 3+（conditional diffusion 生成 parent task） |
+| [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation\|Curriculum > Haptic]] | reward 系数 $c_R,c_L$ 的两阶段时序 | 把 continuation 上升为"决定 PPO learning basin 的先验"，比触觉更主导 | Phase 1（手工枚举 C1–C5） |
+| [[Vision-force-fused Curriculum Learning for Robotic Assembly\|VF-Assembly]] | 感知模态权重 $w_v,w_f$（视觉→力） | 在**观测/感知**维度做 continuation，而非样本难度 | Phase 1（预设 epoch 比例） |
+| [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation\|CSR]] | 观测特征保留比例（DRG 逐步遮蔽） | 反向 continuation：从"全特权观测"平滑退化到"真实可得观测" | Phase 1（特征重要性排序） |
+
+> [!tip] 一句话记忆锚
+> **本文给了 continuation 的"公式" $Q_\lambda$，簇内每篇都在回答"$\lambda$ 是什么、谁来调 $\lambda$"。** 从人工（本文/VF/CSR/Curriculum>Haptic）→ 半自动（DemoStart/HER/DeepMimic）→ 学习式（DexTrack homotopy / EUREKA LLM），正是 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]] Phase 1→6 的完整轨迹。这条"谁来调 $\lambda$"的自动化，最终与 [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3 无知即课程]] 汇合——用认知不确定性（该学处）反向驱动任务生成。

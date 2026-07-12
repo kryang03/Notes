@@ -33,6 +33,11 @@ related:
 >
 > **核心技术**: Lyapunov-Stable-by-Structure, Stacked-ReLU 单调控制器, 无源性, RNN 动力学展开
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ControlTheory#10.4 被动性与"价值即 Lyapunov"]] — 本文「单调递增 + 过原点 $\Rightarrow$ $\omega_i u_i(\omega_i)\ge0$」正是**无源性 (passivity)** 条件，使能量 Lyapunov 函数 $\dot V\le0$；这是该锚点「被动性」的教科书级实例。
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 用 Stacked-ReLU 把 Lyapunov 稳定嵌进网络结构（「建筑结构而非安全绳」），是 Lyapunov 直接法从「验证」变「构造」的范例。
+> - **暗线/簇内 Delta**：本文用能量作 Lyapunov、[[Safe Model-based Reinforcement Learning with Stability Guarantees|Berkenkamp]] 用价值函数作 Lyapunov（[[ReinforcementLearning#2.2 值函数与 Bellman 方程]]）——同一暗线两种载体。与 [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks|On Robust RL]]/[[LipsNet: A Smooth and Robust Neural Network with Adaptive Lipschitz Constant for High Accuracy Optimal Control|LipsNet]] 同属「结构内嵌」格（保证最强、限表达力），vs [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 的「训练时约束」。
+
 > [!abstract] 核心贡献
 > 将 **Lyapunov 稳定性**直接嵌入神经网络控制器的**结构设计**中。证明若控制器是**单调递增函数**（过原点），则系统具有唯一平衡点且局部指数稳定。用 Stacked-ReLU 网络实现单调性，并设计 RNN 框架高效训练。
 

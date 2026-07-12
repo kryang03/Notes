@@ -189,3 +189,16 @@ terrain_particles = resample_and_jitter(terrain_particles, weights)
 ## 7. 局限与未来方向
 
 对转笔任务，particle-filter curriculum 可改写为“接触模式粒子课程”：粒子不是地形参数，而是转轴、接触手指集合、摩擦/质量参数和任务速度，目标仍是维持在通才刚好可学习的边界。
+
+## 8. 簇内关联与暗线锚点
+
+> [!abstract] 运动技能/表征簇内定位
+> - **vs [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]**：两者都靠**蒸馏**得可扩展策略，但监督源不同——本文是 privileged teacher（terrain/contact 特权）→ proprioceptive student，OmniXtreme 是 multi-motion experts → Flow Matching student（DAgger）。Delta：跨地形单策略泛化（模仿单 teacher）vs 跨运动生成式统一（蒸馏多专家为分布）。
+> - **vs [[Learning Agile and Dynamic Motor Skills for Legged Robots|Learning Agile]]**：同 ANYmal 的两条 sim-to-real 主线——Learning Agile 治 **actuator gap**（前向物理，$\Delta_T$），本文治 **perception gap**（privileged→proprioceptive，$\Delta_S$/$\Delta_O$）。两者正交互补，可叠加成完整管线（结构化 WM + 特权蒸馏）。
+> - **vs [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]**：都以"降低探索难度"为目标——本文用 teacher 把稀疏成败信号密集化，PDDM 用短 horizon dense transition supervision + ensemble；两者都指向 WMTS 的 Oracle-Generalist 与 uncertainty-driven 课程。
+
+> [!tip] 暗线：Continuation / 同伦 / 平滑化（课程维持"刚好困难"）
+> particle-filter curriculum 用权重 $w_i\propto e^{-(\hat p_{succ}-p^*)^2/2\sigma^2}$ 把训练分布锁在中等难度 $p^*$——正是本库 **Continuation/课程暗线**"先解平滑近凸子问题、再逐步引真难度"的具身版。精确锚点：
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间]] — 本文课程是该谱系（Learning Progress / Regret / ADR / POET）的地形版原型
+> - [[SignalProcessing#5.2 演进脉络：KF → EKF → UKF → PF → 因子图]] — 课程用的 particle filter 与状态估计 PF 同源；student 的 TCN history 隐式做接触事件时序推断
+> - [[RepresentationLearning#4.6 序列与注意力表征：从无序集合到有序序列]] — TCN 把 proprioceptive history 压成隐式地形/接触状态

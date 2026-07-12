@@ -572,6 +572,25 @@ $$
 
 ---
 
+### 7.5 簇内定位与暗线锚点（触觉操作簇）
+
+在“触觉表征丰富度谱”上，本文用**最简的 binary tactile event**，但用法独特：不是当控制观测，而是当**视觉预训练的 contact-timing 监督**。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[Learning Visuotactile Skills with Two Multifingered Hands (HATO)]] | 都用低成本触觉+视觉，但 HATO 把触觉当实时闭环 late-fusion **observation**；本文把 binary event 当 masked-reconstruction **预训练监督**，先学 contact-relevant attention 再控制。 |
+| [[STOLA - Self-Adaptive Touch-Language Framework for Tactile Commonsense Reasoning]] | 都做触觉表征预训练：本文 MAE masked reconstruction 学跨模态共现（contact timing↔视觉区域）；STOLA MoE routing 学 modality-specific 处理。 |
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | 二值触觉的两种用法：Touch Dexterity 靠全手 contact mode **直接控制**；本文靠 contact event **监督视觉 attention**。 |
+
+**精确 Foundation 锚点（补 §7.1/§7.2 之外）**：
+
+- [[RepresentationLearning#5. 多模态融合：视触觉的交响|RepresentationLearning §5]]：IPL integration token 是 §5 融合谱系里的 pretraining-bottleneck 变体——在控制前先形成 contact-relevant 融合表征，而非把 fusion 推给策略层。
+- [[SignalProcessing#4.1 早期滑移 (Incipient Slip) 检测|SignalProcessing §4.1]]：$C_i=\mathbb 1[F_i>\delta_i]$ 保留 contact timing 但丢 shear/slip，做不了 §4.1 的 incipient slip——界定了它对转笔切向控制的失效边界。
+
+**暗线挂载（POMDP：contact event 作关键相位标签）**：binary tactile 的价值不是精确力学，而是给部分可观下的“接触发生时刻”打时间标签，使视觉 attention 从“看见手和物体”转向“看见手-物交互”（Fig. 6B）。这与 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]] 中“关键相位不可观”是同一问题的感知侧解药。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

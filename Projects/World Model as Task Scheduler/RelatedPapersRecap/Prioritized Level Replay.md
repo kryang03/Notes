@@ -25,8 +25,9 @@ related:
 > 在程序生成内容（PCG）环境里，**按"学习潜力"选择下一个训练 level（任务实例）**——而非均匀采样。关键：**TD-error 有效估计一个 level 未来的学习潜力**，用它加权采样，**自发涌现"由易到难"的课程**。在 Procgen 上显著提升样本效率与泛化（结合此前最优方法，测试回报较基线提升 76%+）。**对 WMTS：这是最直接的 "task scheduler" 先例——scheduler 按学习潜力（TD-error/regret）选下一个训练任务，自发课程化；正是 "World Model as Task Scheduler" 的调度准则，且与 Solve/Probe/Reject 三队列契合（优先调度高学习潜力的 Probe 任务）。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — TD-error 作学习潜力信号；课程 RL；PCG 泛化。
-> - [[Optimization]] — 按 score（学习潜力 + staleness）的选择性采样（active learning 式）。
+> - [[ReinforcementLearning#Phase 3 — Regret / PLR：用 GAE 优势幅度当"还能学多少"的代理]] — **PLR 就是 RL 自动课程脉络的 Phase 3**（母章 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]]）：TD-error/GAE 优势幅度作学习潜力代理。
+> - [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3]] — "学习潜力"是"**认知不确定性反向驱动课程**"暗线的价值-函数版：TD-error 高 = 尚未学会 = 该学处（WMTS 换成 ensemble disagreement/regret）。
+> - [[Optimization#4.1 用什么衡量"快"：收敛率与条件数|Optimization §4.1]] — 按 score（学习潜力 + staleness）的选择性采样，是 active-learning 式任务选择优化。
 > - [[Final_WMTS]] — **task scheduler 调度准则**（学习潜力选任务、涌现课程）；契合 Solve/Probe/Reject。
 > - [[Dynamic Non-Prehensile Manipulation]] — 转笔配置 = PCG level；按学习潜力调度配置。
 >
@@ -104,7 +105,7 @@ PCG 环境每个 level 是一个任务实例（factors of variation 的配置）
 | Solve/Probe/Reject | 高潜力优先 | **Probe 队列 = 高学习潜力任务**；但需配可行性（Reject 不可学的） |
 | 任务表示 | level id/config | 转笔配置（笔参/初始姿态/目标相位） |
 
-**核心论证（critical thinking）**：PLR 是 WMTS "task scheduler" 的**最直接调度准则来源**。WMTS 的核心是"用 WM 当 task scheduler"——而调度的关键问题是"**下一个该练哪个任务**"，PLR 给出答案：**按学习潜力（TD-error）优先**，并证明这自发涌现课程、提泛化。WMTS 的 scheduler 应把这个准则**升级**：(1) 学习潜力信号除 TD-error 外，可用 **WM 预测的 regret / ensemble disagreement**（WM 在哪不确定 = 哪有学习潜力）；(2) **配可行性判断**——PLR 的盲点是"TD-error 高但不可学"的任务会被浪费（转笔的极难配置可能 TD-error 高却学不动），WMTS 的 **Solve/Probe/Reject** 正好补上：高潜力且可行→Probe，高潜力但不可行→Reject（呼应 [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]] 的 capability-aware、[[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger]] 的失败区预测）。所以 **WMTS scheduler = PLR 学习潜力调度 + 能力/可行性过滤 + WM 不确定性信号**。**边界**：PLR 是 PCG 游戏 level，转笔配置的"学习潜力"需在接触动力学下重新定义；且 PLR 假设 level 共享 latent dynamics（转笔配置确实共享手-笔动力学，成立）。
+**核心论证（critical thinking）**：PLR 是 WMTS "task scheduler" 的**最直接调度准则来源**。WMTS 的核心是"用 WM 当 task scheduler"——而调度的关键问题是"**下一个该练哪个任务**"，PLR 给出答案：**按学习潜力（TD-error）优先**，并证明这自发涌现课程、提泛化。WMTS 的 scheduler 应把这个准则**升级**：(1) 学习潜力信号除 TD-error 外，可用 **WM 预测的 regret / ensemble disagreement**（WM 在哪不确定 = 哪有学习潜力）——这正是 [[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation|CEE-US]]（ensemble 求信息增益）与 [[Curiosity-Driven Exploration via Latent Bayesian Surprise|LBS]]（Bayesian surprise）的贡献，二者相对 PLR 的 Delta 是**把"学习潜力"精化为可约的 epistemic 部分、剔除 aleatoric 噪声**（PLR 的 TD-error 不区分二者）；(2) **配可行性判断**——PLR 的盲点是"TD-error 高但不可学"的任务会被浪费（转笔的极难配置可能 TD-error 高却学不动），WMTS 的 **Solve/Probe/Reject** 正好补上：高潜力且可行→Probe，高潜力但不可行→Reject（呼应 [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Parkour]] 的 capability-aware、[[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger]] 的失败区预测）。所以 **WMTS scheduler = PLR 学习潜力调度 + 能力/可行性过滤 + WM 不确定性信号**。**边界**：PLR 是 PCG 游戏 level，转笔配置的"学习潜力"需在接触动力学下重新定义；且 PLR 假设 level 共享 latent dynamics（转笔配置确实共享手-笔动力学，成立）。
 
 ### 6.2 可验证实验建议
 - WMTS scheduler 用 PLR 准则：按 TD-error/WM-regret 选转笔配置训练，对照均匀采样，测样本效率 + 涌现课程。
@@ -119,10 +120,10 @@ PCG 环境每个 level 是一个任务实例（factors of variation 的配置）
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-TD-error 作学习潜力信号；课程 RL；PCG 泛化（过拟合训练经验的对策）。
+TD-error 作学习潜力信号；课程 RL；PCG 泛化（过拟合训练经验的对策）。精确落点：[[ReinforcementLearning#Phase 3 — Regret / PLR：用 GAE 优势幅度当"还能学多少"的代理|RL §7.3 Phase 3]] 就是本文；它承 [[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|ADR]]（Phase 4 生长边界）之前、启 [[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]（Phase 5 生成任务）之后——**PLR 只"选"、POET 才"造"**（这是二者的精确 Delta）。**暗线 = Continuation**：随策略进步高潜力 level 由易转难，是任务空间上的平滑化续延。
 
 ### 与 [[Optimization]] 的联系
-按 score（学习潜力 + staleness）的选择性采样，是 active learning 式的任务选择优化。
+按 score（学习潜力 + staleness）的选择性采样，是 active learning 式的任务选择优化（[[Optimization#4.1 用什么衡量"快"：收敛率与条件数|Optimization §4.1]] 的"把算力投在信息最大处"思想）。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS task scheduler 的调度准则（学习潜力选任务、涌现课程）；WMTS 升级为 WM-regret/ensemble 信号 + Solve/Probe/Reject 可行性过滤。

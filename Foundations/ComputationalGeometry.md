@@ -135,6 +135,12 @@ related:
 
 GJK 及其扩展 EPA 是现代物理引擎（Bullet/MuJoCo/PhysX）的基石。
 
+> [!note] 前置：BVH 层次包围盒——为什么 GJK/EPA 之前必须先"广相剔除"（补 §1.1 表与 §8 只提未讲的 BVH）
+> §1.1 与结论 §8 都点了 **BVH (Bounding Volume Hierarchy)** 是"底层广相剔除"，却没讲它为什么必要、省了多少——这里补上。**问题**：抽屉里有 $n$ 个物体，两两检测是 $\binom{n}{2}=O(n^2)$ 对，每对都跑一次 GJK 太贵（$n$=物体数，无量纲）。**广相 (broad-phase) / 窄相 (narrow-phase) 分工**由此而生：先用**廉价包围体**（AABB 轴对齐盒 / 包围球，一次盒-盒相交测试仅 6 次浮点比较、代价 $O(1)$）快速否掉绝大多数"离得远、根本不可能碰"的对，只把少数"可能碰"的对送进窄相的 GJK/EPA 精算。
+> **逐步：为什么层次结构把 $O(n^2)$ 压到 $O(n\log n)$**。把 $n$ 个物体的包围体自底向上两两合并成一棵二叉树，每个**内部节点**存"包住其整棵子树全部物体的大包围体"。查询物体 $A$ 与谁相撞时从根往下：若 $A$ 的包围体与某节点的包围体**不相交**，则该节点下**整棵子树一次性剪掉**（$A$ 不可能碰其中任何一个）——一次 $O(1)$ 的盒-盒测试省掉整枝。树高 $O(\log n)$，故单物体查询期望 $O(\log n)$、全体 $O(n\log n)$。这与 §3.1 支持函数"不显式构建 $A\ominus B$"是同一哲学：**用结构剪掉不必要的暴力枚举**。
+> **失效边界**：① 物体挤成一堆（抽屉塞满）时包围体大量重叠、剪枝几乎失效，退化回 $O(n^2)$；② **旋转**让 AABB 松动（长杆斜放时 AABB 远大于物体本体，产生大量假阳性对），须改用 OBB（有向包围盒）或每帧 refit。
+> **落点 / 跨模块**：这套"广相剔除 + 窄相精算"正是物理引擎接触流水线的第一步——[[Dynamics#6. 仿真层：接触动力学的深水区|仿真层接触求解]] 每个 substep 都先做 broad-phase 再进 LCP/PGS；BVH 还天然吃 **temporal coherence**——上一帧的树几乎能整棵复用、只 refit 动过的叶子，与 [[ContactMechanics#5.2 两类求解器：直接 vs 迭代|接触求解 warm-start]]、§3.1 的 Hill Climbing 是同一条"用时间连续性换掉从头重算"的思想。
+
 ### 3.1 支持函数：GJK 的灵魂
 
 支持函数把复杂形状抽象成一个方向查询——"在方向 $\mathbf d$ 上物体最极端的点"：
@@ -144,6 +150,12 @@ s_A(\mathbf d)=\arg\max_{\mathbf x\in A}(\mathbf x\cdot\mathbf d),\qquad s_C(\ma
 $$
 
 后一式让我们**从不显式算 $C$，却能在 $C$ 的空间里漫游**（兑现 §2.2 的"隐式懒查询"）。
+
+> [!note] 逐步推导：为什么 $s_C(\mathbf d)=s_A(\mathbf d)-s_B(-\mathbf d)$（那个"减号"和"$-\mathbf d$"从哪来）
+> 从支持函数**值** $h_C(\mathbf d)=\max_{\mathbf c\in C}\langle\mathbf d,\mathbf c\rangle$ 出发，代入 $C=A\ominus B$，即 $\mathbf c=\mathbf a-\mathbf b$（$\mathbf a\in A,\ \mathbf b\in B$ 相互独立）：
+> $$h_C(\mathbf d)=\max_{\mathbf a\in A,\ \mathbf b\in B}\langle\mathbf d,\ \mathbf a-\mathbf b\rangle=\underbrace{\max_{\mathbf a\in A}\langle\mathbf d,\mathbf a\rangle}_{h_A(\mathbf d)}\;+\;\max_{\mathbf b\in B}\langle\mathbf d,-\mathbf b\rangle.$$
+> **关键一步**：因 $\mathbf a,\mathbf b$ 相互独立，对二元组的 $\max$ 可**拆成两个独立 $\max$ 之和**（这一步常被跳过，其实依赖"可行域是笛卡尔积 $A\times B$"）。再看第二项：$\langle\mathbf d,-\mathbf b\rangle=\langle-\mathbf d,\mathbf b\rangle$，故 $\max_{\mathbf b}\langle-\mathbf d,\mathbf b\rangle=h_B(-\mathbf d)$——**这就是"减号"与"$-\mathbf d$"的来历**：在 $A$ 里朝 $\mathbf d$ 找最远点、在 $B$ 里朝 $-\mathbf d$ 找最远点，两点相减即得 $C$ 的支持**点** $s_C(\mathbf d)=s_A(\mathbf d)-s_B(-\mathbf d)$。
+> 符号：$\mathbf d$（无量纲搜索方向）；$\mathbf a,\mathbf b,\mathbf c$（位置向量，单位 m）；$h_A,h_B,h_C$（支撑距离，单位 m）。凸性红利也在此显形——$h$ 对 $\mathbf d$ 天然是凸（逐点取 $\max$ 保凸），呼应 [[Optimization#2.1 凸集与凸函数：为什么"凸"是分水岭|凸的分水岭]]。
 
 > [!note] 数学本质：支持函数 = Gauge 函数的 Fenchel 共轭
 > 凸集 $A$ 的 Gauge 函数 $\gamma_A(\mathbf x)=\inf\{t>0:\mathbf x\in tA\}$，支持函数 $h_A(\mathbf d)=\sup_{\mathbf x\in A}\langle\mathbf d,\mathbf x\rangle$ 正是 $\gamma_A$ 的 **Fenchel 共轭**（与 [[Optimization#2.2 拉格朗日对偶：把约束"价格化"|凸优化对偶]]同源）。几何意义：$h_A(\mathbf d)$ 是法向为 $\mathbf d$ 的支撑超平面"刚好贴住" $A$ 时到原点的有符号距离——这就是为什么支持函数能直接给出**分离超平面**。
@@ -183,12 +195,25 @@ def gjk_intersection(shape_a, shape_b):
 #   数值陷阱：近共线/近共面时叉积≈0，须引入 EPSILON 处理退化，否则除零/精度爆炸。
 ```
 
+> [!note] 逐步拆解 `handle_simplex`：为什么"降维 Voronoi 搜索"能判定原点被包围
+> GJK 的核心不变式：**每次新加入的支持点 $\mathbf a=s_C(\mathbf d)$ 一定在当前搜索方向 $\mathbf d$ 上"越过"了原点**——否则 `np.dot(a, d) < 0` 已触发早退，说明连"该方向最极端的点"都没盖住原点、$C$ 不可能含原点。有了这条不变式，我们**永远不必回头查 $\mathbf a$ 背后的区域**，搜索空间每步降一维：
+> - **线段 $[\mathbf a,\mathbf b]$**（$\mathbf b$ 是上一支持点，$\mathbf{ao}=-\mathbf a$ 指向原点）：原点要么落在**边 $\mathbf a\mathbf b$ 的 Voronoi 区**（新方向取"垂直于 $\mathbf a\mathbf b$、指向原点"的分量 $\mathbf d=(\mathbf{ab}\times\mathbf{ao})\times\mathbf{ab}$，保留整条线段），要么落在**顶点 $\mathbf a$ 的区**（$\mathbf d=\mathbf{ao}$，丢弃 $\mathbf b$）。**不可能落在 $\mathbf b$ 一侧**——因为 $\mathbf a$ 是朝"上一 $\mathbf d$（当时指向原点）"方向的最远点，原点已被压在 $\mathbf a$ 这半边。
+> - **三角形 / 四面体**：同理逐个 Voronoi 特征（面 / 边 / 顶点）判断原点归属，保留该特征、丢弃其余、把 $\mathbf d$ 设为"该特征指向原点"的外法向。四面体若把原点裹在内部 → `contains=True`，判定相交。
+> 每一步都在"砍掉一个不含原点的半空间"，故 3D 中通常 $\le 4$ 步收敛——这与 §3.1 表里 Hill Climbing 的 temporal coherence 一样，都是"用几何结构换掉暴力枚举"。
+
 ### 3.2 EPA：从"撞了"到"撞多深、往哪退"
 
 GJK 只告诉你"撞了"。物理模拟还需**穿透深度**和**接触法向**。**EPA (Expanding Polytope Algorithm)** 接管 GJK 终止时那个含原点的 simplex，向外"炸开"：① 以四面体为初始多面体；② 找离原点最近的面（距离 $d$、法向 $\mathbf n$）；③ 沿 $\mathbf n$ 查支持点 $p$；④ 若 $p$ 到原点距离与 $d$ 之差 $<\epsilon$ 则收敛——$d$=穿透深度、$\mathbf n$=接触法向；⑤ 否则把 $p$ 加入、移除对 $p$ 可见的面、修补多面体，回到②。
 
 > [!warning] EPA 是工程噩梦，但法向至关重要
 > 曲面上面数可能无限增长（需 `MAX_ITERATIONS`）；穿透深或接触面平时，最近面会因浮点误差在相邻面间跳动（数值震荡）；高效实现需维护半边数据结构。**为什么对灵巧操作至关重要**：软指会微小穿透，EPA 给的法向**直接决定摩擦锥方向**，进而决定抓取是否满足 [[ContactMechanics#3.2 力闭合 vs 形闭合：抓取稳定性的数学条件|力闭合]]——**法向算错，抓取稳定性分析全盘失效**。抽屉取钥匙时，正是 EPA 的法向告诉手指"该往哪个方向退出抽屉壁、又不松开钥匙"。
+
+> [!note] 逐步推导：为什么"离原点最近的面"就给出穿透深度与退出方向（= 最小平移向量 MTV）
+> **穿透深度的严格定义**：把 $A$ 平移 $\mathbf t$ 使 $A,B$ 恰好脱离重叠所需的**最短位移** $\min\|\mathbf t\|$（单位 m）。回到 §2.1 的化归——"$A,B$ 重叠" $\iff\mathbf 0\in\mathrm{int}(C)$（$C=A\ominus B$）；把 $A$ 平移 $\mathbf t$ 等价于把整个 $C$ 平移 $\mathbf t$，"恰好脱离" $\iff$ 平移后原点落到边界 $\partial C$ 上。于是
+> $$\text{穿透深度}=\min_{\mathbf y\in\partial C}\|\mathbf y-\mathbf 0\|=\text{原点到 }C\text{ 边界的最短距离},$$
+> $\mathbf y$ 为边界点（单位 m）。因 $C$ 凸，最近边界点 $\mathbf y^\star$ 必落在某个面上，且由凸集**最近点的一阶最优条件**，该面的外法向 $\mathbf n$ 恰好从原点指向 $\mathbf y^\star$：$\mathbf y^\star=d\,\mathbf n$，其中 $d=\|\mathbf y^\star\|$（面到原点距离）、$\mathbf n$（单位法向，无量纲）。故 $d=$ 穿透深度、$\mathbf n=$ 接触法向、$-\mathbf n$（对 $A$ 而言）= 最小退出方向（**MTV, Minimum Translation Vector**）。
+> **为什么必须"炸开"多面体**：GJK 结束时的 simplex 只是 $C$ 的一个**内接**多面体，其最近面未必贴住真边界；EPA 沿当前最近面法向 $\mathbf n$ 查支持点 $\mathbf p=s_C(\mathbf n)$（§3.1），把边界"顶"出去。当 $\langle\mathbf p,\mathbf n\rangle-d<\epsilon$（新支持点不比该面更远）时判定抵达真边界、收敛——这也解释了 §3.2 警告里"最近面浮点跳动"的病灶：当多个面到原点几乎等距时，$\arg\min$ 在它们之间反复横跳。
+> **落点（几何 → 力学的翻译）**：这个穿透深度正是 [[ContactMechanics#5.1 互补条件与 LCP 的构建|接触互补条件]] 里 signed gap $\phi<0$ 的那一支、也是 [[Dynamics#6.1 LCP 流派|LCP 接触求解]] 计算法向冲量的输入——**几何的穿透深度 = 力学的约束违反量**。这条正挂在"接触的非光滑性"暗线上：穿透深度在接触瞬间跳变、多值，正是 [[Optimization#3.1 互补约束：接触把可行域撕成"坐标轴的并集"|互补约束非凸景观]] 的几何根。
 
 ------
 
@@ -206,6 +231,22 @@ J_{obs}(\mathbf q)=\sum_{\mathbf x\in\text{Robot}(\mathbf q)}\max(0,\ \epsilon-\
 $$
 
 它在安全距离 $\epsilon$ 外为零、进入危险区后陡升，梯度 $-\nabla\phi$ 产生把手推离障碍的"虚拟力"。这正是抽屉取钥匙时"贴近壁就被推开、留出余量平滑伸入"的机制。
+
+> [!note] 逐步推导：为什么 $\nabla\phi$ 是**单位外法向**、且 $\|\nabla\phi\|=1$（Eikonal 方程）
+> 取外部一点 $\mathbf x$（$\phi>0$），设其边界最近点 $\mathbf y^\star(\mathbf x)=\arg\min_{\mathbf y\in\partial\Omega}\|\mathbf x-\mathbf y\|$，于是 $\phi(\mathbf x)=\|\mathbf x-\mathbf y^\star\|$。
+> **第一步（方向）**：对 $\mathbf x$ 求梯度。表面上 $\mathbf y^\star$ 也随 $\mathbf x$ 变，但由**包络定理 (envelope theorem / Danskin)**：$\mathbf y^\star$ 是内层最小化的解，满足一阶最优 $\partial\|\mathbf x-\mathbf y\|/\partial\mathbf y\big|_{\mathbf y^\star}=\mathbf 0$，故"$\mathbf y^\star$ 随 $\mathbf x$ 移动"那部分对总导数**零贡献**——可把 $\mathbf y^\star$ 当常量求导：
+> $$\nabla\phi(\mathbf x)=\nabla_{\mathbf x}\|\mathbf x-\mathbf y^\star\|=\frac{\mathbf x-\mathbf y^\star}{\|\mathbf x-\mathbf y^\star\|}.$$
+> 这是一个**从最近边界点指向 $\mathbf x$ 的单位向量**，即"离开最近障碍最快的方向"。
+> **第二步（模长=1 → Eikonal）**：上式分子长度为 $\|\mathbf x-\mathbf y^\star\|$、分母同为此长度，故 $\|\nabla\phi\|=1$。物理意义：距离场是"斜率恒为 1 的斜坡"——**离边界远 1 米，$\phi$ 恰增 1 米**。写成偏微分方程即 **Eikonal 方程** $\|\nabla\phi(\mathbf x)\|=1$（$\phi$ 单位 m，$\nabla\phi$ 无量纲）。
+> **第三步（=法向）**：令 $\mathbf x\to\partial\Omega$，则 $\mathbf y^\star\to\mathbf x$，梯度极限即边界处的**单位外法向 $\mathbf n$**：$\nabla\phi\big|_{\partial\Omega}=\mathbf n$。**这就是"梯度=法向"的来历**，也是 SDF 能直接喂 [[ContactMechanics#2.1 曲面微分几何基础：高斯标架、度量与曲率|接触法向/曲面标架]]（进而摩擦锥）的原因。
+> **失效边界（medial axis / 骨架轴）**：若 $\mathbf x$ 到边界有**两个及以上等距最近点**（如两壁正中），$\mathbf y^\star$ 不唯一，$\phi$ 在此**不可微**（出现 $|x|$ 型尖脊），$\|\nabla\phi\|=1$ 只"几乎处处"成立。这条不可微集合称 **medial axis（中轴/骨架）**——它正是抽屉两壁正中、梯度左右打架致 §4.2 局部极小的几何根源。
+
+> [!note] 补：medial axis 是"边界的 Voronoi 图"——把 §3.1 的 Voronoi、§4.1 的骨架、"接触非光滑"缝到一起
+> §3.1 的 `handle_simplex` 反复用"降维 **Voronoi 区域**搜索"，§4.1 又冒出不可微的 **medial axis（中轴）**——两者其实是**同一个几何对象**，这里讲透，顺带补上本讲一直隐含却没定义的 Voronoi/Delaunay。
+> **Voronoi 图定义**：给定一组"种子点" $\{\mathbf s_i\}$，空间被划成若干 **Voronoi 胞** $V_i=\{\mathbf x:\|\mathbf x-\mathbf s_i\|\le\|\mathbf x-\mathbf s_j\|\ \forall j\}$——即"离 $\mathbf s_i$ 比离任何其他种子都不远的点"。相邻两胞的**公共边界**恰是"到两个种子等距"的点集。**Delaunay 三角化**是它的**对偶图**（把 Voronoi 相邻的种子连边），二者一一对应、互为对偶（这也是 §3.1 `handle_simplex` 里"保留最近 Voronoi 特征、丢弃其余"的合法性来源——原点只可能落在某一个特征的 Voronoi 胞里）。符号：$\mathbf s_i,\mathbf x$（位置，单位 m）。
+> **逐步：medial axis = 把"种子"换成整条障碍边界 $\partial\Omega$ 的 Voronoi 图**。§4.1 定义 SDF 用了最近边界点 $\mathbf y^\star(\mathbf x)=\arg\min_{\mathbf y\in\partial\Omega}\|\mathbf x-\mathbf y\|$；把整条边界 $\partial\Omega$ 当作连续的"种子集"，则 **medial axis** 就是"到 $\partial\Omega$ 有 $\ge2$ 个等距最近点"的 $\mathbf x$ 集合——这**逐字**就是 Voronoi 公共边界的定义。抽屉两壁正中那条线上，左右壁各贡献一个等距最近点，正落在 medial axis 上。
+> **为什么它必然不可微（挂"接触的非光滑性"暗线）**：在 medial axis 上 $\mathbf y^\star$ 从"选左壁"跳到"选右壁"，梯度 $\nabla\phi=\dfrac{\mathbf x-\mathbf y^\star}{\|\mathbf x-\mathbf y^\star\|}$（§4.1）随之**方向突变**——$\phi$ 出现 $|x|$ 型尖脊，此处次梯度是一整个**集合**而非单一向量。这与 [[Optimization#3.1 互补约束：接触把可行域撕成"坐标轴的并集"|接触互补约束]] 的非光滑是**同源的几何病**：接触在 signed gap $=0$ 处切换"接触/分离"、medial axis 在等距处切换"最近的是哪面壁"，二者都让梯度多值、让 [[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|梯度优化器]] 在此打摆子（正是 §4.2 局部极小的根、也是 [[Dynamics#6.4 仿真伪影：策略学到的是真物理还是 bug？|仿真接触抖动]] 的几何近亲）。
+> **落点**：故实用 SDF 优化要么**避开** medial axis（好初值 / 全局规划器绕行），要么把尖脊**平滑掉**（log-sum-exp 软化 $\min$、或 §5 Neural SDF 的 $C^\infty$ 近似）——后者正是"Continuation / 平滑化"暗线在几何里的一次现身：先把非光滑处磨圆，梯度才敢流。
 
 ### 4.2 为什么 SDF 优于布尔碰撞：零梯度问题
 
@@ -247,6 +288,21 @@ def optimize_path(waypoints, obs_c, obs_r, lr=0.01, iters=100, eps=0.5):
 
 DeepSDF 学 $f_\theta(\mathbf x,\mathbf z)\approx\mathrm{SDF}(\mathbf x)$：输入 3D 坐标 $\mathbf x$ + 形状编码 $\mathbf z$，输出标量距离。它是**自解码器 (auto-decoder)** 架构——训练时同时优化网络参数 $\theta$ 和每个样本的 latent $\mathbf z_i$。两大优势：① **非凸拓扑的平滑近似**——对薄壁、孔洞（如镂空把手、钥匙齿）比凸分解更精确；② **数据驱动补全**——视觉只看到正面 (partial view) 时，DeepSDF 基于先验"脑补"背面几何，这对规划抓取点至关重要（正是抽屉里只见钥匙一角的场景）。
 
+> [!note] 逐步推导：auto-decoder 为什么"没有编码器"也能给新物体求 latent $\mathbf z$（test-time MAP 优化）
+> §5.1 说 DeepSDF 是 **auto-decoder**——只有解码器 $f_\theta(\mathbf x,\mathbf z)$、**没有 encoder**。那推理时来了一个**新**物体（只观测到抽屉里钥匙一角的几个点 $\{(\mathbf x_k,s_k)\}$，$s_k$ 为该点的 SDF 观测、表面点取 $s_k=0$），怎么拿到它的 $\mathbf z$？——**不是前向编码，而是解一个小优化**。
+> **训练时**（回顾）：对第 $i$ 个形状同时优化网络 $\theta$ 和它专属的 latent $\mathbf z_i$，配高斯先验 $\mathbf z\sim\mathcal N(\mathbf 0,\sigma^2 I)$：$\displaystyle\min_{\theta,\{\mathbf z_i\}}\sum_i\Big[\sum_k\big|f_\theta(\mathbf x_{ik},\mathbf z_i)-s_{ik}\big|_{\text{clamp}}+\tfrac{1}{\sigma^2}\|\mathbf z_i\|^2\Big]$。
+> **推理时**（关键）：**冻结** $\theta$，只对新物体的 $\mathbf z$ 做 **MAP 估计**——
+> $$\hat{\mathbf z}=\arg\min_{\mathbf z}\ \underbrace{\sum_k\big|f_\theta(\mathbf x_k,\mathbf z)-s_k\big|}_{\text{数据似然：拟合观测到的表面}}\ +\ \underbrace{\tfrac{1}{\sigma^2}\|\mathbf z\|^2}_{\text{高斯先验：拉回"常见形状"流形}}.$$
+> 符号：$\mathbf z\in\mathbb R^{256}$（形状码，无量纲）；$\mathbf x_k$（观测点，单位 m）；$s_k$（观测 SDF，单位 m）；$\sigma^2$（先验方差，控制"允许多偏离平均形状"，单位 = 码空间无量纲）。用几步梯度下降（$\nabla_{\mathbf z}f_\theta$ 由自动微分给出）即收敛。**这正是 auto-decoder 的精髓**：把"编码"从一次前向变成一次**优化**——好处是同一套 $\theta$ 能靠**先验补全**遮挡：先验项把 $\mathbf z$ 拉向"合理钥匙"的流形，于是被抽屉遮住的背面/齿被脑补出来；代价是推理要跑迭代（§5.2 警告的"反传求 latent 慢"的来历）。
+> **跨模块（挂"Continuation / 平滑化"暗线）**：latent 空间是**光滑**的——两个形状码 $\mathbf z_a,\mathbf z_b$ 的线性插值 $\mathbf z(t)=(1-t)\mathbf z_a+t\mathbf z_b$（$t\in[0,1]$）解出一族**连续渐变**的形状，是一条**形状空间里的同伦**；与 [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|优化的 continuation/平滑化]]、扩散把"噪声→数据"逐步去噪（[[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器|扩散策略]]）是同一条暗线的不同化身——都在"先在光滑近凸的空间里走、再落到目标"。而这个 MAP 优化本身，就是 [[Optimization#4.2 二阶方法：用曲率把步数压到个位数|无约束优化]] 的一个具体实例（L2 先验项 = Tikhonov 正则，恰保证解良态）。
+
+> [!note] 逐步推导：NeRF 体渲染积分——另一种"神经几何"，及它与 SDF 的"平滑化"桥 (VolSDF/NeuS)
+> DeepSDF 学的是**面**（零水平集 $\{f_\theta=0\}$）；**NeRF** 学的是**体密度** $\sigma(\mathbf x)\ge0$（单位 m⁻¹，"每米被吸收/散射的概率密度"）+ 颜色 $\mathbf c(\mathbf x,\mathbf d)$（RGB，无量纲）。为什么灵巧操作要关心它？——它是"**只用多视角 RGB、无需深度传感或 CAD 就重建几何**"的主流路径：抽屉里那把没有 mesh 的钥匙，可以这样被重建成一个可查询的几何场。
+> **逐步：一条光线的颜色怎么积出来**。从相机沿方向 $\mathbf d$ 发一条光线 $\mathbf r(t)=\mathbf o+t\mathbf d$（$t$=沿线距离，单位 m；$\mathbf o$=相机中心，m）。定义**透射率** $T(t)=\exp\!\big(-\!\int_{t_n}^{t}\sigma(\mathbf r(s))\,ds\big)$——"光走到 $t$ 处还没被挡住的概率"（无量纲，$\in(0,1]$）。它满足 $\frac{dT}{dt}=-\sigma\,T$：每走一小段 $ds$、存活率按当前密度指数衰减（Beer–Lambert 定律）。于是像素颜色是**沿线加权积分**：
+> $$\hat{\mathbf C}(\mathbf r)=\int_{t_n}^{t_f} T(t)\,\sigma(\mathbf r(t))\,\mathbf c(\mathbf r(t),\mathbf d)\,dt,\qquad T(t)=\exp\!\Big(-\!\int_{t_n}^{t}\sigma\,ds\Big).$$
+> 权重 $w(t)=T(t)\,\sigma(t)$ 的物理意义：**"光恰在 $t$ 处第一次撞到实体"的概率密度**（存活到 $t$ 的概率 $T$ × 在 $t$ 被挡的密度 $\sigma$），它自动在"表面"处形成尖峰。符号：$t_n,t_f$（近/远裁剪距离，m）。离散化为分层采样求和即可自动微分、端到端训。
+> **跨模块（"Continuation / 平滑化"暗线的又一次现身）**：纯 NeRF 的密度场是**软**的（表面被抹成一层有厚度的雾），几何锐利度差、其"梯度"不是真几何法向（重蹈 §5.2 的 ghost geometry）。**VolSDF / NeuS** 把二者缝合——令密度是 SDF 的函数 $\sigma(\mathbf x)=\alpha\,\Psi_\beta\!\big(-\phi(\mathbf x)\big)$，其中 $\phi$ 是 SDF（单位 m）、$\Psi_\beta$ 是尺度 $\beta$ 的拉普拉斯分布 CDF、$\alpha,\beta>0$。**关键：$\beta$ 就是一个 continuation / 退火参数**——$\beta$ 大时密度弥散（软、梯度处处非零、好优化），训练中令 $\beta\to0$，密度收敛成贴着零水平集的**硬表面**，[[ContactMechanics#2.1 曲面微分几何基础：高斯标架、度量与曲率|良定义的法向与曲率]]才回来。这与 [[Optimization#3.3 接触优化的复杂度困境与平滑化权衡|接触优化的平滑化权衡]]、[[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|让梯度穿过接触]] **逐字同构**：先解一个平滑近凸的软问题、再逐步逼近真难度。**落点**：唯有 VolSDF 出来的 $\phi$ 满足 §4.1 的 Eikonal，才敢当接触法向/曲率来源喂 §6 的滚动接触；纯密度场做不到。
+
 ### 5.2 NGDF：把抓取从采样变成梯度优化
 
 DeepSDF 表示物体表面，**NGDF (Neural Grasp Distance Field)** 把它推广到任务空间：学 $f(\mathbf T_{ee})=d_{grasp}$——输入末端执行器 6D 位姿，输出"距成功抓取流形的距离"。
@@ -256,6 +312,14 @@ DeepSDF 表示物体表面，**NGDF (Neural Grasp Distance Field)** 把它推广
 
 > [!warning] 神经几何的风险：幽灵几何 (Ghost Geometry)
 > 神经 SDF 需大量离线数据；推理时反传求 latent $\mathbf z$ 可能慢；更危险的是网络在训练分布外产生**非物理伪影**（ghost geometry），致机器人去躲不存在的障碍、或对着错误法向发力。这是可微物理研究的热点——必须用 Eikonal 约束（$\|\nabla\phi\|=1$）、法向校准、接触验证来约束（与 [[RepresentationLearning|表征学习]] 的几何归纳偏置、[[InformationTheory#3.1 隐式曲面高斯过程 (GPIS)|GPIS]] 的不确定性量化互补）。
+
+> [!note] 逐步推导：Eikonal 正则如何"驯服"神经 SDF（把 §4.1 的定律变成训练损失）
+> §4.1 证明了**真正的** SDF 处处满足 $\|\nabla\phi\|=1$。但神经网络 $f_\theta$ 训练时通常只被"表面点 $f=0$、少量采样点 $f\approx$ GT 距离"这类监督约束——**离表面较远处的取值几乎自由**。后果：网络能完美拟合零水平集 $\{f_\theta=0\}$（形状看着对），却在空间里给出**乱七八糟的场值**，其梯度 $\nabla f_\theta$（被当作法向、被当作避碰排斥方向用）指向错误——这正是上面警告的 **ghost geometry / 错误法向** 的机理。
+> **修法**：Implicit Geometric Regularization (IGR) 加一项 **Eikonal 损失**
+> $$\mathcal L_{\text{eik}}=\mathbb E_{\mathbf x\sim\mathcal X}\big(\|\nabla_{\mathbf x} f_\theta(\mathbf x)\|-1\big)^2,$$
+> 其中 $\mathbf x$ 在空间中随机采样、$\nabla_{\mathbf x}f_\theta$ 由自动微分求得（无量纲），$\mathcal X$ 为采样分布。它把"距离场斜率恒为 1"这条**几何定律当作软约束**压给网络：一旦满足，$f_\theta$ 才是**真**的有符号距离、其梯度才是可信的单位法向。
+> **为什么这是"物理归纳偏置"**：它与 [[RepresentationLearning#1.2 接触的非凸非光滑：神经网络的"均值化"陷阱|神经网络的"均值化"陷阱]] 是一体两面——无归纳偏置时网络会把非光滑几何"抹平"成物理上无意义的插值；Eikonal 恰好给几何领域注入正确的场结构（挂"Continuation / 平滑化"暗线：先把场约束成良性结构，梯度才能安全地流进 [[Optimization#8.2 可微力闭合能量 + SDF 引导|可微抓取合成]]）。
+> **落点（灵巧操作）**：只有 Eikonal-正则过的 Neural SDF，其 $\nabla f_\theta$ 才敢直接当接触法向去算摩擦锥、当曲率来源去做 §6.2 的滚动接触——否则"幽灵法向"会让手指对着不存在的面发力。
 
 ------
 

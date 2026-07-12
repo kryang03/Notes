@@ -17,6 +17,7 @@ aliases:
 created: 2026-01-31
 related:
     - "[[Dynamics]]"
+    - "[[Actuation]]"
     - "[[Optimization]]"
     - "[[ContactMechanics]]"
     - "[[SignalProcessing]]"
@@ -30,6 +31,7 @@ related:
 
 > [!tip] 相关领域
 > - [[Dynamics]] — 动力学方程是控制律的设计对象；操作空间动力学共用一套 $\Lambda/\bar J$
+> - [[Actuation]] — 本讲的串级环、观测器、相位裕度、阻抗都要落到真实电机+减速器上；"电流环=一阶系统、热漂移=时变增益"的完整展开在执行器讲
 > - [[ContactMechanics]] — 接触力学定义了力控的约束（摩擦锥、力闭合）；Montana 决定滚动
 > - [[Optimization]] — MPC/轨迹优化是现代控制的核心工具；LQR↔iLQR↔QP
 > - [[SignalProcessing]] — 状态估计（KF/EKF/PF）与频域分析是控制的感知前端
@@ -117,6 +119,34 @@ $G(j\omega)=|G(j\omega)|e^{j\phi(\omega)}$。**Bode 图**画幅频/相频随频�
 | 相位裕度 | 还能承受多少额外延迟 | 传感/通信/滤波延迟是否危险 |
 | 带宽 | 能响应多快的扰动 | 高频滑移能否被闭环抑制 |
 
+> [!note] dB 的由来：为什么是 $20\log_{10}$（别把这一步当成约定俗成）
+> 幅值以分贝表示 $L(\omega)=20\log_{10}|G(j\omega)|$（单位 dB，无量纲）。"$20$"不是拍脑袋：分贝 (deci-Bel) 定义在**功率比**上，$\text{Bel}=\log_{10}(P_2/P_1)$，分贝再乘 10，即 $10\log_{10}(P_2/P_1)$。而功率正比于幅值平方 $P\propto|G|^2$，代入得 $10\log_{10}|G|^2=20\log_{10}|G|$——**"20" 就是从"功率∝幅值²"里那个平方跑出来的。** dB 的真正好处是**把串联系统的乘法变成加法**：$\log|G_1G_2|=\log|G_1|+\log|G_2|$，于是复杂传函的 Bode 图可以"一段段折线叠加"画出来。
+
+> [!tip] 手绘 Bode 的叠加法（对数幅频叠加）——一步步来，不跳步
+> 把 $G(s)$ 分解成一阶/二阶**标准因子**的乘积，每个因子贡献一条**渐近折线**，全部叠加即得。三种基本积木（幅频斜率单位 dB/decade，"decade"＝频率变 10 倍）：
+> - **积分器** $1/s$：全频段 $-20$ dB/dec，相位恒 $-90°$；
+> - **一阶极点** $\dfrac{1}{1+s/\omega_p}$：转折频率 $\omega_p$ 以下约 $0$ dB（平），以上转为 $-20$ dB/dec，相位从 $0°$ 平滑过渡到 $-90°$（在 $\omega_p$ 处恰 $-45°$）；
+> - **一阶零点** $(1+s/\omega_z)$：镜像地，$\omega_z$ 以上 $+20$ dB/dec，相位 $0°\to+90°$。
+>
+> **Worked example** $G(s)=\dfrac{100}{s(s+10)}$。先化成标准因子：$G(s)=\dfrac{10}{s\,(1+s/10)}$（把 $s+10=10(1+s/10)$ 提出，$100/10=10$）。
+> 1. **低频段** $\omega\ll10$：$(1+s/10)\approx1$，故 $|G|\approx 10/\omega$。取 $\omega=1$：$|G|=10\Rightarrow20$ dB；斜率 $-20$ dB/dec（来自积分器）。
+> 2. **转折** $\omega=10$：一阶极点激活，$|G|\approx10/10=1\Rightarrow0$ dB；此后斜率叠加第二段 $-20$，变 $-40$ dB/dec。
+> 3. **增益穿越频率** $\omega_{gc}$（$|G|=1$ 即 $0$ dB）就在 $\omega\approx10$ 附近。
+> 4. **相位**：$\phi(\omega)=-90°-\arctan(\omega/10)$。在 $\omega_{gc}\approx10$ 处 $\phi\approx-90°-45°=-135°$。
+> 5. **相位裕度** $\text{PM}=180°+\phi(\omega_{gc})\approx180°-135°=45°$——健康的裕度（一般要 $>30°$）。这就把"$K$ 加大到哪会振荡、还能容忍多少延迟"从图上直接读出来了。
+
+> [!important] Nyquist 稳定判据：$N=P-Z$（当极点跑到右半平面、Bode 不够用时）
+> Bode 判裕度默认开环稳定；一旦开环本身含右半平面 (RHP) 极点，就要用 Nyquist。做法：令 $L(s)=C(s)G(s)$ 为开环传函，让 $s$ 沿**Nyquist 围线**（整条虚轴 $+$ 包住整个右半平面的无穷大半圆）走一圈，画出象点 $L(j\omega)$ 的轨迹（Nyquist 图）。数它**逆时针包围 $-1$ 点**的次数 $N$，则
+> $$Z=P-N,$$
+> - $Z$＝闭环特征方程 $1+L(s)=0$ 在 RHP 的根数（＝闭环不稳定极点数，物理意义：会发散的模态个数）；
+> - $P$＝开环 $L(s)$ 在 RHP 的极点数（已知）；
+> - $N$＝$L(j\omega)$ 逆时针绕 $-1$ 的圈数。
+>
+> **稳定 ⟺ $Z=0$ ⟺ $N=P$。** 特例：开环稳定（$P=0$）时，只需 Nyquist 曲线**不包围 $-1$**（$N=0$）。
+> **为什么关键点是 $-1$**：闭环极点是 $1+L(s)=0$ 即 $L(s)=-1$ 的解；$-1$ 就是"环路增益刚好 $-1$、负反馈变成正反馈自持振荡"的临界点。**裕度的图解定义**随之而来：
+> - **增益裕度** $\text{GM}=1/|L(j\omega_{pc})|$，$\omega_{pc}$ 为**相位穿越频率**（相位$=-180°$、$L$ 穿负实轴处）——曲线与 $-1$ 之间还差多少倍增益才撞上临界点；
+> - **相位裕度** $\text{PM}$：在**增益穿越频率**（$|L|=1$、Nyquist 曲线穿单位圆处）测量该点相位与 $-180°$ 的角差——还能再塞进多少纯延迟（相位滞后）才撞 $-1$。这正是 §1.4 [!warning] 里"延迟吃掉相位裕度"的几何本体。
+
 这与 [[SignalProcessing#1. 从波形到状态：信号处理的系统骨架|傅里叶变换]]是同一套数学：信号处理关心"频率成分是什么"，控制理论关心"系统对这些频率成分做什么"。
 
 ### 1.4 PID、灵敏度与状态空间
@@ -129,13 +159,74 @@ PID $C(s)=K_p+\frac{K_i}{s}+K_ds$（微分项常加低通防噪声放大）。�
 | $K_i$ | 消稳态误差 | 积分饱和、接触蓄能 |
 | $K_d$ | 增阻尼 | 放大噪声，需滤波 |
 
-**状态空间**（MIMO/高阶/内部状态重要时更合适）：可控性 $\mathrm{rank}[B\ AB\ \cdots\ A^{n-1}B]=n$（输入能否移动所有状态）；可观性 $\mathrm{rank}[C;CA;\cdots;CA^{n-1}]=n$（传感器能否恢复所有状态）。LQR 依赖可镇定、Kalman 依赖可检测，二者经**分离原理**合成 LQG——这也是 [[SignalProcessing#5.2 演进脉络：KF → EKF → UKF → PF → 因子图|KF/EKF/PF]]必须进 SignalProcessing 的原因。
+**状态空间**（MIMO/高阶/内部状态重要时更合适）：可控性 $\mathrm{rank}[B\ AB\ \cdots\ A^{n-1}B]=n$（输入能否移动所有状态）；可观性 $\mathrm{rank}[C;CA;\cdots;CA^{n-1}]=n$（传感器能否恢复所有状态）。LQR 依赖可镇定、Kalman 依赖可检测，二者经**分离原理**合成 LQG（严格陈述与块三角证明见 §1.5）——这也是 [[SignalProcessing#5.2 演进脉络：KF → EKF → UKF → PF → 因子图|KF/EKF/PF]]必须进 SignalProcessing 的原因。
 
 > [!warning] 离散化与延迟：相位裕度预算
 > 数字控制器经零阶保持采样 $A_d=e^{AT_s}$；单位延迟 $z^{-1}$ 在频域是相位滞后 $e^{-j\omega T_d}$——**频率越高，同样延迟吃掉越多相位裕度**。低频看似稳定的控制器，在高频接触切换或通信延迟下可能失稳。CAN 延迟、触觉帧率、动作保持时间，都应理解为闭环相位裕度预算的一部分。
 
 > [!tip] DNPM 解释
 > [[Dynamic Non-Prehensile Manipulation|DNPM]] 中策略输出 $q_{target}$ 后由固定 $K_p,K_d$ 的 PD 转力矩——策略无法改变闭环极点，故难以同时满足 snap 相的高带宽与 contact 相的顺应性。这正是相位自适应阻抗的控制理论动机（§3.4）。
+
+### 1.5 通用状态观测器 (Luenberger) 与分离原理
+
+> [!note] 直觉：传感器测不全状态，就"在计算机里养一个孪生系统"
+> §1.4 的可观性只回答"能不能从输出恢复状态"，没回答"怎么恢复"。灵巧操作里大量状态测不到：关节速度常靠差分（放大噪声）、接触力/背隙/反电动势更是无传感器。**观测器**的思想：在计算机里跑一个系统模型（数字孪生），用它的输出预测 $\hat y=C\hat x$ 与真实测量 $y$ 的差 $(y-\hat y)$ 反过来校正模型状态——预测得越准，校正越小。
+
+对一般 LTI 系统 $\dot x=Ax+Bu,\ y=Cx$（$x\in\mathbb R^n$ 状态、$u$ 输入、$y\in\mathbb R^p$ 测量），**Luenberger 观测器**为
+
+$$\dot{\hat x}=A\hat x+Bu+L(y-C\hat x),$$
+
+其中 $\hat x$ 是状态估计、$L\in\mathbb R^{n\times p}$ 是**观测器增益**（待设计，物理意义：把"测量残差"翻译成"状态修正速率"）。定义估计误差 $e=x-\hat x$，逐项作差（不跳步）：
+
+$$\dot e=\dot x-\dot{\hat x}=(Ax+Bu)-\big(A\hat x+Bu+L(Cx-C\hat x)\big)=A(x-\hat x)-LC(x-\hat x)=(A-LC)e.$$
+
+**关键**：$Bu$ 项完全抵消（真实与孪生吃同一个输入），误差动力学 $\dot e=(A-LC)e$ **不含 $u$、不含 $x$**——只要把 $(A-LC)$ 的特征值配到左半平面，$e\to0$ 指数收敛，估计自动追上真实状态。
+
+> [!important] 极点配置与"控制/观测对偶"：设计 $L$ 就是设计一个虚拟控制器
+> $(A-LC)$ 的特征值可任意配置 **⟺ $(A,C)$ 可观**（可观性矩阵 $\mathcal O=[C;CA;\cdots;CA^{n-1}]$ 满秩 $n$，见 §1.4）。这与状态反馈 $(A-BK)$ 可任意配置 ⟺ $(A,B)$ 可控是一对**代数对偶**：注意 $(A-LC)^T=A^T-C^TL^T$，形状恰是"以 $A^T$ 为系统矩阵、$C^T$ 为输入矩阵、$L^T$ 为反馈增益"的**控制器极点配置问题**。所以观测器设计＝在对偶系统 $(A^T,C^T)$ 上做极点配置，同一套 `place()` 算法两用。
+> （这是**线性代数意义**的对偶；本库另一条**几何/力学意义**的对偶是 §2 的 $J_h/G$ 力-运动虚功对偶，见 [[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|接触雅可比对偶]]——两者都叫"对偶"但内涵不同，别混。）
+
+> [!theorem] 分离原理 (Separation Principle)：观测器与控制器可独立设计
+> 用估计做输出反馈 $u=-K\hat x=-K(x-e)$，把它代回真实动力学：
+> $$\dot x=Ax+Bu=Ax-BK(x-e)=(A-BK)x+BKe,\qquad \dot e=(A-LC)e.$$
+> 以 $[x;e]$ 为增广状态：
+> $$\begin{bmatrix}\dot x\\\dot e\end{bmatrix}=\begin{bmatrix}A-BK & BK\\ 0 & A-LC\end{bmatrix}\begin{bmatrix}x\\ e\end{bmatrix}.$$
+> 系统矩阵是**块上三角**，其特征值＝对角块特征值之并 $\mathrm{eig}(A-BK)\cup\mathrm{eig}(A-LC)$。**结论**：控制器极点（$K$）与观测器极点（$L$）互不干扰、可分别设计——这就是 LQR + Kalman 拼成 LQG（§1.4）成立的根据。工程经验：观测器极点取控制器的 $2\text{–}5$ 倍快，使"估计先收敛、控制再动作"。
+
+> [!warning] 失效边界（别把观测器当万能）
+> ① 误差动力学的"干净抵消"依赖模型 $(A,B,C)$ 准确；未建模非线性/参数漂移会让 $\dot e$ 残留驱动项 → **稳态估计偏差**。② $L$ 越大收敛越快，但把 $(y-C\hat x)$ 里的**测量噪声**也放大 $L$ 倍进状态——快与抗噪是矛盾，**最优折中就是 Kalman 滤波**（把 $L$ 换成由过程/测量噪声协方差解 Riccati 得到的 $L_{KF}$，见 [[SignalProcessing#5.2 演进脉络：KF → EKF → UKF → PF → 因子图|KF/EKF/PF]]）。③ 线性观测器在接触切换处（$A$ 突变）会瞬时失配，非线性/混合系统需 EKF 或粒子滤波。
+
+> [!tip] 灵巧操作落点：这套通用理论的两个具体化身
+> - **电机无感控制**：[[Actuation#3.2 Luenberger 观测器：用积分替代微分|Actuation §3.2]] 正是本式的一个特例——那里 $x$＝反电动势/转子角、$C$＝可测电流方程，用 Luenberger 观测器"以积分替代微分"估计不可测的转子位置，再接 PLL 平滑。本节补的是它背后的**通用 LTI 骨架与分离原理**，两处互为一般式↔专用式。
+> - **关节速度/外力估计**：手指关节只有位置编码器时，用观测器估 $\dot q$ 优于差分；把外力 $F_{ext}$ 建成扰动状态即得**动量观测器**（无力矩传感器的碰撞检测），与 §10.3 ISS 把 gap 当有界扰动一脉相承。
+
+### 1.6 根轨迹与超前/滞后补偿器：从"极点在哪"到"把极点搬去哪"
+
+> [!note] 直觉：极点决定成败（§1.2），那能不能"设计"极点的位置？
+> §1.2 说极点定稳定性与响应快慢。**根轨迹 (root locus)** 回答"当我把某个增益 $K$ 从 $0$ 加到 $\infty$，闭环极点会沿什么路径在复平面上移动"——它是一张"调参地图"，让你看着极点走向去选 $K$。**补偿器 (compensator)** 则更进一步：在回路里**加零点/极点**，主动把根轨迹掰弯到理想区域。
+
+闭环极点是 $1+KG(s)=0$ 即 $G(s)=-1/K$ 的解。随 $K:0\to\infty$，解集画出的曲线即根轨迹。**手绘规则（每条都有物理理由，不是死记）**：
+- **分支数与起终点**：分支数＝开环极点数 $n$；$K=0$ 时闭环极点＝开环极点（起点），$K\to\infty$ 时趋向开环零点或无穷远（终点）。直觉：小增益像开环、大增益被零点"吸走"。
+- **实轴段判据**：实轴上某点在根轨迹上 ⟺ 其**右侧**的实开环极点+零点总数为**奇数**（来自相位条件 $\angle G=180°$）。
+- **渐近线**：$n-m$ 条奔向无穷的分支（$m$＝零点数），角度 $\theta_k=\dfrac{(2k+1)180°}{n-m}$，交于实轴质心 $\sigma=\dfrac{\sum p_i-\sum z_i}{n-m}$（极点之和减零点之和，再均摊）。
+- **虚轴穿越**：分支穿虚轴处即临界增益（用 Routh 判据或令 $s=j\omega$ 解出），越过即失稳——这把 §1.2 的"极点过虚轴"变成可算的 $K$ 阈值。
+
+> [!important] 超前/滞后补偿器：用"加极点零点"翻译 PID 的 D 与 I
+> 通用一阶补偿器 $C(s)=K_c\dfrac{s+z}{s+p}$，靠零极点**相对位置**分工：
+> | 类型 | 零极点关系 | 频域效果 | 类比 PID | 目的 |
+> |:--|:--|:--|:--|:--|
+> | **超前 (lead)** | $z<p$（零点更靠原点） | 在 $[\,z,p\,]$ 频段**注入正相位** | 近似 **D** | 提相位裕度、加快瞬态、增带宽 |
+> | **滞后 (lag)** | $z>p$（极点贴近原点） | **抬高低频增益** | 近似 **I** | 压稳态误差，仅付极小相位代价 |
+> | **超前-滞后** | 两段串联 | 高频提相位＋低频提增益 | 近似 **PID** | 瞬态与稳态兼顾 |
+>
+> 超前补偿器的最大相位 $\phi_{max}=\arcsin\dfrac{p-z}{p+z}$（发生在几何中心 $\omega_m=\sqrt{zp}$）——设计时先算"还差多少相位裕度"，反解出所需 $z,p$，再把 $\omega_m$ 对准增益穿越频率。**这就是把 §1.3 的相位裕度需求，落成具体零极点。**
+
+> [!tip] PID 的标准型（时间常数型）：$\tau_I,\tau_D$ 的物理意义
+> §1.4 写的是**并联型** $C(s)=K_p+\frac{K_i}{s}+K_ds$；工业界更常用**标准型/时间常数型**：
+> $$C(s)=K_p\Big(1+\frac{1}{\tau_I s}+\tau_D s\Big),\qquad \tau_I=\frac{K_p}{K_i},\quad \tau_D=\frac{K_d}{K_p}.$$
+> - **积分时间** $\tau_I$（单位 s）：物理意义＝"积分作用累积到与当前比例作用等大所需的时间"。$\tau_I$ 越小积分越激进（消稳态误差快，但易积分饱和/接触蓄能，回扣 §1.4 [!table] 的 $K_i$ 风险）。
+> - **微分时间** $\tau_D$（单位 s）：物理意义＝"微分项等效于把误差向前预测 $\tau_D$ 秒"——它给系统"预判"能力（加阻尼），但按 §1.4 需串低通防噪声放大。
+> 标准型的好处：$\tau_I,\tau_D$ 直接是**时间尺度**，便于对照系统时间常数（如 §1.1 一阶环节的 $\tau$）与 §1.3 带宽来整定，也便于跨设备迁移。
 
 ---
 
@@ -213,9 +304,13 @@ $$M_d(\ddot x-\ddot x_d)+B_d(\dot x-\dot x_d)+K_d(x-x_d)=F_{ext}.$$
 > **阻抗因果性**：输入位移（环境推机器人）、输出力（机器人回弹），$F=Z(x)$。刚性环境本身表现为**导纳**（输入力、输出位移）。两个系统耦合应当是"阻抗 + 导纳"，而非"阻抗 + 阻抗"——这就是阻抗控制与刚性孔壁交互稳定的根本原因。插销母题里：让销轴在插入方向表现为低刚度阻抗，孔壁的几何约束（导纳）与之匹配，不会硬碰硬。
 
 > [!note] 被动性稳定证明（阻抗为何天然稳定）
-> 取能量储存函数 $V=\frac12\tilde x^TK_d\tilde x+\frac12\dot{\tilde x}^TM_d\dot{\tilde x}$（$\tilde x=x-x_d$）。求导并代入目标动力学：
-> $$\dot V=\dot{\tilde x}^T(F_{ext}-B_d\dot{\tilde x})=\dot{\tilde x}^TF_{ext}-\dot{\tilde x}^TB_d\dot{\tilde x}.$$
-> 无外力时 $\dot V=-\dot{\tilde x}^TB_d\dot{\tilde x}\le0$（负半定），由 LaSalle（§10.2）渐近稳定到 $\tilde x=0$。**阻尼 $B_d$ 耗散能量**——系统像漏气气球必回平衡。这是阻抗在接触任务中天然稳定的数学保证，也是 §10 被动性理论的具体实例。
+> 取能量储存函数 $V=\frac12\tilde x^TK_d\tilde x+\frac12\dot{\tilde x}^TM_d\dot{\tilde x}$（$\tilde x=x-x_d$，设 $x_d$ 常值故 $\dot x_d=\ddot x_d=0$，$\dot{\tilde x}=\dot x$）。先对 $V$ 求导（$K_d,M_d$ 对称）：
+> $$\dot V=\tilde x^TK_d\dot{\tilde x}+\dot{\tilde x}^TM_d\ddot{\tilde x}.$$
+> 由目标动力学 $M_d\ddot{\tilde x}+B_d\dot{\tilde x}+K_d\tilde x=F_{ext}$ 解出 $M_d\ddot{\tilde x}=F_{ext}-B_d\dot{\tilde x}-K_d\tilde x$，代入第二项：
+> $$\dot V=\tilde x^TK_d\dot{\tilde x}+\dot{\tilde x}^T\big(F_{ext}-B_d\dot{\tilde x}-K_d\tilde x\big)=\underbrace{\tilde x^TK_d\dot{\tilde x}-\dot{\tilde x}^TK_d\tilde x}_{=0}+\dot{\tilde x}^TF_{ext}-\dot{\tilde x}^TB_d\dot{\tilde x}.$$
+> 划去的两项相消，因为 $\dot{\tilde x}^TK_d\tilde x$ 是标量、转置等于自身且 $K_d=K_d^T$，故 $\tilde x^TK_d\dot{\tilde x}=\dot{\tilde x}^TK_d\tilde x$。于是
+> $$\dot V=\dot{\tilde x}^TF_{ext}-\dot{\tilde x}^TB_d\dot{\tilde x}.$$
+> 无外力时 $\dot V=-\dot{\tilde x}^TB_d\dot{\tilde x}\le0$（负半定），由 LaSalle（§10.2）渐近稳定到 $\tilde x=0$。**阻尼 $B_d$ 耗散能量**——系统像漏气气球必回平衡。这是阻抗在接触任务中天然稳定的数学保证，也是 §10 被动性理论的具体实例（$\dot V\le\dot{\tilde x}^TF_{ext}=$ 输入功率，正是"被动"的定义）。
 
 ### 3.3 导纳控制与阻抗/导纳因果性校准
 
@@ -267,6 +362,9 @@ $$M_d(\ddot x-\ddot x_d)+B_d(\dot x-\dot x_d)+K_d(x-x_d)=F_{ext}.$$
 
 Khatib 的 OSF 是分水岭：不仅把运动学、更把**动力学**投影到任务空间，实现真正的动态解耦。任务空间动力学 $\Lambda(q)\ddot x+\mu\dot x+p=F_{op}$，其中：
 
+> [!note] $\Lambda,\mu,p$ 从哪来：四步推导在 [[Dynamics]]，本节承接其结果只看控制
+> 别把 $\Lambda(q)=(JM^{-1}J^T)^{-1}$ 当成天降公式——它是把关节空间操作器方程 $M\ddot q+C\dot q+N=\tau$ 经 $J,M^{-1}$ **一步步投影**到任务空间的产物：微分 $v_c=J\dot q$ 得 $\dot v_c=J\ddot q+\dot J\dot q$、代入 $\ddot q=M^{-1}(\tau-C\dot q-N)$、令 $\tau=J^TF_{op}$、左乘 $(JM^{-1}J^T)^{-1}$ 消去关节量——这**四步 $\Lambda$ 推导**（含 $\mu,p$ 的完整表达式与每步物理意义）在 [[Dynamics#7.3 操作空间动力学 (Khatib)：在任务空间直接设计|Dynamics §7.3]]。那里从动力学**导出** $\Lambda$，本节接过结果**设计控制律**——两节是同一 $\Lambda/\bar J$ 的"力学侧"与"控制侧"，属 §14 [!note] 里 ↔[[Dynamics]] 双向链的核心一环。
+
 - **操作空间惯量** $\Lambda(q)=(JM^{-1}J^T)^{-1}$——末端在各方向感受到的"等效质量"，奇异附近趋于无穷（无法在奇异方向产生加速度，回扣 [[Dynamics#7.1 拓扑突变与有效惯量|有效惯量]]）；
 - 控制律 $\tau=J^TF_{op}+N^T\tau_{null}$。
 
@@ -293,6 +391,16 @@ MatrixXd N = MatrixXd::Identity(n, n) - Jbar * J;     // 零空间投影；验�
 > **直觉**（插销时：插入方向控力、找正方向控位置）→ **推导**（选择矩阵正交分解）→ **对比**（理论优雅 vs 几何不一致的工程陷阱）→ **联系**（约束方向↔[[ContactMechanics#3. 接触静力学：能否夹稳这颗弹珠|力闭合]]、↔§6 Montana）。
 
 任何任务可分解为正交的**位置控制子空间**与**力控制子空间**，由对角**选择矩阵** $S=\mathrm{diag}(s_1,\dots,s_6)$（$s_i\in\{0,1\}$）实现：$s_i=1$ 该方向被环境约束、控力；$s_i=0$ 自由运动、控位置。控制律 $\tau=J^T(Su_{force}+(I-S)u_{pos})$。
+
+> [!important] 为什么 $S$ 必须是"正交投影算子"而不仅是"选择开关"（补严：投影算子三性质→零功率串扰）
+> 把 $S$ 只看成 0/1 对角阵会漏掉它的代数本质——它其实是一个**正交投影算子**，正是这一点保证力子空间与位置子空间"互不串扰"。三条性质逐条验证（$S=\mathrm{diag}(s_i),\ s_i\in\{0,1\}$，无量纲）：
+> - **幂等 $S^2=S$**：因 $s_i^2=s_i$（$0,1$ 平方是自身）——"投影两次＝投影一次"，几何上已在子空间内的向量再投影不变；
+> - **对称 $S=S^T$**：对角阵自然对称——保证是**正交**投影（沿子空间的正交补方向投）而非斜投影；
+> - **互补 $I-S$ 也是投影且 $S(I-S)=0$**：$s_i(1-s_i)=0$——力子空间 $\mathrm{range}(S)$ 与位置子空间 $\mathrm{range}(I-S)$ **正交直和**填满 $\mathbb R^6$。
+>
+> **正交性的物理收益＝零功率串扰**：控力方向的力 $Su_{force}$（单位 N 或 N·m）与控位方向的速度 $(I-S)\dot x$（单位 m/s 或 rad/s）满足 $(Su_{force})^T(I-S)\dot x=u_{force}^T\,S(I-S)\,\dot x=0$（用 $S(I-S)=0$）——**两子空间之间不交换机械功率**（单位 $\mathrm{N\cdot m/s=W}$）。这正是 Mason 的**互补性 (reciprocity)** 的严格含义：自然约束（环境几何决定"哪个方向不能动"）与人工约束（任务指定"哪个方向使多大力"）在功率意义上正交，一个子空间的指令才不会偷偷驱动另一个。
+>
+> **推广到非轴对齐（真实的孔从不沿坐标轴）**：一般约束方向不沿轴，$S$ 要换成投影到**约束 wrench 子空间**的秩-$r$ 正交投影 $P_f=\hat N(\hat N^T\hat N)^{-1}\hat N^T$（$\hat N\in\mathbb R^{6\times r}$ 的列＝被约束的 wrench 方向，由接触几何/力闭合给出，见 [[ContactMechanics#3.2 力闭合 vs 形闭合：抓取稳定性的数学条件|力闭合方向]]），位置子空间取正交补 $P_v=I-P_f$。§5 [!warning] 的"几何不一致"于是可**定量化**：设估计法向 $\hat n$ 与真实法向 $n$ 差角 $\theta$，位置控制器沿"自以为自由"的方向以速度 $v$（m/s）前进 $\Delta t$（s），投到真实受限方向的分量 $v\Delta t\sin\theta$（m）撞上环境刚度 $K_e$（N/m），瞬时泄漏力 $\approx K_e\,v\,\Delta t\,\sin\theta$——$\theta$ 只需几度，硬环境（$K_e\sim10^4$–$10^6$ N/m）就足以 runaway。这条"撞墙"力在接触瞬间**不连续**，正是 [[ReinforcementLearning#1.3 非光滑性的两副面孔：接触流形与混合动力学|接触非光滑性]]暗线在力位混合里的化身；也解释了为何 §5 [!warning] 主张"从演示学 $S$"——与其解析对齐 $\hat N$，不如让数据把 $P_f$ 学对。
 
 **插销母题**：孔轴 $Z$ 方向被约束→控插入力（$s_z=1$）；$X,Y$ 找正→控位置（$s_x=s_y=0$）。
 
@@ -366,6 +474,32 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 
 法向力自适应律 $\dot f_n^{ref}=K_{adapt}\max(0,\gamma_{th}-\gamma)$——检测到滑移风险上升即自适应增夹持力。不同材质（橡胶 $\mu\sim0.8$–1.2、硅胶-金属 $\mu\sim0.2$–0.4）需在线估计或查表设 $\gamma_{th}$。
 
+### 7.4 反步法 (Backstepping)：为串级系统"逐级建 Lyapunov"
+
+> [!note] 直觉：一层控不了，就"骗"下一层去实现
+> §7.1 的 SMC 把整个误差压到一张滑模面上；但灵巧手的真实结构是**级联的**（位置环套速度环套电流环，见 [[Actuation#4. 串级控制：电流环 → 速度环 → 位置环|Actuation §4]]）：你想控位置，但手里能直接下指令的只有最内层力矩。反步法 (backstepping) 是为这种**严反馈 (strict-feedback) 链**量身定做的递归设计法——**把下一级状态当成"虚拟控制量"去指挥，逐级往里递推，每递一级就把 Lyapunov 函数长大一块。**
+
+以二阶严反馈链为例（$x_1$ 想镇定到 $0$，但只有 $u$ 是真输入）：
+$$\dot x_1=x_2,\qquad \dot x_2=u.$$
+
+> [!theorem] 反步法逐级构造（每一步都不跳）
+> **第 1 步（外层，把 $x_2$ 当虚拟控制）**：只看 $x_1$ 子系统，取 $V_1=\frac12x_1^2$，则 $\dot V_1=x_1\dot x_1=x_1x_2$。若 $x_2$ **能**被我们直接指定，最理想的值是**虚拟控制律** $\alpha_1(x_1)=-k_1x_1$（$k_1>0$），代入得 $\dot V_1=-k_1x_1^2<0$。但 $x_2$ 是状态、不是输入，只能"期望"它等于 $\alpha_1$。于是定义**误差变量**度量二者差距：
+> $$z_2=x_2-\alpha_1=x_2+k_1x_1.$$
+> **第 2 步（内层，长大 Lyapunov）**：把误差也纳入能量，$V_2=V_1+\frac12z_2^2$。逐项求导：
+> $$\dot V_2=x_1x_2+z_2\dot z_2.$$
+> 先把 $x_2=z_2+\alpha_1=z_2-k_1x_1$ 代入第一项：$x_1x_2=x_1(z_2-k_1x_1)=-k_1x_1^2+x_1z_2$。
+> 再算 $\dot z_2=\dot x_2-\dot\alpha_1=u-\frac{\partial\alpha_1}{\partial x_1}\dot x_1=u-(-k_1)x_2=u+k_1x_2$。合并：
+> $$\dot V_2=-k_1x_1^2+x_1z_2+z_2(u+k_1x_2).$$
+> **第 3 步（选真输入 $u$，消交叉项＋加阻尼）**：令
+> $$u=-k_1x_2-x_1-k_2z_2\quad(k_2>0),$$
+> 代入：$z_2(u+k_1x_2)=z_2(-x_1-k_2z_2)=-x_1z_2-k_2z_2^2$，与前面的 $+x_1z_2$ **恰好相消**：
+> $$\dot V_2=-k_1x_1^2-k_2z_2^2<0.$$
+> 全局渐近稳定。**要害有二**：① $z_2$ 的引入把"$x_2$ 不听话"量化成可控误差；② 选 $u$ 时**主动保留那个 $-x_1z_2$ 去抵消外层漏出来的 $+x_1z_2$**（而非硬压），这正是 backstepping 比逐层独立 PD 更稳的原因——它显式簿记了级间耦合。
+
+> [!tip] 灵巧操作落点与失效边界
+> - **落点**：$n$ 阶链（位置→速度→力矩→电流）可 $n$ 次递推，系统化地穿过整条 [[Actuation#4. 串级控制：电流环 → 速度环 → 位置环|串级环]]；把未知参数一并纳入即 **自适应反步 (adaptive backstepping)**，与 §12 MRAC 的"参数误差进 Lyapunov"合流（$V$ 再加 $\frac12\tilde\theta^T\Gamma^{-1}\tilde\theta$）。这也是为什么反步法常与 [[Dynamics#3.4 惯量参数线性性：通往自适应控制的桥|惯量参数线性性]]搭配用于机械臂轨迹跟踪。
+> - **失效边界**："**微分爆炸 (explosion of terms)**"——高阶链里 $\dot\alpha_i$ 要对前级虚拟律反复求导，解析式迅速膨胀（工程解法：dynamic surface control / command-filtered backstepping 用滤波器近似 $\dot\alpha_i$）。且严反馈结构被接触**非光滑**打破时（$\dot x_2$ 在接触瞬间跳变），逐级求导假设失效，须退回 §7.2 混合系统/状态机视角。
+
 ---
 
 ## 8. 接触隐式模型预测控制 (Contact-Implicit MPC)
@@ -373,7 +507,44 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 > [!tip] 本节四拍
 > **直觉**（别预设"先食指后拇指"的接触序列，让优化器自己发现）→ **推导**（互补约束的非光滑性如何被平滑化）→ **对比**（预设接触序列 vs 接触隐式）→ **联系**（与 [[Optimization#5.3 阶段三：接触隐式轨迹优化 CITO（求解器自己发现）|Optimization CITO]]、[[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]]同源）。
 
-接触动力学本质是**互补约束** $0\le\lambda\perp\phi(q)\ge0$（分离则无力、受力则贴合）。这非凸、非光滑——梯度在接触瞬间未定义或为零，使 iLQR/DDP 难以直接应用。
+### 8.1 古典前置：基础线性 MPC 的 QP 凝聚 (Condensation) 构造
+
+> [!note] 直觉：接触隐式 MPC 之前，先把"没有接触时的 MPC"从头拼出来
+> §8 主体是接触隐式 MPC——它难在互补约束的非光滑。但 MPC 的**骨架**在最朴素的线性系统里就成型了：预测未来一段、写成一个二次代价、解一个 **QP**、只执行第一步、下拍再来（滚动时域, receding horizon）。把这个古典骨架推导干净，才看得清 §8 主体到底"多做了什么"。
+
+设离散线性预测模型 $x_{k+1}=Ax_k+Bu_k$（$x\in\mathbb R^n$ 状态、$u\in\mathbb R^m$ 输入、$A,B$ 由 §1.4 零阶保持离散化得到），预测时域 $N$。**第一步：批量预测 (batch prediction)**。逐拍递推展开（不跳步）：
+
+$$x_{k+1}=Ax_k+Bu_k,\quad x_{k+2}=Ax_{k+1}+Bu_{k+1}=A^2x_k+ABu_k+Bu_{k+1},\ \dots$$
+$$x_{k+i}=A^ix_k+\sum_{j=0}^{i-1}A^{i-1-j}Bu_{k+j}.$$
+
+把未来状态与输入各自堆成长向量 $X_k=[x_{k+1};\cdots;x_{k+N}]\in\mathbb R^{Nn}$、$U_k=[u_k;\cdots;u_{k+N-1}]\in\mathbb R^{Nm}$，上式整理为紧凑形式
+
+$$\boxed{X_k=Mx_k+CU_k},\qquad
+M=\begin{bmatrix}A\\A^2\\\vdots\\A^N\end{bmatrix},\quad
+C=\begin{bmatrix}B&0&\cdots&0\\ AB&B&\cdots&0\\ \vdots&\vdots&\ddots&\vdots\\ A^{N-1}B&A^{N-2}B&\cdots&B\end{bmatrix}.$$
+
+- $M\in\mathbb R^{Nn\times n}$（**自由响应**：当前状态 $x_k$ 如何随 $A$ 的幂次自然传播）；
+- $C\in\mathbb R^{Nn\times Nm}$（**强迫响应**）是**块下三角**——这不是巧合，而是**因果性**：$j$ 时刻的输入只能影响 $j$ 之后的状态，故上三角块全为 $0$。
+
+**第二步：把代价写成堆叠二次型**。取标准 MPC 代价 $J=\sum_{i=1}^{N}x_{k+i}^TQx_{k+i}+\sum_{i=0}^{N-1}u_{k+i}^TRu_{k+i}$（$Q\succeq0$ 罚状态偏差、$R\succ0$ 罚控制能量）。用块对角权阵 $\bar Q=\mathrm{blkdiag}(Q,\dots,Q)$、$\bar R=\mathrm{blkdiag}(R,\dots,R)$ 写成 $J=X_k^T\bar QX_k+U_k^T\bar RU_k$。
+
+**第三步：凝聚 (condensation)——代入 $X_k=Mx_k+CU_k$ 消去 $X_k$**，只留决策变量 $U_k$：
+$$J=(Mx_k+CU_k)^T\bar Q(Mx_k+CU_k)+U_k^T\bar RU_k.$$
+逐项展开（利用 $\bar Q=\bar Q^T$）：
+$$J=U_k^T\underbrace{(C^T\bar QC+\bar R)}_{H}U_k+2U_k^T\underbrace{C^T\bar QM}_{E}x_k+\underbrace{x_k^TM^T\bar QMx_k}_{\text{const}}.$$
+即得**标准 QP 形式**
+$$\boxed{J=U^THU+2U^TEx_k+\text{const}},\qquad H=C^T\bar QC+\bar R\succ0,\ \ E=C^T\bar QM,$$
+其中 const 只含当前 $x_k$、与决策变量 $U$ 无关（优化时可丢弃）。$H\succ0$（因 $\bar R\succ0$）保证这是**严格凸 QP**，全局最优唯一。加上输入/状态约束（$u_{\min}\le u_{k+i}\le u_{\max}$，状态限位经 $X_k=Mx_k+CU_k$ 也化成 $U$ 的线性不等式 $G_cU\le w$）即：
+$$U^*=\arg\min_U\ U^THU+2U^TEx_k\quad\text{s.t.}\ G_cU\le w.$$
+解出后按**滚动时域**只施加第一块 $u_k=[\,I_m\ 0\ \cdots\ 0\,]U^*$，下一拍拿到新 $x_{k+1}$ 重解。
+
+> [!important] 两个"回扣"：QP 凝聚 ↔ LQR，以及 $u_k\ne$ 真实关节力矩
+> - **无约束时 QP 退化为状态反馈**：令 $\nabla_UJ=2HU+2Ex_k=0$ 得 $U^*=-H^{-1}Ex_k$，第一块 $u_k=-\underbrace{[I\ 0\cdots]H^{-1}E}_{K_{MPC}}x_k$ 是**线性状态反馈**；当 $N\to\infty$ 它收敛到 §11 的 LQR 增益 $K=R^{-1}B^TP^*$——**凝聚 QP 与 Riccati 递推是同一最优控制问题的两种解法**（有约束用 QP、无约束用 ARE）。这也把本节接到 [[Optimization#7. 实时闭环：模型预测控制 (MPC)|Optimization §7 的 MPC]] 与 [[Optimization#6.1 iLQR/DDP：动态规划结构上的 Gauss-Newton|iLQR]]。
+> - **$u_k$ 不是真机关节力矩**：QP 解出的 $u_k$ 是"期望力矩/加速度指令"，真机上它还要穿过电机→FOC→减速器传动链才落到关节，$u_k\ne$ 实际输出——这条 sim-to-real 的物理来源见 [[Actuation|执行器与驱动系统]]（**电流 ≠ 关节力矩**暗线）。
+
+### 8.2 从线性到接触隐式：互补约束的非光滑性
+
+接触动力学本质是**互补约束** $0\le\lambda\perp\phi(q)\ge0$（分离则无力、受力则贴合）。这非凸、非光滑——梯度在接触瞬间未定义或为零，使 iLQR/DDP 难以直接应用。§8.1 的干净 QP 结构（凸、块下三角、$H\succ0$）在此**被破坏**：正是这一步之差，逼出下面的 Sigmoid 松弛。
 
 > [!important] Sigmoid 松弛：让优化器"感觉到"即将到来的接触
 > 把严格互补 $\lambda\phi=0$ 松弛为 $\lambda\phi\le\epsilon$，或用 Sigmoid 构造连续可导接触力 $F_{contact}\approx\frac{F_{max}}{1+e^{-k\phi(q)}}$。这让优化器能计算**穿过接触事件的梯度**，自动规划最佳接触序列、无需人工指定何时接触——机器人能自主发现利用环境重定姿的策略（extrinsic dexterity）。这与 [[ContactMechanics#6.2 实现可微的三条路径|可微接触的零阶平滑]]、[[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|平滑化范式]]是同一思想。
@@ -398,6 +569,14 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 > | 不变集 | 吸引域 | 安全集 $\mathcal C$ |
 > | 约束 | $\dot V\le-\alpha(V)$ | $\dot h\ge-\alpha(h)$ |
 > **稳定性与安全性，是同一套不变集数学的两面**（§10 详述 Lyapunov）。
+
+> [!note] 补严：CBF 约束从何而来（Nagumo 不变性）＋ 为什么安全滤波是"投影到半空间"的闭式解
+> **(1) 约束的出处**：要让安全集 $\mathcal C=\{x:h(x)\ge0\}$ **前向不变**（进去就出不来），只需在边界 $h=0$ 上系统速度不指向集外——这就是 Nagumo 定理，边界上要求 $\dot h\ge0$。CBF 把这条**边界条件**松弛成全空间的**不等式** $\dot h\ge-\alpha(h(x))$（$\alpha\in\mathcal K$，$\alpha(0)=0$、严格增，单位 $[h]/\mathrm s$）：内部 $h>0$ 允许 $h$ 下降（$-\alpha(h)<0$），但越近边界（$h\to0^+$）允许的下降速率 $\alpha(h)\to0$ 被掐得越死，恰在 $h=0$ 退回 Nagumo 的 $\dot h\ge0$——**"离墙越近、越不许朝墙走"**。展开 $\dot h=\nabla h^T\dot x=\underbrace{\nabla h^Tf(x)}_{L_fh}+\underbrace{\nabla h^Tg(x)}_{L_gh}\,u$（$L_fh,L_gh$ 是李导数＝安全裕度 $h$ 沿漂移/受控方向的变化率）即得约束 $L_fh+L_gh\,u\ge-\alpha(h)$。
+> **(2) 为什么是 QP 且几乎闭式**：约束对 $u$ **仿射**（$L_gh\,u$ 里 $u$ 一次）、代价 $\|u-u^{nom}\|^2$ 二次——单约束 QP。其几何是把名义控制 $u^{nom}$ **正交投影到半空间** $\{u:L_gh\,u\ge-\alpha(h)-L_fh\}$，故有闭式：$u^{nom}$ 已安全则 $u^*=u^{nom}$（不干预），否则投到边界超平面
+> $$u^*=u^{nom}+\frac{\max\big(0,\,-(L_fh+L_gh\,u^{nom}+\alpha(h))\big)}{\|L_gh\|^2}\,(L_gh)^T,$$
+> 分子＝约束违反量（$\ge0$ 才修正，故 $\max(0,\cdot)$），分母 $\|L_gh\|^2$ 归一化。**一次投影、无需迭代**——这正是 CBF 安全滤波能跑在 1 kHz 的原因。
+> **(3) 失效边界——相对度**：若 $L_gh=0$（$u$ 不出现在 $\dot h$ 里，即 $h$ 对 $u$ 的**相对度 $\ge2$**），上式分母为零、约束对 $u$ 失效。灵巧操作典型：$h$ 定义在位置上、力矩 $u$ 经两次积分才影响位置。解法是**高阶 CBF (HOCBF)**：逐次求导建链 $\psi_0=h,\ \psi_1=\dot\psi_0+\alpha_1(\psi_0),\dots$ 直到 $u$ 显式出现——与 §7.4 反步法"逐级递推"同构（都为相对度 $>1$ 的链条逐层建证书）。
+> **(4) 当 $h$ 写不出解析式**：把这套 QP 投影搬到世界模型的 look-ahead rollout 上，就是 [[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）|世界模型作安全调度器]]——用想象中的未来轨迹代替解析 $h$ 做同样的"投影回安全"，与 §9 [!tip] 的 LatentCBF 一脉相承。
 
 > [!abstract] 可达性：最大可行集（[[Reachability Constrained Reinforcement Learning|RCRL]]）
 > 传统约束 RL 用期望累积代价 $\mathbb E[\sum\gamma^tc]\le\epsilon$，可能"期望安全但单步违约"。可达性视角定义**安全价值** $V_c^{\max}(s)=\max_\pi\mathbb E[\max_{t\ge0}\gamma^tc(s_t)]$（最坏情况最大代价），**最大可行集** $\mathcal F=\{s:V_c^{\max}(s)\le d\}$——理论上最大的可控不变集。对比 CBF：CBF 需手工设计 $h(x)$、可行集保守；RCRL 学 $V_c^{\max}$、得最大理论可行集。**插销启示**：高速 in-hand 操作中，"最大可行集"允许更激进的动作，只要保证"最终能稳住"。
@@ -439,7 +618,19 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 > 系统 ISS ⟺ 存在 $V$ 与 $\mathcal K_\infty$ 函数使 $\|x\|\ge\chi(\|u\|)\Rightarrow\dot V\le-\alpha_3(\|x\|)$。
 > **物理含义**：状态范数大于扰动幅值的某非线性增益时能量严格下降——对所有有界扰动给出有界响应。
 
-灵巧操作应用：把未建模动力学（摩擦、迟滞、电缆张力）当输入扰动，ISS 保证策略不因小扰动发散；把 **sim-to-real gap 视为有界外部输入**，ISS-Lyapunov 给出"仿真控制器在真机仍稳定"的充分条件——这是 frozen-rigid 适配的理论根据（呼应 [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|sim-to-real]]）。
+> [!note] 补严：先认清 ISS 用的"比较函数"，再看它的两个等价面孔
+> ISS 的定义绕不开三类**比较函数**（把"大/小/收敛"非线性地量化，替代线性系统里的常数增益）：
+> - **$\mathcal K$ 类** $\alpha(\cdot)$：$[0,\infty)\to[0,\infty)$，连续、严格增、$\alpha(0)=0$（如 $\alpha(r)=r^2$）——刻画"输入越大、界越大"；
+> - **$\mathcal K_\infty$ 类**：$\mathcal K$ 且 $\alpha(r)\to\infty$（无饱和）——保证界对任意大输入都有意义；
+> - **$\mathcal{KL}$ 类** $\beta(r,t)$：对 $r$ 属 $\mathcal K$、对 $t$ 单调衰减到 $0$——刻画"初值的影响随时间被忘掉"。
+>
+> **面孔一（轨迹界，最直观）**：系统 ISS ⟺ 存在 $\beta\in\mathcal{KL},\ \gamma\in\mathcal K$ 使
+> $$\|x(t)\|\le\underbrace{\beta(\|x(0)\|,\,t)}_{\text{初值瞬态，随 }t\downarrow0}+\underbrace{\gamma\big(\textstyle\sup_{s\le t}\|u(s)\|\big)}_{\text{扰动稳态界}}.$$
+> 读法：状态被两项夹住——第一项是"忘掉初值"的暂态（无扰时即渐近稳定），第二项 $\gamma(\|u\|_\infty)$ 是**扰动增益**，扰动撤掉（$u\to0$）状态就回零。**面孔二（ISS-Lyapunov，可验证）**：即上方 [!theorem]——存在 $V$ 使 $\|x\|\ge\chi(\|u\|)$ 时 $\dot V\le-\alpha_3(\|x\|)$。两者等价（Sontag 定理），一个给"结果的界"、一个给"可算的判据"。
+>
+> **控制人为何偏爱 ISS：串级可组合（small-gain）**：两个 ISS 子系统首尾相连（前级输出当后级输入，正是 §7.4 反步法 / [[Actuation#4. 串级控制：电流环 → 速度环 → 位置环|串级环]]的结构），只要**回路增益复合 $\gamma_1\circ\gamma_2<\mathrm{id}$**（小增益条件），整条级联仍 ISS——这把"逐级稳定"升级为"整链对扰动稳定"，正是 backstepping 能一层层往里递推却不失稳的深层原因。
+
+灵巧操作应用：把未建模动力学（摩擦、迟滞、电缆张力）当输入扰动，ISS 保证策略不因小扰动发散；把 **sim-to-real gap 视为有界外部输入**，ISS-Lyapunov 给出"仿真控制器在真机仍稳定"的充分条件——这是 frozen-rigid 适配的理论根据（呼应 [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|sim-to-real]]）。更具体地，[[Actuation|执行器]]那条 **「电流 ≠ 关节力矩」** 暗线里的全部 gap（FOC 电流环延迟、减速器背隙/摩擦、温漂改变力矩增益）都可打包成一个有界输入 $u$：只要控制器对这个 $u$ 是 ISS，仿真里训练的 $\tau$-指令策略搬上真机就有"不发散"的定量保证——这与 §13 用短真机轨迹求**共同 Lyapunov 证书**是同一诉求的两条腿（一条给解析充分条件、一条给数据驱动判据）。
 
 ### 10.4 被动性与"价值即 Lyapunov"
 
@@ -457,9 +648,12 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 
 > [!theorem] 连续 ARE 与最优反馈
 > $\dot x=Ax+Bu$、$J=\int_0^\infty(x^TQx+u^TRu)dt$（$Q\succeq0,R\succ0$）。若 $(A,B)$ 可镇定、$(A,Q^{1/2})$ 可观，则代数 Riccati 方程 $A^TP+PA-PBR^{-1}B^TP+Q=0$ 有唯一正定解 $P^*$，最优反馈 $u^*=-Kx$，$K=R^{-1}B^TP^*$，闭环 $A-BK$ Hurwitz，最优代价 $J^*=x_0^TP^*x_0$。
-> **证明骨架**：对 $V=x^TPx$ 应用 HJB $\min_u\{x^TQx+u^TRu+\nabla V\cdot(Ax+Bu)\}=0$，对 $u$ 求导得 $u^*=-R^{-1}B^TPx$，回代即 ARE。
+> **证明骨架**：对 $V=x^TPx$（$P=P^T\succ0$）应用 HJB $\min_u\{x^TQx+u^TRu+\nabla V\cdot(Ax+Bu)\}=0$，其中 $\nabla V=2Px$。对 $u$ 求偏导并置零：$2Ru+2B^TPx=0\Rightarrow u^*=-R^{-1}B^TPx$。**回代**（把 $u^*$ 塞回 HJB，逐项写出）：$x^TQx+u^{*T}Ru^*+2x^TP(Ax+Bu^*)=0$。其中 $u^{*T}Ru^*=x^TPBR^{-1}B^TPx$、$2x^TPBu^*=-2x^TPBR^{-1}B^TPx$，二者合成 $-x^TPBR^{-1}B^TPx$；又 $2x^TPAx=x^T(A^TP+PA)x$（标量对称化）。合并得对任意 $x$ 成立的 $x^T(A^TP+PA-PBR^{-1}B^TP+Q)x=0$，即 **ARE** $A^TP+PA-PBR^{-1}B^TP+Q=0$。
 
 离散有限时域是 **Riccati 后向递推** $P_k=Q+A^TP_{k+1}A-A^TP_{k+1}B(R+B^TP_{k+1}B)^{-1}B^TP_{k+1}A$——这正是 [[Optimization#6.1 iLQR/DDP：动态规划结构上的 Gauss-Newton|iLQR]] 后向 pass 的线性化原型。
+
+> [!important] Riccati＝Bellman＝Lyapunov：三位一体（"价值即 Lyapunov"暗线在 LQR 的落地）
+> 上面的后向递推不是孤立的矩阵公式，而是 **Bellman 方程在 LQ 情形的解析闭式**：$P_k$ 是"从 $k$ 到终端的最优 cost-to-go" $V_k(x)=x^TP_kx$（单位＝代价量纲）的核，$P_k\leftarrow P_{k+1}$ 的后向递推即**价值迭代由终端向前传播**（回扣 [[ReinforcementLearning#2.2 值函数与 Bellman 方程|Bellman↔HJB]]）。而同一个 $V_k=x^TP_kx>0$ 沿最优闭环 $A-BK$ 单调下降（$\dot V<0$），本身又是一个 **Lyapunov 函数**——于是 **Riccati（求解器）＝Bellman（价值递推）＝Lyapunov（稳定性证书）三位一体**，正是 §10.4「价值即 Lyapunov」暗线在 LQR 上最干净的实例。这也把本节与 [[Optimization#6.1 iLQR/DDP：动态规划结构上的 Gauss-Newton|Optimization §6.1 的 iLQR 后向 pass]] 缝成同一台"动态规划机器"：LQR 是它在线性系统上一次收敛的特例，iLQR 是它在非线性系统上"线性化—后向 Riccati—前向滚动"反复迭代的推广。
 
 > [!important] LQR 是连接四个领域的枢纽
 > | 方法 | 模型来源 | 解法 |
@@ -470,6 +664,33 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 > | **DDPG/SAC** | 神经网络拟合 $Q_\phi$ | 随机梯度 |
 >
 > **LQR = 能解析求解的 RL**（回扣 [[ReinforcementLearning#2.2 值函数与 Bellman 方程|Bellman↔HJB↔LQR]]）。插销母题：接近相 $A,B$ 由刚体动力学线性化、LQR 给最优增益免手调 PD，进入接触段切换到 §3.2 阻抗或 §5 hybrid——"分段线性 + 模式切换"是工业级灵巧操作的实用骨架。
+
+### 11.1 轨迹追踪的增广矩阵技巧：把 tracking 变成 regulation
+
+> [!note] 直觉：LQR 只会"回到原点"，可任务要的是"跟住一条动的参考"
+> §11 的标准 LQR 是**镇定 (regulation)**：把 $x$ 拉到 $0$。但插销的接近相要跟一条进给轨迹、DNPM 转笔要跟一条参考姿态、追踪控制要跟正弦扰动——目标是 $x\to x_d(t)$ 而非 $x\to0$。**核心技巧**：把参考本身"装进状态里"，令追踪误差成为新的"待镇定量"，tracking 就还原成一个标准 LQR regulation，Riccati 那套解析机器原样可用。
+
+设参考由一个**外系统 (exosystem)** 生成 $\dot x_d=A_dx_d,\ y_d=C_dx_d$——这一形式统一涵盖三类常见参考（关键在选 $A_d$）：
+
+| 参考类型 | 外系统 $A_d$ | 说明 |
+|:--|:--|:--|
+| **常数**（定点/阶跃） | $A_d=0$ | $x_d$ 恒定，$\dot x_d=0$ |
+| **斜坡/多项式** | $A_d=\begin{bmatrix}0&1\\0&0\end{bmatrix}$ | 双积分链生成 $t$ 的多项式 |
+| **正弦**（频率 $\omega$） | $A_d=\begin{bmatrix}0&1\\-\omega^2&0\end{bmatrix}$ | 特征值 $\pm j\omega$，生成 $\sin\omega t/\cos\omega t$ |
+
+**增广状态**把被控对象 $\dot x=Ax+Bu$ 与外系统并排堆叠 $x_a=\begin{bmatrix}x\\x_d\end{bmatrix}$：
+$$\dot x_a=\begin{bmatrix}A&0\\0&A_d\end{bmatrix}x_a+\begin{bmatrix}B\\0\end{bmatrix}u=A_ax_a+B_au.$$
+注意 $B_a$ 的下块为 $0$：**输入管不了参考**（参考是"给定"的外生信号，这也意味着增广系统不完全可控，但不可控的恰是我们不想动的参考子空间，无碍）。**追踪误差**写成增广状态的线性输出：
+$$e=y-y_d=Cx-C_dx_d=\begin{bmatrix}C&-C_d\end{bmatrix}x_a=C_ax_a.$$
+于是**追踪代价**自动变成增广状态的标准二次型：
+$$J=\int_0^\infty\big(e^TQ_ee+u^TRu\big)dt=\int_0^\infty\big(x_a^T\underbrace{C_a^TQ_eC_a}_{Q_a}x_a+u^TRu\big)dt.$$
+这**逐字**就是 §11 的标准 LQR，只是把 $(A,B,Q)$ 换成 $(A_a,B_a,Q_a)$。解对应 ARE 得 $u^*=-K_ax_a$，按 $x_a$ 的分块展开：
+$$\boxed{u^*=-K_ax_a=-\underbrace{K_x}_{\text{反馈}}x-\underbrace{K_d}_{\text{前馈}}x_d}.$$
+**物理解读**：$-K_xx$ 是把误差压回去的**反馈**，$-K_dx_d$ 是**前馈**——它"看着参考的当前相位/速度"提前施力，正是纯反馈控制器追动态参考时总滞后的解药。用正弦 $A_d$ 时，这套前馈天然内嵌了对该频率扰动的"内模"补偿。
+
+> [!tip] 一个更省事的变体：LQI（积分增广）与灵巧操作落点
+> 若只求**常参考下零稳态误差**、不想建完整外系统，可只增广一个积分状态 $\dot x_I=e=Cx-r$，把 $x_I$ 也塞进代价罚（$Q$ 里给 $x_I$ 一个权重）——解出的 LQR 自带积分作用（LQI），等价于给状态反馈补了 §1.6 的"$I$"。
+> **落点**：[[Dynamic Non-Prehensile Manipulation|DNPM]] 里策略输出 $q_{target}$ 由固定 PD 跟踪（§1.4 [!tip]），本质是"手调增益的追踪器"；增广 LQR 给出**免手调**的最优反馈+前馈基线，接近相尤其适用。这也解释了为何 [[ReinforcementLearning#2.2 值函数与 Bellman 方程|RL 的追踪奖励]]（罚 $\|x-x_d\|$）与此同构——**追踪 LQR 就是"能解析求解的追踪 RL"，其最优代价 $x_a^TP^*x_a$ 又是一个 Lyapunov/价值函数**（回扣 §10.4 价值即 Lyapunov）。
 
 ---
 
@@ -531,17 +752,17 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 > [!important] 一张表记住全篇
 > | 层 | 核心问题 | 关键工具 | 销轴的哪一环 |
 > |:--|:--|:--|:--|
-> | §1 系统描述 | 闭环会振荡吗 | 极点、相位裕度 | 延迟会否自激 |
+> | §1 系统描述 | 闭环会振荡吗 | 极点、Bode/Nyquist、根轨迹、观测器/分离原理 | 延迟会否自激、估不可测态 |
 > | §2 运动学/静力学 | 怎么动/怎么使力 | $J_h$/$G$ 对偶 | 多指协调 |
 > | §3 柔顺 | 跟位置还是跟力 | 阻抗/导纳/变阻抗 | 插入方向软 |
 > | §4 OSF | 任务空间设计 | $\Lambda$、$\bar J$、零空间 | 销轴尖任务阻抗 |
 > | §5 力位混合 | 正交分解 | 选择矩阵 $S$ | 轴向控力/横向控位 |
 > | §6 接触非线性 | 滚动几何 | Montana、非完整 | 倒角上滚动 |
-> | §7 鲁棒/状态机 | 摩擦未知、模式切换 | SMC、状态机、防滑 | bumpless、防滑 |
-> | §8 接触隐式 MPC | 自发现接触序列 | LCP、Sigmoid 松弛 | 自动规划插入 |
+> | §7 鲁棒/状态机 | 摩擦未知、模式切换、级联链 | SMC、状态机、防滑、backstepping | bumpless、防滑、逐级镇定 |
+> | §8 接触隐式 MPC | 自发现接触序列 | QP 凝聚 $X=Mx+CU$、LCP、Sigmoid 松弛 | 从线性 MPC 到自动规划插入 |
 > | §9 安全 | 绝不崩坏 | CBF-QP、可达性 | 力上限滤波 |
 > | §10 稳定性 | 凭什么稳 | Lyapunov/LaSalle/ISS/被动性 | 接触闭环证书 |
-> | §11 LQR | 最优反馈 | ARE/Riccati | 接近相 baseline |
+> | §11 LQR | 最优反馈/追踪 | ARE/Riccati、增广追踪 | 接近相 baseline、跟进给轨迹 |
 > | §12 自适应 | 未知参数 | MRAC、PE、确定性等价 | 在线辨识摩擦 |
 > | §13 数据驱动 | 无模型证书 | Willems、informativity、S-lemma | 短轨迹给证书 |
 
@@ -600,6 +821,8 @@ CTC 一旦模型有误差 $\Delta M$ 性能迅速退化。SMC 把状态强行约
 - [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]] — torque-speed envelope 建模执行器物理极限，actuation-aware 残差 RL
 
 ### 顺应控制与硬件
+> [!note] Foundation 交叉
+> 控制律最终要在真实执行器上兑现——电机力矩线性度、减速器背隙/效率、电流环带宽如何破坏理想控制，见 [[Actuation|执行器与驱动系统]]（本讲串级环 §4、观测器 §3 的硬件落地）。
 - [[Minimalist Compliance Control|MCC]] — 方向相关效率 + 系列弹性元件的最小模型力控
 - [[sim2real|硬件 Sim-to-Real Gap 分析]] — 电机/减速器/传动方案对控制迁移的系统影响
 

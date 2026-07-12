@@ -27,9 +27,10 @@ related:
 > OpenAI 用 **Shadow 五指手**、**纯仿真训练**做 Rubik's cube 的手内操作，靠两件东西迁到真机：(1) **自动域随机化 ADR**——一个自动把随机化分布**逐步扩宽（按性能驱动的 curriculum）**的算法，用 ADR entropy $H(P_\phi)$ 量化扩展程度；(2) 为机器学习定制的机器人平台。最深的科学发现：**在 ADR 分布上训练记忆增强（LSTM）策略 = 隐式 meta-learning**——策略在**循环隐状态里于测试时涌现地推断并适应当前真实动力学**（因容量有限不能逐环境死记，只能学会"适应"）。**它是 ADR 的源头（[[DeXtreme- Transfer of Agile In-hand Manipulation from Simulation to Reality|DeXtreme]] 继承）、也是 WMTS 适配（LAAA）的关键先例：循环策略 + 多样 DR 可隐式 meta-learn 适应动力学，是显式适配模块（[[DyWA: Dynamics-adaptive World Action Model|DyWA]]/RMA）与 world model 之外的第三条适应路线。但须诚实：cube 的"解法逻辑"由经典 Kociemba 求解器给出，RL 只做手内操作子目标，且依赖 mocap 指尖 + 传感魔方、全解成功率有限。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — 循环策略 + RL（PPO 系）在 ADR 分布上训练；POMDP。
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 / Phase 4 ADR]] — ADR 的原始出处：性能驱动、用 entropy 度量的自动 DR curriculum（"生长"随机化边界）。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2 三味药]] — 涌现 meta-learning = "在线自适应"味药的**隐式**版：循环隐状态在测试时做隐式系统辨识，无需显式 System ID 模块。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — ADR 随机化的物理对象含腱驱 Shadow 手的执行器动力学；**暗线「电流≠关节力矩」**：正是电机→传动链输出的 $\tau$ 与仿真理想 $\tau$ 之差，需 ADR 覆盖或循环策略隐式适应。
 > - [[EmbodiedAI]] — sim-only 训练 + ADR 迁移真机；视觉状态估计 + 控制分离。
-> - [[Optimization]] — ADR 是性能驱动的 curriculum（自动扩 randomization 范围，ADR entropy 度量）。
 > - [[Final_WMTS]] — **WMTS 适配（LAAA）的隐式 meta-learning 先例**；ADR curriculum 入 scheduler；与显式适配/WM 互补。
 > - [[Dynamic Non-Prehensile Manipulation]] — Shadow 手内操作经典，但 cube 偏慢且解法靠经典求解器。
 >

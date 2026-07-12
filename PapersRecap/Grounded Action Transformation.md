@@ -24,8 +24,10 @@ related:
 > GAT 是 Grounded Simulation Learning 的一个动作层 grounding 算法：它不直接调仿真器物理参数，而是学习真实 forward dynamics $f(s,a)$ 与仿真 inverse dynamics $f^{-1}_{sim}(s,s')$，在仿真器内部用 $g(s,a)=\alpha f^{-1}_{sim}(s,f(s,a))+(1-\alpha)a$ 替换 policy action，使仿真中执行同一个 policy action 的效果更接近真机；在 NAO 双足行走中把 state-of-the-art hand-coded walk 从 19.52 cm/s 提升到 27.97 cm/s，提升 43.27%。
 
 > [!tip] 与理论基础的关联
-> - [[Dynamics]] — GAT 的核心是 forward model 与 inverse dynamics model 的组合：先预测真实动作效果，再求仿真中产生同等效果的动作。
-> - [[ReinforcementLearning]] — 属于 sim-to-real / grounded simulation learning：policy improvement 仍在 grounded simulator 中做，真机主要用于 grounding 数据和候选 policy evaluation。
+> - [[Dynamics#9. 适配层：可微物理与神经动力学|Dynamics §9]] — GAT 的核心是 forward model $f$ 与 inverse dynamics model $f^{-1}_{sim}$ 的组合：先预测真实动作效果，再求仿真中产生同等效果的动作，是"神经动力学做适配层"的早期形态。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2]] — GAT 是"三味药"之外的第四条路（grounding）：不改物理参数（≠SysID）、不盲目扩覆盖（≠DR），而在动作接口做局部校正，且需 reground 迭代（policy shift → 重新 grounding）。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — GAT 修的恰是 **electric/joint-response 层的 $\Delta_A$**：SimSpark action 近乎瞬时达标、真机有 delay；挂 **电流≠关节力矩** 暗线——它把"命令→真实关节响应"的执行器 gap 显式建成 action preprocessor。
+> - [[Actuation#10. 迁移层 II：数据驱动执行器模型 (Actuator Model)|Actuation §10]] — $f/f^{-1}_{sim}$ 用历史 $x_{t:t-4},a_{t-1:t-4}$ 捕获不可观测动态，与 Actuator Net 学"PD 未覆盖残差"同构。
 > - [[The CMA Evolution Strategy: A Tutorial]] — 论文用 CMA-ES 优化 NAO walk engine 的 15 个参数，体现老式 policy search 与 grounding 的结合。
 > - [[ControlTheory]] — 对执行器延迟、关节响应差异的补偿发生在动作层；这与 actuator model / latency-aware residual control 同源。
 >
@@ -347,6 +349,8 @@ $$
 ### 6.1 对 WMTS / LinkerHand 的迁移
 
 GAT 对 WMTS 的价值是 actuator/dynamics grounding 的思想，而不是直接照搬 NAO action transform。
+
+> **与 [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]] 的簇内 Delta**：两者同属"grounding"路线且都偏好"基策略 + 学出的动力学/动作校正"而非重训，但 GAT 在**动作层**学全局 $g(s,a)$ 并把 transformation 放进 simulator 内部（policy 仍出原始 $a$）；DexNDM 在**关节层**学 $f_{\psi_i}(h^i_t)$ 并用 residual policy 部署时叠加。GAT 假设"仿真存在等效动作"，对 actuator delay 成立、对接触滑移可能失效——这正是 DexNDM 用 joint-wise 投影 + Chaos Box 数据去攻的高维接触情形。
 
 | GAT 概念 | WMTS 可替换版本 | 目的 |
 |----------|----------------|------|

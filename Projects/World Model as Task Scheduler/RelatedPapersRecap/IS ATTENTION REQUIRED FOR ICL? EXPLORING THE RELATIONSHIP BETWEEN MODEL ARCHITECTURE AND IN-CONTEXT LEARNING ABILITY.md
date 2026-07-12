@@ -13,6 +13,7 @@ venue: ICLR 2024 (UCSD; Ivan Lee, Berg-Kirkpatrick)
 paper-pdf: "[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
+  - "[[RepresentationLearning]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
@@ -23,6 +24,8 @@ related:
 > 大规模实证研究：评测 **13 种能做 causal LM 的架构**（recurrent、conv、transformer、SSM、各类 attention 替代品）在一套合成 **in-context learning (ICL)** 任务上的表现。发现：(1) **所有架构都能 ICL**，且条件比以往documented 更宽——**ICL 不是 attention 专属**；(2) statistical efficiency 与 consistency 随 in-context 样本数、任务难度差异显著；(3) 度量各架构"用 in-context 样本 vs 记忆"的倾向；(4) **几类 attention 替代品有时优于 transformer**；(5) **没有单一架构在所有任务一致**——当 in-context 样本数 ≫ 训练时，性能 plateau/下降。**对 WMTS：ICL = 测试时从上下文快速适应（=WMTS LAAA 的一种框架）；本文证明此能力架构无关（SSM/recurrent 亦可），故 WMTS 的 WM/adapter 不必盲信 transformer，可选高效 SSM/recurrent；但须警惕"超出训练上下文长度即退化"——in-context 适应有外推上限。**
 
 > [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度]] — ICL/meta 是"从上下文示例学任务"，与 IL 同属"从数据得策略"谱；ICL 无权重更新，IL 有梯度。
+> - [[RepresentationLearning#4.6 序列与注意力表征：从无序集合到有序序列]] — ICL 的载体是序列/上下文表征；本文证承载 ICL 的不必是注意力（SSM/RNN 隐状态亦可）。
 > - [[ReinforcementLearning]] — ICL = 测试时任务适应（meta-learning/快速适应）。
 > - [[EmbodiedAI]] — context-conditioned 适应（延迟/物体/温漂 from 上下文）。
 > - [[Final_WMTS]] — **LAAA 的 ICL 框架 + WM/adapter 架构选型（attention 非必需）**；外推上限警示。
@@ -151,8 +154,20 @@ context-conditioned 适应（从上下文推断延迟/物体/温漂）；架构�
 ### 与 [[Final_WMTS]] 的联系
 LAAA 的 ICL 框架；WM/adapter 架构选型（attention 非必需，可用高效 SSM/recurrent）；外推上限警示（远分布需微调/probe）。
 
+### 与 [[RepresentationLearning]] 的联系
+ICL 的载体是 [[RepresentationLearning#4.6 序列与注意力表征：从无序集合到有序序列]] 的核心对象——上下文示例序列的表征。本文的关键增量恰是对该节的补充：**承载"从上下文推断任务"的不必是注意力**，SSM/RNN 的隐状态累积、卷积同样能编码上下文并适应，故序列表征 ≠ 必须 attention。
+
+### 暗线：POMDP → belief → latent（历史窗口即解药）
+ICL 是这条暗线最干净的实例：任务是隐变量，上下文 (input,output) 示例是部分可观测证据，模型在前向中把**历史窗口**聚合成"任务的充分统计量"（belief）再应用于 query——正是 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|POMDP→belief]] / [[StochasticProcess#2.3 马尔可夫性：它如何在推冰球里被破坏，又如何被"信念"救回|历史窗口救回马尔可夫性]] 的机制。本文的贡献是证明"聚合成 belief"的算子可以是注意力、也可以是状态空间隐状态；其"外推上限"则是这条暗线的边界：历史窗口超出训练长度，belief 推断即退化。WMTS 的 LAAA（从近期 obs/触觉推当前延迟/温漂）是它的物理版。
+
+### 与本簇论文的关联（Delta 对比）
+- **vs [[Transformers as Meta-Learners for Implicit Neural Representations|Trans-INR]]**：同探"从上下文快速适应"——本文是 **隐式 in-context 适应**（激活里推断、不生成权重、架构无关），Trans-INR 是 **显式 hypernetwork 生成全权重**；隐式省而受外推上限限，显式重而表达力高。
+- **vs [[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|Latent Space 综述]]**：综述把 in-context 计算归入 Computation（Interleaved/Adaptive）分类；本文从下往上给出"该计算架构无关"的机制证据——综述给标签、本文给证据。
+- **vs [[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger]]**（可比维度=可靠性边界）：都在回答"何时不可信"——本文揭示 ICL 的**外推上限**（样本数 ≫ 训练即退化）是能力边界，HG-DAgger 学一个 **uncertainty 阈值预测失败区**是显式 triage；WMTS 把二者合流：in-context 适应 + 用不确定性判定何时越界该 probe/微调。
+
 ## References
 - 原始 PDF：[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY.pdf]]（UCSD，ICLR 2024，arXiv 2310.08049）
 - ICL/meta 同簇：[[Transformers as Meta-Learners for Implicit Neural Representations|Transformers as Meta-Learners]]、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik（涌现 meta-learning）]]
 - WM 主干对照：[[STORM: Efficient Stochastic Transformer based World Models for Reinforcement Learning|STORM]]
+- 本簇（表征/几何/ICL/元学习/IL）关联：[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|Latent Space 综述]]、[[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger（uncertainty 边界）]]
 - 项目入口：[[Final_WMTS]]

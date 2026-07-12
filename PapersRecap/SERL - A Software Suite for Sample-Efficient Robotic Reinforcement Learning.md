@@ -31,6 +31,18 @@ related:
 >
 > **核心技术**: RLPD, symmetric prior/online sampling, high UTD with critic LayerNorm, classifier reward, VICE-style adversarial negatives, forward-backward reset, impedance reference limiting, relative observation/action frame
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]：都真机高效 RL，SERL 是其**软件套件基座**（RLPD + reset + reward + control）；HIL-SERL 在此栈上加 human intervention 采样失败边界，扩展到双臂/动态/长程。
+> - vs [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]：都做真机 RL 收口，SERL 是 off-policy RLPD **系统栈**；RL-100 把 diffusion 去噪链当 sub-MDP 做 PPO + offline→online + 一致性蒸馏，无需人类在线。
+> - vs [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations|MimicGen]]：都"把少量演示放大"，但 SERL 在**交互侧**（20 demos 当 replay prior 启动真机 RL），MimicGen 在**数据侧**（demo 变 object-centric segment 生成海量离线数据）——互补。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#9.3 真机高效 RL：把"模仿×强化"缝合线收口|RL §9.3]] — SERL/RLPD 正是"demo prior + online rollout"的系统实现，缝合线的 infrastructure root。
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4]] — RLPD 的 demo/online 50/50 = 把演示放进 TD backup 的另一条"收编"（区别于 §7.4 AWAC 的优势加权 BC）。
+>
+> **暗线**：**模仿×强化缝合线**上 SERL 处于"真机 off-policy 缝合"节点；**POMDP→belief→latent**——图像接触任务实为 POMDP，SERL 用 proprio + 相对坐标近似 belief（ResNet 特征即 latent）。
+
 ## 0. 阅读定位与范本价值
 
 SERL 这篇不能按“算法 paper”来读。它自己明确说目标不是提出 novel methodology，而是提供一个 carefully implemented library。它的价值在于把一个真实世界 RL 研究者每天踩的坑变成可复用默认设置：reward 怎么来、reset 怎么做、demo 怎么用、控制器怎么不撞坏工件、GPU/robot 进程怎么并行、图像输入怎么接进 actor-critic。

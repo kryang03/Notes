@@ -12,10 +12,12 @@ aliases:
 created: 2026-01-31
 related:
   - "[[ControlTheory]]"
+  - "[[Actuation]]"
   - "[[ContactMechanics]]"
   - "[[Optimization]]"
   - "[[StochasticProcess]]"
   - "[[ReinforcementLearning]]"
+  - "[[WorldModels]]"
 ---
 
 # 灵巧操作动力学：从能量原理到实时多体与接触求解
@@ -24,6 +26,7 @@ related:
 
 > [!tip] 相关领域
 > - [[ControlTheory]] — 动力学方程是控制律的设计对象；操作空间动力学是阻抗控制的根
+> - [[Actuation]] — 操作器方程右端的 $\tau$ 不是凭空施加的，而是电机+FOC+减速器的输出；腱耦合矩阵 $P$（§8）与传动雅可比同源，神经动力学（§9）与 actuator net 同思想
 > - [[ContactMechanics]] — 接触动力学（LCP）是动力学与接触力学的交汇；Delassus 矩阵两处共用
 > - [[Optimization]] — iLQR/DDP/MPC 依赖高效动力学求解；变分积分器与最优控制同源
 > - [[StochasticProcess]] — GP/ensemble 动力学学习补偿模型残差
@@ -159,6 +162,23 @@ $$M(\theta)\ddot\theta+\underbrace{C(\theta,\dot\theta)\dot\theta}_{\text{科氏
 > [!important] $\dot M(\theta)-2C(\theta,\dot\theta)$ 是反对称的
 > 这是 **Passivity-based Control** 的数学基础：取 Lyapunov 函数 $V=\frac12\dot\theta^TM\dot\theta$，有 $\dot V=\dot\theta^T(\tau-N)$（能量守恒结构）。它直接连到 [[ControlTheory#10. 稳定性理论的统一基石|无源性控制]]——挥转螺丝刀的能量注入/耗散可被精确记账，保证人-机-环境闭环稳定。
 
+> [!theorem] 逐符号证明：为什么 $\dot M-2C$ 恰好反对称（不跳步）
+> 记斜对称候选矩阵 $\Xi(\theta,\dot\theta):=\dot M-2C$，逐元素展开。三个已知事实：
+> - $M$ **对称**：$M_{ij}=M_{ji}$（动能是二次型，Hessian 对称）；
+> - $\dot M$ 的元素由链式法则：$\dot M_{ij}=\sum_k\dfrac{\partial M_{ij}}{\partial\theta_k}\dot\theta_k$（$\theta_k$ [rad]，$\dot\theta_k$ [rad/s]，$\dfrac{\partial M_{ij}}{\partial\theta_k}$ [kg·m²/rad]）；
+> - $C$ 由 §3.1 的 Christoffel 定义：$C_{ij}=\sum_k\Gamma_{ijk}\dot\theta_k=\dfrac12\sum_k\Big(\dfrac{\partial M_{ij}}{\partial\theta_k}+\dfrac{\partial M_{ik}}{\partial\theta_j}-\dfrac{\partial M_{kj}}{\partial\theta_i}\Big)\dot\theta_k$。
+>
+> **第一步** 代入相减，把 $\dot M_{ij}$ 那一项和 $2C_{ij}$ 里第一项 $\partial M_{ij}/\partial\theta_k$ 抵消：
+> $$\Xi_{ij}=\sum_k\dfrac{\partial M_{ij}}{\partial\theta_k}\dot\theta_k-\sum_k\Big(\dfrac{\partial M_{ij}}{\partial\theta_k}+\dfrac{\partial M_{ik}}{\partial\theta_j}-\dfrac{\partial M_{kj}}{\partial\theta_i}\Big)\dot\theta_k=\sum_k\Big(\dfrac{\partial M_{kj}}{\partial\theta_i}-\dfrac{\partial M_{ik}}{\partial\theta_j}\Big)\dot\theta_k.$$
+> **第二步** 交换下标 $i\leftrightarrow j$ 得 $\Xi_{ji}=\sum_k\big(\partial M_{ki}/\partial\theta_j-\partial M_{jk}/\partial\theta_i\big)\dot\theta_k$。用 $M$ 对称（$M_{ki}=M_{ik}$、$M_{jk}=M_{kj}$）改写：
+> $$\Xi_{ji}=\sum_k\Big(\dfrac{\partial M_{ik}}{\partial\theta_j}-\dfrac{\partial M_{kj}}{\partial\theta_i}\Big)\dot\theta_k=-\Xi_{ij}.\qquad\blacksquare$$
+> **物理落点**：$\Xi^T=-\Xi\Rightarrow\dot\theta^T\Xi\dot\theta=0$ 对任意 $\dot\theta$ 成立——**科氏/离心力对系统不做净功，只在各自由度间"搬运"动能**。这才是"礼物"：挥转螺丝刀时，无论构型如何剧变，科氏项都不会凭空注入或抽走能量。
+
+> [!note] 由反对称直接推出无源性（补全 $\dot V=\dot\theta^T(\tau-N)$ 那一步）
+> $\dfrac{d}{dt}\big(\tfrac12\dot\theta^TM\dot\theta\big)=\dot\theta^TM\ddot\theta+\tfrac12\dot\theta^T\dot M\dot\theta$。代入操作器方程 $M\ddot\theta=\tau-N-C\dot\theta$：
+> $$\dot V=\dot\theta^T(\tau-N)-\dot\theta^TC\dot\theta+\tfrac12\dot\theta^T\dot M\dot\theta=\dot\theta^T(\tau-N)+\tfrac12\dot\theta^T\underbrace{(\dot M-2C)}_{=\Xi,\ \text{斜对称}}\dot\theta=\dot\theta^T(\tau-N).$$
+> 最后一项被反对称性精确抹掉——**能量的账只由输入 $\tau$ 与重力 $N$ 结算**。这是把 [[ControlTheory#10. 稳定性理论的统一基石|无源性/Lyapunov]] 用于人-机-环境闭环的前提，也与 [[ReinforcementLearning#8.2 奖励工程：最危险的自由度|能量型奖励塑形]]共享同一"能量记账"直觉。
+
 ### 3.4 惯量参数线性性：通往自适应控制的桥
 
 > [!important] 操作器方程对惯量参数 $\pi$ 线性（Slotine–Li 1987）
@@ -218,6 +238,23 @@ $$M(q)\ddot q+C\dot q+N+A^T(q)\lambda=F,$$
 $\lambda\in\mathbb R^k$ 是 **Lagrange 乘子**。对约束求时间导数代入，解出
 $$\lambda=(AM^{-1}A^T)^{-1}\big[AM^{-1}(F-C\dot q-N)+\dot A\dot q\big].$$
 
+> [!theorem] 逐步推导（1）为什么反力是 $A^T\lambda$ 而非 $A\lambda$
+> **虚功原理 / d'Alembert**：理想约束力对任何**可行速度**不做功。可行速度满足 $A\dot q=0$，即 $\dot q\in\ker A$（约束把速度锁在这个 $n-k$ 维零空间里）。对 $\ker A$ 处处零功的广义力，必落在其正交补 $(\ker A)^\perp=\mathrm{row}(A)=\mathrm{range}(A^T)$——> 所以约束力**只能**写成 $A^T\lambda$。每个 $\lambda_l$ 是第 $l$ 条约束的反力**大小**（法向接触约束 $\Rightarrow$ 力 [N]；姿态约束 $\Rightarrow$ 力矩 [N·m]），方向由 $A$ 的第 $l$ 行给定。
+> **优化视角——$\lambda$ 就是 KKT 乘子/影子价格**：把约束动力学写成"每步求 $\ddot q$ 使加速度能量最小、s.t. $A\ddot q=-\dot A\dot q$"的等式约束 QP，其一阶最优性 (KKT) 恰好给出 $M\ddot q-A^T\lambda=\tau-C\dot q-N$——**力学里的"约束反力"与优化里的"拉格朗日乘子"是同一个 $\lambda$**。$\lambda_l$ 作为**影子价格**的读法：把第 $l$ 条约束松动一个单位（允许 $\phi_l$ 违反 $\delta$），系统的广义力代价随之变化的斜率就是 $\lambda_l$——约束"越顶得紧"、影子价格越高。这把动力学接上了 [[Optimization#2.3 KKT 条件：约束最优的"语法"|KKT 条件]]（"价值即 Lyapunov / 对偶即价格"的优化侧语法）。
+> **这正是"对偶性 $J/G/P$"暗线的根**：$G^Tf$（抓取内力）、$J_h^T f_c$（接触力→关节力矩）、$P^Tf$（腱张力→关节力矩）与 $A^T\lambda$ 是**同一个虚功论证**的四个化身，见 [[ControlTheory#2.1 虚功原理与对偶性|虚功原理与对偶性]]、[[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|接触雅可比对偶]]。
+
+> [!theorem] 逐步推导（2）$\lambda$ 与 Delassus 算子 $AM^{-1}A^T$ 从哪来
+> **加速度层约束**：位置约束 $A\dot q=0$ 只约束速度，求解 $\ddot q$ 需再微分一次。对 $A(q)\dot q=0$ 求时间导（$A$ 依赖 $q$，故有 $\dot A$ 项）：
+> $$\frac{d}{dt}(A\dot q)=\dot A\dot q+A\ddot q=0\ \Rightarrow\ A\ddot q=-\dot A\dot q.\tag{$\star$}$$
+> **从 EOM 解出 $\ddot q$**：$\ddot q=M^{-1}\big(F-C\dot q-N-A^T\lambda\big)$。代入 ($\star$)：
+> $$AM^{-1}\big(F-C\dot q-N\big)-\underbrace{AM^{-1}A^T}_{\text{Delassus }\mathcal D}\,\lambda=-\dot A\dot q.$$
+> 移项即得上式的 $\lambda$。**逐符号读 $\mathcal D=AM^{-1}A^T$**：$M^{-1}$ 是关节空间的**柔度**（力→加速度，单位 $1/(\text{kg·m}^2)$）；$A^T$ 把约束乘子"撑"进关节空间；$A$ 再把关节加速度"压"回约束空间。合起来 $\mathcal D$ 是**"在约束方向上，单位反力产生多少约束加速度"**——即约束点的**有效逆惯量**（$\mathcal D^{-1}$ 才是有效惯量 [kg·m²]）。$\mathcal D$ 病态（$A$ 行接近相关，如冗余抓取过约束）时 $\lambda$ 数值爆炸，这正是 §6.1 PGS 收敛慢、幽灵力的根。
+
+> [!important] 一处推导，三个领域共用（Delassus 主线 + 接触非光滑暗线）
+> - **$\mathcal D=AM^{-1}A^T$ 就是 §7.3 Khatib 操作空间惯量 $\Lambda^{-1}=JM^{-1}J^T$ 的同一构造**（把约束雅可比 $A$ 换成任务雅可比 $J$）——约束反力与任务惯量是**同一套数学**，见下文 §7.3 推导。
+> - 把 ($\star$) 的**等式**换成**互补不等式** $\lambda\ge0,\ (A\ddot q+\dot A\dot q)\ge0,\ \lambda^\top(\cdot)=0$（接触只推不拉），KKT 系统就退化为 [[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]]，$\mathcal D$ 即 LCP 的主矩阵——**接触把光滑等式约束撕成非光滑互补**，这是 [[Optimization#3.1 互补约束：接触把可行域撕成"坐标轴的并集"|优化景观被接触毁掉]]的动力学来源。
+> - $\mathcal D$ 也是 [[Optimization#2.3 KKT 条件：约束最优的"语法"|KKT 条件]]里约束块的 Schur 补——约束动力学本质是一个每步都在解的等式约束 QP。
+
 > [!important] 三层物理含义
 > - **$AM^{-1}A^T$ = 约束空间的有效质量矩阵**（即 §5 要分解的 **Delassus 算子**，也即 [[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]] 里的 $A$ 矩阵——一处推导，两个领域共用）；
 > - **$\lambda$ = 接触力/内力的大小**；
@@ -254,12 +291,39 @@ Featherstone 把 $v\in\mathbb R^3$ 与 $\omega\in\mathbb R^3$ 合并为 6D 空�
 - **空间惯量** $I$（$6\times6$ 对称正定，含质量、质心、转动惯量）；
 - **空间叉乘** $\nu\times$（运动）与 $\nu\times^*$（力，对偶），用于 $f=Ia+v\times^*Iv$。
 
+> [!theorem] 把 6D 运算写全（不跳步：每个 $6\times6$ 块的来历与单位）
+> **(a) 运动空间 $M^6$ 与力空间 $F^6$ 是一对对偶空间。** 空间速度 $\nu=(\omega,v)$：$\omega$ [rad/s] 角速度、$v$ [m/s] 是刚体上**过原点那一点**的线速度（Plücker 约定，不是质心速度）。空间力 $f=(n,f_{lin})$：$n$ [N·m] 力矩、$f_{lin}$ [N] 合力。二者的**自然配对是功率**：
+> $$\langle f,\nu\rangle=f^T\nu=n^T\omega+f_{lin}^Tv\quad[\text{W}].$$
+> 运动量顶标平动在上、力量顶标力矩在上——顺序相反，正是为了让这个点积恰好是功率。**这条对偶配对就是"对偶性 $J/G/P$"暗线的最底层根**：手雅可比 $J_h$（§8.1）、抓取矩阵 $G$、约束 $A$（§4.2）之所以"力用转置、速度用原矩阵"，本质都是这一个 $F^6\!-\!M^6$ 对偶在不同坐标下的投影，见 [[ControlTheory#2.1 虚功原理与对偶性|虚功原理与对偶性]]。
+>
+> **(b) Plücker 坐标变换 $X$**（把 §2.3 的 $SE(3)$ 作用具体成矩阵）。父系 $p$ 到子系 $i$ 的位姿为 $(R,r)$（$R\in SO(3)$ 旋转、$r$ [m] 平移），则运动向量的变换
+> $${}^iX_p=\begin{bmatrix}R&0\\-R\,\hat r&R\end{bmatrix}\in\mathbb R^{6\times6},\qquad \nu_i={}^iX_p\,\nu_p+S_i\dot q_i.$$
+> 左下角 $-R\hat r$ 就是"平移把角速度耦合进线速度"（$v_i$ 里多出 $\omega\times r$ 那一截），这是 §5.2 外向趟递推 $\nu_i=X_i\nu_{i-1}+S_i\dot q_i$ 里 $X_i$ 的真身，**无量纲**（纯几何变换）。力向量用**对偶变换** ${}^iX_p^*=({}^pX_i)^T$（力和运动变换互为逆转置，保证功率 $f^T\nu$ 坐标无关）。
+>
+> **(c) 空间叉乘的两张脸**（$6\times6$ 显式）。运动叉乘 $\nu\times$ 作用在运动量上、力叉乘 $\nu\times^*$ 作用在力量上，二者差一个转置与符号：
+> $$\nu\times=\begin{bmatrix}\hat\omega&0\\\hat v&\hat\omega\end{bmatrix},\qquad \nu\times^*=-(\nu\times)^T=\begin{bmatrix}\hat\omega&\hat v\\0&\hat\omega\end{bmatrix}.$$
+> **物理落点——陀螺力（科氏力的 6D 版）**：$f^{bias}=\nu\times^*I\nu$ [N; N·m] 就是"高速旋转刚体自己产生的、与加速度无关的力"，偏心螺丝刀甩起来那股拧手的力矩正是它。这一项与 §3.1 用 Christoffel 符号 $\Gamma_{ijk}$ 辛苦算的 $C\dot\theta$ 是**同一个科氏/离心力的两种记法**——符号法 $O(N^3)$、6D 叉乘 $O(N)$（§5.2 详证）。
+>
+> **(d) 空间惯量 $I$** 是 $M^6\to F^6$ 的线性映射（"给速度还力"）：$I=\begin{bmatrix}\bar I_c+m\hat c\hat c^T&m\hat c\\m\hat c^T&mE_3\end{bmatrix}$，$m$ [kg] 质量、$c$ [m] 质心位置、$\bar I_c$ [kg·m²] 绕质心转动惯量、$E_3$ 单位阵。它把 $f=Ia$ 从"$3\times3$ 转动 + 标量平动"升级为统一的 $6\times6$ 正定映射——**§5.3 ABA 的 articulated inertia $I^A$ 就是在这个空间里被子链逐级修正的对象**。
+
 ### 5.2 RNEA：$O(N)$ 逆动力学（控制的基石）
 
 > [!important] 两趟递推（记住这条链就记住了 RNEA）
 > - **外向趟 (Base→Tip, 运动学)**：传播速度与加速度，$\nu_i=X_i\nu_{i-1}+S_i\dot q_i$；
 > - **内向趟 (Tip→Base, 动力学)**：传播力与力矩，$f_i=f_i^{net}+\sum_{child}X^Tf_{child}$，关节力矩 $\tau_i=S_i^Tf_i$。
 > **复杂度 $O(N)$**——这是机器人控制的里程碑：无论多少关节，计算时间线性增长，使 1kHz 计算力矩控制成为可能。
+
+> [!theorem] 为什么恰好是"两趟、且方向相反"（把递推讲透）
+> 关键是两个**方向相反的因果依赖**：
+> 1. **运动学依赖朝外**：连杆 $i$ 的速度 = 父连杆速度 + 关节 $i$ 自己的贡献。逐符号读 $\nu_i=X_i\nu_{i-1}+S_i\dot q_i$：$\nu_i=(\omega_i,v_i)\in\mathbb R^6$ 是连杆 $i$ 的 6D 空间速度（[rad/s; m/s]）；$X_i\in\mathbb R^{6\times6}$ 是把父坐标系旋量搬到 $i$ 系的 Plücker 变换（无量纲）；$S_i\in\mathbb R^6$ 是关节运动子空间/轴（转动关节沿轴，无量纲），$\dot q_i$ 是关节速率 [rad/s]。**不知道父的运动，就算不出子的运动**——所以必须从已知的基座（固定或浮动基状态）向指尖流。这一趟纯运动学，**一个力都用不到**。
+> 2. **动力学依赖朝内**：连杆 $i$ 上的力平衡（Newton–Euler）$f_i=\underbrace{I_i a_i+\nu_i\times^*I_i\nu_i}_{f_i^{net}\text{：惯性力+陀螺力}}+\sum_{child}X^Tf_{child}$，需要**所有子连杆对它的反作用力**（牛顿第三定律）。指尖没有子连杆，力**完全确定**；于是每个父连杆把子连杆的反力累加上来——信息只能从指尖流回基座。
+> **为什么不能合成一趟？** 连杆 $i$ 的加速度取决于**父**（要外向流），而它受的力取决于**子**（要内向流），两个依赖指向相反，逻辑上无法在一趟里同时满足。**为什么是 $O(N)$ 而非 $O(N^3)$？** 每趟里每个连杆只和它的直接邻居做常数次 6D 运算，$N$ 个连杆 $\Rightarrow$ 线性——这就是"利用运动链局部性"的兑现。
+
+> [!tip] RNEA 免费送出科氏项：与 §3.1 Christoffel 对账
+> 外向趟里加速度 $a_i=X_ia_{i-1}+S_i\ddot q_i+\underbrace{\nu_i\times S_i\dot q_i}_{\text{科氏 bias}}$——微分 $X_i\nu_{i-1}$ 时冒出的 $\nu\times$ 项，**正是 §3.1 用 Christoffel 符号 $\Gamma_{ijk}$（$O(N^3)$ 符号求导）辛苦算出的 $C\dot\theta$**。把 $\ddot q=0,\ g=0$ 喂进 RNEA，输出就是纯 $C(\theta,\dot\theta)\dot\theta$；把 $\dot q=0,\ \ddot q=e_j$ 喂进去，第 $j$ 次调用输出 $M$ 的第 $j$ 列。**同一个科氏力，符号法 $O(N^3)$、递推法 $O(N)$——这是"算法层工业革命"最锋利的一刀。**
+
+> [!warning] RNEA 的 $\tau$ 是"刚体理想力矩"，不是电机电流（电流≠关节力矩暗线）
+> RNEA 输出的 $\tau_i$ 是**关节轴上理应施加的力矩**；真机要靠 电机→[[Actuation#2. 驱动层：FOC 磁场定向控制——把三相交流当直流控|FOC]]→[[Actuation#8. 机械层 II：减速器——背隙、摩擦、弹性的来源|减速器]] 这条链实现，中间隔着 reflected inertia、背隙、摩擦、温漂。仿真把 $\tau$ 当输入直接施加、真机 $\tau$ 是传动链输出——这个**身份错位**就是 [[Actuation#9.2 完整力矩传递链模型|力矩传递链]] gap 的物理来源，也是 [[WorldModels#5.2 WMTS 的核心结构决策：Actuator + Rigid 解耦|WMTS 把 Actuator 与 Rigid 解耦]]的动机：刚体部分（本节 RNEA/ABA）可解析、可辨识，非线性只集中在执行器侧。
 
 ```python
 def rnea_inverse_dynamics(model, gravity_vec):
@@ -295,6 +359,17 @@ Featherstone (1983) 的核心概念是 **Articulated Inertia（关节惯量）**
 > 挥动一根鞭子（软连接）和一根铁棍（刚连接）——鞭子末端滞后，你感受到的惯量小于铁棍。ABA 递归计算这种"被子链修正后"的等效惯量，**无需显式求逆大矩阵**就能直接解出加速度。更新规则：
 > $$I^A_{parent}=I_{parent}+\Big(I^A_{child}-\frac{I^A_{child}SS^TI^A_{child}}{S^TI^A_{child}S}\Big).$$
 > 减号那项是"因关节自由度而泄露掉的惯量"——关节锁死（$S=0$）时它消失、惯量直接相加。这一步把多体系统等效为变换后的单刚体。
+
+> [!theorem] ABA 三趟递推各在算什么（把"为什么恰好三趟"讲透）
+> RNEA 两趟就够（§5.2），ABA 却要**三趟**——多出来的一趟正是"求逆的替身"。逐趟读物理意义：
+> 1. **第一趟 外向（Base→Tip）：只算速度相关量。** 此时 $\ddot q$ 还未知，但速度 $\nu_i$ 与两个 bias 项已可定：bias 加速度 $c_i=\nu_i\times S_i\dot q_i$（[rad/s²; m/s²]，关节转动带来的科氏偏置）、刚体 bias 力 $p_i=\nu_i\times^*I_i\nu_i$（[N; N·m]，§5.1(c) 的陀螺力）。**为什么必须先做**：articulated inertia 的修正只依赖构型与速度、不依赖 $\ddot q$，所以可以在不知加速度时就备好。
+> 2. **第二趟 内向（Tip→Base）：把"松弛子链"的等效惯量与力逐级折叠回来。** 对每个连杆算 $I^A_i$（articulated inertia，[kg·m²]，"从这里往外看整条软子链的等效惯量"）与 $p^A_i$（articulated bias force，子链在零关节力矩下会自己产生的力）。关键的减号项 $-\frac{I^A SS^TI^A}{S^TI^AS}$ 把"子关节能自由转动的那个方向"的惯量**扣掉**——因为那个方向的力会被子关节"让开"、传不回父连杆。**这一趟就是 ABA 相对 RNEA 多出来的核心**：它用 $O(N)$ 的递归折叠，替代了"组装 $M$ 再求逆"的 $O(N^3)$。
+> 3. **第三趟 外向（Base→Tip）：自顶向下解出加速度。** 基座加速度已知（固定基为 $-g$、浮动基由上一步定），每个关节按 $\ddot q_i=D_i^{-1}(u_i-U_i^Ta'_i)$ 解出——$u_i$ 是"投影到关节轴的净驱动力"、$U_i^Ta'_i$ 是"父连杆运动经惯性耦合传来的反抗"，$D_i=S_i^TI^A_iS_i$ 是**关节轴向的标量有效惯量**。物理上：只有父的运动定了，子关节"该转多快"才唯一确定，所以必须再外向一趟。
+>
+> **一句话记忆**：外向铺速度 → 内向折惯量（省掉求逆）→ 外向落加速度。$O(N)$ 的本质仍是"运动链局部性 + 两个方向相反的因果依赖"（§5.2），只是正向动力学比逆向多了一层"惯量必须先折叠、加速度才能解"的耦合。
+
+> [!warning] ABA 把 $\tau$ 当"干净输入"直接施加——这正是 Sim-to-Real gap 的埋点
+> ABA 第三趟里 $u_i=\tau_i-S_i^Tp^A_i$ 默认 $\tau_i$ 就是理想关节力矩，无损地进入加速度求解。但真机的 $\tau$ 是电机→FOC→减速器的**输出**、隔着 reflected inertia / 背隙 / 摩擦 / 温漂（"电流≠关节力矩"暗线）。因此 [[WorldModels#5.2 WMTS 的核心结构决策：Actuator + Rigid 解耦|WMTS 把世界模型拆成 Actuator + Rigid 两段]]的合理性，恰恰建立在"**ABA 描述的刚体段可解析、可辨识，非线性只集中在执行器段**"这一事实上——本节的 $O(N)$ 递推正是那个可信的 Rigid 段内核，也是 [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|Sim-to-Real]] 里 Transition 项被拆分治理的物理依据。
 
 ```python
 def articulated_body_algorithm(model, taus):
@@ -411,6 +486,15 @@ def solve_contact_lcp_pgs(J, M_inv, bias, mu, iterations=50):
 
 $$M_{eff}=M_{obj}+G^TM_{fingers}G.$$
 
+> [!theorem] 逐步推导 $M_{eff}=M_{obj}+G^TM_{fingers}G$（能量投影，不跳步）
+> 目标：闭链后"从物体这一点看去"有多大惯量。用**动能守恒 + 抓取约束**四步导出。
+> 1. **两块动能**：系统总动能 = 物体动能 + 手指动能，$T=\tfrac12\dot x_{obj}^TM_{obj}\dot x_{obj}+\tfrac12\dot\theta^TM_{fingers}\dot\theta$。符号：$\dot x_{obj}\in\mathbb R^6$ 物体空间速度 [rad/s; m/s]，$M_{obj}\in\mathbb R^{6\times6}$ 物体空间惯量 [kg·m²/kg]（§5.1(d)），$\dot\theta\in\mathbb R^n$ 手指关节速度 [rad/s]，$M_{fingers}\in\mathbb R^{n\times n}$ 手指关节质量阵 [kg·m²]。
+> 2. **抓取约束把手指运动"锁"到物体上**：刚性握持时接触点不滑，手指关节速度被物体运动完全决定。记这个运动学映射为 $G$：$\dot\theta=G\,\dot x_{obj}$（$G\in\mathbb R^{n\times6}$ 由抓取矩阵与手雅可比合成，无量纲/长度倒数）。**这一步是"闭链"的数学定义**——原本 $n+6$ 个独立速度被压到只剩 $6$ 个。
+> 3. **消去 $\dot\theta$**：把约束代入手指动能，$\tfrac12\dot\theta^TM_{fingers}\dot\theta=\tfrac12\dot x_{obj}^T\big(G^TM_{fingers}G\big)\dot x_{obj}$——手指惯量被**同一个虚功对偶**（$G$ 前乘速度、$G^T$ 前乘力，§8.1 三矩阵同构）投影到物体空间。
+> 4. **合并**：$T=\tfrac12\dot x_{obj}^T\underbrace{(M_{obj}+G^TM_{fingers}G)}_{M_{eff}}\dot x_{obj}$。$\blacksquare$ 由动能的二次型系数即读出有效惯量。**逐符号读 $G^TM_{fingers}G$**：$G$ 把物体运动"下发"给关节、$M_{fingers}$ 给出关节惯性阻力、$G^T$ 再把关节力"上收"回物体——与 §4.2 Delassus $\mathcal D=AM^{-1}A^T$、§7.3 $\Lambda^{-1}=JM^{-1}J^T$ 是**同一个 $(\cdot M\cdot)$ 投影三明治**，只是这里投影的是惯量本身而非其逆。
+>
+> **为什么叫"突变"（接触非光滑性暗线）**：握持发生在**一个时刻**——前一刻 $G$ 不存在、有效惯量就是 $M_{obj}$，后一刻约束瞬间生效、有效惯量跳到 $M_{obj}+G^TM_{fingers}G$，质量矩阵的秩与特征值**不连续跳变**。这正是接触把动力学撕成**混合系统 (hybrid system)** 的一个缩影：模式切换点上状态方程本身改变，梯度在此断裂。它与 [[ReinforcementLearning#1.3 非光滑性的两副面孔：接触流形与混合动力学|RL 视角的"接触流形 + 混合动力学"两副面孔]]是同一现象——策略梯度在这类切换点高方差、解析控制器需要接触状态机，根子都在这个惯量突变。冲击 (impact) 时若物体已有速度，还会伴随动量的瞬时再分配（$M_{eff}$ 突增 → 广义动量守恒下速度突降）。
+
 > [!important] 控制洞察
 > 若只补偿物体重力而忽略 $M_{eff}$ 的变化，控制器会变"软"、响应迟钝。手指接近伸直（奇异附近）时 $M_{fingers}$ 沿某些方向趋于无穷，物体表观惯量剧增——挥转螺丝刀时若手指构型不当，刀头会异常"沉重"难以加速。$G$ 与有效惯量见 [[ContactMechanics#3.1 抓取矩阵的严格定义与内力|抓取矩阵]]。
 
@@ -428,6 +512,21 @@ $$M_{eff}=M_{obj}+G^TM_{fingers}G.$$
 任务定义在笛卡尔空间（刀头位姿），而非关节空间。把动力学投影到任务空间，得**操作空间质量矩阵**与控制律：
 
 $$\Lambda(x)=(JM^{-1}J^T)^{-1},\qquad \tau=J^TF=J^T\big[\Lambda(x)\ddot x_d+\mu+p\big]+\tau_{null}.$$
+
+> [!theorem] 逐步推导 $\Lambda=(JM^{-1}J^T)^{-1}$（不跳步）
+> 目标：把关节空间动力学**投影**到任务空间，看刀头"感受到"多大惯量。四步：
+> 1. **关节空间 EOM**（暂略约束）：$M\ddot q+C\dot q+N=\tau$。符号：$q\in\mathbb R^n$ 关节角 [rad]，$\tau\in\mathbb R^n$ 关节力矩 [N·m]，$M\in\mathbb R^{n\times n}$ 关节质量阵 [kg·m²]。
+> 2. **任务变量与其加速度**：$x=f(q)\in\mathbb R^m$（刀头位姿），$\dot x=J\dot q$，再微分一次得 $\ddot x=J\ddot q+\dot J\dot q$（$J=\partial f/\partial q\in\mathbb R^{m\times n}$ [无量纲/长度]，$\dot J\dot q$ 是"雅可比随构型变化"带来的加速度偏置）。
+> 3. **力的来源**：任务力 $F\in\mathbb R^m$（[N; N·m]）经**同一虚功对偶**产生关节力矩 $\tau=J^TF$（又见上 §4.2 的 $A^T\lambda$——$J^T$ 与 $A^T$ 同构）。代入 EOM 解 $\ddot q=M^{-1}(J^TF-C\dot q-N)$，回代第 2 步：
+> $$\ddot x=\underbrace{JM^{-1}J^T}_{=\Lambda^{-1}}F-JM^{-1}(C\dot q+N)+\dot J\dot q.$$
+> 4. **解出 $F$**：令 $\Lambda:=(JM^{-1}J^T)^{-1}$，移项
+> $$F=\Lambda\ddot x+\underbrace{\big(\Lambda JM^{-1}C\dot q-\Lambda\dot J\dot q\big)}_{\mu\text{：任务空间科氏/离心}}+\underbrace{\Lambda JM^{-1}N}_{p\text{：任务空间重力}}.$$
+> 与上面给出的 $F=\Lambda\ddot x_d+\mu+p$ 逐项吻合。**逐符号读 $\Lambda$**：$JM^{-1}J^T$ 把任务力映成任务加速度（有效**逆**惯量，$1/\text{kg}$），其逆 $\Lambda$ 就是刀头的**表观惯量** [kg 或 kg·m²]——"在刀头这一点上，推动它单位加速度需要多大力"。
+
+> [!important] $\Lambda$ 与 §4.2 Delassus $\mathcal D^{-1}$ 是同一构造（Delassus 主线闭环）
+> $$\underbrace{\Lambda=(JM^{-1}J^T)^{-1}}_{\text{任务惯量, }J=\text{任务雅可比}}\quad\Longleftrightarrow\quad\underbrace{\mathcal D^{-1}=(AM^{-1}A^T)^{-1}}_{\text{约束有效惯量, }A=\text{约束雅可比}}$$
+> **一个公式，两副面孔**：约束反力（§4.2）与任务表观惯量（此处）是同一套 $(\cdot M^{-1}\cdot^T)^{-1}$，也正是 §6.3 PGS 里 $JM^{-1}J^T$ 的接触有效逆质量。记住这条，就把"约束—接触—任务控制"缝成一体。
+> **奇异性直觉**：手指接近伸直时 $J$ 掉秩 $\Rightarrow JM^{-1}J^T$ 奇异 $\Rightarrow\Lambda$ 沿某方向 $\to\infty$——刀头在该方向"表观无穷重"、推不动。这就是 §7.1"手指伸直时刀头异常沉重"的严格来源，也是 [[ControlTheory#4. 操作空间公式化 (OSF)：在任务空间直接设计控制|操作空间控制]]必须监测可操作度的原因。
 
 冗余系统（$n>m$）需**动力学一致性伪逆** $\bar J=M^{-1}J^T\Lambda$，满足 $J\bar J=I$，零空间投影 $N=I-\bar JJ$。
 
@@ -452,12 +551,13 @@ $$\Lambda(x)=(JM^{-1}J^T)^{-1},\qquad \tau=J^TF=J^T\big[\Lambda(x)\ddot x_d+\mu+
 
 第 $i$ 根腱伸长 $h_i(\theta)=l_i+\sum_jr_{ij}\theta_j$（$r_{ij}$ 为力臂半径，正负取决于绕线方向）。**耦合矩阵** $P(\theta)=(\partial h/\partial\theta)^T$ 给出 $\tau=P(\theta)f$（$f$ 为腱张力），对偶地 $\dot h=P^T\dot\theta$。
 
-> [!important] $P$ 与抓取矩阵 $G$ 完全同构（一套工具，两处复用）
-> | | 映射 |
-> |:--|:--|
-> | 抓取 | $F_{object}=Gf_{contact}$ |
-> | 腱驱 | $\tau_{joint}=Pf_{tendon}$ |
-> **抓取分析的全部工具（力闭合、冗余、零空间，见 [[ContactMechanics#3. 接触静力学：能否夹稳这颗弹珠|§3]]）都可直接搬来分析腱网络。** 这是本讲又一处"对偶性 $J/G/P$"的体现。
+> [!important] $P$ 与抓取矩阵 $G$、手雅可比 $J_h$ 三矩阵同构（一套工具，三处复用）
+> | 映射对象 | 力的映射 | 速度的对偶 |
+> |:--|:--|:--|
+> | 接触→关节（手雅可比 $J_h$） | $\tau_{joint}=J_h^Tf_{contact}$ | $\dot x_c=J_h\dot\theta$ |
+> | 接触→物体（抓取矩阵 $G$） | $F_{object}=Gf_{contact}$ | $\dot x_c=G^T\dot x_{obj}$ |
+> | 腱→关节（耦合矩阵 $P$） | $\tau_{joint}=Pf_{tendon}$ | $\dot h=P^T\dot\theta$ |
+> 三者都是"力用 $M^T$ 前乘、速度用 $M$ 前乘"的**虚功对偶**（$J/G/P$ 的转置成对出现），因此**抓取分析的全部工具——力闭合、冗余、零空间——可原样搬到腱网络**。其严格定义与内力零空间 $\mathrm{Null}(G)$ 的完整推导，见 [[ContactMechanics#3.1 抓取矩阵的严格定义与内力|抓取矩阵的严格定义]]（那里对 $G$ 讲的每一步，把 $G\to P$ 逐字替换即得腱网络版本）。这是本讲"对偶性 $J/G/P$"暗线在 §4.2 约束反力 $A^T\lambda$、§7.3 任务力 $J^TF$ 之外的第三处落地。
 
 ### 8.2 弹性腱与力闭合
 
@@ -555,6 +655,8 @@ $$\Lambda(x)=(JM^{-1}J^T)^{-1},\qquad \tau=J^TF=J^T\big[\Lambda(x)\ddot x_d+\mu+
 - [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] — 把 Rodrigues 公式改造为可学习的结构化动作算子
 
 ### 执行器建模与关节传动
+> [!note] Foundation 交叉
+> 操作器方程右端 $\tau$ 的物理实现——电机模型、FOC、减速器背隙/摩擦/弹性、reflected inertia $i^2J_m$、力矩传递链 $\tau_{joint}=\eta iK_tI-\tau_{fric}-k\theta$ 与 actuator net——完整展开见 [[Actuation|执行器与驱动系统]]。
 - [[谐波减速器与RV减速器选型核心区分依据|谐波 vs RV 减速器]] — 谐波柔轮弹性对 sim-to-real gap 的影响
 - [[Minimalist Compliance Control|MCC]] — 方向相关效率模型：谐波减速器传动效率 70–90% 的非线性补偿
 

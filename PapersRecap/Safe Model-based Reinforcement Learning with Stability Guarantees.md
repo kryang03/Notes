@@ -35,6 +35,11 @@ related:
 >
 > **核心技术**: Lyapunov RoA, Gaussian Process 动力学, Safe Exploration, 概率稳定性保证
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线（本篇是暗线的锚点论文）
+> - [[ControlTheory#10.4 被动性与"价值即 Lyapunov"]] — 本文 Insight 3 明写「正定代价下 RL 价值函数 $V^\pi$ 天然是 Lyapunov 函数」，是全库「价值即 Lyapunov」暗线最直接的实证。
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 把长期收敛化为单步下降条件 $v(f(x,\pi(x)))<v(x)$（Lyapunov 直接法），再用 GP 置信上界概率化。
+> - **暗线/簇内 Delta**：与 [[Dynamic Reinforcement Learning for Actors|Dynamic RL]] 操作同一 Lyapunov 对象的两端——Dynamic RL 调 $\lambda_{max}>0$ 做**探索**、本文用 $V^\pi$ 作 Lyapunov 做**安全**（$\lambda_{max}<0$）；与 [[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 的 Delta：本篇 model-based（需 GP、能安全扩张 RoA），后者 model-free 静态 SDP 证书。
+
 > [!abstract] 核心贡献
 > 首次提出具有**可证明稳定性保证**的安全 RL 算法。利用 **Lyapunov 函数** 定义安全区域，结合 **Gaussian Process** 建模动力学不确定性，实现在不离开吸引域的前提下安全学习和策略优化。
 

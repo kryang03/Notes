@@ -786,6 +786,19 @@ RodriNet 输出的动作最终仍进入 PD 或位置控制接口。若任务瓶�
 | 实验与 ablation 因果解读 | §3.3-§3.4 |
 | 与用户研究迁移 | §4.2-§4.5, §7.2 |
 
+## 9. 簇内关联与暗线锚点
+
+> [!abstract] 抓取/几何/表征/动力学簇内定位
+> - **vs [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]**：两者都把几何/物理结构嵌入网络，且共享 **"lifting"** 母题——RodriNet 用 lifted 运动学（标量角度 lift 到 $SE(3)$ 齐次模板），GeoPT 用 lifted 粒子动力学预训练（静态几何 lift 到 $(G,V)$ 联合空间）。Delta：RodriNet 是**每层算子的架构级** inductive bias，GeoPT 是**自监督预训练级**先验。
+> - **vs [[OmniXtreme - Breaking the Generality Barrier in High-Dynamic Humanoid Control|OmniXtreme]]**：两者都在做**结构化动作生成 backbone**——RodriNet 把 kinematic tree 编码进 denoiser（本文 IL 实验只换 DP backbone），OmniXtreme 用 Flow Matching 统一多运动先验。互补：RodriNet 提供 embodiment 结构约束，FM 提供多模态分布容量；理论上可组合成"RodriNet 结构 backbone × FM/扩散 head"。
+> - **vs [[空间智能作为机器人的结构化表征|3D Flow / PointWorld]]**（§4.3 已展开）：都用 URDF+FK 生成载体无关量——RodriNet 在**网络内部**保留关节-连杆因果链，PointWorld 把 FK 结果**摊平成点流**输出。
+
+> [!tip] 暗线：对偶性 $J/G/P$ + "kinematics-aware ≠ dynamics-aware"
+> RodriNet 的 FK 递推与手雅可比同源（$\Delta p_i=J_i(q)\Delta q$），落在 **对偶性 $J/G/P$ 暗线**；但它只建运动学、不建动力学与执行器，正是"电流≠关节力矩"暗线的反面注脚（§4.5/§5.1）。精确锚点：
+> - [[Dynamics#2.2 旋转群 SO(3)、李代数 so(3) 与 Rodrigues 公式]] — 本文 §2.2 推导 $\mathfrak{so}(3)\xrightarrow{\exp}SO(3)$ Rodrigues 公式的数学根
+> - [[RepresentationLearning#4.5 面向学习的旋转表示：为什么神经网络回归旋转要用 6D]] — 本文 hand 版把 revolute 算子扩为 quaternion，直接触及"神经网络如何回归旋转"这一表示问题
+> - [[Dynamics#9. 适配层：可微物理与神经动力学]] — RodriNet 是"物理启发 feature mixer"，属神经动力学的运动学子集；缺 $M(q)\ddot q+C\dot q+g=\tau+J^T\lambda$ 的动力学项（§5.1）
+
 ## References
 
 - [[Dynamics]]

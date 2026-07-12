@@ -29,6 +29,7 @@ related:
 > - [[EmbodiedAI]] — WM 作为连接感知-认知-控制的通用智能系统。
 > - [[ReinforcementLearning]] — 四分支之一 RL-based WM（Dreamer 系）。
 > - [[StochasticProcess]] — latent space / observation-level generative 分支（生成式/隐变量）。
+> - [[WorldModels]] — 四分支（observation-generative / latent / RL-based / object-centric）与本库 [[WorldModels]] 六层互补：RL-based↔[[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]]，其评测/可信性维度补足 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]] 的度量端。
 > - [[Final_WMTS]] — **WMTS 的评测与跨域参照**：四分支定位 + benchmark/metric 选型 + object-centric 分支归属。
 >
 > **核心框架**: 四分支形式化分类 (observation-generative / latent / RL-based / object-centric), benchmark+metric+仿真平台横评, 跨域应用, 可信性/可解释性, 挑战 (长程一致性/泛化)
@@ -132,6 +133,9 @@ WM 作为连接感知-认知-控制的通用智能系统，跨机器人/驾驶/�
 
 ### 与 [[StochasticProcess]] 的联系
 observation-level generative（视频扩散）与 latent space 分支是生成式/隐变量序列模型。
+
+### 与 [[WorldModels]] 的联系
+本篇的**形式化四分支**给本库 [[WorldModels]] 大厦一个更"数学"的外部归类：latent space↔[[WorldModels#2. 预测层：在 latent 里推演未来]]，RL-based↔[[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]]。它独有的**评测体系**（长程一致性/泛化/保真度指标）填补了 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]] 缺的度量端——WMTS 衡量自己 WM 好坏时可直接借这些指标 + 灵巧定制项（触觉预测误差、掉笔率）。与 [[A Step Toward World Models- A Survey on Robotic Manipulation|操作综述]] 构成 WMTS 双地图。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS 的评测选型（长程一致性/泛化/保真度 + 灵巧定制）+ 四分支归类（Latent+RL-based+object-centric 混合）+ 跨域借鉴；与操作综述构成 WMTS 双地图。

@@ -17,6 +17,7 @@ paper-pdf: "[[DyWA: Dynamics-adaptive World Action Model.pdf]]"
 related:
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"
+  - "[[RepresentationLearning]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
   - "[[Dynamic Non-Prehensile Manipulation]]"
@@ -28,8 +29,9 @@ related:
 > 在**单视角点云、无位姿跟踪**的最难设定下做可泛化的 6D 非抓取重排（推/拨/翻/滑）。诊断出 teacher→student 蒸馏掉点的三因（单视角部分可观、Markovian student 只学到跨物理的"平均行为"、传统蒸馏只监督 latent+动作信号太弱），对症下三招：(1) **Dynamics Adaptation Module**（RMA 式，用历史 obs-action 估计动力学嵌入，补回缺失的几何+物理）；(2) **World Action Model**（动作头与"下一任务状态"预测头联合训练，多一路监督信号）；(3) 用 **FiLM** 把动力学嵌入调制进 world action model。仿真最难赛道比基线 **+31.5%** 成功率，真机 10 物体 **68% vs CORN 36%**，且零样本 sim-to-real、对摩擦/质量分布变化鲁棒。**它是用户 DNPM（动态非抓取/转笔）的同域工作、也是 WMTS "teacher→generalist + 动力学自适应" 的现成骨架——但其"world model"是最弱义的（仅辅助下一状态回归，无 rollout/无 ranking），与 WMTS 需要的"world model 当调度器"不是一回事。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — PPO 训 privileged teacher；DAgger 蒸馏 student；RMA 式 domain adaptation。
+> - [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度]] — PPO 训 privileged teacher；DAgger 蒸馏 student；RMA 式 domain adaptation（历史编码器≈在线系统辨识）。
 > - [[ControlTheory]] — 变阻抗控制（variable impedance）做接触力调节；阻尼最小二乘 IK 把 EE 残差解成关节目标。
+> - [[RepresentationLearning#4.5 面向学习的旋转表示：为什么神经网络回归旋转要用 6D]] — 任务状态用 9D 连续旋转表示回归下一状态（呼应 [[On the Continuity of Rotation Representations in Neural Networks]]）。
 > - [[EmbodiedAI]] — teacher-student（privileged→partial）sim-to-real、domain randomization、单相机部署。
 > - [[Final_WMTS]] — teacher→generalist 蒸馏范式 + **动力学自适应嵌入**正对应 WMTS 的 Oracle→DP generalist 与 **LAAA**（延迟/温漂条件化适配）；FiLM 是注入 actuator/上下文的轻量手段。
 > - [[Dynamic Non-Prehensile Manipulation]] — **同一任务族**：DyWA 是桌面准静态非抓取，DNPM/转笔是手内高速**动态**非抓取；DyWA 的框架可借，动力学体制不同（见 §6）。
@@ -245,7 +247,7 @@ DyWA 与 [[Dynamic Non-Prehensile Manipulation|DNPM]] **同任务族**，是最�
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-PPO 训 privileged teacher + DAgger 蒸馏 student 的 teacher-student RL；RMA 式 domain adaptation 把"在线系统辨识"压成历史编码器，是 sim-to-real RL 的主流范式之一。
+PPO 训 privileged teacher + DAgger 蒸馏 student 的 teacher-student RL（[[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度]]）；RMA 式 domain adaptation 把"在线系统辨识"压成历史编码器，是 sim-to-real RL 的主流范式之一。
 
 ### 与 [[ControlTheory]] 的联系
 变阻抗控制（按任务实时调交互力）+ 阻尼最小二乘 IK（Eq 6）把 EE 残差解成关节目标——接触密集操作的底层控制接口；阻抗参数作为动作的一部分被策略输出。

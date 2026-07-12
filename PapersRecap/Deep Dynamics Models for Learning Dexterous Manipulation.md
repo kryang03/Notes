@@ -708,6 +708,19 @@ PDDM 里的随机性有两类，不能混淆：
 | “PDDM 对 WMTS 最重要的迁移是什么？” | ensemble short-horizon evaluator + planner teacher + uncertainty-driven Probe/Reject，不是最终 online MPC policy |
 | “实验数字如何支撑故事？” | arbitrary handwriting 证明 goal flexibility；Baoding 100k datapoints/2.7h 证明高维接触组合；真机 90°≈100%/180°≈54% 同时证明能力和长程边界 |
 
+## 9. 簇内关联与暗线锚点
+
+> [!abstract] 动力学/表征/运动技能簇内定位
+> - **vs [[Learning Agile and Dynamic Motor Skills for Legged Robots|Learning Agile]]**：两者都学神经动力学补 gap，但**作用对象不同**——PDDM 学**整体** forward dynamics $s_{t+1}\approx s_t+f_\theta(s_t,a_t)$ 做在线 MPC，Learning Agile 只学 **actuator**（action→torque）并保留刚体解析。Delta：system-level online planning（样本高效但部署贵）vs 结构化物理归因（reality gap 集中到 actuator net、离线训练可直接部署）。
+> - **vs [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]**：neural dynamics 的两条路——PDDM 在真机 transition 上监督（接触丰富、在线），GeoPT solver-free 几何预训练（稳态、离线迁移）。两者互为镜像：一个用数据、一个用几何合成，来逼近同一件事（省真实物理标签）。
+> - **vs [[空间智能作为机器人的结构化表征|PointWorld]]**：两者都体现 **"学习 + 搜索"**（Sutton's Bitter Lesson）——PointWorld 提出对 3D world model 做 test-time search，PDDM 早已实证 ensemble world model + MPPI/reward-weighting 在真机 Baoding 有效。Delta：PDDM 低维 proprioceptive/tracker state ensemble，PointWorld 高维 3D flow latent。
+
+> [!tip] 暗线：认知不确定性三用 + 采样+加权统一优化
+> PDDM 同时踩中两条暗线。其一，bootstrap ensemble disagreement = epistemic uncertainty（§2.4、§2.8）——本库"认知不确定性三用"（规划护栏/探索罗盘/课程指针）的早期形式。其二，reward-weighted refinement $\mu_t\propto\sum_k e^{\gamma R_k}a_t^{(k)}$（§2.6）与 CMA-ES、策略梯度同宗于"采样→按 return 加权→挪分布"。精确锚点：
+> - [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] — PDDM 的 ensemble 正是 PETS 谱系；本文缺的 LCB/pessimism 是走向 WMTS 的关键增量
+> - [[StochasticProcess#6. 随机最优控制：MPPI（用采样代替梯度）]] — reward-weighted MPC 的自由能/重要性采样根
+> - [[Optimization#7.3 基于采样：MPPI（用并行换梯度）]] 与 [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）]] — random shooting→CEM→MPPI 收敛谱
+
 ## References
 
 - [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model]]

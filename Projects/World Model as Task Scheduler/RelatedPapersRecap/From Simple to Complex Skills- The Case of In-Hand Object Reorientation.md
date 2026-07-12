@@ -27,7 +27,8 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] — 分层 RL（HRL）：高层选技能 + residual；解决低层反馈缺失的脆性。
-> - [[EmbodiedAI]] — sim-to-real 灵巧；技能复用降人工（reward/调参/DR）；本体感觉状态估计。
+> - [[ContactMechanics#2.3 接触雅可比与对偶性：连接关节空间|ContactMechanics §2.3]] — proprioceptive 位姿器靠"指令-实际"控制误差估相对旋转，本质是**接触把物体运动耦合回关节空间**（接触雅可比对偶）；**暗线「接触非光滑」**：控制误差隐含接触信息，是视觉无法企及的触觉侧通道。
+> - [[EmbodiedAI#2.2 Sim-to-Real：从仿真到真实|EmbodiedAI §2.2 Sim-to-Real]] — sim-to-real 灵巧；技能复用降人工（reward/调参/DR）；本体感觉状态估计。
 > - [[Final_WMTS]] — **WMTS task scheduler 的近邻**：高层调度低层技能 + 反馈 + residual；proprioceptive 估计支撑 touch-centric。
 > - [[Dynamic Non-Prehensile Manipulation]] — 手内重定向近亲；论文明确把 pen spinning 列为同类动态任务。
 >

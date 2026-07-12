@@ -26,9 +26,10 @@ related:
 > 学一个 object-agnostic 的**通用灵巧抓取**策略（点云 + 本体，table-top，3000+ 物体）。两大技术：(1) **GeoCurriculum**（几何感知任务课程，按场景点云几何特征排序难度）；(2) **GiGSL**（几何感知迭代 generalist-specialist 学习）——用几何特征把任务**聚类（GeoClustering）分给专家**，训专家后**蒸馏成 generalist，再迭代** distill+fine-tune 直至饱和；状态域先做、再到视觉域。最终 vision 策略 **85.4% 训 / 78.2% 测**（3000+ 物体），超 UniDexGrasp 11.7%/11.3%。**对 WMTS：GiGSL 是 generalist-vs-specialist 之争的"综合解"——不二选一，而是几何聚类→训专家→蒸馏到 generalist→迭代，正好统一 [[Generalization in Dexterous Manipulation via Geometry-Aware Multi-Task Learning|Geometry-Dex]]（generalist 胜）与 [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]（专家兜 worst-case）；且出自 WMTS 同校 PKU（He Wang=DyWA、Yaodong Yang=SafeDreamer），方法迁移/合作成本低。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — 多任务 RL；generalist-specialist 学习；teacher(state)→student(vision) 蒸馏。
+> - [[ReinforcementLearning#Phase 6 — Generalist-Specialist：用蒸馏循环缝合多样性]] — 多任务 RL 的 generalist-specialist（[[Improving Policy Optimization with Generalist-Specialist Learning|GSL]] 的**几何化 + 迭代**版，即 RL §7.3 Phase 6 的 SOTA 落地）；teacher(state)→student(vision) 蒸馏。
 > - [[EmbodiedAI]] — 点云 + 本体的真实设定灵巧抓取；3000+ 物体泛化。
-> - [[Optimization]] — 几何课程（难度排序）+ GeoClustering（任务划分）。
+> - [[ReinforcementLearning#Phase 1 — 手工课程与 continuation：先解平滑子问题|RL §7.3 Phase 1]] — GeoCurriculum 是"**Continuation/由易到难平滑化**"暗线在任务空间的实例（先解几何简单物体、再引入难几何）。
+> - [[Optimization]] — GeoClustering 把巨任务空间划成专家可学的子空间（任务划分优化）。
 > - [[Final_WMTS]] — **generalist 构建的综合配方（GiGSL）**；GeoClustering=训练期 scheduler；PKU 同校（DyWA/SafeDreamer）。
 > - [[Dynamic Non-Prehensile Manipulation]] — 灵巧抓取（非 spin）；GiGSL 方法可移到转笔 generalist 构建。
 >
@@ -168,13 +169,13 @@ GiGSL 是迭代知识蒸馏 + 任务分解：收益 = 几何聚类质量 × 子�
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-多任务 RL 的 generalist-specialist 学习；迭代蒸馏 + fine-tune；teacher(state)→student(vision) 蒸馏绕 vision 梯度噪声。
+多任务 RL 的 generalist-specialist 学习；迭代蒸馏 + fine-tune；teacher(state)→student(vision) 蒸馏绕 vision 梯度噪声。精确落点：[[ReinforcementLearning#Phase 6 — Generalist-Specialist：用蒸馏循环缝合多样性|RL §7.3 Phase 6]]——相对 [[Improving Policy Optimization with Generalist-Specialist Learning|GSL]] 的 Delta 是**几何聚类分专家（GeoClustering）+ 多轮迭代 distill↔fine-tune**（GSL 是单轮克隆-合并，UniDexGrasp++ 迭代到饱和），并叠加 [[ReinforcementLearning#Phase 1 — 手工课程与 continuation：先解平滑子问题|Phase 1 的 continuation 课程]]（GeoCurriculum）。
 
 ### 与 [[EmbodiedAI]] 的联系
 点云 + 本体的真实设定（非 oracle）灵巧抓取，3000+ 物体泛化；sim-to-real teacher-student。
 
 ### 与 [[Optimization]] 的联系
-GeoCurriculum（几何难度课程）+ GeoClustering（几何任务聚类划分）——课程与聚类优化。
+GeoCurriculum（几何难度课程，Continuation 暗线）+ GeoClustering（几何任务聚类划分）——课程与聚类优化。
 
 ### 与 [[Final_WMTS]] 的联系
 generalist 构建的综合配方（GiGSL 迭代 G-S）收束 Geometry-Dex/DexReMoE 张力；GeoClustering=训练期 scheduler；PKU 同校（DyWA/SafeDreamer）资产可复用。

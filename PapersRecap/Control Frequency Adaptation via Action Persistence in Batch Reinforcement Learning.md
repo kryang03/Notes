@@ -33,9 +33,9 @@ related:
 > 本文把“控制频率”从一个通常手调的环境超参，形式化为 **action persistence**：同一个动作连续执行 $k$ 个基础决策步；由此构造 $k$-persistent MDP、证明 persistent Bellman operator 的 $\gamma^k$ 收缩性与性能损失界，并提出 PFQI 在同一批离线数据上估计不同 $k$ 的最优值函数，从而离线选择合适控制频率。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — 本文的数学根是 Bellman operator、Fitted Q-Iteration、approximate value iteration error propagation；action persistence 不是额外 policy trick，而是改写 Bellman 备份的时间结构。
-> - [[ControlTheory]] — $k$-persistent MDP 对应 zero-order hold：控制器每 $k\Delta t_0$ 更新一次，中间保持上一控制量。
-> - [[SignalProcessing]] — 动作保持等价于对 action signal 做低通/降采样；它抑制高频噪声，也会丢失快速接触事件。
+> - [[ReinforcementLearning#2.3 估计价值的三种范式：DP → MC → TD（偏差-方差谱）|ReinforcementLearning §2.3]] — 本文的数学根是 Bellman operator、Fitted Q-Iteration、approximate value iteration error propagation；action persistence 不是额外 policy trick，而是改写 Bellman 备份的时间结构（把 $T^*$ 改成 $(T^\delta)^{k-1}T^*$）。
+> - [[ControlTheory#1.3 频率响应：Bode、相位裕度与带宽|ControlTheory §1.3]] — $k$-persistent MDP 对应 zero-order hold：控制器每 $k\Delta t_0$ 更新一次，中间保持上一控制量；持续越久等效带宽越低。
+> - [[SignalProcessing#1.1 采样与混叠：离散化不是无损记录|SignalProcessing §1.1]] — 动作保持等价于对 action signal 做低通/降采样；它抑制高频噪声，也会丢失快速接触事件（混叠/滞后）。
 >
 > **核心技术**: Action Persistence, $k$-Persistent MDP, Persistent Bellman Operator, PFQI, Offline Control-Frequency Selection
 

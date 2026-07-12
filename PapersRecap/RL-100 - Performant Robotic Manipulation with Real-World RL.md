@@ -34,6 +34,18 @@ related:
 >
 > **核心技术**: Denoising Sub-MDP, PPO over Diffusion Steps, Iterative Offline RL, AM-Q OPE Gate, Online GAE Fine-tuning, Consistency Distillation, Variance Clipping
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[SERL - A Software Suite for Sample-Efficient Robotic Reinforcement Learning|SERL]] / [[HIL-SERL - Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning|HIL-SERL]]：都真机 RL 收口；RL-100 把 diffusion 去噪链当 **denoising sub-MDP** 做 PPO + offline→online + 一致性蒸馏，**无需人类在线**，SERL/HIL-SERL 是 off-policy RLPD（+人类纠正）。
+> - vs [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]]：都在生成式策略上做在线 RL；RL-100 **微调整个 diffusion 去噪链**，RLT **冻结 VLA 只学残差 token**（轻量 actor-critic，15 分钟）。
+> - vs [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT]]：RL-100 把 chunked (diffusion) action 接入真机 RL，**突破 ACT 的 imitation ceiling**。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#9.3 真机高效 RL：把"模仿×强化"缝合线收口|RL §9.3]] — IL→Offline→Online 三阶段是"模仿×强化"缝合的完整迁移路径（§9.3 已点名 RL-100）。
+> - [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）|RL §10.1]] — RL-100 = **reward-aligned diffusion prior**，兑现"扩散策略被 RL 微调"的伏笔。
+>
+> **暗线**：**模仿×强化缝合线** §9.3 / §10.1 节点；**POMDP→belief→latent**——去噪 latent 序列 + 3D point cloud 是 belief 的隐空间近似（$\sigma_{\tau_k}>0$ 才有 log-likelihood）。
+
 ## 0. 阅读定位与范本价值
 
 RL-100 是 VLA/robot policy 后训练谱系中的“真机 RL 强证据”论文。它和 WMPO 的区别很尖锐：

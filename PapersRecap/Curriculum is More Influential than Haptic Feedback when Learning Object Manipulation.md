@@ -700,6 +700,24 @@ $$
 
 ---
 
+### 7.5 课程学习簇坐标：curriculum 是 basin 选择器，也是 continuation 的一支
+
+> [!abstract] 暗线锚定：Continuation + 认知不确定性（basin↔该学处）
+> 本文的 C1–C5（两阶段 $c_R,c_L$ 时序）是 continuation 暗线的一个特例：不同 phase-1 reward 把 PPO 早期梯度推入不同 basin（§2.3），本质是"先解某个平滑子目标、再引入复合难度"。但本文给出一个**反直觉修正**：continuation 未必"先简单后复杂"最优——multiobjective-first（C3/C4/C5）反而常优于 single-objective-first（C1/C2）。这提醒 [[Curriculum Learning#3.2 与 Continuation Method 的联系|Bengio 2009 的 $Q_0\to Q_1$]] 单调难度假设有边界。而"curriculum 决定进入哪个 basin"与 [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3 无知即课程]]"用认知不确定性反向选任务"是一体两面：前者说明**路径塑造终点**，后者给出**如何自动选路径**。
+
+**补充 Foundation 锚点**（已 grep 验证，补 §7.1–7.3）：
+
+- [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3 无知即课程]]：本文手工枚举 C1–C5 证明"课程时序主导 learning basin"；§6.3 与 [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots|DemoStart ZVF]] 则回答"如何**自动**找到最优时序"——本文的手工枚举正是它们要替代的对象。
+- [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]]：本文停在 §7.3 Phase 1（手工课程）；其 §5.2 列的 automatic curriculum / self-paced / PLR / POET 正是 §7.3 Phase 2–5 的自动化路线。
+
+**簇内互链 + Delta**（补 §7.4 张力表的 continuation 视角）：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[Curriculum Learning\|Curriculum Learning]] | 本文是其 continuation 思想在**任务子目标维**的实例，并给出反例 | 本文课程轴 = reward 系数时序 $c_R,c_L$；且证明"先简单后复杂"非普遍最优（multiobjective-first 常更好） |
+| [[EUREKA: Human-Level Reward Design via Coding Large Language Models\|EUREKA]] | 都用 PPO 学转笔、都靠 reward 塑造 | 本文**手工**调 $c_R,c_L$ 时序证明其威力；EUREKA **自动**进化 reward 组合。二者结合 = 让 LLM 进化 $c_R,c_L$ 的**课程 schedule** |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | 手工 vs 自动课程的直接对照 | 本文固定 1000-episode 硬切换、人工 5 课程；DemoStart 用 ZVF success-variance 自适应选 frontier（§5.2 已列为本文替代方案） |
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

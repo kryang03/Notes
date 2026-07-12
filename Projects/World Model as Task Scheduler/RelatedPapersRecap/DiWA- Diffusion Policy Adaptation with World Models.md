@@ -15,6 +15,7 @@ paper-pdf: "[[DiWA- Diffusion Policy Adaptation with World Models.pdf]]"
 related:
   - "[[StochasticProcess]]"
   - "[[ReinforcementLearning]]"
+  - "[[WorldModels]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
 ---
@@ -25,10 +26,13 @@ related:
 > 把"用 RL 微调 Diffusion Policy"完全搬进**想象**：DiWA 把 DPPO 的"去噪过程即 MDP"**嵌进** Dreamer 式 world model 的"想象即 MDP"，构成 **Dream Diffusion MDP**，于是用 PPO 微调预训练 DP **零真实交互**——world model 只在数十万条 offline play 数据上训练一次并冻结。CALVIN 8 任务上离线微调即提升，物理交互比 model-free 基线少几个数量级，并首次实现"在 dream 里微调的 DP 零样本部署到真机"。
 
 > [!tip] 与理论基础的关联
-> - [[StochasticProcess]] — 扩散去噪链（多步 MDP）+ DreamerV3 categorical latent world model。
-> - [[ReinforcementLearning]] — 在 Dream Diffusion MDP 上跑 PPO；offline model-based policy improvement。
+> - [[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]] — 扩散去噪链（多步 MDP）+ DreamerV3 categorical latent world model。
+> - [[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]] — 在 Dream Diffusion MDP 上跑 PPO 的 offline model-based policy improvement；被精炼的 DP 本体见 [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）]]。
+> - [[WorldModels#6.2 Dream RL 的对抗性风险]] — DiWA 用**单一冻结 WM**，PPO 会利用 WM 误差刷"想象里高、真实里假"的回报，正是该节点名的对抗性风险；WMTS 用 ensemble（[[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]）反制。
 > - [[EmbodiedAI]] — 预训练-微调范式用于机器人技能（CALVIN play 数据）。
 > - [[Final_WMTS]] — **WMTS "DP generalist + world model refinement" 的精确机制范本**；Dream Diffusion MDP 可直接复用。
+>
+> **暗线定位**：DiWA 触到 **认知不确定性三用** 暗线的"规划护栏"一面——单 WM 无 epistemic 度量 → PPO 钻模型空子；WMTS 把 ensemble disagreement 当护栏（LCB 惩罚）而非仅靠冻结 WM。同时 dream 微调本身是 **Continuation** 的一支：先在便宜的想象里逼近，再零样本落真机。
 >
 > **核心技术**: Dream Diffusion MDP (Eq 5-6), Diffusion-denoising-as-MDP (DPPO), 冻结通用 WM (play 数据), 成功分类器奖励, PPO offline fine-tune
 
@@ -188,10 +192,13 @@ WM 保真度、成功分类器质量、play 数据覆盖、WM-exploitation 是�
 ## 7. 与知识体系的联系
 
 ### 与 [[StochasticProcess]] 的联系
-扩散去噪链（多步随机生成）+ DreamerV3 categorical latent world model（ELBO，Eq 4）；Dream Diffusion MDP 是两个随机过程的嵌套。
+扩散去噪链（多步随机生成，[[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]]）+ DreamerV3 categorical latent world model（ELBO，Eq 4）；Dream Diffusion MDP 是两个随机过程的嵌套。
 
 ### 与 [[ReinforcementLearning]] 的联系
-在 Dream Diffusion MDP（Eq 5-6）上跑 PPO 的 offline model-based policy improvement；去噪步零奖励 + 仅动作完成给奖励，是"长去噪链不阻碍回报分配"的结构解。
+在 Dream Diffusion MDP（Eq 5-6）上跑 PPO 的 offline model-based policy improvement（[[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]]）；去噪步零奖励 + 仅动作完成给奖励，是"长去噪链不阻碍回报分配"的结构解。
+
+### 与 [[WorldModels]] 的联系
+DiWA 是"在 dream 里精炼 DP"的最简形态，但只用**单一冻结 WM**——正撞上 [[WorldModels#6.2 Dream RL 的对抗性风险]]：PPO 会利用 WM 的想象误差。这是 WMTS 换用 ensemble + 不确定性惩罚（[[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]）的直接动机。
 
 ### 与 [[EmbodiedAI]] 的联系
 pretrain（BC）→ finetune（RL-in-dream）范式用于机器人技能（CALVIN play 数据），并验证零样本真机部署。
@@ -204,3 +211,7 @@ WMTS "PPO Oracle → DP generalist → world model 精炼"中精炼步的精确�
 - 两个父方法：[[Diffusion Policy: Visuomotor Policy|Diffusion Policy]]（DP 本体）、[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]（latent WM）；去噪-MDP 来自 DPPO
 - 兄弟：[[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]
 - 项目入口：[[Final_WMTS]]
+- 簇内关系（Delta）：
+  - vs [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]：同一"冻结 WM 内 PPO 精炼 DP"骨架，World4RL 把 DiWA 的 RSSM 换成扩散转移模型（更高保真），并加受控探索压 model-exploitation——是 DiWA 的诊断升级版。
+  - vs [[SAFEDREAMER- SAFE REINFORCEMENT LEARNING WITH WORLD MODEL|SafeDreamer]]：都在 world model 想象里做 RL，但 SafeDreamer 加 cost critic + Lagrangian 处理安全约束；DiWA 只优化回报、无安全通道。
+  - vs [[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training|Diffusion RL for VLA Data]]：两者都属 DPPO 家族（去噪链当 MDP + PPO），但 DiWA 在**想象**里精炼已有 DP，后者在**真实/仿真**里训 diffusion policy 去**生成数据**。

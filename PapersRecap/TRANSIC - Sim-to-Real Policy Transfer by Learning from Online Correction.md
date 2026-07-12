@@ -24,8 +24,9 @@ related:
 > 提出一种人在回路的 sim-to-real 迁移方法：人类观察并在线校正仿真策略的失误，收集校正数据训练残差策略，从而 holistically 解决各种 sim-to-real gap。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] - 人类干预与在线校正框架
+> - [[ReinforcementLearning#9.3 真机高效 RL：把"模仿×强化"缝合线收口|RL §9.3]] - 从人类在线校正学 residual，是"模仿×强化"缝合线在真机侧的一种收口：base=仿真 RL、残差=人类校正 BC。
 > - [[ControlTheory]] - 残差策略补偿未建模动态
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] - Action Space Distillation（OSC→关节 PD）显式修控制器 gap：OSC 依赖精确 $\Lambda,\mu,p$、真机不可得，蒸馏成模型无关关节 PD——挂 **电流≠关节力矩** 暗线，控制器/执行器接口本身就是 $\Delta_A$ 的一大来源。
 > - [[RepresentationLearning]] - 点云作为视觉输入减小感知 gap
 >
 > **核心技术**: Residual Policy, Online Human Correction, Action Space Distillation

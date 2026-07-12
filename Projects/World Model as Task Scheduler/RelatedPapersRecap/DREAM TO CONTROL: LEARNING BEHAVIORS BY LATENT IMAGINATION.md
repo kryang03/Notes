@@ -31,6 +31,7 @@ related:
 > - [[StochasticProcess]] — RSSM 的随机 latent transition、ELBO/变分信息瓶颈、重参数化采样。
 > - [[SignalProcessing]] — RSSM "模仿非线性 Kalman filter / latent SSM"：representation model = posterior（带观测），transition model = prior（无观测预测）。
 > - [[EmbodiedAI]] — dynamics learning / behavior learning / environment interaction 的经典三循环。
+> - [[WorldModels#2. 预测层：在 latent 里推演未来]] / [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] — Dreamer 是"latent 预测层 + 想象里练策略（Dream RL）"这条主线的奠基；其 model bias 风险对应 [[WorldModels#6.2 Dream RL 的对抗性风险]]。挂在**POMDP→belief→latent** 暗线（RSSM 即 belief 的充分统计量）。
 > - [[Final_WMTS]] — Dreamer 是 WMTS world-model 模块的精神原型；但 WMTS 因接触不可微而**不**照搬其 analytic gradient（见 §6）。
 >
 > **核心技术**: RSSM, Latent Imagination, λ-return (Eq 6), Analytic Value Gradient, Reparameterized Actor, ELBO/Contrastive 表征
@@ -248,6 +249,9 @@ RSSM "模仿非线性 Kalman filter"：representation model = 带观测的 poste
 
 ### 与 [[EmbodiedAI]] 的联系
 体现 dynamics learning → behavior learning → environment interaction 的经典具身三循环（Sutton 1991），是真机 world-model RL（DayDreamer）的直接前身。
+
+### 与 [[WorldModels]] 的联系
+Dreamer 坐落在世界模型大厦的 **预测层 + 利用层**：RSSM 是 [[WorldModels#2. 预测层：在 latent 里推演未来]] 的 latent-imagination 范式（承 [[WorldModels#2.1 演进脉络：从 Dyna 到 RSSM 到 Transformer 世界模型]] 的 RSSM 一环），"在想象里训 actor-critic"是 [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] 里 **Dream-RL** 一支的奠基。其 analytic value gradient 依赖动力学可微、在接触切换处会被放大——正是 [[WorldModels#6.2 Dream RL 的对抗性风险]] 讨论的 model-exploitation。挂在 **POMDP→belief→latent** 暗线：RSSM 的 posterior/prior 就是把部分可观 POMDP 压成 belief 充分统计量。
 
 ### 与 [[Final_WMTS]] 的联系
 Dreamer 是 WMTS world-model 模块的概念原型；WMTS 的关键差异是用物理结构化 WM + PPO + ranking 取代 latent WM + analytic gradient，以适配灵巧手的不可微接触。

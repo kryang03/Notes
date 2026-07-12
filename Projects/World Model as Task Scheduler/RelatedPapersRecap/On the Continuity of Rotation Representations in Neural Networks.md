@@ -13,6 +13,7 @@ read-date: 2026-06-16
 venue: CVPR 2019 (Zhou et al.)
 paper-pdf: "[[On the Continuity of Rotation Representations in Neural Networks.pdf]]"
 related:
+  - "[[RepresentationLearning]]"
   - "[[ControlTheory]]"
   - "[[EmbodiedAI]]"
   - "[[Final_WMTS]]"
@@ -25,6 +26,7 @@ related:
 > 证明**用神经网络回归旋转时，表示的连续性是决定性的工程问题**：欧拉角、四元数、轴角等 **≤4D 表示在 SO(3) 上不连续**（作为 SO(3)→欧式空间的映射），网络在不连续点附近误差大、难学。给出连续性必要维数——SO(3) 连续表示**至少需 5D**——并提出**连续 6D**（两个 3D 向量经 Gram-Schmidt 成旋转矩阵前两列）、5D、**9D**（3×3 矩阵 SVD 正交化到最近 SO(3)）。实验（姿态估计、IK、点云配准）证**连续（6D/9D）全面优于不连续（四元数/欧拉/轴角）**，尤其大范围旋转。**对 WMTS/DNPM：凡网络输出旋转处——笔姿态、手腕/物体目标、WM 预测下一姿态、DP/PPO 旋转分量——都应用 6D/9D 而非欧拉/四元数；[[DyWA: Dynamics-adaptive World Action Model|DyWA]] 即用 9D。几乎零成本、必采纳的工程纪律。**
 
 > [!tip] 与理论基础的关联
+> - [[RepresentationLearning#4.5 面向学习的旋转表示：为什么神经网络回归旋转要用 6D]] — **数学根**：本文即该节的原始出处（拓扑连续性 → 为何回归旋转要用 6D/9D）。
 > - [[ControlTheory]] — SO(3) 姿态/旋转状态；连续表示利于回归与控制。
 > - [[EmbodiedAI]] — 机器人姿态估计/IK/操作中的旋转回归。
 > - [[Final_WMTS]] — **WMTS 所有旋转输出用 6D/9D**；DyWA 用 9D。
@@ -171,8 +173,17 @@ SO(3) 姿态/旋转状态表示；连续表示避免万向锁/双覆盖，利于
 ### 与 [[Final_WMTS]] 的联系
 WMTS 所有旋转输出用 6D/9D；DyWA 已用 9D；与 FLD 周期相位表示互补；连续性非物理一致性（需 WM 补）。
 
+### 与 [[RepresentationLearning]] 的联系
+本文是 [[RepresentationLearning#4.5 面向学习的旋转表示：为什么神经网络回归旋转要用 6D]] 的原始出处：该节讲"神经网络回归 SO(3) 为何要用 6D/9D 连续表示"，其拓扑论证（≤4D 必不连续、连续需 ≥5D）即本文定理。它与 [[RepresentationLearning#4.6 序列与注意力表征：从无序集合到有序序列]] 互为"**表征决定可学性**"的两例——一个管旋转量的编码、一个管集合/序列的编码。
+
+### 与本簇论文的关联（Delta 对比）
+- **vs [[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|Latent Space 综述]]**：都主张"表征决定可算/可学"，但落点相反——本文管**输出侧单一物理量（SO(3)）的拓扑连续表示**，综述管**内部 latent 作计算基底**；本文是"显式量的正确编码"，综述是"隐式量的原生空间"。
+- **vs [[Transformers as Meta-Learners for Implicit Neural Representations|Trans-INR]]**：都在设计"网络输出什么的表示"——本文让网络输出连续旋转（6D/9D，再 Gram-Schmidt 投影 SO(3)），Trans-INR 让 hypernetwork 输出另一个网络的权重列（再拼成 INR）；共性是"网络直接输出的不是最终合法对象，需一步构造/投影"。
+- **vs [[Learning a Unified Policy for Position and Force|Unified Policy]]**：二者同属 **WMTS Oracle/policy 的输出侧工程纪律**——旋转分量用 6D/9D、示范数据带力/触觉；都是"近零成本、不采纳就在接触/全域旋转处吃亏"的默认设置。
+
 ## References
 - 原始 PDF：[[On the Continuity of Rotation Representations in Neural Networks.pdf]]（Zhou et al.，CVPR 2019）
 - 应用 9D：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]
 - 运动表示互补：[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]]
+- 本簇（表征/几何/ICL/元学习/IL）关联：[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|Latent Space 综述]]、[[Transformers as Meta-Learners for Implicit Neural Representations|Trans-INR]]、[[Learning a Unified Policy for Position and Force|Unified Policy]]
 - 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

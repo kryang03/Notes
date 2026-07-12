@@ -20,15 +20,24 @@ related:
   - "[[EmbodiedAI]]"
   - "[[ComputationalGeometry]]"
   - "[[StochasticProcess]]"
+  - "[[WMPO - World Model-based Policy Optimization for VLA]]"
+  - "[[WoG - World Guidance for VLA Action Generation]]"
+  - "[[RECAP - A VLA that Learns from Experience]]"
 ---
 
 # GLIDE: Planning-Guided Diffusion Policy Learning for Generalizable Contact-Rich Bimanual Manipulation
 
 > [!note] Foundation 关联
-> - **[[ReinforcementLearning]]**: Diffusion Policy 架构 (Section 6.2)
-> - **[[ContactMechanics]]**: 接触密集操作的约束建模
-> - **[[EmbodiedAI]]**: 规划与学习的集成范式 (Section 2: Robot Learning 范式)
+> - **[[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器]]**: GLIDE 的动作头就是一个 task-conditioned Diffusion Policy，把 DDPM 去噪当迭代式轨迹优化器
+> - **[[ContactMechanics#6. 可微接触物理：让接触进入梯度优化]]**: 接触密集操作的约束建模；GLIDE 的接触规划器用局部线性近似 $f_{local}$ 绕开非光滑互补约束
+> - **[[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）]]**: 接触规划器对接触动力学做局部线性化生成 demo，正属"先解平滑近凸子问题"的 **Continuation/平滑化暗线**——只是把平滑化放在数据合成端而非策略端
+> - **[[EmbodiedAI#1.3 三种动作输出范式（横向对比）]]**: 规划生成数据 + 扩散动作生成，横跨"规划"与"生成式动作"两种范式
 > - **[[ComputationalGeometry]]**: 点云特征提取与 SDF 隐式表示
+
+> [!tip] 簇内关联（VLA / 世界模型 / 运动生成簇）
+> - **vs [[WMPO - World Model-based Policy Optimization for VLA|WMPO]]**: 两者都"把 rollout 成本从真机搬到模型世界"。GLIDE 用一个**显式高保真物理仿真器 (Drake) + model-based 接触规划器**当"世界模型"离线刷 12k 条 demo，再蒸馏；WMPO 用一个**学习出来的像素视频世界模型**在想象中做 on-policy GRPO。GLIDE 的 sim 是可信但需已知几何的白盒，WMPO 的 WM 是可复用失败分布但可能被利用的黑盒。
+> - **vs [[WoG - World Guidance for VLA Action Generation|WoG]]**: 两者都是条件化的生成式动作头。GLIDE 条件是 SE(2) 目标增量 + 点云，属显式几何条件；WoG 条件是从当前观测预测的 future condition tokens，属蒸馏出的隐式未来条件。GLIDE 的残差动作 $\Delta q$ 与 WoG 的 Rectified Flow 都在降低动作分布的建模方差。
+> - **vs [[RECAP - A VLA that Learns from Experience|RECAP]]**: GLIDE 只用规划器生成的**成功轨迹**做过滤式行为克隆，因此 Hard 任务 (90°-150° 旋转) 成功率骤降到 18%——这正是 RECAP 指出的缺口：**纯 demo 覆盖不了策略自己制造的失败状态**。把 RECAP 的 correction + advantage-conditioned experience 接到 GLIDE 上，是补长视野多阶段接触的自然路线。
 
 > **摘要**: 接触密集型双臂操作需要精确协调两臂通过策略性接触和运动改变物体状态。本文提出 GLIDE (Generalizable PLanning-GuIded Diffusion Policy LEarning)，利用基于模型的运动规划在高保真物理仿真中生成演示数据。通过高效规划在随机化环境中生成大规模高质量合成轨迹，训练任务条件扩散策略。通过特征提取、任务表示、动作预测和数据增强的关键设计，实现鲁棒的平滑动作序列预测和对未见场景的泛化。
 

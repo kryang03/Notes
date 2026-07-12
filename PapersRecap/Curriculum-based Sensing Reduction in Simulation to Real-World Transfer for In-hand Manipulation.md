@@ -502,3 +502,26 @@ CSR 本质上是在学习一个 [[RepresentationLearning]] 中讨论的信息瓶
 > 前者"补足缺失观测"、后者"训练出不依赖该观测的策略"——$\Delta_S$ 的"补 vs 减"二分。
 > **新 insight——本体感知部分替代触觉**：CSR 移除触觉仍 65%，因关节角度通过 $f_c=J_c^{-T}\tau$ 隐含接触信息。这给触觉表征谱（见 [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map\|Tacmap]]）补一个反向视角——**有时最鲁棒的"触觉表征"是没有触觉、靠本体隐式推断**，呼应 [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)|HORA]] 的纯本体+RMA 路线。
 > **🎉 sim-to-real 簇收官（8 篇）**：A Survey（总纲）· RL Review（综述）· GAT（grounding）· DexNDM（神经动力学）· Tacmap（触觉几何）· RialTo（数字孪生）· TRANSIC（人类纠正）· CSR（观测缩减）。全簇可定位到"两综述 2D 网格"（(修什么 $\Delta$) × (怎么修)）。
+
+---
+
+## 11. 课程学习簇坐标：反向 continuation
+
+> [!abstract] 暗线锚定：Continuation / 同伦 / 平滑化（反向版）
+> CSR 属课程学习簇里一个特殊变体：**反向 continuation**。标准课程从"简单子问题→真难度"（[[Curriculum Learning#3.2 与 Continuation Method 的联系|$Q_0\to Q_1$]]），CSR 从"信息充足的特权观测→信息受限的真实观测"逐步退化（$o_{full}\to o_{deployable}$）。数学骨架相同——保持策略始终落在"好 basin"里，小步移动 $\lambda$（这里 $\lambda$ = 保留特征比例）——只是移动方向是**减信息**而非**加难度**。这解释了 §4 消融"一步裁剪 85→72"：跳步等于 continuation path 断裂，落到目标观测空间的非凸区。
+
+**补充 Foundation 锚点**（已 grep 验证，与 §9 的 ContactMechanics#2.3 互补）：
+
+- [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]]：CSR 的特征移除 schedule 是 §7.3 Phase 1（手工课程）在**观测维**的实例；其局限（`difficulty_fn` = 梯度重要性 $I_i$ 需人工/局部近似）也正是 §7.3 后续 Phase 2–3 要自动化的对象。
+- [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|Optimization §5.4 平滑化]]：DRG 用随机信号替代被删特征、避免"零=某状态"虚假关联，本质是对观测空间突变做**平滑**，与 §5.4 让梯度穿过非光滑接触是同一"平滑化"母题。
+
+**簇内互链 + Delta**（补 §10 表之外的 continuation 视角）：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[Curriculum Learning\|Curriculum Learning]] | CSR = 其 continuation 思想的**反向**观测实例 | Bengio 加难度；CSR 减观测。$\lambda$ 从"样本难度"变成"特征保留比例" |
+| [[Vision-force-fused Curriculum Learning for Robotic Assembly\|VF-Assembly]] | 感知维课程的**正向镜像** | VF **渐增**模态（视觉→+力），CSR **渐减**模态；同骨架、反方向 |
+| [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills\|DeepMimic]] | 都靠"本体状态隐含接触信息"降依赖 | CSR 移除触觉仍 65%（关节角经 $f_c=J_c^{-T}\tau$ 隐含接触）；DeepMimic 纯本体+PD 学高动态技能，二者都印证"proprioception 是灵巧操作不可移除的核心特征" |
+
+> [!tip] 一句话记忆锚
+> **CSR = 反着走的课程：不是把任务变难，而是把"作弊观测"一格格拿走，逼策略靠 proprioception 自立。** 它与 VF-Assembly（加感知）构成 continuation 暗线在观测维的一对正反例。

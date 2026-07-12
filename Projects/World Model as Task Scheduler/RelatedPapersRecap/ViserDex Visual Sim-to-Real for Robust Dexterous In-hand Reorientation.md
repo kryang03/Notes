@@ -27,7 +27,9 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[EmbodiedAI]] — 视觉 sim-to-real；3DGS 桥接视觉 gap；感知与控制分离训练。
-> - [[ReinforcementLearning]] — curriculum-based RL + teacher-student 蒸馏（替 ADR）。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2 三味药]] — 3DGS 是"DR（增覆盖）"味药做在**视觉外观**空间；Allegro 弹簧/阻尼靠 **System ID**（减偏差）；EMA α 随机化是"在线自适应"的轻量隐式先例。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — 作者自陈须 SysID 提取 Allegro 传动的准确 Actuator Gains（否则仿真飞天）；EMA α 随机化 = **隐式延迟 DR**（暗线「电流≠关节力矩」的轻量处理，[[Idea-002-Latency-Aware-Actuator|Idea-002 LAAA]] 的先例）。
+> - [[ContactMechanics]] — 药片瓶瓶标**未建模超低摩擦** → 纯 RGB 感知不到微观打滑（**暗线「接触非光滑」**：接触斑摩擦的病态是视觉盲区、触觉才可及）。
 > - [[Optimization]] — 性能驱动 curriculum；Gaussian 空间增广作为 DR。
 > - [[Final_WMTS]] — **效率范式（curriculum+蒸馏替 ADR）可借**；但 vision vs touch 路线分歧——WMTS 选触觉。
 > - [[Dynamic Non-Prehensile Manipulation]] — 手内重定向近亲；但转笔更快更遮挡，RGB 路线更不适用。
@@ -135,7 +137,7 @@ vanilla 3DGS 静态且光照-几何纠缠，无法做 DR。ViserDex 的 **pre-ra
 - **纯视觉的接触盲区**：操作"药片瓶"时瓶标表面**未建模的超低摩擦** → 真机成功率大幅下降；纯 RGB 无法感知微观接触打滑 → 再次指向触觉缺位（WMTS 选触觉的又一实证）。
 - 重定向（goal-conditioned），非高速连续转笔。
 - 感知-控制分离；位姿器质量上限决定控制。
-- **真机标定**：Allegro 传动的弹簧/阻尼难仿真，须用系统辨识(SysID)提取准确 Actuator Gains，否则仿真飞天、真机抽搐。
+- **真机标定**：Allegro 传动的弹簧/阻尼难仿真，须用系统辨识(SysID)提取准确 Actuator Gains，否则仿真飞天、真机抽搐（vs [[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]：ViserDex 靠**离线 SysID 固定增益**，DexCtrl 更进一步把增益当**可学、闭环自适应**的一等对象——两条处理控制器 gap 的路线）。
 
 ## 4. 核心洞见（逻辑与价值 + 未来）
 

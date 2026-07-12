@@ -696,6 +696,27 @@ $$
 
 对 LinkerHand 来说，如果底层 firmware 已经是位置/速度闭环，那么 PPO/Diffusion Policy 学到的 action 更像 DeepMimic 的 target-PD action，而不是 torque。recap 中必须把这一层控制接口说清楚，否则会误判算法可迁移性。
 
+### 与课程学习簇的联系：RSI 是"初始状态维"的 continuation
+
+> [!abstract] 暗线锚定：Continuation（初始状态维）+ 认知边界课程
+> 本簇 continuation 暗线（"先解平滑子问题、再引入真难度"）在 DeepMimic 里以**初始状态分布 $\rho_0$** 为载体：RSI 把 $\rho_0=\delta(s=s_{start})$ 换成 $\rho_0^{RSI}=\frac1T\sum_\tau\delta(s=\hat s_\tau)$（§2.7），让每个参考相位都能产出 on-policy 梯度，把"长链探索"拆成"许多局部恢复子问题"。这与 [[Curriculum Learning#3.2 与 Continuation Method 的联系|$Q_0\to Q_1$]] 同宗，只是 $\lambda$ 不是样本难度而是**相位起点**。§3.5 的 ablation（去 RSI：Backflip 0.791→0.379）证明这不是小 trick，而是让 PPO 可学的分布重塑——正是 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]] Phase 1 的"先解平滑子问题"。
+
+**补充 Foundation 锚点**（已 grep 验证，补 §7 的 RL/Dynamics/ControlTheory 泛链）：
+
+- [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]]：RSI 相位课程 = §7.3 Phase 1 手工课程在"初始状态"维的实例；ET 把 viability 变成隐式约束，对应 §7.3 对"任务/状态空间探索"的整体框架。
+- [[ReinforcementLearning#8.2 奖励工程：最危险的自由度|RL §8.2 奖励工程]]：§2.5 的四指数核 imitation reward（pose/vel/end-effector/COM 加权和）是 §8.2 "多分量 reward shaping"的范本；§3.4 Table 4（imitation-only vs task-only vs combined）正是 §8.2 "奖励维度错配"的实验诊断——与 [[Hindsight Experience Replay#3.5 Reward shaping 反直觉结果|HER 的 shaped-reward 失败]] 互为正反案例。
+
+**簇内互链 + Delta**：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[DexTrack: Towards Generalizable Neural Tracking Control for Dexterous Manipulation from Human References\|DexTrack]] | **同根 reference-guided tracking**，DexTrack 是多物体泛化版 | DeepMimic：单 clip、相位 $\phi$ 锁 wall-clock、RSI 均匀采相位、sim-only 角色；DexTrack：多 reference、next-goal 条件、homotopy 自适应 parent、真机 LEAP。tracking reward 结构（pose/wrist/finger/object）几乎同源 |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | **reset 分布是同一杠杆** | RSI（均匀采整条 reference 相位）与 DemoStart demonstration-as-reset（ZVF 自适应只在 frontier reset）是同一"把长链拆成中间起步短问题"思想；DemoStart 是 RSI 的**自适应升级**，且不用演示动作 |
+| [[Hindsight Experience Replay\|HER]] | 都**重塑 MDP 对象**而非换 optimizer | DeepMimic 改 $r,\rho_0,$ 终止（reference-aware）；HER 改 replay 里的目标条件 $g$（relabel）。二者共同点：贡献在"把难探索问题改造成可学 MDP"，PPO/DDPG 只是执行器 |
+
+> [!tip] 一句话记忆锚
+> **DeepMimic = 把 reference motion 拆进 reward/$\rho_0$/终止/动作抽象四处；RSI 是初始状态维的 continuation。** 它与 DexTrack（多物体泛化）、DemoStart（自适应 reset）、HER（goal relabel）共享同一底层信念：**决定可学性的是 MDP 设计，不是 optimizer 名字。**
+
 ## 8. 应复刻的提问颗粒度
 
 | 用户式追问 | 本文应主动回答的内容 |

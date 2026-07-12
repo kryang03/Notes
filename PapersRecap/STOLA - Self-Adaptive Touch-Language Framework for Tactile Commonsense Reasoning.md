@@ -575,6 +575,25 @@ STOLA 是动态表征分解：不是固定每个 modality 一个 head，而是�
 
 对灵巧手，触觉最终要服务于接触稳定性和控制律切换：检测 slip、调阻抗、限制力、触发 regrasp。STOLA 没有这些控制闭环，因此只能作为触觉表征层的参考，而不是控制算法。
 
+### 7.6 簇内定位与暗线锚点（触觉操作簇）
+
+在“触觉表征丰富度谱”上，STOLA 位于**语义/语言最右端**：触觉被升维成 language token 求 open-ended 推理，但尚未闭环控制。它是全簇里唯一“把触觉转成语义”而非“转成控制观测”的一篇。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | 谱的两极：Touch Dexterity 把触觉压到 1-bit 求 sim-to-real 稳（丢信息换鲁棒）；STOLA 把触觉升到 language token 求语义推理（加语义换 reasoning）。 |
+| [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map]] / [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | 都在问“触觉该被转成什么中间量”：Tacmap→penetration geometry，AnyRotate→物理特征 $(P,F)$，STOLA→language/semantic tokens。前两者服务 control observation，STOLA 服务 offline reasoning。 |
+| [[Visual-tactile Pretraining for Humanlike Manipulation Dexterity]] | 都做触觉表征预训练：VT 用 masked reconstruction 学 contact-relevant attention 供 PPO；STOLA 用 MoE routing 学 modality-specific 处理供 LLM QA。 |
+
+**精确 Foundation 锚点（把 §7.1/§7.2 的泛链落实）**：
+
+- [[RepresentationLearning#5. 多模态融合：视触觉的交响|RepresentationLearning §5]]：STOLA 的 MoE token routing 是 §5 融合谱系里“shared embedding ≠ shared pathway”的一支——对齐后仍保留 modality-specific computation。
+- [[SignalProcessing#3. 视觉触觉传感 (VTS)：把触觉变成视觉问题|SignalProcessing §3]]：GelSight patch token 的物理来源就是 §3 的 VTS 光学信号（接触形变→图像）。
+
+**暗线挂载（主动感知：触觉→物理属性语义）**：STOLA 的 FPU/TIP 子任务本质是把触觉映射到 hardness/roughness/graspability 等物理属性，对应 [[InformationTheory#3.3 扩展到物理属性：摩擦图与刚度图|InformationTheory §3.3]] 的“触觉估计物理属性图”。若把 contact-mode experts 接回控制，则是 POMDP belief 的 modality-specialized 编码器（参见 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]]）。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | recap 应主动补充 |

@@ -1,3 +1,46 @@
+---
+tags:
+  - paper
+  - humanoid-control
+  - reinforcement-learning
+  - motion-tracking
+  - curriculum-learning
+  - sim-to-real
+aliases:
+  - KungfuBot
+  - PBHC
+paper-year: 2025
+read-date: 2026-06-02
+venue: arXiv
+related:
+  - "[[ReinforcementLearning]]"
+  - "[[ControlTheory]]"
+  - "[[Dynamics]]"
+  - "[[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking]]"
+  - "[[COMET - Controllable Long-term Motion Generation with Extended Joint Targets]]"
+---
+
+# KungfuBot: Physics-Based Humanoid Whole-Body Control for Learning Highly-Dynamic Skills
+
+> [!abstract] 核心贡献
+> KungfuBot (PBHC pipeline) 不提出新 RL 基础算法，而是把高动态、极限运动学包络的人形全身模仿做成可真机落地的工程闭环：前端用**物理可行性过滤**剔除违背质心/压力中心动力学的 retarget 数据，RL 端用**非对称 Actor-Critic + 奖励向量化多头 Critic + 自适应追踪因子 $\sigma$**，把有界指数奖励 $r(x)=\exp(-x/\sigma)$ 的整定从人工炼丹升级为双层优化，解析解 $\sigma^*=\text{mean}(x^*)$，工程上退化为棘轮式课程 $\sigma\leftarrow\min(\sigma,\hat x)$，零样本迁移到宇树 G1 复现 13 种从扎马步到 360° 飞踢的极限动作。
+
+> [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#5.1.2 PPO：用 clip 把硬约束"软化"]] — 基座算法是 PPO + 非对称 Actor-Critic（Critic 吃特权信息 + DR 采样的真实物理参数以降方差）
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间]] — 自适应 $\sigma$ 的 $\min$ 棘轮是一种**单向自动课程**：训练初期大 $\sigma$ 保梯度覆盖，误差降则 $\sigma$ 收网锁定精度，对应 continuation "先解平滑子问题再逐步加难度"暗线
+> - [[ReinforcementLearning#8.2 奖励工程：最危险的自由度]] — 奖励向量化（多头 Critic 独立拟合各奖励通道）解决大尺度存活奖励淹没细粒度模仿奖励的梯度主导/特征坍缩问题
+> - [[ControlTheory]] — 策略输出目标关节位置 $a_t\in\mathbb{R}^{23}$，经底层 PD 控制器显式算力矩（缩小 Sim2Real gap，不依赖仿真器黑盒 PD）
+> - [[Dynamics]] — 前端 physics-based filtering 用质心/ZMP 动力学判定 MoCap 可行性
+>
+> **核心技术**: PPO 非对称 Actor-Critic, Reward Vectorization (多头 Critic), Adaptive Tracking Factor (双层优化 → EMA 棘轮), Penalty Curriculum, 高强度 Domain Randomization
+
+> [!tip] 簇内关联（人形 / 运动生成簇）
+> - **vs [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]]**: 两者都是 **PPO + 课程 + 物理人形全身控制**，互补。KungfuBot 是 **single-motion 专精**（每个 policy 只模仿一个参考动作，无环境感知），课程藏在自适应 $\sigma$ 的隐式收紧里；PhyGile 是 **general multi-motion tracking**，课程显式化为 level-wise Curriculum MoE，并多一个 robot-native 扩散**生成器**。PhyGile 的 physics-prefix 正是把 KungfuBot 式可执行跟踪片段回灌给生成器；反过来 KungfuBot 的自适应 $\sigma$ 可作为 PhyGile 各难度专家的自整定容忍度。
+> - **vs [[COMET - Controllable Long-term Motion Generation with Extended Joint Targets|COMET]]**: KungfuBot 是**物理跟踪器**（真机执行、有动力学约束），COMET 是**运动学生成器**（CVAE 吐姿态增量、无物理）。KungfuBot 的自适应 $\sigma$ 防"追踪松散"、COMET 的 GMM-RGF 防"生成漂移"，二者分别守生成-执行链的两端，可级联成"生成参考 → 物理跟踪"。
+> - **专家质疑（承接原文）**: 用自适应奖励强行拟合 IK retarget 仍有微小非物理瑕疵的轨迹，本质是"用控制器鲁棒性掩盖重定向轨迹的非物理性"；因未显式约束 ZMP，真机落地冲击力游走在硬件损坏边缘——这与 PhyGile 用仿真 rollout 门控 (generate–simulate–select) 主动筛掉动力学不可行段的思路形成鲜明对照。
+
+---
+
 # G1 机器人动作模仿 Pipeline
 
 **Date**: June 2, 2026 at 04:24 PM

@@ -12,6 +12,8 @@ read-date: 2026-06-16
 venue: arXiv 2604.02029 (survey, NUS/Fudan/Tsinghua 等)
 paper-pdf: "[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook.pdf]]"
 related:
+  - "[[RepresentationLearning]]"
+  - "[[WorldModels]]"
   - "[[EmbodiedAI]]"
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"
@@ -24,6 +26,8 @@ related:
 > 一篇**以语言模型为中心**的 latent space 大综述，主张 **latent space 是计算的"原生基底"**：许多内部过程（推理、规划）在**连续 latent 空间**比在人类可读的显式 token 轨迹里更自然——显式空间有语言冗余、离散化瓶颈、序列低效、语义损失。按五视角组织：**Foundation**（什么是 latent space；vs 显式/verbal 空间；vs 生成式视觉模型）、**Evolution**（prototype→formation→expansion→outbreak）、**Mechanism**（Architecture/Representation/Computation/Optimization）、**Ability**（Reasoning/Planning/Modeling/Perception/Memory/Collaboration/**Embodiment**）、**Outlook**。**对 WMTS：它是 latent 计算的坐标系——可定位 WMTS 的 latent WM、latent planning、embodiment；但其"纯 latent 为原生基底"的主张与 WMTS 的结构化物理方向（[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2]]/[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]）形成关键张力：WMTS 走"结构化 + latent 残差"，不全押纯 latent。**
 
 > [!tip] 与理论基础的关联
+> - [[RepresentationLearning#3.1 降维思想的统一主线]] — latent space 即"表征"主题本身；综述的 Representation 分类是该主线的展开。
+> - [[WorldModels#1. 表征层：把高维观测压成"可预测"的状态]] — 机器人 latent WM 是本综述 Modeling/Embodiment 能力的具身落点。
 > - [[EmbodiedAI]] — latent space 的 Embodiment 能力（具身 latent 计算）。
 > - [[ReinforcementLearning]] — latent planning/modeling（latent 内规划、世界建模）。
 > - [[StochasticProcess]] — latent 表示（VAE/diffusion/transformer）。
@@ -162,8 +166,20 @@ latent 表示的生成式基础（VAE/diffusion/transformer）；Representation/
 ### 与 [[Final_WMTS]] 的联系
 latent 计算坐标系定位 WMTS WM latent（hybrid 结构化+残差、adaptive）；latent-vs-显式张力 → WMTS 选结构化+latent 残差；与两篇 WM 综述构成双坐标。
 
+### 与 [[RepresentationLearning]] / [[WorldModels]] 的联系
+本综述是"表征作计算基底"这一命题的最广展开：其 Representation 分类（Internal/External/Learnable/Hybrid）对应 [[RepresentationLearning#3.1 降维思想的统一主线]] 的降维/编码主线；其 Modeling/Planning/Embodiment 能力落到机器人身上即 [[WorldModels#1. 表征层：把高维观测压成"可预测"的状态]] 与 [[WorldModels#2. 预测层：在 latent 里推演未来]]——WMTS 的 $z_{t+1}=F_\theta(z_t,a_t)$ 结构化 WM 就是综述 Modeling 能力的"物理知情"实例。
+
+### 暗线：POMDP → belief → latent
+本综述其实给这条暗线的"终点"做了地图：**部分可观 → belief（充分统计量）→ latent 计算基底**。综述主张"latent 是原生计算基底"，恰是把 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|POMDP 的 belief]]、[[StochasticProcess#2.3 马尔可夫性：它如何在推冰球里被破坏，又如何被"信念"救回|信念更新]] 抬升为"可在其中直接推理/规划的空间"。但对 WMTS 有关键分歧：belief 在接触物理里需可解释、可验证，故 WMTS 让 latent 只承担残差，主体交给结构化物理（见 §6.1）。
+
+### 与本簇论文的关联（Delta 对比）
+- **vs [[Transformers as Meta-Learners for Implicit Neural Representations|Trans-INR]]**：综述是坐标系、Trans-INR 是一个点——后者"amortized 生成一段 latent 表示（INR）"正落在综述 Representation（Learnable）× Computation（Expanded）格子里。
+- **vs [[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL 架构研究]]**：综述把 in-context 计算归入 Computation（Interleaved/Adaptive）；ICL 论文从下往上证"这种 in-context 适应架构无关"——综述给标签、ICL 给机制证据。
+- **vs [[On the Continuity of Rotation Representations in Neural Networks|6D 旋转表示]]**：表征谱的两端——本综述管**内部隐式 latent 作计算基底**，6D 论文管**输出侧显式物理量（SO(3)）的连续编码**；WMTS 两头都要（内部 latent 残差 + 输出旋转用 6D/9D）。
+
 ## References
 - 原始 PDF：[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook.pdf]]（多机构，arXiv 2604.02029）
 - 互补综述：[[A Step Toward World Models- A Survey on Robotic Manipulation|操作 WM 综述]]、[[Learning to Model the World: A Survey of World|全 AI WM 综述]]
+- 本簇（表征/几何/ICL/元学习）关联：[[Transformers as Meta-Learners for Implicit Neural Representations|Trans-INR]]、[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL 架构研究]]、[[On the Continuity of Rotation Representations in Neural Networks|6D 旋转表示]]
 - latent-vs-结构化谱：[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer（latent）]]、[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL（semi-structured）]]、[[DexSim2Real2 - Building Explicit World Model for Precise Articulated Object Dexterous Manipulation|DexSim2Real2（显式）]]
 - 项目入口：[[Final_WMTS]]

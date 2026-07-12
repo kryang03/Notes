@@ -25,7 +25,8 @@ related:
 > 首个为腿式机器人**联合建模力 + 位置控制、且无需力传感器**的统一策略。在 Isaac Gym 里 RL 训练：模拟多样的位置+力命令 + 外部扰动力，学一个策略**从历史机器人状态估计力**、并通过位置/速度调整补偿之 → 支持位置跟踪、施力、力跟踪、柔顺交互。更关键：学到的**力估计模块给 IL 提供"力感知示范"**，在 4 个接触密集任务上**比纯位置控制 +39.5% 成功率（无外部力传感器）**。**对 WMTS：印证两件 WMTS 核心事项——(1) 接触力可从本体历史估计（无需力传感器，呼应 SSRL 外力残差）；(2) 力感知数据对接触密集 IL 至关重要（+39.5%，呼应 DexWM HC-loss、Beyond Human Demonstrations 数据质量）。WMTS 有真触觉，可比"估计"更进一步。**
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory]] — 统一力/位置控制；柔顺交互（compliance）；力补偿。
+> - [[ControlTheory#5. 力/位混合控制：正交分解任务空间]] — **数学根**：统一力/位置策略即力/位混合控制的学习式版本（用估计力替代传感力、用策略替代正交选择矩阵）。
+> - [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系]] — 柔顺交互（compliance）的动态关系；[[ControlTheory#3.4 学习型变阻抗：RL × 阻抗的桥]] — RL 学力/位调节即学习式变阻抗。
 > - [[ReinforcementLearning]] — RL 训统一策略；多样力+位置命令 + 扰动力 DR。
 > - [[EmbodiedAI]] — 腿式 loco-manipulation；力感知 IL 数据。
 > - [[Final_WMTS]] — **接触力可从本体历史估计 + 力感知数据对 IL 关键**；WMTS 用真触觉更强。
@@ -132,8 +133,16 @@ RL 训统一策略；多样力+位置命令 + 扰动力 DR；力感知数据增�
 ### 与 [[Final_WMTS]] 的联系
 接触力可从本体历史估计（WMTS 用触觉更准）；力感知数据对接触 IL 关键（+39.5%）→ WMTS Oracle 须产力/触觉感知数据；与 SSRL 外力残差互补。
 
+### 暗线：POMDP → belief → latent（力是隐状态、历史窗口即解药）
+无力传感器时，**接触力是部分可观测的隐状态**，本文用"历史机器人状态 → 当前力"的估计器把它从**历史窗口**恢复出来——这正是 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|POMDP→belief]] / [[StochasticProcess#2.3 马尔可夫性：它如何在推冰球里被破坏，又如何被"信念"救回|历史窗口救回马尔可夫性]] 那条暗线的物理实例：力估计器 = 对隐状态"力"的 belief 观测器，与 [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]] 的外力残差同构。WMTS 有真触觉，等于把这个隐状态**直接观测**，belief 更紧。
+
+### 与本簇论文的关联（Delta 对比）
+- **vs [[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger]]**（可比维度=喂给 IL 的数据质量）：都在"改善示范数据以提升接触/交互 IL"——本文给数据补**力/接触信息**（接触密集任务 +39.5%），HG-DAgger 给数据补**安全的高质量人类标签 + uncertainty triage**；一个补"物理量维度"，一个补"标签质量维度"，对 WMTS Oracle 数据设计互补。
+- **vs [[On the Continuity of Rotation Representations in Neural Networks|6D 旋转表示]]**：同属 **WMTS Oracle/policy 的输出侧工程纪律**——本文要求示范数据带力/触觉，6D 要求旋转分量用连续表示；都是"近零成本、不采纳就在接触/全域旋转处吃亏"的默认设置。
+
 ## References
 - 原始 PDF：[[Learning a Unified Policy for Position and Force.pdf]]（BIGAI/BUPT，CoRL 2025，arXiv 2505.20829）
 - 力/接触主题群：[[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]（外力残差）、[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]（增益）、[[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]（接触监督）
 - 数据质量呼应：[[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training|Beyond Human Demonstrations]]
+- 本簇（IL 数据/表征）关联：[[HG-DAgger- Interactive Imitation Learning with Human Experts|HG-DAgger（人类 gating + triage）]]、[[On the Continuity of Rotation Representations in Neural Networks|6D 旋转表示（输出侧纪律）]]
 - 项目入口：[[Final_WMTS]]、[[Dynamic Non-Prehensile Manipulation]]

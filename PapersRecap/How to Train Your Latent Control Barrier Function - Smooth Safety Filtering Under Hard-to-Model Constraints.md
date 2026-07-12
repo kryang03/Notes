@@ -38,6 +38,11 @@ related:
 >
 > **核心技术**: Latent-space CBF, WGAN-GP 光滑 Margin, 混合策略采样, 采样优化安全过滤
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ControlTheory#9. 安全滤波：Control Barrier Function 与可达性]] — 本文把经典 CBF-QP $a^*=\arg\min_a\|a-\pi^{nom}\|\ \text{s.t.}\ B(f(s,a))\ge\alpha B(s)$ 搬进 DINO-WM 潜空间做部署时外挂滤波；HJ 值函数 $V^\diamond$ 充当 barrier $B$。
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 核心 Theorem「margin 光滑性线性传到值函数」$L_{V^\diamond}\le L_\ell\max\{1,\tfrac{1-\gamma}{1-\gamma L_f}\}$ 是 Lipschitz/稳定性理论在安全证书上的应用：证书要能区分动作，其 Lyapunov 光滑性是前提。
+> - **暗线/簇内 Delta**：$V^\diamond$ 是「价值即 Lyapunov」的 barrier 变体（cf. [[ReinforcementLearning#2.2 值函数与 Bellman 方程]]）。与 [[Reachability Constrained Reinforcement Learning|RCRL]] 的 Delta：RCRL 把安全训进策略（内禀、有形式保证），本文外挂在任意预训练策略上（灵活、但采样概率性无严格保证）——安全「实现位置谱」的两端。
+
 > [!abstract] 核心贡献
 > 提出 **LatentCBF**，解决了在隐空间中进行基于优化的安全过滤（CBF-style filtering）的两个关键挑战：(1) 分类器生成的 margin function 梯度饱和；(2) 安全策略与任务策略的分布失配导致值函数估计不准。
 

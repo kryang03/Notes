@@ -25,8 +25,10 @@ related:
 > 首个以 **MDP 四元素 (S, A, T, R)** 为分类框架的 Sim-to-Real 综述，系统梳理了从经典方法到 Foundation Model 增强策略的全谱系技术。提供 GitHub 资源库持续更新: [AwesomeSim2Real](https://github.com/LongchaoDa/AwesomeSim2Real)
 
 > [!tip] 与理论基础的关联
+> - [[ReinforcementLearning#9.1 先分类，再治疗：MDP 四要素 gap 诊断|RL §9.1]] — 本综述的 $(S,A,T,R)$ 四元素 gap 分解 = §9.1"先分类再治疗"诊断法的完整外部版；两者可互为索引。
 > - [[ReinforcementLearning]] — MDP $(S,A,T,R)$ 形式化是本综述分类轴；DR / robust-MDP 理论
 > - [[Dynamics]] — Transition Gap $\Delta_T$ 的本质（仿真 vs 真实接触动力学）
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — 补本综述自认的盲区（§6.1：电机/减速器/传动非理想未讨论）：**电流≠关节力矩** 暗线——$\Delta_T$ 里被综述忽略的一大块正是执行器力矩传递链 gap。
 > - [[ControlTheory]] — Action Delay $\Delta_A$ 与控制频率 / 执行延迟
 > - [[Optimization]] — Distributionally Robust RL 的 minimax + $f$-散度不确定集
 > - [[EmbodiedAI]] — Foundation Model (VLM/LLM) 作为 sim-to-real 跨域语义锚点
@@ -220,6 +222,7 @@ for s, a_sim, s_next_real in real_paired_data:
 > | [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]] | $\Delta_S$ | 二值化"量化吸收"传感 gap |
 > | [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing\|Robot Synesthesia]] | $\Delta_S$ | 点云几何抽象 |
 > | [[Lessons from Learning to Spin Pens\|Spin Pens]] | $\Delta_T$ | Open-loop Replay 离线筛可迁移动作 |
+> | [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] | $\Delta_T$（关节级） | joint-wise 神经动力学 + residual，模型优化侧 |
 > | [[Control Frequency Adaptation via Action Persistence in Batch Reinforcement Learning\|PFQI]] / [[TARC - Time-Adaptive Robotic Control\|TARC]] | $\Delta_A$ | 硬件延迟=强制 persistence；变频匹配真机 |
 > | [[On Robust Reinforcement Learning with Lipschitz-Bounded Policy Networks\|Lipschitz RL]] | $\Delta_S$ | Lipschitz 约束抑制观测扰动放大 |
 > | [[Grounded Action Transformation\|GAT]] | $\Delta_T,\Delta_A$ | 动作层 grounding |

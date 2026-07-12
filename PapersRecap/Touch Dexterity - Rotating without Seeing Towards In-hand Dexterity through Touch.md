@@ -629,6 +629,25 @@ Contact mode $\sigma_t$ 是 hybrid contact dynamics 的离散状态。Touch Dext
 
 Policy 输出位置目标，PD controller 执行。EMA action smoothing 和 work/torque penalties 都是在让 learned policy 更像可部署控制器，而不是只在仿真中追求旋转奖励。
 
+### 7.6 簇内定位与暗线锚点（触觉操作簇）
+
+在“触觉表征丰富度谱”上，Touch Dexterity 位于**最简一端**：1-bit 全手 contact mode，用“丢幅值”换“sim/real 对齐”。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | 同一 in-hand rotation 演进线的两端：本文 1-bit 全手 contact mode 求 sim/real 一致，AnyRotate dense $(R_x,R_y,\|F\|)$ 求任意轴+重力不变。AnyRotate 的 Table 1 “Binary→Dense”提升就是这条谱内部的直接对照实验。 |
+| [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map]] | 反向路径解同一 tactile sim-to-real gap：本文用 threshold 把连续力 gap **截断**进 binary，Tacmap 用 penetration geometry 把 gap **隔离**进 translator $\Phi$。二值丢幅值，deform map 丢切向。 |
+| [[Robot Synesthesia - In-Hand Manipulation with Visuotactile Sensing]] | 同用 16-FSR binary，但本文让 contact vector 直接进 policy，Robot Synesthesia 用 FK 把它空间化成 palm-frame 点云。 |
+
+**精确 Foundation 锚点（把 §7.2/§7.3 的泛链落实）**：
+
+- [[ContactMechanics#5.1 互补条件与 LCP 的构建|ContactMechanics §5.1]]：16-bit contact vector 是 hybrid contact dynamics 离散 mode（active constraint set $\sigma_t=\{i:b_{t,i}=1\}$）的直接观测——策略据此做 mode switching。
+- [[SignalProcessing#4.1 早期滑移 (Incipient Slip) 检测|SignalProcessing §4.1]]：binary contact 无法提供 §4.1 的 incipient-slip 切向信号，这界定了它对高速转笔 catch/slip 相位的失效边界。
+
+**暗线挂载（POMDP → belief → latent）**：无视觉、object pose 不可观；policy 用 3-history stack $(b_{t-3},\dots,b_t)$ 从 contact-mode transitions 隐式推 object-in-hand belief。§3.6 用 contact sequence 重建 shape（MSE 0.45→0.22）正是“belief 编码 object state”的证据。参见 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]] 与 [[StochasticProcess#4. 信念更新：从 EKF 失效到粒子滤波|StochasticProcess §4]]。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | recap 应主动补充 |

@@ -570,6 +570,15 @@ $$
 
 PhysicsGen 最终仍是 imitation learning pipeline：generated trajectories 训练 diffusion policy。它和 RL 的关系是互补而非替代。RL 适合在 generated data 附近继续搜索 policy improvement；trajectory optimization 适合把少量 demo 快速扩展成高质量 offline dataset。
 
+> [!note] 簇内补链 · Foundation 精确锚点 · 暗线
+> **簇内互链 + Delta**：
+> - vs [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation|Residual LfD]]：同属"**全局 demo 先验 + 局部细化**"——本文用 trajopt 补动力学可行性、rLfD 用 RL residual 补接触搜索；本文离线**造数据**、rLfD 在线**学策略**，可级联（先 PhysicsGen 造 base chunk 再叠 rLfD residual）。
+> - vs 阻抗/力控簇（[[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks|VICES]] / [[Minimalist Compliance Control|MCC]]）：本簇多数论文解决"接触时**怎么控**"，PhysicsGen 解决上游"接触数据**从哪来**"——生成的 $(x_t,u_t)$ 最终仍要由阻抗/力控器执行。
+>
+> **Foundation 精确锚点**：Eq.(2) 带 $x_{t+1}=f(x_t,u_t,\theta_t)$ 的轨迹级非凸优化 = [[Optimization#5. 演进脉络：从模态预设到接触隐式（修复梯度流的四个阶段）|Optimization §5]] 接触隐式轨迹优化谱；非穿透 $\phi_j\ge0$ 与接触互补 = [[Optimization#3.1 互补约束：接触把可行域撕成"坐标轴的并集"|Optimization §3.1]]；physics time-stepper $f$ = [[Dynamics#6. 仿真层：接触动力学的深水区|Dynamics §6]]。
+>
+> **暗线 · 接触的非光滑性**：contact-rich 任务的核心难点是 **combinatorial contact mode sequence**（何时接触、哪侧接触、何时换手）——正是接触把优化景观撕成非凸/非光滑（[[ContactMechanics#5.1 互补条件与 LCP 的构建|ContactMechanics §5.1]]）。demo 提供全局模式先验、trajopt 做局部可行，正是应对"纯全局搜索因非光滑爆炸"的标准解法。
+
 ## 8. 应复刻的提问颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

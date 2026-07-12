@@ -24,8 +24,10 @@ related:
 > 提出 **Latent Bayesian Surprise (LBS)** 好奇奖励：用 latent 动力学模型的**后验 vs 先验信念之差（Bayesian surprise）**作内在动机，在 latent 空间算 → 比参数空间 Bayesian surprise（VIME）**算力大降**。关键优势：**抗 NoisyTV 问题**——基于预测误差/surprisal 的好奇（ICM）会被白噪声电视吸引（随机 = 高预测误差 = 假"有趣"），而 Bayesian surprise 对**纯随机转移**（不更新信念、无新信息）给**低奖励** → 不追逐不可约随机性。连续控制 + 视频游戏上 competitive，且对随机转移 resilient。**对 WMTS：它给 Probe 队列一个关键原则——探索应求 epistemic（可约、可学）不确定，而非 aleatoric（不可约噪声）；转笔有真实接触噪声，Probe 若用裸预测误差会陷 NoisyTV，应用 Bayesian surprise / ensemble disagreement（[[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation|CEE-US]]）这类 epistemic 信号。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — 内在动机/好奇奖励；探索。
-> - [[StochasticProcess]] — Bayesian surprise（后验 vs 先验 KL）；latent 变分动力学模型。
+> - [[InformationTheory#2.3 KL 散度：信念跳变与"贝叶斯惊奇"]] — **Bayesian surprise 就是本节的"贝叶斯惊奇"**：后验 vs 先验的 KL = 信念跳变量；配 [[InformationTheory#1.2 两种不确定性：只有一种值得探索|InfoTheory §1.2]]（只有 epistemic 值得探）、[[InformationTheory#6.2 内在动机的谱系：好奇心、惊奇、赋能、多样性|§6.2 内在动机谱系]]。
+> - [[StochasticProcess#3.2 一个必须刻进脑子的区分：Aleatoric vs Epistemic|StochasticProcess §3.2]] — NoisyTV 的本质 = 把 aleatoric（不可约）误当学习信号；Bayesian surprise 只测 epistemic（可约）。
+> - [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性|WorldModels §3.2]] — "**认知不确定性三用**"暗线的探索面：LBS 用 Bayesian surprise、[[Curious Exploration via Structured World Models Yields Zero-Shot Object Manipulation|CEE-US]] 用 ensemble disagreement，都当探索罗盘。
+> - [[ReinforcementLearning#7.1 用信息论刻画探索|RL §7.1]] — 内在动机/好奇奖励；抗 NoisyTV 的内在 bonus。
 > - [[Final_WMTS]] — **Probe 求 epistemic 非 aleatoric**（抗 NoisyTV）；与 CEE-US ensemble epistemic 一致。
 >
 > **核心技术**: Latent Bayesian Surprise (后验 vs 先验信念差), latent 变分动力学, 抗 NoisyTV, 算力低, 内在奖励
@@ -114,10 +116,10 @@ LBS 给 WMTS 的探索/Probe 补上**关键的"信号选型"原则**：好奇该
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-内在动机/好奇奖励；探索；抗 NoisyTV 的内在 bonus。
+内在动机/好奇奖励；探索；抗 NoisyTV 的内在 bonus。精确落点：[[ReinforcementLearning#7.1 用信息论刻画探索|RL §7.1]]（探索的信息论刻画）与 [[ReinforcementLearning#7.2 三条探索路线|§7.2]]（好奇属"内在动机"一路）。
 
 ### 与 [[StochasticProcess]] 的联系
-Bayesian surprise（后验 vs 先验 KL）；latent 变分动力学模型；epistemic vs aleatoric 区分。
+Bayesian surprise（后验 vs 先验 KL）；latent 变分动力学模型；epistemic vs aleatoric 区分。精确落点：[[StochasticProcess#3.2 一个必须刻进脑子的区分：Aleatoric vs Epistemic|StochasticProcess §3.2]]——LBS 的全部价值就是在探索里把这两类不确定性分开，只追可约的那一类（**认知不确定性三用**暗线的"探索罗盘"用法）。
 
 ### 与 [[Final_WMTS]] 的联系
 Probe 求 epistemic 非 aleatoric（抗 NoisyTV）；与 CEE-US ensemble disagreement 一致；精化 PLR 学习潜力（=epistemic 可约部分）。

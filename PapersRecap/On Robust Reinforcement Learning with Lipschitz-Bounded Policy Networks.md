@@ -33,6 +33,11 @@ related:
 >
 > **核心技术**: Lipschitz-Bounded Policy, Sandwich Layer (IQC), Cayley 参数化, 性能-鲁棒性 Pareto
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 全局 $\gamma$-Lipschitz 策略充当反馈回路中的算子 $\Delta$，$\|\Delta\|\le\gamma$ 直接进入小增益/ISS 稳定判据（$\|G\|\cdot\|\Delta\|<1$），这是「架构即稳定证书」的控制论根。
+> - [[ControlTheory#10.3 输入-状态稳定性 (ISS)]] — Sandwich 的紧致 Lipschitz 界给出更精确的输入-状态增益估计 → 更准的稳定裕度（vs SN 松界的隐性过约束）。
+> - **暗线**：本文走**紧致度**（同为全局 $\gamma$，Sandwich 紧界 vs SN 松界），[[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 走**结构感知**（$\gamma$→逐分量偏导界）——二者正交、可叠加成完整的 I/O 稳定证书；而正定代价下值函数=Lyapunov（[[ControlTheory#10.4 被动性与"价值即 Lyapunov"]]）说明约束策略增益与约束 Lyapunov 下降是硬币两面。
+
 > [!abstract] 核心贡献
 > 系统研究了 **Lipschitz-bounded policy networks** 在深度 RL 中的鲁棒性优势。发现小 Lipschitz 界的策略网络对扰动、噪声和对抗攻击显著更鲁棒，且 **Sandwich Layer** 比谱归一化更具表达力，能更好地控制性能-鲁棒性权衡。
 

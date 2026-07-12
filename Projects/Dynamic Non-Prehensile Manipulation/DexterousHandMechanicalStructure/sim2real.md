@@ -9,6 +9,7 @@ aliases:
   - sim2real gap
   - 仿真到真机迁移
 related:
+  - "[[Actuation]]"
   - "[[传动]]"
   - "[[电机]]"
   - "[[减速器]]"

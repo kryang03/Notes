@@ -42,6 +42,8 @@ related:
 > - [[ContactMechanics]] — $r_z$ 约束笔保持水平，本质是避免倾斜后重力矩和摩擦锥限制把仿真可行解变成真机滑落。
 > - [[ReinforcementLearning]] — PPO oracle 解决探索，behavior cloning / fine-tuning 解决部署；direct DAgger distillation 在该任务上失败。
 > - [[ControlTheory]] — 20 Hz neural joint-position target + 333 Hz PD controller，动作是位置目标而不是 torque。
+> - [[ReinforcementLearning#9.3 真机高效 RL：把"模仿×强化"缝合线收口|RL §9.3]] — oracle rollout → sim pretrain → open-loop replay 筛真机数据 → fine-tune，是"模仿×强化"缝合线的一个数据引擎实例：真机成功轨迹当 BC 目标，而非真机在线 RL。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — **电流≠关节力矩**暗线：action=20 Hz position target 经 333 Hz PD 转 torque，且训练加 action noise 提升 actuator robustness；open-loop replay 之所以能筛出可迁移轨迹，正因 $r_z$ 剔除了那些"仿真力精确、真机执行器 gap 下必滑落"的解。
 > - [[EmbodiedAI]] — 这是一条 simulation skill discovery → real trajectory adaptation 的 embodied data engine。
 >
 > **核心技术**: privileged oracle PPO, six canonical grasps, horizontal $r_z$ reward, open-loop trajectory replay, proprioceptive temporal-transformer student, real-world fine-tuning
@@ -608,6 +610,7 @@ PPO oracle 用 privileged state 做 skill discovery；student 用 BC/fine-tuning
 | RotateIt | diverse objects | x/y/z | vision + touch + proprio | privileged distillation |
 | Robot Synesthesia | object(s), point-cloud geometry | z / multi benchmark | vision + tactile point cloud | teacher-student |
 | AnyRotate | diverse objects | arbitrary axis | tactile + proprio | touch sim-to-real |
+| [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model\|DexNDM]] | diverse, multi-wrist | multi-axis | proprioception | joint-wise neural dynamics + residual |
 | **Spin Pens** | pen-like, no natural support | z-axis | proprioception | oracle replay + real fine-tune |
 
 领域空白：

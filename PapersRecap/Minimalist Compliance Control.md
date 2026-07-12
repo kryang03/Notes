@@ -258,6 +258,11 @@ class MCCController:
 > **critical-thinking insight——模型方法 > RL（在顺应控制上）**：MCC 位置误差 15.9mm < FACET 22.4mm < UniFP 57.8mm——**简单物理模型 + 2 参数标定全面超越大规模 RL**（且安全/可解释/跨 4 平台）。这是对"RL 万能"的反例：问题有清晰物理结构（电流→力矩）时，物理模型优于黑盒。
 > **"方向 > 幅值"连 Touch Dexterity**：MCC"力方向准 >> 力幅值精确"与 [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch\|Touch Dexterity]]"二值触觉够用"同源——**低精度但对的信息（方向/接触模式）常常够用**，是接触控制/感知的反直觉共性。
 
+> [!note] Foundation 精确锚点 · 簇内 Delta · 暗线（补 §7 簇 note）
+> **精确锚点**：导纳控制（外力→运动）= [[ControlTheory#3.3 导纳控制与阻抗/导纳因果性校准|ControlTheory §3.3]]；弹簧-质量-阻尼 = [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|ControlTheory §3.2]]；$\hat{f}_{ext}=(J_p^T)^\dagger\tau_{ext}$ 任务空间投影 = [[Dynamics#7.3 操作空间动力学 (Khatib)：在任务空间直接设计|Dynamics §7.3]]。
+> **簇内 Delta**：vs [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] / [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks|VICES]]——同为无力传感器，但 MCC 显式估力（可解释/跨平台），RL 侧隐式学力响应；MCC 15.9mm < FACET 22.4mm 印证"有清晰物理结构时模型 > 黑盒 RL"。
+> **暗线 · 电流≠关节力矩（反驱动性）——MCC 是本簇的范式样例**：MCC 整套方法就建立在"$\tau=K_t I$ + 方向相关效率 $\eta/\eta^{-1}$"上——正驱 $\eta$、反驱 $\eta^{-1}$ 的不对称正是减速器**反驱动性**（[[Actuation#8.2 三大非理想性——机械侧 gap 的主体|Actuation §8.2]] 的摩擦/背隙）；它把 [[Actuation#10.2 力矩反馈为何"能当输入、不能当目标"|Actuation §10.2]] 的困境反过来利用：既然外力矩会映射进电流，就直接从电流读它。FACET/VICES 的 "$f_{ext}$ 未知" 局限在此有物理解。
+
 ## 8. 局限与未来方向
 
 - 需要电机参数标定（力矩常数 $K_t$）

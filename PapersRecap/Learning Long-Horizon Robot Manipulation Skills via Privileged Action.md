@@ -33,6 +33,18 @@ related:
 >
 > **核心技术**: Privileged Action, Constraint Relaxation, Virtual Force, Auto-Curriculum, Non-Prehensile Manipulation, Long-Horizon RL
 
+> [!note] 簇内坐标与暗线（模仿学习 · 数据生成 · 真机 RL · 人机协作）
+> **簇内互链（Delta）**
+> - vs [[RL-100 - Performant Robotic Manipulation with Real-World RL|RL-100]]：都用课程/分阶段逼近真实 MDP；Privileged Action 是**仿真内探索脚手架**（特权动作→逐步移除），RL-100 是真机 offline→online 收口——可串成"特权探索→真机 fine-tune"。
+> - vs [[MimicGen - A Data Generation System for Scalable Robot Learning using Human Demonstrations|MimicGen]] / [[CyberDemo - Augmenting Simulated Human Demonstration for Real-World Dexterous Manipulation|CyberDemo]]：都能作 PPO Oracle 的数据/课程前端；Privileged Action 产出 long-horizon contact 行为的**种子轨迹**（无需 demo/reference），二者做数据变换/增强。
+> - vs [[DexHiL - A Human-in-the-Loop Framework for VLA Post-Training in Dexterous Manipulation|DexHiL]]：都攻"失败边界/长因果链"探索稀薄；Privileged Action 用**仿真特权**改变探索拓扑，DexHiL 用**人类介入**采样失败边界。
+>
+> **Foundation 精确锚点**（已 grep 验证）
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]] — 三阶段特权收回 = Phase 1 continuation：先解松弛子问题，再沿约束收紧路径追踪到真实 MDP。
+> - [[ContactMechanics#5.1 互补条件与 LCP 的构建|ContactMechanics §5.1]] — Stage 1 直接改写 robot-table 互补条件 $\phi_R F_R=0 \to (\phi_R+\Delta_R)F_R=0$（松弛接触约束）。
+>
+> **暗线**：**Continuation/同伦/平滑化**暗线（松弛→收紧的连续变形）；**模仿×强化缝合线**——privileged policy 产出的种子可入 §9.3 真机 RL fine-tune（特权探索 → 真机收口）。
+
 ## 0. 阅读定位与范本价值
 
 这篇论文的价值不在于某个复杂网络结构，而在于它提出了一个很适合思考灵巧操作探索难题的视角：**有些 contact-rich long-horizon skill 学不出来，不是策略表达力不够，而是早期探索几乎碰不到能产生后续高奖励的状态。**

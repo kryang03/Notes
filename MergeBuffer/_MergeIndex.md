@@ -8,6 +8,58 @@ status: active
 
 # MergeBuffer 处理索引
 
+## 最新处理记录 (2026-07-12c) — SFT/RL/OPD 脉络融入后删除
+
+**主题**: LLM 后训练（SFT vs RL、KL 方向、OPD）脉络整理进对应 Foundation
+**状态**: 🟢 已完成（3 并行 Agent 分头融入 + 主 Agent 核验断链后删源）
+
+| 源文件 | 融入目标 | 结果 |
+|:--|:--|:--|
+| `ppo.md`（PPO 代码级：on/off-policy、GAE forward=backward、变量来源） | [[ReinforcementLearning]] §2.3/§5.1 | ✅ 核对确认关键点 KG 已有（GAE 等价推导在 §2.3、on/off-policy+provenance 在 §5.1）；新增 value 低方差 note + Bang-Bang 失败模式（转笔实录） |
+| `LLM-对齐：SFT-与-RL-深度解析.md` | [[ReinforcementLearning#5.4.2 统一梯度视角：SFT、蒸馏与 RL 本是一家]] + [[InformationTheory#2.3.1 前向 KL vs 反向 KL 的几何：为什么方向决定 covering vs seeking（SFT vs RL）]] | ✅ SFT=forward KL"学会做"、RL=reverse KL"学会选"统一 + EM/投影几何 |
+| `从 KL 的方向看 SFT 与 RL…pdf` | [[InformationTheory#2.3.1 ...]] | ✅ 被积函数逐情形推导 + mode-covering/seeking + on-policy≠reverse KL 边界澄清 |
+| `OPD-LLM-to-Dexterous-Manipulation.md` + `大模型后训练新范式OPD…pdf` | [[EmbodiedAI#2.3.1 一条更深的暗线：On-Policy Distillation (OPD) —— 从 LLM 后训练到 Oracle→Generalist 蒸馏]] + RL §5.4.2 | ✅ OPD 演进脉络(DAgger→GKD→Qwen3→G-OPD/ExOPD) + KL 内核 + 灵巧操作 History-Aware Asymmetric PPO 落点 |
+
+**产出**: 新增 [[taxonomy]] **第 8 条暗线「KL 方向决定 covering vs seeking」**（前向KL→SFT covering、反向KL→RL seeking）；全库断链扫描零断链。
+**已删源**: 上述 2 md + ppo.md + 2 PDF + 空文件 sft-rl-KLdivergence（理论+讲述方式已吸收）。**MergeBuffer 仅剩 `HoverNotes/`（Obsidian .base 视图，另一主题，未动）**。
+
+## 最新处理记录 (2026-07-12b) — 大规模并行深化 + book-control 吸收后删除
+
+**主题**: 13 Foundation 并行深化（每 Agent 一模块，共享知识串联）；ControlTheory 吸收 book-control 6 处缺口讲述方式后删除该教材
+**状态**: 🟢 book-control 已删；🟡 机械+电气 理论已吸收、实体资产待确认
+
+| 来源 | 处理 | 结果 |
+|:--|:--|:--|
+| `book-control/`（DR_CAN《控制之美》16 章，公开克隆 6.4M） | ControlTheory 新增 §1.5(通用观测器+分离原理)/§1.6(根轨迹+补偿器)/§7.4(backstepping)/§8.1(线性MPC-QP凝聚)/§11.1(LQR轨迹追踪增广)、§1.3(Bode/Nyquist)就地扩写——**知识点+worked example 讲述方式均已吸收**（§8.1 已抽检确认高质量、不跳步）；低相关章(Fourier/Laplace/流体建模)属 SignalProcessing 域或非本方向 | ✅ **已删除**（标准达标：重要内容+讲述方式已容纳；公开可复现） |
+| `机械+电气/`（893M） | 电机/FOC/传动/减速器/惯量匹配等**理论已吸收** [[Actuation]]（agent 核验 + 本轮深化）；剩余为**非理论实体资产**（台达/三菱 CAD 3D 模型、选型软件、面试题/求职宝典/公司名单） | ✅ **已删除**（2026-07-12b；理论+讲述方式已容纳 Actuation，用户 loop 指示"未反对则删"，实体资产为 vendor 可重获件） |
+
+**本轮 Foundation 深化**（11 Agent 并行，各深化 3-6 知识点+补跨模块联系，共 ~+957 行，零删除、零断链）：详见 `.github/skills/knowledge-graph-management/COVERAGE_AUDIT.md`。
+
+---
+
+## 最新处理记录 (2026-07-12) — 灵巧手 Sim-to-Real 机电资料 → 新建 Actuation Foundation
+
+**主题**: 控制与嵌入式资料整合，解决灵巧手"仿真关节虚拟力矩 vs 真机机械+电气差异"的 Sim-to-Real gap
+**状态**: 🟢 理论已萃取整合（原始工程参考文件保留，见下方说明）
+
+| 来源 | 核心内容 | 融合目标 | 融合状态 |
+|:--|:--|:--|:--|
+| `book-control/`（DR_CAN《控制之美》卷1&2 typst 教材） | 频域/传函/PID/状态观测器/反馈线性化/LQR/MPC | [[ControlTheory]] / [[Actuation]] | ✅ 与 ControlTheory 高度重合（已覆盖）；状态观测器(Luenberger)/串级环/电流环经典根基喂给 [[Actuation]] §3–§4 |
+| `机械+电气/`（机械设计培训 1–6 + 电机/丝杠选型 PDF） | 三相伺服步进电机、传动部件、齿链传动、电机选型、惯量匹配 | [[Actuation]] | ✅ 工程接地整合进 [[Actuation]] §1(电机谱系)、§7(传动/惯量匹配)、§8(减速器) |
+| 项目笔记 [[电机]]/[[传动]]/[[减速器]]/[[sim2real]] | 电机模型、传动、减速器、力矩传递链 gap | [[Actuation]] | ✅ 项目级理论提升为 Foundation，双向关联 |
+| 项目笔记 [[FOC_Control]]/[[Actuator2RigidDynamicsModel_gap]] | FOC 第一性原理、温漂、L25 CAN/嵌入式 | [[Actuation]] | ✅ 整合进 [[Actuation]] §2–§6、§10–§11，双向关联 |
+
+**主要产出**:
+- 🆕 新建 [[Actuation|Foundations/Actuation.md]]《执行器与驱动系统》——12 个 Foundation，补 [[ControlTheory]] 与 [[Dynamics]] 之间"力矩兑现"的缺失一环
+- 更新 [[taxonomy]]（速查表/强关联/理论骨架/研究侧重点）、README、[[ControlTheory]]/[[Dynamics]]/[[ReinforcementLearning]] 反向链接
+
+> [!note] 原始文件处理说明
+> - `book-control/` 是一个 git 仓库（DR_CAN 教材），理论已萃取；作为教材原文可保留归档，或按需删除
+> - `机械+电气/` 含大量**非理论工程参考资产**（电机 CAD/3D 模型、选型软件、xmind 思维导图、面试题 docx、~1GB），理论已萃取进 [[Actuation]]；这些参考资产的去留待用户确认（不自主删除硬件资料库）
+> - MergeBuffer 根目录的 LLM/SFT/OPD/PPO 相关文件（`LLM-对齐`、`OPD-*`、`ppo.md` 等）属于**另一主题**，不在本次 Sim-to-Real 整理范围，留待后续处理
+
+---
+
 ## 最新处理记录 (2026-05-01)
 
 ### 2026-04-30 Gemini Chat 批次（8 个 Markdown）

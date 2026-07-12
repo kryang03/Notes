@@ -17,6 +17,7 @@ related:
   - "[[Optimization]]"
   - "[[StochasticProcess]]"
   - "[[ControlTheory]]"
+  - "[[WorldModels]]"
   - "[[Final_WMTS]]"
 ---
 
@@ -27,10 +28,13 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] — CMDP 与约束 RL；Lagrangian 对偶把约束问题转成 min-max。
-> - [[Optimization]] — 拉格朗日对偶 + 对偶上升（dual ascent / PID-Lagrangian）；Constrained CEM 规划。
+> - [[Optimization#2.2 拉格朗日对偶：把约束"价格化"]] — 拉格朗日对偶 + 对偶上升（dual ascent / PID-Lagrangian）；Constrained CEM 规划。
 > - [[ControlTheory]] — OSRP = world model 内的 MPC（receding-horizon 在线规划），与 CBF/安全集思想呼应。
 > - [[StochasticProcess]] — DreamerV3 离散 latent + CEM 采样轨迹分布。
+> - [[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）]] — SafeDreamer 的 OSRP 正是该节的具体实现（前瞻 rollout 筛掉超 cost 轨迹）；其"假安全"风险对应 [[WorldModels#6.2 Dream RL 的对抗性风险]]。
 > - [[Final_WMTS]] — **WMTS 安全过滤模块的直接模板**：OSRP 对候选 action chunk 按预测 cost ≤ b 过滤；cost critic ≈ WMTS reliability head。
+>
+> **暗线定位**：SafeDreamer 是 **认知不确定性三用** 暗线"规划护栏"面的安全版——WM 在 OOD 对 cost 过度乐观 = "假安全"，本质是缺 epistemic 度量；WMTS 用 ensemble LCB（[[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]）给 cost 预测带上不确定性带，才敢用它当护栏。cost critic 接长期安全亦呼应"价值即 Lyapunov"暗线（[[ControlTheory#10.4 被动性与"价值即 Lyapunov"]]）。
 >
 > **核心技术**: CMDP, Lagrangian/对偶上升, Cost Critic, OSRP(在线安全规划)/BSRP(背景安全规划), Constrained CEM, TD(λ) for cost
 
@@ -198,13 +202,16 @@ SafeDreamer 用软约束（Lagrangian）+ 经验规划，**没有硬安全保证
 CMDP + 约束 RL；Lagrangian 把约束转 min-max（§2.2），对偶上升更新乘子。是 PPO-Lag/CPO 一脉在 world-model 上的统一与改进。
 
 ### 与 [[Optimization]] 的联系
-核心是拉格朗日对偶 + 对偶上升（PID-Lagrangian），以及 Constrained CEM（带可行性约束的进化采样）——约束优化与对偶方法的直接应用。
+核心是拉格朗日对偶 + 对偶上升（PID-Lagrangian，[[Optimization#2.2 拉格朗日对偶：把约束"价格化"]]），以及 Constrained CEM（带可行性约束的进化采样）——约束优化与对偶方法的直接应用。
 
 ### 与 [[ControlTheory]] 的联系
-OSRP = world model 内的 receding-horizon MPC；cost 约束 + 安全集思想与 CBF/可达性安全过滤呼应，但 SafeDreamer 是学习式软约束、无形式化不变集证书。
+OSRP = world model 内的 receding-horizon MPC；cost 约束 + 安全集思想与 CBF/可达性安全过滤呼应，但 SafeDreamer 是学习式软约束、无形式化不变集证书。cost critic 把长期安全接进规划，是"价值即 Lyapunov"（[[ControlTheory#10.4 被动性与"价值即 Lyapunov"]]）的安全版实例。
 
 ### 与 [[StochasticProcess]] 的联系
 DreamerV3 离散 latent + CEM 在动作分布上采样轨迹，用 TD(λ) 估 reward/cost return。
+
+### 与 [[WorldModels]] 的联系
+OSRP 是 [[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）]] 的最贴近实现；但单 WM 的 cost 预测在 OOD 会"假安全"（[[WorldModels#6.2 Dream RL 的对抗性风险]]），WMTS 必须用 ensemble（[[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]]）给 cost 带上不确定性。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS safety filter 的直接模板：OSRP 过滤 action chunk、cost critic 充当 reliability head、OSRP-Lag/BSRP-Lag 对应 Oracle/Generalist 的安全约束；同为 PKU 工作，迁移成本低。
@@ -214,3 +221,6 @@ WMTS safety filter 的直接模板：OSRP 过滤 action chunk、cost critic 充�
 - 理论基础（共享）：[[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]]（RSSM/TD(λ)）、DreamerV3
 - 相关：CPO / PPO-Lag / TRPO-Lag、LAMBDA、Safe SLAC、Constrained CEM
 - 项目入口：[[Final_WMTS]]、WMTS_Reliability_Extensions
+- 簇内关系（Delta）：
+  - vs [[DiWA- Diffusion Policy Adaptation with World Models|DiWA]] / [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]：三者都在 world model 想象里跑 RL，但 DiWA/World4RL 只优化回报（精炼 DP）；SafeDreamer 多一路 cost 通道 + Lagrangian，把"安全"做成独立约束——WMTS 精炼步（DiWA/World4RL）叠上 SafeDreamer 的 OSRP 才是完整"精炼 + 安全过滤"。
+  - vs [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]：都用 WM 做前瞻规划（CEM/MPC），SafeDreamer 规划目标含 cost 约束，DexWM 只 goal-conditioned latent cost。

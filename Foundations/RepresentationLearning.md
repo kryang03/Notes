@@ -90,6 +90,9 @@ Shadow/Allegro Hand 有 16–24 DoF，加物体 6 DoF 位姿与接触状态，�
 
 接触的建立/断开使动力学方程突变（分析力学用 [[ContactMechanics#5.1 互补条件与 LCP 的构建|LCP]] 描述）。**数据驱动的困境**：神经网络倾向学连续函数，训练数据含接触突变时，简单回归会产生**"平均化"模糊输出**——物理上不可行（手指穿透物体、或悬空不施力）。**这正是插 USB 时 MSE 把"正插/反插"平均成"插向中间空气"的根源**（§2 详述）。
 
+> [!note] 对策一：把物理归纳偏置写进表征（接几何侧）
+> 逃离"均值化"的一条正交路线是**换一种表征让不连续变光滑**。[[ComputationalGeometry#5. 神经隐式表示：DeepSDF 与几何学习的前沿|神经隐式表示（DeepSDF/NGDF）]]用一个坐标网络 $f_\theta(x)\to$ 有向距离，并施加 **Eikonal 约束** $\|\nabla_x f_\theta\|=1$——这是把"距离场的物理性质（梯度处处为单位法向）"当**几何物理归纳偏置**硬编码进网络。效果：接触边界不再是训练数据里一个突变的 0/1 标签，而是一条网络输出恒为 0、梯度连续的**零水平集**，梯度天然指向退出接触的方向（对比布尔碰撞的零梯度）。于是"接触在哪、往哪退"从一个断续的分类问题变成一个光滑的回归问题——本讲 §4 的几何表征与 [[ComputationalGeometry]] 在这里接上：**好的几何表征本身就在源头缓解 §1.2 的均值化陷阱**。
+
 ### 1.3 分析 vs 数据驱动：从对立到融合
 
 | 特性 | 分析方法 | 数据驱动方法 |
@@ -119,6 +122,9 @@ Shadow/Allegro Hand 有 16–24 DoF，加物体 6 DoF 位姿与接触状态，�
 
 **协变量漂移**：执行策略时访问的状态分布 $P_{\pi_\theta}$ 偏离训练分布 $P_{expert}$，一旦犯小错 $\epsilon$ 就进入没见过的状态，误差随时间 $O(T^2)$ 累积（混沌系统对初值敏感的体现；BC 缺"恢复机制"）——这与 [[ReinforcementLearning#1.5 对比之二：纯模仿学习为何不够|RL 讲的 IL 分布漂移]]是同一回事。
 
+> [!note] $O(T^2)$ 从哪来（补一步 DAgger 式论证）
+> 设每步误分类率为 $\epsilon$（动作偏出专家分布的概率）。在长为 $T$ 的 rollout 中，"**首次**犯错"可能发生在任意步 $t\le T$；一旦在第 $t$ 步漂出训练分布，此后剩余 $\sim(T-t)$ 步都处在无监督覆盖的状态、无恢复机制，逐步累积代价 $\sim O(T-t)$。对首次犯错时刻求期望：$\mathbb E[\text{总代价}]\sim \epsilon\sum_{t=1}^{T}(T-t)=O(\epsilon T^2)$（Ross & Bagnell 的经典界）。对比：能"自我纠错"的方法（DAgger、RL）把它压回 $O(\epsilon T)$。这就是为什么灵巧操作的长 horizon 任务对 BC 尤其致命——$T^2$ 里每一步的接触误差都在放大。
+
 **多峰**：同一状态可能有多种合法动作（插 USB 正插/反插、抓杯把/杯身）。**MSE 的失效**：确定性网络输出两种动作的均值——插向中间的空气，物理无效。解决方案演进：
 
 | 方法 | 机制 | 多峰 | 代价 |
@@ -136,7 +142,7 @@ L(\theta)=\mathbb E_{k,a_0,\epsilon}\big[\|\epsilon-\epsilon_\theta(\sqrt{\bar\a
 $$
 
 > [!important] 物理意义：朗之万动力学（接 [[StochasticProcess]]）
-> 推理是逆向 SDE 求解，等价于动作空间的朗之万采样 $a_{k-1}=a_k+\frac{\sigma^2}2\nabla_a\log p(a_k\mid s)+\sigma z$。机器人不"计算"动作，而是**跟随概率梯度（分数函数）逐步演化出动作**——天然支持多峰（正插/反插两个峰都保留），且预测整段 action horizon 保证时间平滑、抑制高频抖动。其 score 与 [[StochasticProcess#2.1 SDE：漂移 + 扩散，且扩散是状态相关的|SDE]]、被 RL 微调的路径见 [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）|RL §10.1]]。
+> 推理是逆向 SDE 求解，等价于动作空间的朗之万采样 $a_{k-1}=a_k+\frac{\sigma^2}2\nabla_a\log p(a_k\mid s)+\sigma z$。机器人不"计算"动作，而是**跟随概率梯度（分数函数）逐步演化出动作**——天然支持多峰（正插/反插两个峰都保留），且预测整段 action horizon 保证时间平滑、抑制高频抖动。其 score 与 [[StochasticProcess#2.1 SDE：漂移 + 扩散，且扩散是状态相关的|SDE]]、被 RL 微调的路径见 [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）|RL §10.1]]。**这一"训练学正向加噪、推理跑逆向去噪"的对称结构，[[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑|StochasticProcess §6.4]]从随机过程侧给了它一个镜像证明**：前向是 §2 那条 $dx=f\,dt+g\,dW$ 的 SDE，反向 Anderson 逆向 SDE 的漂移项里恰好含 $\nabla_x\log p_t(x)$——本讲学的 $\epsilon_\theta$（§2.2.2 证其 $=-\sqrt{1-\bar\alpha}\,\nabla\log q$）就是那一项。两侧读的是同一个数学对象，只是一处从"表征/生成"进入、一处从"随机最优控制"进入。
 
 **Flow Matching：从 SDE 到 ODE**。扩散用 SDE、路径弯曲、采样几百步；Flow Matching 直接构造从噪声到数据的**直线最优传输路径** $x_t=(1-t)x_0+tx_1$，目标速度场 $u_t=x_1-x_0$，训练 $\mathcal L_{FM}=\mathbb E\|v_\theta(x_t,t,c)-(x_1-x_0)\|^2$，采样用 ODE 积分、**4–10 步**即可。
 
@@ -166,11 +172,107 @@ class DiffusionPolicy(nn.Module):
         return a   # 通常 receding horizon：只执行前几步再重规划
 ```
 
+上面把训练损失（学 $\epsilon_\theta$）、朗之万推理、"score $=-\epsilon/\sqrt{1-\bar\alpha_t}$" 这几件事直接摆了出来，但它们**为什么成立**被跳过了。下面三小节把这条链补严：前向/反向后验的显式高斯形式（2.2.1）→ 噪声预测与分数匹配的等价（2.2.2）→ 用观测 $s$ 引导多峰采样的 Classifier-Free Guidance（2.2.3）。这三步是"扩散策略能被观测条件化、又保留多峰"的全部数学骨架。
+
+#### 2.2.1 DDPM 前向边缘与反向后验的显式推导（补严）
+
+**前向单步**（人为设计的加噪，与数据无关）：
+
+$$
+q(x_t\mid x_{t-1})=\mathcal N\big(x_t;\sqrt{1-\beta_t}\,x_{t-1},\ \beta_t I\big),\qquad \alpha_t:=1-\beta_t,\ \bar\alpha_t:=\prod_{s=1}^{t}\alpha_s.
+$$
+
+符号：$x_0$ 是干净动作序列（物理量：action chunk，单位取决于关节角/末端位姿）；$x_t$ 是第 $t$ 级加噪样本（无量纲化后）；$\beta_t\in(0,1)$ 是第 $t$ 步注入方差（噪声强度调度，无单位）；$\alpha_t,\bar\alpha_t$ 是"信号保留率"（$\bar\alpha_t$ 从 1 单调降到 0）。
+
+**为什么能一步跳到任意 $t$（边缘 $q(x_t\mid x_0)$）**：用重参数化 $x_t=\sqrt{\alpha_t}\,x_{t-1}+\sqrt{1-\alpha_t}\,\epsilon_{t-1}$（$\epsilon\sim\mathcal N(0,I)$），把 $x_{t-1}$ 再展开一层：
+
+$$
+x_t=\sqrt{\alpha_t\alpha_{t-1}}\,x_{t-2}+\underbrace{\sqrt{\alpha_t(1-\alpha_{t-1})}\,\epsilon_{t-2}+\sqrt{1-\alpha_t}\,\epsilon_{t-1}}_{\text{两个独立高斯之和}}.
+$$
+
+两个零均值独立高斯相加，方差直接相加：$\alpha_t(1-\alpha_{t-1})+(1-\alpha_t)=1-\alpha_t\alpha_{t-1}$，故可合并成单个 $\sqrt{1-\alpha_t\alpha_{t-1}}\,\bar\epsilon$。归纳到底：
+
+$$
+\boxed{\,q(x_t\mid x_0)=\mathcal N\big(x_t;\sqrt{\bar\alpha_t}\,x_0,\ (1-\bar\alpha_t)I\big)\,}\quad\Longleftrightarrow\quad x_t=\sqrt{\bar\alpha_t}\,x_0+\sqrt{1-\bar\alpha_t}\,\epsilon.
+$$
+
+这正是训练损失 $L(\theta)=\mathbb E\|\epsilon-\epsilon_\theta(\sqrt{\bar\alpha_k}a_0+\sqrt{1-\bar\alpha_k}\epsilon,k,s)\|^2$ 里那个 $\sqrt{\bar\alpha_k}a_0+\sqrt{1-\bar\alpha_k}\epsilon$ 的来历——不是凑出来的，是前向链的闭式边缘。
+
+**反向后验 $q(x_{t-1}\mid x_t,x_0)$**（采样时要"回退一步"的目标分布）。虽然反向 $q(x_{t-1}\mid x_t)$ 不可解，但**在给定 $x_0$ 时**可由 Bayes 求出且仍是高斯：
+
+$$
+q(x_{t-1}\mid x_t,x_0)=\frac{q(x_t\mid x_{t-1})\,q(x_{t-1}\mid x_0)}{q(x_t\mid x_0)}\ \propto\ \exp\!\Big[-\tfrac12\Big(\tfrac{(x_t-\sqrt{\alpha_t}x_{t-1})^2}{\beta_t}+\tfrac{(x_{t-1}-\sqrt{\bar\alpha_{t-1}}x_0)^2}{1-\bar\alpha_{t-1}}\Big)\Big].
+$$
+
+对 $x_{t-1}$ **配方**（只保留含 $x_{t-1}$ 的项）。二次项系数给出精度（方差倒数）：
+
+$$
+\frac1{\tilde\beta_t}=\frac{\alpha_t}{\beta_t}+\frac1{1-\bar\alpha_{t-1}}=\frac{\alpha_t(1-\bar\alpha_{t-1})+\beta_t}{\beta_t(1-\bar\alpha_{t-1})}=\frac{1-\bar\alpha_t}{\beta_t(1-\bar\alpha_{t-1})}\ \Rightarrow\ \tilde\beta_t=\frac{1-\bar\alpha_{t-1}}{1-\bar\alpha_t}\beta_t,
+$$
+
+（分子化简用了 $\alpha_t-\alpha_t\bar\alpha_{t-1}+\beta_t=\alpha_t-\bar\alpha_t+1-\alpha_t=1-\bar\alpha_t$）。一次项系数 $\times\tilde\beta_t$ 给出均值：
+
+$$
+\tilde\mu_t(x_t,x_0)=\frac{\sqrt{\alpha_t}(1-\bar\alpha_{t-1})}{1-\bar\alpha_t}x_t+\frac{\sqrt{\bar\alpha_{t-1}}\,\beta_t}{1-\bar\alpha_t}x_0.
+$$
+
+**物理读法**：反向均值是"当前带噪样本 $x_t$"与"猜测的干净动作 $x_0$"的凸组合，权重由信噪比 $\bar\alpha$ 决定——早期（$t$ 大、$\bar\alpha$ 小）更信 $x_0$ 的猜测，后期更信 $x_t$。网络其实只需预测 $x_0$（或等价地预测 $\epsilon$），就能算出这个后验均值去回退一步。
+
+#### 2.2.2 噪声预测 $\epsilon_\theta$ ↔ denoising score matching 的等价（补严）
+
+§2.2 的 callout 直接写了 "score $=-\epsilon/\sqrt{1-\bar\alpha}$"，这里证明它。由 2.2.1 的边缘 $q(x_t\mid x_0)=\mathcal N(\sqrt{\bar\alpha_t}x_0,(1-\bar\alpha_t)I)$，其对数关于 $x_t$ 求梯度（**条件分数**）：
+
+$$
+\nabla_{x_t}\log q(x_t\mid x_0)=\nabla_{x_t}\!\Big[-\frac{\|x_t-\sqrt{\bar\alpha_t}x_0\|^2}{2(1-\bar\alpha_t)}\Big]=-\frac{x_t-\sqrt{\bar\alpha_t}x_0}{1-\bar\alpha_t}=-\frac{\epsilon}{\sqrt{1-\bar\alpha_t}},
+$$
+
+最后一步代入 $x_t-\sqrt{\bar\alpha_t}x_0=\sqrt{1-\bar\alpha_t}\,\epsilon$。**Denoising score matching**（Vincent 2011）的核心恒等式是：学边缘分数 $s_\theta(x_t,t)\approx\nabla\log q(x_t)$ 时，回归目标可换成**逐样本的条件分数** $\nabla\log q(x_t\mid x_0)$（两者的期望平方误差只差一个与 $\theta$ 无关的常数）。因此网络若去拟合 $\epsilon$，就等价于拟合分数，二者相差一个**确定性因子** $-1/\sqrt{1-\bar\alpha_t}$：
+
+$$
+s_\theta(x_t,t)=-\frac{\epsilon_\theta(x_t,t)}{\sqrt{1-\bar\alpha_t}}.
+$$
+
+这把三样东西钉在了一起：**训练目标（回归 $\epsilon$）＝分数匹配＝朗之万采样的梯度场**。噪声预测只是分数的一个方便重参数化——工程上回归 $\epsilon$ 数值更稳（目标方差恒为 1），理论上它就是 [[StochasticProcess#2.1 SDE：漂移 + 扩散，且扩散是状态相关的|逆向 SDE]] 的漂移项。
+
+#### 2.2.3 Classifier-Free Guidance：用观测"引导"多峰采样的贝叶斯推导
+
+扩散策略要的是**条件**分布 $p(a\mid s)$（$s$＝视觉+本体观测），且常希望"更服从当前观测"以提高精度。CFG 给出无需额外分类器的做法。起点是 Bayes：
+
+$$
+p(a\mid s)=\frac{p(a)\,p(s\mid a)}{p(s)}\ \Rightarrow\ \nabla_a\log p(a\mid s)=\nabla_a\log p(a)+\underbrace{\nabla_a\log p(s\mid a)}_{\text{隐式分类器梯度}}
+$$
+
+（$\nabla_a\log p(s)=0$，因 $p(s)$ 与 $a$ 无关）。于是**隐式分类器梯度**可由两个分数之差得到，无需真训一个分类器 $p(s\mid a)$：
+
+$$
+\nabla_a\log p(s\mid a)=\nabla_a\log p(a\mid s)-\nabla_a\log p(a).
+$$
+
+要"放大观测的约束力"，就对分类器项加温度 $w$，即从锐化分布 $\tilde p_w(a\mid s)\propto p(a)\,p(s\mid a)^w$ 采样。它的分数是无条件与条件分数的**外插**：
+
+$$
+\nabla_a\log\tilde p_w=\nabla_a\log p(a)+w\big[\nabla_a\log p(a\mid s)-\nabla_a\log p(a)\big]=(1-w)\,\nabla_a\log p(a)+w\,\nabla_a\log p(a\mid s).
+$$
+
+用 2.2.2 的 $s=-\epsilon/\sqrt{1-\bar\alpha}$ 换回噪声预测（$\varnothing$＝无条件的 null token、$c$＝条件 $s$）：
+
+$$
+\boxed{\ \tilde\epsilon=(1-w)\,\epsilon_\theta(x_t,\varnothing)+w\,\epsilon_\theta(x_t,c)\ }
+$$
+
+$w=1$ 退回普通条件采样；$w>1$ **锐化**（更贴合观测、牺牲多样性）；$w=0$ 纯无条件。训练上只需以概率 $p$ 随机把条件置空（dropout $c\to\varnothing$），一张网络同时学 $\epsilon_\theta(\varnothing)$ 与 $\epsilon_\theta(c)$。
+
+> [!important] CFG 在灵巧操作里的"多峰-精度"旋钮
+> 插 USB 有正插/反插两个合法峰。$w$ 小 → 保留两峰（多样、鲁棒但可能不够精准）；$w$ 大 → 强制服从当前观测 $s$（视觉看到的接口朝向），把采样拉向与该接口几何一致的那个峰、微米级对齐。这就是 [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|Continuation/平滑化暗线]]在生成式策略里的化身——从"平坦的无条件先验"逐步锐化到"被观测约束的尖锐后验"。其逆向 SDE / 朗之万根源见 [[StochasticProcess]]，被 RL 微调（把 $w$、去噪步数当可学超参）的路径见 [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）|RL §10.1]]。
+
 ### 2.3 ACT：动作分块处理长时相关
 
 ACT (Action Chunking with Transformers) 是另一条解多峰+误差累积的强力路线（详见 [[ACT - Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware|ACT 精读]]）。
 
 **动作分块**：不预测单步、而预测未来 $k$ 步的 chunk，把时间视界从 $T$ 压到 $T/k$、显著减少自回归误差累积。**时间集成**：每步对重叠的多个预测块加权平均 $a_t=\sum_i w_i\hat a_t^{(t-i)}$——这本质是个**低通滤波 (EWMA)**（又一次与 [[SignalProcessing#1.4 数字滤波器：去噪、延迟与可控性的三角权衡|信号处理]]同形），滤掉高频控制噪声、合惯性约束。**CVAE 风格变量**：用 CVAE 学潜在"风格" $z$（演示里的速度/力度/接近角等任务无关信息），KL 正则约束 $z\sim\mathcal N(0,I)$ 保潜空间连续；推理时固定 $z=0$ 得确定行为或采样得多样行为。
+
+> [!note] 为什么"分块"能压住 §2.1 的 $O(T^2)$ 复合误差（接 RL 侧）
+> §2.1 证过 BC 的复合误差是 $O(\epsilon T^2)$，其中 $T$ 是决策次数。动作分块的关键洞察：**把有效决策 horizon 从 $T$ 砍到 $T/k$**——一次前向输出 $k$ 步开环执行，只在块边界重新观测、重新决策，故"有机会犯首次错误并漂出分布"的决策点数从 $T$ 降到 $T/k$。代回复合误差界，$O(\epsilon (T/k)^2)$，误差被 $k^2$ 压缩。这正是 [[ReinforcementLearning#7.4 模仿学习与策略蒸馏：把演示收编进统一梯度|RL §7.4（Action chunking：把有效 horizon 从 $T$ 砍到 $T/H$）]]从模仿学习/统一梯度视角给出的同一结论——本讲从"生成式动作表征"进入，RL 从"复合误差的 no-regret 修复谱系（DAgger→chunking）"进入，落到同一个 $k$ 倍杠杆上。**代价**：块内开环，$k$ 太大则对块内扰动失去反馈响应（与实时重规划 receding-horizon 权衡），故 $k$ 是"复合误差 ↓"与"反馈及时性 ↓"之间的旋钮。
 
 ```python
 # ACT 核心：CVAE 处理多模态 + Transformer 处理时序（去防御代码）
@@ -205,6 +307,19 @@ class ACTPolicy(nn.Module):
 - **VAE**：引入概率 $p_\theta(z\mid x)=\mathcal N(\mu,\sigma^2)$，ELBO 同时优化重构与潜空间正则——ACT 用 CVAE 编码演示风格（§2.3）。
 - **对比 → 基础模型**：从像素级重构转向**语义级对齐**（InfoNCE、CLIP）、再到视觉-触觉联合嵌入（§5）。
 
+> [!note] 补严：VAE 的 ELBO 从哪来、重参数化为何必要
+> §2.3 的 ACT、上面的 VAE bullet 都用了"ELBO + 重参数化"却没推。这里补上——它是所有隐变量生成式表征（含扩散、CVAE 风格变量）的公共地基。
+>
+> **① ELBO 是 $\log p_\theta(x)$ 的一个可优化下界。** 目标是最大化数据似然 $\log p_\theta(x)=\log\int p_\theta(x,z)\,dz$（$x$＝观测，如一帧图/一段 action chunk；$z$＝低维隐编码，无量纲）。这个积分对 $z$ 不可解。引入一个可学习的**近似后验** $q_\phi(z\mid x)$（encoder，输出高斯参数 $\mu_\phi,\sigma_\phi$），做恒等变形（每一步不跳）：
+> $$\log p_\theta(x)=\mathbb E_{q_\phi(z\mid x)}\big[\log p_\theta(x)\big]=\mathbb E_{q_\phi}\Big[\log\frac{p_\theta(x,z)}{p_\theta(z\mid x)}\Big]=\mathbb E_{q_\phi}\Big[\log\frac{p_\theta(x,z)}{q_\phi(z\mid x)}\Big]+\mathbb E_{q_\phi}\Big[\log\frac{q_\phi(z\mid x)}{p_\theta(z\mid x)}\Big].$$
+> 第一步：$\log p_\theta(x)$ 不含 $z$，对 $q_\phi$ 取期望不变。第二步：$p_\theta(x)=p_\theta(x,z)/p_\theta(z\mid x)$。第三步：分子分母同乘 $q_\phi$ 再拆成两个对数期望。第二项恰是 $\mathrm{KL}\!\big(q_\phi(z\mid x)\,\|\,p_\theta(z\mid x)\big)\ge 0$（KL 非负），故第一项就是下界：
+> $$\log p_\theta(x)=\underbrace{\mathbb E_{q_\phi}\!\big[\log p_\theta(x\mid z)\big]}_{\text{重构项}}-\underbrace{\mathrm{KL}\!\big(q_\phi(z\mid x)\,\|\,p(z)\big)}_{\text{压缩/正则项}}+\mathrm{KL}(q_\phi\|p_\theta(z\mid x))\ \ge\ \text{ELBO}.$$
+> （末式把 $p_\theta(x,z)=p_\theta(x\mid z)p(z)$ 代入 ELBO 拆开。）**物理读法**：最大化 ELBO＝"既要能从 $z$ 重构出 $x$（重构项），又要让编码分布贴近先验 $p(z)=\mathcal N(0,I)$（KL 项）"——这就是 encoder 的两难，也正是下一条 note 里 $\beta$ 权衡的对象。而下界与真似然之间的缝隙恰是 $\mathrm{KL}(q_\phi\|p_\theta(z\mid x))$：近似后验越准，下界越紧。
+>
+> **② 重参数化：让"采样"可反传。** KL 与重构项里都要对 $z\sim q_\phi(z\mid x)$ 采样，但"采样"这个操作对 $\phi$ 不可导——梯度传不进 encoder。**重参数化技巧**把随机性挪到一个与 $\phi$ 无关的外部噪声上：$z=\mu_\phi(x)+\sigma_\phi(x)\odot\epsilon,\ \epsilon\sim\mathcal N(0,I)$（$\odot$＝逐元素乘）。现在 $z$ 是 $\phi$ 的**确定性可微函数**（随机性全在 $\epsilon$ 里），于是 $\nabla_\phi\mathbb E_{q_\phi}[\,\cdot\,]=\mathbb E_\epsilon[\nabla_\phi(\cdot)]$，可直接 autograd。对比朴素的 score-function/REINFORCE 估计（把采样当黑箱、用 $\nabla_\phi\log q_\phi$ 加权），重参数化梯度**方差低一到两个数量级**——这正是 §2.3 ACT 代码里 `z = mu + exp(0.5*logvar)*randn_like(mu)` 那一行的理论出处，也是扩散/CVAE 能稳定训练的前提。
+>
+> **挂到暗线（Continuation/平滑化）**：$\beta$-VAE 实践里常做 **KL annealing**——训练初期令 $\beta\approx 0$（只求重构，问题近似无约束、易优化），再把 $\beta$ 逐步升到目标值引入压缩压力。这与 [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）|接触平滑]]、[[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|课程学习]]、§2 扩散的"噪声→数据"是**同一条 Continuation 暗线**：先解平滑近凸的子问题，再逐步引入真难度。
+
 > [!note] VAE 即 $\beta$-VAE 即信息瓶颈
 > VAE 的 KL 正则正是 [[InformationTheory#5. 信息瓶颈：最优表征的信息论基础|信息瓶颈]] 的拉格朗日乘子 $\beta$——**重构-压缩权衡 = 预测-压缩权衡**。这把表征学习与信息论钉在了同一个变分式上。
 
@@ -231,7 +346,7 @@ def pixelwise_contrastive_loss(img_a, img_b, matches, non_matches, model, margin
 
 ### 3.4 对比 RL 与雅可比正则
 
-**对比 RL**：稀疏奖励下把 RL 重构为表示学习——用 InfoNCE 在潜空间拉近能到达目标的"状态-目标对"$(s,g)$、推远无关轨迹；学到的内积 $\langle\phi(s),\phi(g)\rangle$ 直接对应到达概率/值函数，规划可在潜空间几何里做（接 [[ReinforcementLearning#7. 探索：稀疏奖励下，如何"撞见"转笔成功|RL 探索]]）。
+**对比 RL**：稀疏奖励下把 RL 重构为表示学习——用 InfoNCE 在潜空间拉近能到达目标的"状态-目标对"$(s,g)$、推远无关轨迹；**为什么学到的内积能当值函数**（补一步）：InfoNCE 的 Bayes-最优 critic 收敛到密度比 $\log\frac{p(g\mid s,a)}{p(g)}$（把"正样本 vs 边缘背景"分开的最优打分即该对数密度比），而 $p(g\mid s,a)$ 正是"从 $(s,a)$ 出发未来到达 $g$"的概率，故内积 $\langle\phi(s),\phi(g)\rangle$ **单调于到达概率**、可直接充当（目标条件）值函数，规划可在潜空间几何里做（接 [[ReinforcementLearning#7. 探索：稀疏奖励下，如何"撞见"转笔成功|RL 探索]]）。
 
 **雅可比正则**：$J_{reg}=\lambda\|\partial\pi(s)/\partial s\|_F^2$，限制策略的局部 **Lipschitz 常数**——传感器微扰时动作不剧变。这是控制稳定性的必要条件（[[ControlTheory#10. 稳定性理论的统一基石|Lyapunov 稳定性]]），也是 sim-to-real 关键。
 
@@ -265,6 +380,15 @@ def jacobian_loss(policy_net, states, lam=0.01):
 > [!theorem] Deep Sets 定理 (Zaheer et al.)
 > 任何置换不变函数可分解为 $f(\mathcal P)=\rho\big(\sum_{p\in\mathcal P}\phi(p)\big)$，$\phi$ 逐点特征提取、$\rho$ 聚合后处理、$\sum$ 是对称聚合（可换 max/mean）。
 
+> [!note] 补严：为什么"逐点映射 + 对称聚合"就能表达一切置换不变函数
+> 定理陈述了但没说**为什么**。分两半看，都不跳步。
+>
+> **① 充分性（这个结构确实置换不变）——一行即证。** 设排列 $\pi$ 打乱下标，$f(\{p_{\pi(i)}\})=\rho\big(\sum_i\phi(p_{\pi(i)})\big)$。加法满足交换律，$\sum_i\phi(p_{\pi(i)})=\sum_i\phi(p_i)$ 与顺序无关，故 $f$ 输出不变。max/mean 同理（都是对称聚合算子）。**这就是 PointNet 用 $\max$ 的全部理由**：点云无序（$N$ 个点的 $N!$ 种排列是同一个物体），聚合算子必须把顺序信息"洗掉"。
+>
+> **② 必要性（任何置换不变 $f$ 都能写成这个形式）——构造性证明的关键一步。** 难点在证"这个结构不丢表达力"。对**可数域**上的集合，构造思路是：找一个把整个集合**单射**编码进一个实数（或低维向量）的 $\phi$。取 $\phi(p)=$ 某个使 $\sum_{p\in\mathcal P}\phi(p)$ 对不同集合取不同值的映射（如把每个点编码成一个"素数幂/唯一前缀码"，其和唯一确定这个 multiset——这一步用到集合元素可数），则 $z=\sum_p\phi(p)$ 是集合的**无损充分统计量**；既然 $z$ 唯一决定 $\mathcal P$，任何以 $\mathcal P$ 为输入的置换不变 $f$ 都能写成 $f=\rho(z)$，令 $\rho=f\circ(\text{解码})$ 即可。**直觉**：对称聚合看似"有损"，但只要 $\phi$ 的维度够高，$\sum\phi$ 可以是一个可逆的集合指纹——不变性不必以牺牲表达力为代价。（连续域与固定维度下需 $\phi$ 维度 $\ge N$ 才严格成立，PointNet 用高维 $h(p)$ + $\max$ 是这一构造的工程近似；这也解释了 §4.1 末尾说的"PointNet 缺局部几何"——单个全局 $\max$ 指纹丢了邻域结构，正是 §4.2 PointNet++ 要补的。）
+>
+> **挂到暗线（POMDP→belief→latent）**：$z=\sum_p\phi(p)$ 是集合的**充分统计量**——把一个变长、无序的观测集合压成定长向量而不丢任务信息。这与 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|POMDP]] 里 belief 作为"历史的充分统计量"、与 §4.6 注意力把观测窗口压成 latent 是**同一条 POMDP→belief→latent 暗线**：区别仅在聚合算子——集合用对称的 $\sum/\max$（要置换不变），序列用带位置编码的注意力（要保留顺序）。**灵巧操作落点**：一只手 20+ 触点的接触集合、场景点云、多指指尖状态，都可用这一"逐点编码 + 对称聚合"压成可控 latent。
+
 **PointNet** 直接应用：$\text{PointNet}(\mathcal P)=\gamma(\max_{p}h(p))$。物理直觉：$h_i(p)$ 是"探测函数"检测某几何特征（角点/平面），$\max$ 问"这种特征**是否存在**"。**局限**：缺局部几何建模，每点独立处理。
 
 ### 4.2 PointNet++：层级局部特征
@@ -280,11 +404,78 @@ def jacobian_loss(policy_net, states, lam=0.01):
 
 ### 4.4 Point Transformer 与 3D Flow
 
-**Point Transformer** 把自注意力引入点云，局部自注意力用位置编码 $\alpha,\delta$ 编码相对几何位置——自适应邻域权重（vs PointNet++ 固定聚合），表达力更强。
+**Point Transformer** 把自注意力引入点云，局部自注意力用位置编码编码相对几何位置——自适应邻域权重（vs PointNet++ 固定聚合），表达力更强。这里的两个记号需点明（否则易跳步）：$\delta=\theta(p_i-p_j)$ 是把**相对坐标** $p_i-p_j$ 过一个小 MLP $\theta$ 得到的位置编码（同时加到注意力权重与被聚合的 value 上，让"几何有多近"直接调制"注意多强"）；$\alpha$ 是由查询-键关系算出的注意力向量。其自注意力机理（为何除 $\sqrt d$、为何要位置编码）在 [[RepresentationLearning#4.6 序列与注意力表征：从无序集合到有序序列|§4.6]] 统一讲透——区别仅在：序列用**顺序**位置编码，点云用**3D 相对坐标**位置编码。
 
 > [!tip] 3D Flow：载体无关的动作表征（Wenlong Huang, Stanford SVL）
 > **动作的本质是 3D 的**——人闭眼也能在 3D 空间移动手臂。传统动作表征（EE 位姿、关节指令）无法跨载体泛化。**3D Flow**：在每个连杆按 URDF 网格采样端点 → 正运动学 → **点流**；场景也用 RGBD→点云，**状态与动作模态统一**、对点数量不变、自动适配不同 DoF/夹爪。**PointWorld (Stanford 2026)** 将其用于 3D 世界模型，发现：① PTV3 等现代 Transformer 在相近内存下可扩容至图基模型的 ~300×；② **仅夹爪 3D 点流 > 全身点流 > 低维表征**；③ 模型隐式学到目标检测、材料估计、形状补全、物体间动态。**对灵巧操作**：每个手指连杆都可采样为点流，无需设计手指专用动作空间。
 > （旁注：机器人预训练→微调迁移效率比 NLP 低 ~100×，要达 NLP 水平需 ~1.25 亿小时数据——这激励了世界模型作为更高效预训练目标，接 [[ReinforcementLearning#6.1 Model-Based RL：在想象中转笔|MBRL]]、[[EmbodiedAI]]。）
+
+### 4.5 面向学习的旋转表示：为什么神经网络回归旋转要用 6D
+
+> [!tip] 本节四拍
+> **直觉**（网络要输出物体/手的 6D pose，旋转那部分该用什么数？选错了，数据再好也学不动）→ **推导**（欧拉角万向死锁 → 四元数 double cover → Zhou 2019 连续性定理 → 6D + Gram-Schmidt）→ **对比**（"几何参数化"vs"学习表示选择"是两个正交目标）→ **落点**（pose 估计 / 扩散动作头 / RodriNet 都用 6D）。
+
+到 §4.4 为止我们让网络"读"几何（点云）。反过来，当网络要**输出**一个旋转（物体位姿估计、扩散策略的旋转动作、手腕目标姿态），它必须先选定一个把 $SO(3)$ 编码成实向量的**表示**作为回归目标。这个选择不是美学问题——**表示的不连续性会让"相近的旋转"映到"相距很远的目标向量"，从而把一个本可学的回归变成病态回归**（又一次踩中 §1.2 / §2 的"均值坍缩"：目标多值/不连续，MSE 把它们平均到无效点）。
+
+**① 欧拉角：万向节死锁 (gimbal lock) + wrap-around 不连续。** 欧拉角用 3 个数 $(\phi,\theta,\psi)$。当中间轴转到 $\pm90°$，第一、第三轴对齐、丢一个自由度——旋转到欧拉角的映射在此**雅可比奇异**，附近微小旋转变化对应剧烈欧拉角跳变；再加上角度的 $2\pi\equiv 0$ 环绕（$359°$ 与 $1°$ 数值相距 $358$ 却几何相邻），回归目标处处可能撕裂。
+
+**② 四元数：double cover 致目标多值。** 单位四元数 $q\in S^3$ 通过 $SU(2)\!\to\!SO(3)$ 的 **2:1 覆盖**映到旋转：$q$ 与 $-q$ 表示**同一个** $R$。后果：同一物理姿态在数据集里可能被标注成 $q$ 或 $-q$，网络面对一个**双值目标**。若用 MSE，两个等价标签把梯度往相反方向拉，网络被迫收敛到它们的"中点"$q\approx 0$（非法四元数）——正是接触均值化在旋转空间的翻版。即便人为规定"取 $q_w\ge 0$ 半球"，这条缝合线上（$q_w=0$）目标仍不连续。
+
+**③ Zhou et al. 2019 连续性定理：$SO(3)$ 需 $\ge$5 维连续嵌入。** 把"表示"严格定义为一对映射：编码 $g:SO(3)\to\mathbb R^n$ 与解码 $f:\mathbb R^n\to SO(3)$，满足 $f\circ g=\mathrm{id}$（网络在 $\mathbb R^n$ 里回归、再解码回旋转）。称该表示**连续**当 $g$ 存在连续逆（即 $f$ 在 $g$ 的像上连续）。
+
+> [!theorem] 连续旋转表示的维度下界 (Zhou et al., CVPR 2019)
+> 对 $SO(3)$，任何维度 $n\le 4$ 的表示（欧拉角 $n{=}3$、轴角 $n{=}3$、四元数 $n{=}4$）都**不可能连续**；连续表示要求 $n\ge 5$。
+>
+> **为什么**（拓扑原因，不跳步）：$SO(3)$ 同胚于实射影空间 $\mathbb{RP}^3$，拓扑非平凡（不可缩、有"扭结"）。一个连续单射 $g$ 会把 $SO(3)$ 同胚嵌入 $\mathbb R^n$ 的一个子集；而低维欧氏空间容不下 $\mathbb{RP}^3$ 这种非平凡拓扑而不产生"接缝"（连续性在接缝处破裂）——四元数的接缝正是 $q\sim -q$ 的对径粘合。维度够高（$\ge 5$）才有空间把这个粘合"摊平"成无接缝的嵌入。
+
+**6D 表示 + Gram-Schmidt（最实用的 $n=6$ 构造）。** 网络输出 $\mathbb R^6$，视作两个 3D 向量 $[\,\mathbf a_1\,|\,\mathbf a_2\,]$；用 Gram-Schmidt 正交化恢复旋转矩阵 $R=[\,\mathbf b_1\,|\,\mathbf b_2\,|\,\mathbf b_3\,]$：
+
+$$
+\mathbf b_1=\frac{\mathbf a_1}{\|\mathbf a_1\|},\qquad
+\mathbf b_2=\frac{\mathbf a_2-(\mathbf b_1^{\!\top}\mathbf a_2)\,\mathbf b_1}{\|\mathbf a_2-(\mathbf b_1^{\!\top}\mathbf a_2)\,\mathbf b_1\|},\qquad
+\mathbf b_3=\mathbf b_1\times\mathbf b_2 .
+$$
+
+符号：$\mathbf a_1,\mathbf a_2\in\mathbb R^3$ 是网络原始输出（无量纲）；$\mathbf b_1$ 取第一列方向、$\mathbf b_2$ 减去在 $\mathbf b_1$ 上的投影后归一（施密特正交化）、$\mathbf b_3$ 由叉积补成右手系。这个 $\mathbb R^6\to SO(3)$ 映射**处处连续、满射**，且只要 $\mathbf a_1,\mathbf a_2$ 线性无关就良定义——回归目标连续，网络显著更易学、pose 误差更低（Zhou 实测 6D/5D ≫ 四元数/欧拉角）。
+
+> [!important] "几何参数化"与"学习表示选择"是两个正交目标（别混）
+> [[Dynamics#2.2 旋转群 SO(3)、李代数 so(3) 与 Rodrigues 公式|Rodrigues / 指数映射 $\exp:\mathfrak{so}(3)\to SO(3)$]] 追求的是**最少参数 + 李群结构**：给定角速度 $\boldsymbol\omega$ 紧凑地算出 $R$，3 个数最优、是物理/几何的语言。**学习表示选择**追求的是**回归目标的连续性**：宁可冗余（$6>3$）也要让"网络输出空间 → $SO(3)$"处处连续可微。前者答"如何紧凑描述一个已知旋转"，后者答"如何让神经网络的输出到 $SO(3)$ 的映射不撕裂"——**同一个 $SO(3)$，两种诉求下最优维度相反**。理解这一点，就不会再纠结"轴角明明 3 维够用，为何回归非要 6 维"。
+
+**灵巧操作落点**：物体 6D pose 估计、扩散/FM 策略输出的旋转动作分量、手腕/指尖目标姿态回归，一律用 6D 头。[[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]]（§4.3、§9）则把这一思想推进一层——不止输出层，连内部沿运动学树传播 link 姿态时都用 Rodrigues 模板作可学习 backbone；它与本节互补：本节保证**输出表示连续**，RodriNet 保证**中间传播结构化**。论文原文见 [[On the Continuity of Rotation Representations in Neural Networks|Zhou et al. 2019]]。
+
+### 4.6 序列与注意力表征：从无序集合到有序序列
+
+> [!tip] 本节四拍
+> **直觉**（§4 处理的是**无序集合**（点云，置换不变）；但触觉时间流、action chunk、演示轨迹是**有序序列**，顺序里藏着因果——pooling 会把它抹掉）→ **推导**（scaled dot-product 自注意力 → 多头 → 位置编码 → 为何胜过 RNN）→ **对比**（ICL＝前向里隐式做梯度下降 / fast-weights；元学习与超网络）→ **联系**（与 [[RepresentationLearning#6.7 神经正切核 (Neural Tangent Kernel, NTK)|NTK]] 的"学习即前向"同构、与 [[RepresentationLearning#2.3 ACT：动作分块处理长时相关|ACT]] 的 Transformer 呼应、挂到 POMDP→belief→latent 暗线）。
+
+§4.1 的 Deep Sets 教我们处理**无序**输入（对称聚合抹掉顺序，这正是点云要的）。但操作里的许多信号恰恰**有序**：触觉波形随时间演化、action chunk 是时间序列、专家演示是轨迹。此时"抹掉顺序"是灾难——"先接触再滑移"和"先滑移再接触"是两回事。序列表征的主力工具是**注意力**，而 §2.3 的 ACT、§5.2 的交叉注意力其实都已在用它，这里把它的机理讲透。
+
+**① Scaled dot-product self-attention。** 给定 $n$ 个 token 堆成 $X\in\mathbb R^{n\times d}$，线性投影出查询/键/值 $Q=XW_Q,\ K=XW_K,\ V=XW_V$，则
+
+$$
+\mathrm{Attn}(Q,K,V)=\mathrm{softmax}\!\Big(\frac{QK^\top}{\sqrt{d_k}}\Big)V .
+$$
+
+**物理读法**：每个 token 用它的 $Q$ 去"问"——"谁与我相关"，与所有 $K$ 做内积算相关度，softmax 成权重，再对 $V$ 加权取回信息——**基于内容的软检索**。**为什么除 $\sqrt{d_k}$（不跳步）**：若 $Q,K$ 各分量独立、均值 0 方差 1，则内积 $Q_i^\top K_j=\sum_{l=1}^{d_k}Q_{il}K_{jl}$ 是 $d_k$ 个独立零均值单位方差乘积之和，方差为 $d_k$。$d_k$ 一大（如 64），未缩放的 logit 幅度 $\sim\sqrt{d_k}$ 过大，softmax 落进饱和区（一个权重趋 1、其余趋 0），梯度几乎为零、学不动。除以 $\sqrt{d_k}$ 把 logit 方差拉回 $\approx 1$，softmax 保持在有梯度的区间。
+
+**② Multi-head。** 单个 softmax 只能给出**一种**注意力模式（本质是一次加权平均）。多头把 $Q,K,V$ 投到 $h$ 个 $d/h$ 维子空间并行做注意力再拼接：$\mathrm{MHA}=\mathrm{Concat}(\text{head}_1,\dots,\text{head}_h)W_O$。这样不同头能捕不同关系——如"几何邻接"一头、"力相关"一头、"长程依赖"一头，避免被单一平均模式锁死。
+
+**③ 位置编码：把"集合"重新变回"序列"。** 自注意力对输入排列是**置换等变**的（打乱 token 顺序，输出同样打乱）——这对点云是优点（§4.1 要的正是它），但对序列是致命的：不给位置信息，Transformer 眼里"序列"退化成"集合"，丢掉顺序。正弦位置编码 $PE_{(pos,2i)}=\sin(pos/10000^{2i/d}),\ PE_{(pos,2i+1)}=\cos(\cdot)$ 把绝对位置注入，其巧妙处在于**相对位移 $\Delta pos$ 对应编码空间里一个固定线性变换（旋转）**，于是模型能按"相对偏移"注意（RoPE、可学习位置编码是同一诉求的变体）。
+
+**④ 为什么注意力适合序列建模（对比 RNN/CNN）。** RNN 里位置 $i,j$ 间的信息要走 $O(|i-j|)$ 步、梯度沿途衰减（长程依赖学不到）；自注意力让**任意两位置一步直连**（路径长 $O(1)$），且全序列并行（无时序展开）。代价是 $O(n^2)$ 复杂度，但 action chunk 的 $n$ 很小（几十步），完全可承受。**这正是 §2.3 ACT 用 Transformer decoder、以"各未来时间步"为 query、cross-attention 关注观测的原因**——它要的就是"任意未来步都能直接看到任意观测 token"的长程相干。
+
+**⑤ In-Context Learning ＝前向里隐式做梯度下降 / fast-weights。** 训练好的 Transformer，给它上下文 $(x_1,y_1,\dots,x_k,y_k,x_{query})$，**不更新任何权重**就能预测 $y_{query}$——这就是 ICL。理论视角（不跳步）：
+
+- **隐式 GD**：一层线性自注意力的前向计算，可被构造成"对上下文里的线性回归损失做一步梯度下降"——前向传播里就**隐式算出了一个权重更新** $\Delta W$，再作用到 $x_{query}$。故"学习"没发生在反向传播里，而发生在**前向**里。
+- **Fast-weights 视角**（Schmidhuber）：注意力 $\sum_i v_i k_i^\top$ 是一个由上下文即时构造的**外积记忆矩阵**（"快权重"），作用到 query 上——等价于一个**数据生成的临时线性层**。
+
+> [!important] ICL 与 NTK：两种"学习即前向"的同构
+> [[RepresentationLearning#6.7 神经正切核 (Neural Tangent Kernel, NTK)|NTK]] 说"训练 ≈ 固定核回归"（lazy regime，参数几乎不动、动力学退化为线性）；ICL 说"一个固定网络在**前向**里就做了回归"。二者都把"适应"归约成**固定特征空间里的一次核/线性运算**——这解释了为何大模型 + 极少上下文样本就能适应新任务，也是 WMTS 真机零梯度适配的理论底座。**注意力不是 ICL 的唯一载体**：[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|Is Attention Required for ICL?]] 表明某些循环/状态空间架构也能涌现 ICL，故 ICL 更像是"深度序列模型表达力 + 训练分布"的性质，而非 attention 独有。
+
+**⑥ 元学习与超网络 (hypernetwork)。** ICL 是**元学习**（learning to learn）的一个特例——把"内循环适应"塞进前向传播。另一条路是**超网络**：一个网络 $g_\psi$ 直接**生成**另一个网络 $f_\theta$ 的权重，$\theta=g_\psi(c)$（$c$＝任务/上下文），从而把"按任务梯度微调 $f$"摊销成"一次前向生成权重"。[[Transformers as Meta-Learners for Implicit Neural Representations|Transformers as Meta-Learners]] 就用 Transformer 超网络从信号生成隐式神经表示（坐标 MLP）的权重——**元学习"如何编码"**。
+
+> [!abstract] 挂到暗线：序列表征即在 latent 上组织"历史充分统计量"
+> 把观测历史窗口喂给注意力、读出对未来有用的紧凑向量——这正是 **POMDP→belief→latent 暗线**（[[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|POMDP]]）：部分可观下，历史窗口经注意力压成的 latent 近似 belief 充分统计量。[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|The Latent Space]] 从"基础—演化—机制—能力"给了 latent 表征的统一框架。**灵巧操作落点**：WMTS 的 [[Projects/World Model as Task Scheduler/all_Insights_local/Idea-006-In-Context-Hypernet-Adapter|In-Context Hypernet Adapter]]（§9）正是"in-context Transformer → FiLM offsets"的超网络式**零梯度真机适应**——把本节 ⑤⑥ 直接落到 [[EmbodiedAI]] 的部署上。
 
 ------
 
@@ -308,6 +499,21 @@ $$
 $$
 
 $z_v$ 视觉嵌入、$z_t^+$ 时间对齐的触觉嵌入（正样本）、$z_t^j$ 其他时刻（负样本）。Robot Synesthesia 做**双向**对比（视→触预测、触→视检索），形成联合嵌入空间使 $\|z_v-z_t\|\propto$ 物理状态差异（与 [[InformationTheory#2.2 互信息：观测的"切割能力"|互信息]]、[[StochasticProcess#4. 信念更新：从 EKF 失效到粒子滤波|多模态融合]]同源）。
+
+> [!note] 补严：为什么最小化 InfoNCE ＝ 最大化互信息 $I(z_v;z_t)$ 的下界
+> §3.1、§3.4、这里都在用 InfoNCE，但"它到底在优化什么"没说透。结论（van den Oord 2018）：$I(z_v;z_t)\ \ge\ \log N-\mathcal L_{NCE}$，即**压低对比损失就是抬高互信息的下界**，上限被负样本数 $N$ 卡住（$\log N$）。分三步证，不跳步。
+>
+> **① 最优打分函数是密度比。** 把 $N$-选-1 的分类看成：给定 $z_v$ 和一组候选 $\{z_t^1,\dots,z_t^N\}$（其中恰一个是正样本、来自联合 $p(z_v,z_t)$，其余 $N{-}1$ 个来自边缘 $p(z_t)$），问"哪个是正样本"。这是标准的后验推断，其 Bayes-最优后验正比于 $\prod$ 各候选按"正/负"来源的似然比。逐项化简后，最优相似度打分收敛到 $\mathrm{sim}^*(z_v,z_t)\propto\log\frac{p(z_t\mid z_v)}{p(z_t)}$——即**密度比的对数**（这也正是 §3.4 说的"InfoNCE critic 收敛到 $\log\frac{p(g\mid s,a)}{p(g)}$"的同一件事）。
+>
+> **② 代回损失取期望。** 把最优打分 $\exp(\mathrm{sim}^*)=\frac{p(z_t\mid z_v)}{p(z_t)}$ 代入 $\mathcal L_{NCE}=-\mathbb E\big[\log\frac{\exp(\mathrm{sim}(z_v,z_t^+))}{\sum_j\exp(\mathrm{sim}(z_v,z_t^j))}\big]$：
+> $$\mathcal L_{NCE}^*=\mathbb E\Big[\log\Big(1+\frac{p(z_t^+)}{p(z_t^+\mid z_v)}\!\!\sum_{j\ne +}\frac{p(z_t^j\mid z_v)}{p(z_t^j)}\Big)\Big].$$
+> （分子分母同除正样本项得到的等价形式。）负样本 $z_t^j$ 独立采自边缘 $p(z_t)$，故 $\mathbb E_{z_t^j}\big[\frac{p(z_t^j\mid z_v)}{p(z_t^j)}\big]=\int p(z_t)\frac{p(z_t\mid z_v)}{p(z_t)}dz_t=1$，那个和 $\approx(N-1)\cdot 1$。
+>
+> **③ 放缩得界。** 代入并把 $N{-}1$ 放大为 $N$、丢掉括号里的 $1$（都是往大放，故给的是下界方向）：
+> $$\mathcal L_{NCE}^*\ \ge\ \mathbb E\Big[\log\Big(\frac{p(z_t^+)}{p(z_t^+\mid z_v)}\,N\Big)\Big]=\log N-\mathbb E\Big[\log\frac{p(z_t\mid z_v)}{p(z_t)}\Big]=\log N-I(z_v;z_t),$$
+> 最后一步用互信息定义 $I(z_v;z_t)=\mathbb E_{p(z_v,z_t)}\big[\log\frac{p(z_t\mid z_v)}{p(z_t)}\big]$。移项即 $\boxed{I(z_v;z_t)\ge\log N-\mathcal L_{NCE}}$。
+>
+> **三个可操作推论**：① **负样本越多下界越紧**（$\log N$ 抬高天花板）——这解释了对比学习为何吃 batch size / memory bank；② 这把本讲与 [[InformationTheory#5. 信息瓶颈：最优表征的信息论基础|信息瓶颈]]钉在一起——**对比学习 = 最大化"跨模态互信息"，信息瓶颈 = 在保留任务互信息的同时压掉冗余**，二者是"最大化有用 $I$、最小化无用 $I$"的一体两面（§7.3 的"压缩=泛化=去噪"暗线）；③ **灵巧操作落点**：视触觉 InfoNCE 抬高的是 $I(z_v;z_t)$——迫使"看到 USB 接口的样子"与"摸到接口的力学"共享同一 latent，正是 §5 母题"视觉一遮挡就靠触觉接管"能成立的信息论前提。
 
 ### 5.2 交叉注意力融合：让触觉"询问"视觉
 
@@ -477,13 +683,13 @@ $$
 > 3. **优化算法自带正则**：隐式正则（§6.6）、NTK lazy regime（§6.7）、扰动 GD 逃鞍点（§6.8）——"如何学"本身就决定了"学到什么能泛化"，这把表征学习与 [[Optimization]] 钉在一起。
 
 > [!note] 跨领域链接（双向、点对点）
-> - **↔ [[ReinforcementLearning]]**：扩散策略被 RL 微调（§2.2）；对比 RL（§3.4）；表征=状态；NTK 解释小数据真机微调。
+> - **↔ [[ReinforcementLearning]]**：扩散策略被 RL 微调（§2.2）；CFG 观测引导（§2.2.3）；对比 RL（§3.4）；表征=状态；NTK 解释小数据真机微调；ICL/注意力接 POMDP→belief→latent（§4.6）。
 > - **↔ [[InformationTheory]]**：信息瓶颈=VAE 的 $\beta$（§3.1）；压缩=去噪；泛化需要压缩（§6.4）。
 > - **↔ [[Optimization]]**：IBC=能量景观下降；NTK 区间凸化（§6.7）；隐式正则↔近端（§6.6）；鞍点逃逸（§6.8）。
 > - **↔ [[ComputationalGeometry]]**：点云/SDF 几何表征（§4）；神经隐式 DeepSDF/NGDF。
 > - **↔ [[SignalProcessing]]**：触觉表征、Taxim 仿真（§5.3）；ACT 时间集成=低通（§2.3）；压缩去噪。
 > - **↔ [[StochasticProcess]]**：扩散=朗之万/SDE（§2.2）；NTK↔GP（§6.7）；噪声逃鞍点（§6.8）。
-> - **↔ [[Dynamics]]**：可微物理（§1.3）；Rodrigues 正运动学模板→RodriNet（§4.3）。
+> - **↔ [[Dynamics]]**：可微物理（§1.3）；Rodrigues 正运动学模板→RodriNet（§4.3）；6D 连续旋转表示 vs 几何参数化（§4.5）。
 > - **↔ [[ControlTheory]]**：雅可比正则=Lipschitz 稳定（§3.4）；RMA=自适应控制（§7.2）。
 > - **↔ [[EmbodiedAI]]**：分层 LLM+ACT（§7.1）；Vision Foundation Models；VLA 用扩散/FM 动作头。
 
@@ -525,6 +731,7 @@ $$
 ### 潜在空间学习
 - [[In-Hand Object Rotation via Rapid Motor Adaptation (HORA)]] — 快速自适应隐编码
 - [[Curriculum-based Sensing Reduction in Simulation to Real-World Transfer for In-hand Manipulation]] — 观测空间课程
+- [[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|The Latent Space]] — latent 表征统一框架（基础/演化/机制/能力，§4.6）
 
 ### 层级与时序表征
 - [[Hierarchical Coordination Multi-Agent RL with Spatio-Temporal Abstraction]] — 时空抽象
@@ -537,6 +744,7 @@ $$
 - [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]] — Dynamics-lifted 几何预训练，E(3)-等变
 - [[Emerging Extrinsic Dexterity in Cluttered Scenes via Dynamics-aware Policy Learning|DAPL]] — 动力学感知表征，点级世界模型
 - [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]] — Rodrigues 正运动学作可学习 action backbone
+- [[On the Continuity of Rotation Representations in Neural Networks|Zhou et al. 2019]] — 连续旋转表示定理，6D + Gram-Schmidt（§4.5）
 
 ### 触觉仿真表征
 - [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map|Tacmap]] — 统一 Deform Map，穿透深度域不变表征
@@ -544,6 +752,8 @@ $$
 
 ### VLA 潜空间推理
 - [[LaST0 - Latent Spatio-Temporal CoT for Robotic VLA|LaST0]] — 潜在时空链式推理，MoT 双系统
+- [[Transformers as Meta-Learners for Implicit Neural Representations|Transformers as Meta-Learners]] — Transformer 超网络生成 INR 权重，元学习即前向（§4.6）
+- [[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|Is Attention Required for ICL?]] — ICL 非 attention 独有，循环/SSM 亦可（§4.6）
 
 ### 信息瓶颈与运动生成表征
 - [[RLT - Precise Manipulation with Efficient Online RL Tokens|RLT]] — RL Token 信息瓶颈，残差动作编辑

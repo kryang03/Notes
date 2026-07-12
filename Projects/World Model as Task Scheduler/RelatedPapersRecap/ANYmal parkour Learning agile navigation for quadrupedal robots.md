@@ -32,6 +32,16 @@ related:
 >
 > **核心技术**: 三模块（感知/运动/导航）, 技能库（走/跳/爬/蹲）, capability-aware 高层导航策略, 遮挡感知重建, sim-to-real, 无 demo/无显式接触
 
+> [!note] 簇内定位（运动迁移 sim-to-real 簇）与精确锚点
+> **本篇 = 把 sim-to-real 复杂度放在"任务分解/技能调度"侧（而非动力学建模侧）的代表。** 精确 Foundation 锚点：
+> - [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机]] — 全 sim 训、零样本迁真机的分层策略。
+> - [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间]]、[[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成]] — **capability-aware 高层"知道每个技能能干什么" = 认知不确定性三用之"课程用"**（在能力边界处选/学、不选超能力技能）；挂**认知不确定性三用**暗线。
+>
+> **簇内 Delta：**
+> - vs [[Sim-to-Real: Learning Agile Locomotion For Quadruped Robots|Jie Tan 2018]]：Jie Tan 是**单策略** trot/gallop（用 actuator model+latency+DR 隐式缩 gap），本篇是**分层技能库 + capability-aware 调度**攻克离散障碍拓扑——复杂度从"缩 reality gap"转到"任务分解/可行性调度"。
+> - vs [[Learning to Walk from Three Minutes of Real-World Data with Semi-structured Dynamics Models|SSRL]]：SSRL 把复杂度放在**动力学建模**（3 分钟真机学 semi-structured WM），本篇放在**技能调度**（全 sim、无 WM）——两条正交路线，WMTS 二者皆需（SSRL 供 WM、本篇供 scheduler）。
+> - vs [[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]]：两者都做**可行性感知的目标/技能筛选**——本篇 capability-aware 在**离散技能库**上选可行技能，FLD 的 fallback 在**连续 Fourier 运动 latent** 上拒危险/不可学目标；WMTS 的 Solve/Probe/Reject 可两者结合。
+
 ## 0. 阅读定位与范本价值
 
 ANYmal Parkour 对 WMTS 的价值是 **scheduler-over-skills 范式的又一实证 + "capability-aware" 关键 nuance**。库内已有 [[From Simple to Complex Skills- The Case of In-Hand Object Reorientation|From-Simple-to-Complex]]（高层选轴+residual）、[[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]（软 router）、[[UniDexGrasp++- Improving Dexterous Grasping Policy Learning via Geometry-aware Curriculum and Iterative Generalist-Specialist Learning|UniDexGrasp++]]（GiGSL）——本篇加上"**高层导航策略知道每个技能的能力、据此选技能**"这一点，正是 WMTS scheduler 做 **Solve/Probe/Reject** 所需的"技能能力/可行性模型"。它是 ETH Hutter 系（[[Robotic World Model: A Neural Network Simulator|RWM]]/[[ViserDex Visual Sim-to-Real for Robust Dexterous In-hand Reorientation|ViserDex]]/[[Learning Agile and Dynamic Motor Skills for Legged Robots|Hwangbo]] 同组）的分层导航代表。

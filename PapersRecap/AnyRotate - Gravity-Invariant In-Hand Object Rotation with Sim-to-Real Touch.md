@@ -753,6 +753,25 @@ AnyRotate 是“物理中间表征优先”的例子：$(R_x,R_y,\|F\|)$ 比 raw
 
 策略输出相对位置增量，底层 PD 控制执行。AnyRotate 的稳定性依赖 action smoothing、PD tracking、actuation strength 和 tactile recovery。若迁移到 LinkerHand，需要先确认低层位置/力控接口能支持类似的快速 finger-gaiting。
 
+### 7.6 簇内定位与暗线锚点（触觉操作簇）
+
+在“触觉表征丰富度谱”上，AnyRotate 位于**稀疏物理中间特征**这一档：$(R_x,R_y,\|F\|)$——比 binary 有信息，比 raw image 易 sim-to-real。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | 同一 in-hand rotation 演进线两端：Touch Dexterity 1-bit 全手 contact mode，本文 dense $(R_x,R_y,\|F\|)$。本文 Table 1 的 “Binary Touch → Dense Touch” 就是这条谱内部的直接对照实验。 |
+| [[Tacmap - Bridging the Tactile Sim-to-Real Gap via Geometry-Consistent Penetration Depth Map]] | “物理中间表征优先”同盟：本文稀疏 $(P,F)$，Tacmap 稠密 penetration map $M$；本文 CNN 从触觉图预测 $(P,F)$，Tacmap 从触觉图预测 $M$——预测目标不同的同类逆问题。 |
+| [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding]] | 本文把 dense touch 当 observation “读接触”；CGP 把 tactile latent 当生成对象 “写接触”。 |
+
+**精确 Foundation 锚点（把 §7.2/§7.3 的泛链落实）**：
+
+- [[SignalProcessing#4.1 早期滑移 (Incipient Slip) 检测|SignalProcessing §4.1]]：Fig. 7 的 reactive recovery（接触逼近指尖边界→finger extend）是 §4.1 incipient-slip 检测的**策略级涌现**；但 $(R_x,R_y,\|F\|)$ 缺切向剪切场，故仍不是完整 slip 预测。
+- [[ContactMechanics#4.2 软指模型：接触斑与扭转摩擦|ContactMechanics §4.2]]：dense touch 是 §4.2 软指接触斑的低维投影，丢了扭转摩擦与 patch 形状。
+
+**暗线挂载（POMDP → belief → latent）**：teacher 有 privileged object/gravity/goal（belief 真值）；student 用 TCN（history 30）编码 $z_t$ 从 tactile/proprio 历史推 belief（含隐式 gravity 方向）——历史窗口正是把破坏的 Markov 性救回的解药。参见 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]] 与 [[StochasticProcess#2.3 马尔可夫性：它如何在推冰球里被破坏，又如何被"信念"救回|StochasticProcess §2.3]]。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | recap 应主动补充 |

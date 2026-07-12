@@ -243,3 +243,16 @@ GeoPT 的 pre-train → fine-tune 范式中，lifting 将几何预训练从 $G \
     ↓
 后续影响: Physics Foundation Model 的数据扩展范式 → 可能延伸至接触/机器人仿真
 ```
+
+## 8. 簇内关联与暗线锚点
+
+> [!abstract] 抓取/几何/表征/动力学簇内定位
+> - **vs [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]]**：两者都把结构作为网络归纳偏置，且都用 **"lifting"** 思想——RodriNet 把标量角度 lift 到 $SE(3)$ 齐次运动学模板（Rodrigues basis $1,\cos\theta,\sin\theta$），GeoPT 把静态几何 lift 到几何-动力学联合空间 $(G,V)\to H_{traj}$（随机速度场生成伪轨迹）。Delta：RodriNet 是**架构级** inductive bias（每层算子固定计算模板），GeoPT 是**预训练级** self-supervision（传输方程 $\partial_t f+v\cdot\nabla_x f=0$ 作监督）。
+> - **vs [[空间智能作为机器人的结构化表征|PointWorld]]**：两者都是 **3D 几何世界模型预训练**。Delta：GeoPT **完全 solver-free**（合成速度场，无任何真实动力学标签），PointWorld 需要真实/仿真交互数据学 3D flow；GeoPT 面向稳态工业仿真（CFD/FEA），PointWorld 面向接触丰富机器人操作。
+> - **vs [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]]**：neural dynamics 的两条路——GeoPT 用几何预训练获取动力学**表征先验**（下游微调省 20–60% 标签），PDDM 在真机 transition 上学**接触 forward dynamics** 做在线 MPC。Delta：预训练迁移 vs 在线数据监督；GeoPT 不建接触，PDDM 专攻接触切换。
+
+> [!tip] 暗线：接触的非光滑性（本文的失效边界）
+> GeoPT 的传输方程只覆盖**无源守恒律**、粘壁边界隐式编码几何微分结构，但不含接触冲量/摩擦锥/互补约束——正是本库"接触的非光滑性"暗线所指的难点。精确锚点：
+> - [[ComputationalGeometry#4. 有向距离场 (SDF)：连续优化的基石]] — 粘壁边界 $\mathbf{1}_G(x_t)=\mathbb{1}[\phi(x_t)\le0]$ 的 SDF 底座（本文最实在的几何依赖）
+> - [[Dynamics#9. 适配层：可微物理与神经动力学]] — GeoPT 属"神经动力学"一侧；lifting 是可微物理的自监督化
+> - 若要延伸到灵巧操作，缺的正是 [[ContactMechanics#5. 接触动力学与求解器：如何算出下一时刻]] 的互补/摩擦结构

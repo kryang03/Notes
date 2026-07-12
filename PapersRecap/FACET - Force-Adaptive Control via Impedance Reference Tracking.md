@@ -323,3 +323,13 @@ $$\underbrace{m\ddot{x}_{ref} = f_{spring} + f_{ext}}_{\text{参考}} \quad vs \
 >
 > 前者阻抗是 action、后者是 reference。FACET 优势：力自适应**隐式**（无力传感器）、时间平滑（混合开环/闭环参考，类 GAE 偏差-方差）解决跟踪权衡。
 > **$K_p(s)$ 入 $m(s)$ 家族**：FACET 的时变 $K_p$ 与 VICES 的 $K(s)$ 同属状态依赖元控制（柔顺度维度）——"先软后硬"snap 阶段调度（§6）正是 $m(s)$ 在转笔的落点。**多体扩展（基座低 $K_p$ + 末端独立阻抗 + 参数 $a$ 控制力传导）= [[EvoControl - Evolved High Frequency Control for Continuous Control Tasks|EvoControl]] 双层 / arm-hand 协调的 impedance 版**。
+
+> [!note] 簇内补链 · Foundation 精确锚点 · 暗线
+> **簇内互链 + Delta**：
+> - vs [[Minimalist Compliance Control|MCC]]：两者都做**无力传感器**力自适应，但 MCC 用电流→力矩物理模型显式估 $f_{ext}$（零学习），FACET 靠 teacher-student 让 student 从本体感受历史**隐式**推断 $f_{ext}$（§3.0 表：−10~15%）。MCC 正是 FACET §5 "$f_{ext}$ 观测器" 局限的物理答案。
+> - vs [[Residual Learning from Demonstration: Adapting DMPs for Contact-rich Manipulation|Residual LfD]]：同属"**低频 RL 修正叠在稳定 base 上**"——Residual LfD 的 base=DMP、修正=task-space residual；FACET 的 base=虚拟阻抗参考模型、修正=策略跟踪其轨迹。二者都把探索限制在安全邻域。
+> - vs [[Data-Driven Variable Impedance Control of a Powered Knee-Ankle Prosthesis for Adaptive Speed and Incline Walking|Data-Driven VIC]]：FACET 让 RL **在线**学时变 $K_p$ 调度；Data-Driven VIC 用凸优化**离线**辨识 $K(\phi,v,\alpha)$——前者可在线适应但无全局最优保证，后者反之。
+>
+> **Foundation 精确锚点**：阻抗参考模型 = [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|ControlTheory §3.2]] 的二阶弹簧-质量-阻尼；RL 学时变 $K_p$ = [[ControlTheory#3.4 学习型变阻抗：RL × 阻抗的桥|ControlTheory §3.4]]；柔顺层总纲 [[ControlTheory#3. 柔顺层：从刚性位置控制到顺应交互|ControlTheory §3]]。
+>
+> **暗线 · 电流≠关节力矩（反驱动性）**：FACET student 无法直接测 $f_{ext}$，只能从历史观测反推——这正是 [[Actuation#10.2 力矩反馈为何"能当输入、不能当目标"|Actuation §10.2]] 的困境：真机 $\tau$ 是传动链输出、不是可直接读的输入。MCC 之所以能"读出"外力，靠的是减速器**反驱动性**让外力矩映射进电流（[[Actuation#8.2 三大非理想性——机械侧 gap 的主体|Actuation §8.2]]）。

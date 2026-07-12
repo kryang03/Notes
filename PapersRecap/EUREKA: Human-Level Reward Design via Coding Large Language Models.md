@@ -311,3 +311,27 @@ def compute_reward(obs_dict):
         "contact_reward": contact_reward
     }
 ```
+
+---
+
+## 9. 簇内坐标与 Foundation 锚点
+
+> [!abstract] 暗线锚定：Continuation / 同伦 + 认知不确定性（该学处）
+> EUREKA 触及本簇两条暗线：① **Continuation**——转笔任务里 EUREKA 生成的课程让 $\omega_{target}:0.5\to2.0$ rad/s（§6 具体启发），正是 [[Curriculum Learning#3.2 与 Continuation Method 的联系|Curriculum Learning 的 $Q_0\to Q_1$]] 的 RL 实例；② **零阶采样+加权**——外层 $K=16$ 采样→按 fitness z-score 加权→挪 prompt 分布，与 CMA-ES 结构同构，是"采样+加权统一优化"暗线的 LLM 版本。EUREKA 的独特位置：它把 continuation 的**难度轴**和奖励设计**同时**外包给 LLM，是 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]] 谱系里"课程设计器自动化"的最激进端点。
+
+**Foundation 精确锚点**（已 grep 验证章节存在）：
+
+- [[ReinforcementLearning#8.2 奖励工程：最危险的自由度|RL §8.2 奖励工程]]：EUREKA 直接攻击的就是这一节的核心痛点——"92% 的 RL 研究者认为自己的奖励设计次优"。它把"最危险的自由度"从人工试错变成进化搜索的外层变量。
+- [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4 CMA-ES]]：EUREKA 外层是奖励代码空间 $\mathcal{R}$ 上的零阶进化——$R^{(k+1)}=R^{(k)}+\text{LLM\_mutation}(\text{Reflect}(F(A_M(R^{(k)}))))$，与 CMA-ES "采样→按 fitness 加权→挪分布"完全同构（fitness 用 z-score 归一化 = CMA-ES 的 rank-based weighting）。这是本文与 §4.4 的**数学根**，不是装饰链接。
+
+**簇内互链 + Delta**：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[Curriculum Learning\|Curriculum Learning]] | EUREKA 是其 2009 谱系的**LLM 端点** | Bengio 需人工 `difficulty_fn`；EUREKA 让 GPT-4 从环境源码**自动生成**奖励+课程，无需任务特定 prompt |
+| [[Hindsight Experience Replay\|HER]] | 两文攻击**同一敌人**：sparse reward 下学不动 | EUREKA **加密奖励**（生成 dense reward code 让梯度出现）；HER **重标目标**（不改 reward 稀疏性，改条件变量 $g$）。一个改 $R$，一个改 $g$，正交互补 |
+| [[DemoStart - Demonstration-led Auto-Curriculum for Sim-to-Real with Multi-Fingered Robots\|DemoStart]] | 都是"自动课程"，但作用空间不同 | EUREKA 在**奖励/reward-space**自动化；DemoStart 在**初始状态/reset-space**自动化（ZVF）。DemoStart 甚至能用**二值稀疏** reward，正因为它不靠 reward 设计而靠 frontier 选择 |
+| [[Curriculum is More Influential than Haptic Feedback when Learning Object Manipulation\|Curriculum > Haptic]] | 互补验证 reward-schedule 的威力 | Curriculum>Haptic 手工枚举 $c_R,c_L$ 时序证明"reward 时序 > 触觉"；EUREKA 则**自动搜索** reward 系数组合——若二者结合，可让 LLM 直接进化 $c_R,c_L$ 的**课程 schedule** 而非单一权重 |
+
+> [!tip] 一句话记忆锚
+> **EUREKA = 把"最危险的自由度"（奖励）交给 CMA-ES 式的 LLM 进化。** 它首次让仿真灵巧手转笔成功，靠的不是新 optimizer，而是 [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|零阶进化]] + [[Curriculum Learning\|continuation 课程]] + reward 分量分解三者合一。局限也清楚：外层评估要完整 RL 训练（$10^7$ 步/候选），样本效率极低，且 Sim-to-Real 未验证。

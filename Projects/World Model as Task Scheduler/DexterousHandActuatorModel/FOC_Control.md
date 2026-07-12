@@ -2,6 +2,11 @@
 tags: [Dexterous_Manipulation, Motor_Control, Field_Oriented_Control, State_Estimation, Sim-to-Real]
 source: Unified FOC & PMSM Modeling Lectures
 date: 2026-04-15
+related:
+  - "[[Actuation]]"
+  - "[[Actuator2RigidDynamicsModel_gap]]"
+  - "[[ControlTheory]]"
+  - "[[Final_WMTS]]"
 ---
 
 # 永磁同步电机(PMSM)与无感矢量控制(Sensorless FOC)第一性原理推导

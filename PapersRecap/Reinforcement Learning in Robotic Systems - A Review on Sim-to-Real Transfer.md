@@ -24,7 +24,9 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] — MDP $(S,A,P,R,\gamma)$；sim/real 的 $P,R$ 差异是 gap 数学本质
+> - [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|RL §9]] — 本 review 的三分类（模型优化 / 知识迁移 / 迭代精炼）正是 §9 治疗手段的"怎么修"切分。
 > - [[Dynamics]] — System ID / 执行器建模 / 接触动力学保真度
+> - [[Actuation#10. 迁移层 II：数据驱动执行器模型 (Actuator Model)|Actuation §10]] — 呼应本 review §3 核心洞见"执行器建模被低估"：**电流≠关节力矩** 暗线——电机/传动级建模是最被忽视又最关键的 $\Delta_T$ 子源，Actuator Net 是其数据驱动解。
 > - [[EmbodiedAI]] — sim-to-real 基准平台（Real Robot Challenge / HomeRobot）
 > - [[Optimization]] — DR 作为鲁棒优化 $\max_\theta\mathbb{E}_\xi[J]$
 >

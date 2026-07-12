@@ -28,10 +28,11 @@ related:
 > LaST0 把 VLA 的“先想后做”从显式语言/图像 CoT 转移到连续 latent space：慢速 reasoning expert 自回归生成未来 2D 视觉、3D 几何和机器人本体状态的 latent CoT，快速 acting expert 在共享 attention/KV cache 中读取这些 latent guidance 并用 flow matching 生成高频动作，从而在保持 reason-before-act 的同时显著降低显式 CoT 的推理延迟。
 
 > [!tip] 与理论基础的关联
-> - [[EmbodiedAI]] — robotic CoT 可以统一写成 $p(a,Z\mid I,l)=p(a\mid Z,I,l)p(Z\mid I,l)$；LaST0 的关键是把 $Z$ 从语言/图像 token 换成连续物理 latent。
-> - [[RepresentationLearning]] — latent CoT 是一种 privileged future representation distillation：训练时用未来 RGB/point cloud/proprio targets，推理时由当前观测自回归预测。
-> - [[StochasticProcess]] — acting expert 采用 Flow Matching policy，把连续动作生成建模为从 noised action 到 demonstration action 的速度场回归。
-> - [[ControlTheory]] — slow reasoning / fast acting 是分层控制和多速率控制的 VLA 架构化版本；KV cache 让慢变量以低频更新，快变量每步闭环响应。
+> - [[EmbodiedAI#1.4 分层双系统：慢推理 + 快控制]] — LaST0 的 slow reasoning expert / fast acting expert 正是 VLA 分层双系统的架构化落地：慢变量低频更新 latent CoT，快变量每步闭环出动作。
+> - [[EmbodiedAI]] — robotic CoT 统一写成 $p(a,Z\mid I,l)=p(a\mid Z,I,l)p(Z\mid I,l)$；LaST0 把 $Z$ 从语言/图像 token 换成连续物理 latent。
+> - [[RepresentationLearning#2.3 ACT：动作分块处理长时相关]] — latent CoT 是 privileged future representation distillation；动作端与 ACT 的 action chunking 同源。
+> - [[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]] — acting expert 的 Flow Matching 把连续动作生成建模为从 noised action 到 demonstration action 的速度场回归（ODE 化的逆向生成）。
+> - [[ControlTheory]] — slow reasoning / fast acting 是分层控制和多速率控制的 VLA 化；KV cache 让慢变量低频更新、快变量每步响应。
 >
 > **核心技术**: Latent CoT, Spatio-Temporal Latent Reasoning, Mixture-of-Transformers, Fast-Slow Control, Flow Matching Action Expert, Privileged 3D Latent Supervision
 

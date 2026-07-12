@@ -14,6 +14,7 @@ read-date: 2026-06-16
 venue: ECCV 2022 (UCSD; Yinbo Chen, Xiaolong Wang)
 paper-pdf: "[[Transformers as Meta-Learners for Implicit Neural Representations.pdf]]"
 related:
+  - "[[RepresentationLearning]]"
   - "[[ReinforcementLearning]]"
   - "[[StochasticProcess]]"
   - "[[EmbodiedAI]]"
@@ -26,6 +27,7 @@ related:
 > 用 **Transformer 作 hypernetwork**，从观测**一次前向直接生成整套 INR（implicit neural representation）权重**（set-to-set 映射），无需逐实例梯度下降。动机：(a) 从零梯度拟合 INR 慢、稀疏观测不泛化；(b) 现有 hypernetwork 多生成**单个向量调节 INR 权重 → 单向量信息瓶颈**限制重建精度；(c) gradient-based meta-learning 可推全权重但需高阶导 + 固定初始化、仍要梯度下降。本文把观测转 data tokens、把 INR 权重视为各层权重矩阵的列向量、用 initialization tokens（每列一个）经 Transformer 映射出全权重，**绕过单向量瓶颈且免逐实例梯度下降**，并与 gradient-based meta-learning 建立联系。2D 图像回归 + NeRF 视图合成验证。**对 WMTS：这是"一次前向生成任务特定网络"的快速适应（amortized meta-learning）机制——WMTS 的 LAAA 可用 Transformer hypernetwork 从少量真实 transition 直接生成适配后的 actuator/contact 模型权重，比逐任务微调快、比 DyWA/FiLM 的单向量条件更具表达力（破单向量瓶颈）。**
 
 > [!tip] 与理论基础的关联
+> - [[RepresentationLearning#4.6 序列与注意力表征：从无序集合到有序序列]] — set-to-set 注意力（观测 tokens + init tokens → 权重列）；置换等变的集合→集合映射即该节的注意力表征。
 > - [[ReinforcementLearning]] — amortized meta-learning（一次前向出任务网络）；快速适应。
 > - [[StochasticProcess]] — Transformer set-to-set 映射观测→权重。
 > - [[EmbodiedAI]] — context-conditioned 快速建模（每物体/动力学）。
@@ -165,9 +167,21 @@ context-conditioned 快速建模（每物体/动力学一次前向出模型）�
 ### 与 [[Final_WMTS]] 的联系
 LAAA 的 hypernetwork 快速适应一极；破单向量瓶颈（批判 DyWA/FiLM 单向量条件）；适应机制按幅度分级（FiLM/hypernetwork/微调/ICL）。
 
+### 与 [[RepresentationLearning]] 的联系
+本文的 set-to-set 权重生成是 [[RepresentationLearning#4.6 序列与注意力表征：从无序集合到有序序列]] 的极端用例：观测 tokens（无序集合）经注意力聚合，映射为"另一个网络的权重列"这一结构化输出——把"注意力聚合上下文"从"预测标签"推到"预测整套参数"。
+
+### 暗线：POMDP → belief → latent（注意力）
+把"从观测上下文一次前向推断任务网络"读成 **belief 推断的 amortized 版**：INR 要拟合的目标（形状/场景）是隐变量，观测 tokens 是部分可观测证据，Transformer 注意力把证据聚合成"任务充分统计量"再解成权重——正是 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|POMDP→belief]] / [[StochasticProcess#2.3 马尔可夫性：它如何在推冰球里被破坏，又如何被"信念"救回|历史窗口即解药]] 那条暗线的"注意力实现"：梯度 meta-learning 用多步更新逼近 belief，本文用一次注意力聚合 amortize 之。WMTS 的 LAAA 从近期 transition 上下文推断动力学，本质同构。
+
+### 与本簇论文的关联（Delta 对比）
+- **vs [[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL 架构研究]]**：都探"从上下文快速适应"的机制——本文用 **Transformer hypernetwork 显式生成全权重**（表达力高、较重），ICL 证 **隐式 in-context 适应不需 attention**（SSM/RNN 亦可、更省）；二者是"显式生成 vs 隐式激活"两条 meta-learning 路线。
+- **vs [[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|Latent Space 综述]]**：Trans-INR 是"amortized 生成一段 latent 表示（INR 连续函数）"的具体实例；综述把这类归入其 Representation（Learnable/External）× Computation（Compressed→Expanded）分类——本文是点、综述是坐标系。
+- **vs [[On the Continuity of Rotation Representations in Neural Networks|6D 旋转表示]]**：都在设计"网络输出什么的表示"——本文输出权重列（拼成 INR），6D 论文输出旋转（Gram-Schmidt 投影 SO(3)）；共性是"直接输出非最终合法对象，需一步构造"。
+
 ## References
 - 原始 PDF：[[Transformers as Meta-Learners for Implicit Neural Representations.pdf]]（UCSD，ECCV 2022，arXiv 2208.02801）
 - 单向量条件对照（被批判）：[[DyWA: Dynamics-adaptive World Action Model|DyWA]]（FiLM）、[[DexCtrl- Towards Sim-to-Real Dexterity with Adaptive Controller Learning|DexCtrl]]
 - 适应谱：[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL]]、[[SOLVING RUBIK’S CUBE WITH A ROBOT HAND|Rubik]]、[[Finetuning Offline World Models in the Real World|FOWM]]
 - 连续/接触互补：[[FLD: Fourier Latent Dynamics for Structured Motion Representation and Learning|FLD]]
+- 本簇（表征/几何/ICL/元学习）关联：[[IS ATTENTION REQUIRED FOR ICL? EXPLORING THE RELATIONSHIP BETWEEN MODEL ARCHITECTURE AND IN-CONTEXT LEARNING ABILITY|ICL 架构研究]]、[[The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook|Latent Space 综述]]、[[On the Continuity of Rotation Representations in Neural Networks|6D 旋转表示]]
 - 项目入口：[[Final_WMTS]]

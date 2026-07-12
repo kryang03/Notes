@@ -26,9 +26,10 @@ related:
 > 与所有"神经/latent world model"针锋相对：DexSim2Real2 主张为未见**铰接物体**（抽屉/柜子/笔记本）构建**显式世界模型**——一个在物理仿真器里重建的**数字孪生（digital twin）**，再用**采样式 MPC** 规划长程轨迹达成目标，**无需 demo、无需 RL**。流程：affordance 网络（仿真自监督交互或人类视频）预测一步交互 → 真机执行移动物体部件、重复 K 次（K 个可动部件）→ 用 **3D AIGC + 基础视觉模型**从 K+1 帧重建数字孪生（部件形状 + 运动学结构）→ 对灵巧手用 **eigengrasp（PCA 降维）**把高 DOF 动作压到低维以让 MPC 可搜。实测 suction / 二指 / 灵巧手 / 工具操作，**eigengrasp m=2 ≈ m=16 的成功率却大幅省算力**。**它是 WMTS world model 设计空间的"最大结构化"一极（与 [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]] 的神经 latent 一极对峙）：显式物理模型无 model-exploitation、样本极省、可泛化到未见动作/长程，但只能建刚体运动学、抓不住弹性形变与高速接触——而那恰是转笔所在的体制。**
 
 > [!tip] 与理论基础的关联
-> - [[ControlTheory]] — 采样式 MPC（iCEM）在显式物理模型里规划长程轨迹；纯 model-based control（非 RL）。
+> - [[ControlTheory#8. 接触隐式模型预测控制 (Contact-Implicit MPC)|ControlTheory §8 Contact-Implicit MPC]] — 采样式 MPC（iCEM）在显式物理模型里规划长程轨迹；纯 model-based control（非 RL）。
+> - [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]] — iCEM = 零阶/进化采样优化（接触不可微时用采样代梯度）；eigengrasp = 抓取 PCA 降维（高 DOF→低 DOF）让采样空间可搜。
+> - [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"|WorldModels §3]] — **暗线「认知不确定性三用」的边界情形**：显式物理孪生 rollout 物理正确、**无 model-exploitation**，故不需 ensemble 认知不确定性护栏——与神经 latent WM（需 PETS/ensemble-LCB）正相反。
 > - [[EmbodiedAI]] — interactive perception（主动交互建模）；多端效器灵巧 sim-to-real；从人类视频学 affordance。
-> - [[Optimization]] — eigengrasp = 抓取 PCA 降维（高 DOF→低 DOF）；iCEM 采样优化 + 多项 reward。
 > - [[Final_WMTS]] — **WMTS "结构化/物理 WM" 一极的范本**；eigengrasp 直接用于 21-DOF LinkerHand 规划降维；主动交互 = probe；但显式刚体模型的体制局限正是 WMTS 转笔不能照搬之处。
 >
 > **核心技术**: 显式物理数字孪生, 主动交互 (interactive perception), 3D AIGC 重建, 可动部件分割, Affordance 网络 (sim/人类视频 + 空间投影), EigenGrasp PCA 降维, 采样式 MPC (iCEM)

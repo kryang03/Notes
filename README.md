@@ -50,8 +50,10 @@ Dynamics  Contact        Control   Optimization      RL    Representation
 | 🤝 [[ContactMechanics\|接触力学]] | `Foundations/ContactMechanics.md` | 点接触/软指/摩擦锥/LCP |
 | 📐 [[ComputationalGeometry\|计算几何]] | `Foundations/ComputationalGeometry.md` | SDF/碰撞检测/神经隐式表示 |
 | 🎮 [[ControlTheory\|控制理论]] | `Foundations/ControlTheory.md` | 阻抗控制/操作空间/MPC |
+| ⚡ [[Actuation\|执行器与驱动]] | `Foundations/Actuation.md` | 电机/FOC/传动/减速器/执行器 Sim-to-Real |
 | 📈 [[Optimization\|优化理论]] | `Foundations/Optimization.md` | iLQR/凸优化/可微优化层 |
 | 🎯 [[ReinforcementLearning\|强化学习]] | `Foundations/ReinforcementLearning.md` | PPO/SAC/Sim-to-Real |
+| 🌍 [[WorldModels\|世界模型]] | `Foundations/WorldModels.md` | RSSM/Dreamer/PETS/想象试错/Actuator+Rigid 解耦 |
 | 🎲 [[StochasticProcess\|随机过程]] | `Foundations/StochasticProcess.md` | GP/扩散策略 |
 | 📡 [[SignalProcessing\|信号处理]] | `Foundations/SignalProcessing.md` | EKF/触觉感知 |
 | 🔬 [[InformationTheory\|信息论]] | `Foundations/InformationTheory.md` | 互信息/内在动机 |
@@ -92,7 +94,11 @@ Dynamics  Contact        Control   Optimization      RL    Representation
 | ✅ 已处理 | 10/10 |
 | 📂 待处理 | 0 |
 
-**最近一次理论导师模式增强 (2026-01-31)**:
+**最近一次结构性扩展 (2026-07-12)**:
+- 🆕 **新建 [Actuation.md](Foundations/Actuation.md) 执行器与驱动模块**：整合灵巧手 Sim-to-Real 的机电资料（电机/FOC/串级环/传动/减速器/热漂移/actuator net/嵌入式），把项目级机电笔记提升为 Foundation 理论，补上 [[ControlTheory]] 与 [[Dynamics]] 之间"力矩兑现"的缺失一环
+- 来源：MergeBuffer `book-control`（控制教材，补强 ControlTheory）+ `机械+电气`（电机/传动/减速器工程培训）+ 项目笔记 [[电机]]/[[传动]]/[[减速器]]/[[sim2real]]/[[FOC_Control]]/[[Actuator2RigidDynamicsModel_gap]]
+
+**理论导师模式增强 (2026-01-31)**:
 - [StochasticProcess.md](Foundations/StochasticProcess.md): 添加 SCP 严格数学定义
 - [InformationTheory.md](Foundations/InformationTheory.md): 添加 Empowerment 变分下界推导
 - [ComputationalGeometry.md](Foundations/ComputationalGeometry.md): 添加 Support Mapping 凸共轭理论

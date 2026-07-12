@@ -32,6 +32,7 @@ related:
 > - [[ControlTheory]] — TD-MPC 的 MPPI 规划（receding-horizon）；测试期在规划目标上加正则。
 > - [[Optimization]] — expectile 回归（Eq 3）、AWR、MPPI 采样；LCB 风险正则（Eq 4）。
 > - [[EmbodiedAI]] — 真机 xArm 像素输入、≤20 trials 少样本微调到未见任务。
+> - [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] / [[WorldModels#6.4 真机在线适配]] — Q-ensemble 的 std 当 epistemic 不确定性，规划时 LCB（Eq 4）抑制 extrapolation；微调中不确定性自然下降 → 保守度自适应，正是 [[WorldModels#6.4 真机在线适配]] 的曲线（**认知不确定性三用** 暗线）。
 > - [[Final_WMTS]] — **WMTS WM 模块的精确配方**：离线预训 + ≤1h 微调 + 规划 LCB；Eq 4 = reliability head；Q-ensemble 轻量选项。
 >
 > **核心技术**: TD-MPC 骨架, Q-ensemble epistemic uncertainty, 测试期 LCB 正则 (Eq 4), IQL in-sample TD-backup (Eq 3 expectile), AWR 策略, 平衡采样 (offline+online buffer)
@@ -191,6 +192,9 @@ expectile 回归（asymmetric ℓ2）、AWR、MPPI 采样优化；LCB 风险正�
 
 ### 与 [[EmbodiedAI]] 的联系
 真机 xArm 像素输入、≤20 trials 少样本微调到 seen/unseen 任务；offline 真机数据预训 + 在线自校准。
+
+### 与 [[WorldModels]] 的联系
+FOWM 把 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] 的思想做进**规划测试期**：Eq 4 的 $\hat R=\sum\gamma^t(R-\lambda u_t)$（$u_t=\mathrm{std}\{Q^{(i)}\}$）就是 LCB，惩罚 OOD 高不确定动作——**认知不确定性三用** 暗线（护栏）的 offline→online 版。它揭示 [[WorldModels#6.4 真机在线适配]] 的关键机理：把保守放在非参数规划的测试期、随微调中不确定性下降而自适应放开（早保守、后探索），正是 WMTS LAAA 想要的适配曲线。与姊妹作 [[MoDem-V2- Visuo-Motor World Models for Real-World Robot Manipulation|MoDem-V2]] 覆盖 offline→online 与 online-from-scratch 两种真机模式。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS WM 模块最完整的现成配方（离线预训 + ≤1h 微调 + 规划 LCB）；Eq 4 = reliability head；"保守放测试期 + 不确定性自适应下降"= LAAA；与 MoDem-V2 覆盖 offline→online 与 online-from-scratch 两模式。

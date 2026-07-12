@@ -29,7 +29,8 @@ related:
 
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] — RL 预训练 sim primitives（rotation/translation/regrasp）生成数据集。
-> - [[StochasticProcess]] — DDPM 扩散动作先验 + classifier-style gradient guidance（投影到高似然）。
+> - [[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑|StochasticProcess §6.4]] — DDPM 动作先验 = 学出的逆向 SDE；gradient guidance = 在逆向采样里叠加对齐外部命令的漂移项（从乘积分布 $p_{data}\cdot e^{J}$ 采样）。
+> - [[ContactMechanics#3.2 力闭合 vs 形闭合：抓取稳定性的数学条件|ContactMechanics §3.2 力闭合]] — 笔/注射器/螺丝刀是**接触密集**工具使用，稳定持物即维持力闭合；**暗线「接触非光滑」**：扩散先验把"合理的手内接触动作"编码进高似然区，投影 = 把危险命令拉回接触可行的动作流形。
 > - [[EmbodiedAI]] — sim-to-real 灵巧；foundation controller + 高层 prompt 架构；工具使用。
 > - [[Final_WMTS]] — **WMTS generalist（扩散动作先验）+ 安全投影机制**；高层 teleop ↔ WMTS WM scheduler。
 > - [[Dynamic Non-Prehensile Manipulation]] — 笔/工具使用，最近的笔操作先例（pen use ≠ pen spin）。

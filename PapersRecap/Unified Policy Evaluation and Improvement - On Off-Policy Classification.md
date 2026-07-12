@@ -26,6 +26,11 @@ related:
 >
 > **核心技术**: 统一 Policy Eval/Improve 方程, Data Source × Update Schedule 两轴, $\pi_{ref}$ 参照系选择
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ReinforcementLearning#2.2 值函数与 Bellman 方程]] — 本文「统一 Policy Evaluation」就是 Bellman 最小二乘拟合 $\hat Q^{k+1}=\arg\min_Q\mathbb{E}_w[(r+\gamma\mathbb{E}\hat Q-Q)^2]$，数据源 $w$ 决定 on/off-policy。
+> - [[ControlTheory#10.4 被动性与"价值即 Lyapunov"]] — 统一框架里 $\pi_{ref}$ 参照系（$\pi^k$/Uniform/$\mu$）统一了信任域/探索/保守；正定代价下这套值迭代收敛的 $Q$ 即 Lyapunov 对象，为下游 safe-RL 的稳定证书提供底座。
+> - **簇内 Delta**：$\pi_{ref}=\text{Uniform}$（最大熵）正是 [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]] 证明的 Gaussian 熵正则最优；与 [[Dynamic Reinforcement Learning for Actors|Dynamic RL]] 的「Lyapunov 标尺」是同一探索↔利用权衡的两种语言（KL 参照系 vs Lyapunov 指数）。
+
 ## 1. 问题设定与动机
 
 ### 1.1 核心洞察（一句话 + 直观隐喻）

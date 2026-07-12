@@ -25,8 +25,9 @@ related:
 > **同时生成环境挑战与优化解决它们的智能体**——算法自己造出不断扩张的多样课程，早期问题的解成为后期更难问题的"垫脚石（stepping stones）"。关键三件事：(1) **配对生成环境 + 优化 agent**；(2) **解在问题间迁移**（若某 agent 在别的环境更好就转移过去）→ 催化创新；(3) **open-ended** 无界地造越来越复杂的能力。2D 双足越障上，POET 产出多样复杂行为，**许多无法被直接优化或"直接路径课程"解决**——open-endedness + 跨环境迁移是解决雄心挑战的关键。**对 WMTS：POET 是"生成任务"式 scheduler（vs [[Prioritized Level Replay|PLR]] 的"选择任务"）——WMTS scheduler 可生成新转笔挑战 + 跨配置迁移解；其核心洞见"最难技能需 open-ended 垫脚石而非直接课程"对转笔最难配置有指导意义。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — agent 优化（此处用进化策略 ES）；自动课程。
-> - [[Optimization]] — 进化式 open-ended 搜索；环境生成 + agent 优化的协同。
+> - [[ReinforcementLearning#Phase 5 — POET：当难度无法线性排序时，协同进化]] — **POET 就是 RL 自动课程演进脉络的 Phase 5**（母章 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]]）：当难度无法线性排序时，用配对协同进化代替单调课程。
+> - [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]] — 每个 agent 用 ES 优化，是"**采样+加权挪分布**"暗线的进化实例（[[The CMA Evolution Strategy: A Tutorial|CMA-ES]] 的宗族）。
+> - [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3]] — POET 的"生成任务"是"**任务生成器**"这条暗线的开山：把课程从"选"抬到"造"，WMTS 用认知不确定性驱动同一件事。
 > - [[Final_WMTS]] — **"生成任务"式 scheduler（vs PLR 选择）+ 跨任务迁移 + open-ended 垫脚石**。
 > - [[Dynamic Non-Prehensile Manipulation]] — 转笔难配置可能需 open-ended 垫脚石而非直接课程。
 >
@@ -120,10 +121,10 @@ ML 通常人定问题、算法解之。POET 问：**能否让算法在解问题�
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-agent 优化（ES）+ 自动课程；open-ended 任务生成 + 求解。
+agent 优化（ES）+ 自动课程；open-ended 任务生成 + 求解。精确落点：[[ReinforcementLearning#Phase 5 — POET：当难度无法线性排序时，协同进化|RL §7.3 Phase 5]] 就是本文——它把 [[Prioritized Level Replay|PLR]]（Phase 3 Regret 选既有 level）推进到"生成 + 协同进化"，再由 [[Improving Policy Optimization with Generalist-Specialist Learning|GSL]]（Phase 6）用蒸馏缝合多样性。**暗线 = Continuation/同伦**：POET 是"先解平滑子问题、再逐步引入真难度"在任务空间的极端展开（分叉而非单调）。
 
 ### 与 [[Optimization]] 的联系
-进化式 open-ended 搜索；环境生成（变异 + 最小准则）+ agent 优化（CMA-ES 类 ES）协同。
+进化式 open-ended 搜索；环境生成（变异 + 最小准则）+ agent 优化（[[The CMA Evolution Strategy: A Tutorial|CMA-ES]] 类 ES）协同。精确落点：[[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]]——ES 属"**采样+加权 统一优化**"暗线（采样候选 → 按 fitness 加权 → 挪分布），与 [[The CMA Evolution Strategy: A Tutorial|CMA-ES]]/MPPI/策略梯度同宗。
 
 ### 与 [[Final_WMTS]] 的联系
 "生成任务"式 scheduler（vs PLR 选择）+ 跨任务迁移 + open-ended 垫脚石；WMTS scheduler = PLR 选择 + POET 生成/迁移 + 可行性过滤。

@@ -251,3 +251,17 @@ Flow Matching 的速度场 ODE $\frac{da_t}{dt} = v_\theta(a_t, t, o)$ 是 [[Sto
     ↓
 后续影响: FM 策略 → Loco-manipulation → 灵巧操作的统一预训练范式
 ```
+
+## 8. 簇内关联与暗线锚点
+
+> [!abstract] 运动技能/动力学簇内定位
+> - **vs [[Learning Agile and Dynamic Motor Skills for Legged Robots|Learning Agile]]**：两者都做 **actuation-aware sim-to-real**，但治法互补——Learning Agile 用**学习型 Actuator Network** 吸收 action→torque gap（数据黑箱），OmniXtreme 用**解析力矩-速度包络 + 摩擦 + 残差策略**（物理约束 + residual）。Delta：黑箱残差学习 vs 显式物理裁剪；这是"电流≠关节力矩"暗线的两种落地。
+> - **vs [[Learning Quadrupedal Locomotion over Challenging Terrain|Learning Quadrupedal]]**：两者都靠**蒸馏**获得可扩展策略——Learning Quadrupedal 是 privileged teacher → proprioceptive student，OmniXtreme 是 multi-motion experts → Flow Matching student（DAgger 在线聚合）。Delta：前者跨地形单策略泛化，后者跨运动生成式统一（FM > MLP 的容量扩展）。
+> - **vs [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]]**：结构化 vs 生成式动作 backbone——RodriNet 注入 embodiment 运动学结构，FM 提供多模态分布容量；理论上可组合。
+> - **vs [[谐波减速器与RV减速器选型核心区分依据|谐波/RV 减速器]]**：OmniXtreme 力矩-速度包络所建的物理极限，其机械来源之一正是减速器（电机→FOC→减速器→传动链）。
+
+> [!tip] 暗线：电流 ≠ 关节力矩 / τ 身份错位
+> 力矩-速度包络 $\tau_{max}(v)$、功率安全正则、非线性摩擦，本质是"仿真里 $\tau$ 是理想输入、真机 $\tau$ 受电气+机械极限约束"的显式建模——正是本库 **actuation 暗线** 的核心。精确锚点（挂 [[Actuation]]）：
+> - [[Actuation#5. 电气极限层：高速时力矩为什么"软"]] 与 [[Actuation#5.1 反电动势天花板与力矩-转速包络]] — OmniXtreme $\tau_{clipped}(v)$ 分段裁剪的电气物理根（反电动势天花板）
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖]] — 激进域随机化 + 约束建模弥合 gap 的完整框架
+> - 生成式侧见 [[StochasticProcess#6. 随机最优控制：MPPI（用采样代替梯度）]] 与 [[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器]]：FM ODE 是扩散/score matching 的确定性极限

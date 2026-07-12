@@ -736,6 +736,15 @@ $$
 
 Point-level representation 的必要性来自局部接触几何：6DoF pose 只描述刚体整体位姿，不能表达哪个边、角、曲面 patch 会接触并传递力。DAPL 的 point patches 保留了这些局部几何结构，再用 dynamics objective 把它们变成 action-relevant features。
 
+> [!note] 簇内补链 · Foundation 精确锚点 · 暗线
+> **簇内互链 + Delta**：
+> - vs 阻抗/力控簇（[[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks|VICES]] / [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] / [[Minimalist Compliance Control|MCC]]）：本簇多数论文解决"接触时**怎么施力/多软硬**"（$K(s)$、$m_a(s)$）；DAPL 解决更上游的"接触**后果**是什么"——用 $(p,m,v)$ point world model 预测 $v^+=v^-+J/m$，把接触结果编码成 policy 条件。二者串联：DAPL 选"碰谁"、阻抗控制器定"多软地碰"。
+> - vs [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization|PhysicsGen]]：都强调"几何可行 ≠ 动力学可行"——PhysicsGen 用 trajopt 在**数据侧**保证动力学，DAPL 用 frozen dynamics encoder 在**表征侧**注入接触后果先验。
+>
+> **Foundation 精确锚点**：接触冲量 $v^+=v^-+J/m$、$\omega^+=\omega^-+I^{-1}(r\times J)$ = [[ContactMechanics#5.1 互补条件与 LCP 的构建|ContactMechanics §5.1]] 的接触动力学；$\Delta q_t$ 经 Jacobian clipping 后由阻抗执行 = [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|ControlTheory §3.2]]。
+>
+> **暗线 · 接触的非光滑性**：extrinsic dexterity 的本质是**选择性利用接触链**（推/滑/翻/借重物作 pivot），而 useful↔harmful contact 的分界正是接触把动力学撕成混合系统的地方——DAPL 让 policy 从 dynamics feature 学这个非光滑分界，而非手写 contact mode（[[ContactMechanics#6.1 不连续性的挑战|ContactMechanics §6.1]]）。
+
 ## 8. 应复刻的提问颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

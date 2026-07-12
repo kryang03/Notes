@@ -718,6 +718,27 @@ is a contact-mechanics warning. Small-clearance insertion depends on friction, j
 | “对 WMTS 最直接的启发？” | 把 latent task generation 写成 ZVF 的 Solve/Probe/Reject frontier，而不是固定难度阈值 |
 | “最大风险？” | 任意状态 reset 是仿真特权；真实转笔不能直接 reset 到 mid-spin，需要 sim curriculum + real fine-tuning |
 
+### 7.6 暗线锚定：ZVF 是"认知不确定性三用"的稀疏奖励操作化
+
+> [!abstract] 暗线锚定：认知不确定性（该学处）+ Continuation（反向 reset 课程）
+> 本库暗线"**认知不确定性三用**"是说：ensemble 分歧 = epistemic 不确定性 = 信息增益，它在规划里当护栏、探索里当罗盘、**课程里当"该学处"**。DemoStart 的 ZVF（$0<\hat p(\psi)<1$，二值 success variance $\hat p(1-\hat p)$）正是这条暗线**课程分支**的一个**稀疏奖励可计算**版本：全败（$\hat p=0$）= 当前策略认知外，全胜（$\hat p=1$）= 已掌握，两端都无学习信号；只有 variance 非零处才是"该学处"。这与 [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3 无知即课程]] 同构——只是 §6.3 用 ensemble disagreement 度量"无知"，DemoStart 用 rollout success variance 度量。两者都把"最该练的任务 = 认知边界任务"。
+
+**补充 Foundation 锚点**（已 grep 验证，补 §7.1–7.4 之外）：
+
+- [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|WorldModels §6.3 无知即课程]]：ZVF frontier = §6.3 的"该学处"，用 success variance 代替 ensemble disagreement。这给 §6.2 已写的 Solve/Probe/Reject 提供了**理论出处**：Reject（$\hat p=0$）/ Probe（$0<\hat p<1$）/ Solve（$\hat p=1$）三档正是 §6.3 认知不确定性课程的稀疏化。
+- [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3 自动课程]]：ZVF 对应 §7.3 的 Learning-Progress 分支（进步速度自指路）——variance≈能力边界；而 demonstration-as-reset 是 §7.3 Phase 1 手工课程的**自动化替代**（课程材料来自演示状态而非人工设计）。
+
+**簇内互链 + Delta**（补 §7.5 表）：
+
+| 簇内论文 | 关系 | Delta |
+|:--|:--|:--|
+| [[Curriculum Learning\|Curriculum Learning]] | DemoStart 把其人工 `difficulty_fn` 自动化 | Bengio 需人工排序难度；DemoStart 用 ZVF success-variance **自动**选 frontier，是 continuation 谱系的 Phase 2/3 自动化端 |
+| [[Hindsight Experience Replay\|HER]] | 二者都靠"achieved/reset 状态"造课程，互补 | HER 用 achieved-goal 造 hindsight 目标（值利用侧）；DemoStart 用 demonstration state 造 reset 起点（探索桥侧）。§7.5 已述"DemoStart 打开探索桥，HER 复用失败 outcome" |
+| [[DeepMimic - Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills\|DeepMimic]] | **reset 分布是同一杠杆** | DeepMimic 的 RSI（$\rho_0^{RSI}=\frac1T\sum\delta(s=\hat s_\tau)$）与 DemoStart 的 demonstration-as-reset 是**同一思想**：把长链探索拆成从中间相位起步的短问题。Delta：RSI 均匀采整条 reference 相位；DemoStart 用 ZVF **自适应**只在 frontier reset，且不用演示动作 |
+
+> [!tip] 一句话记忆锚
+> **DemoStart = 用 success-variance 当"认知不确定性"、把演示状态当"可 reset 的难度轴"。** 它是 [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成|无知即课程]] 的稀疏奖励落地，也是 DeepMimic RSI 的自适应升级版。
+
 ## References
 
 - Bauza, Maria, Jose Enrique Chen, Valentin Dalibard, Nimrod Gileadi, Roland Hafner, Murilo F. Martins, Joss Moore, Rugile Pevceviciute, Antoine Laurens, Dushyant Rao, Martina Zambelli, Martin Riedmiller, Jon Scholz, Konstantinos Bousmalis, Francesco Nori, and Nicolas Heess. "DemoStart: Demonstration-led auto-curriculum applied to sim-to-real with multi-fingered robots." arXiv:2409.06613, 2024.

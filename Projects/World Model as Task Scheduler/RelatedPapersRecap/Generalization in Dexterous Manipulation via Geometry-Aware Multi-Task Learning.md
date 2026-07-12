@@ -26,7 +26,8 @@ related:
 > 一个**反直觉的"generalist ≥ specialist"结果**：用**多任务学习 + 几何感知物体表示（PointNet 点云编码）**，单个 generalist 策略能做 100+ 几何多样物体的 in-hand 操作，并零样本泛化到未见形状/尺寸；更惊人的是，多任务 generalist **不仅泛化更好，还在训练集与 held-out 测试集上都超过单物体 specialist（oracle）**。两阶段：先用点云预训练物体表示编码器，再用该表示做几何感知多任务 RL。发现 **linear scaling**——训练物体越多、泛化越好。**对 WMTS：它强力支撑 "单一 DP generalist 可行且能正迁移超过专家" 这一路线，但与 [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]（monolithic 最差情况崩、需 MoE 专家）形成关键张力——分水岭是表示质量 × 任务难度，这正是 WMTS 必须判断的设计抉择。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — 多任务 RL；generalist vs specialist；正迁移。
+> - [[ReinforcementLearning#Phase 6 — Generalist-Specialist：用蒸馏循环缝合多样性|RL §7.3 Phase 6 Generalist-Specialist]] — generalist≥specialist 的正迁移证据；与 [[DexReMoE-In-hand Reorientation of General Object via Mixtures of Experts|DexReMoE]]（专家兜 worst-case）构成本簇核心张力。
+> - [[RepresentationLearning#4.2 PointNet++：层级局部特征|RepresentationLearning §4.2 PointNet]] — 几何感知物体表示（PointNet 点云编码）是正迁移的关键：几何相近→表示相近→跨任务共享结构。
 > - [[EmbodiedAI]] — 几何感知物体表示驱动的灵巧泛化；点云预训练 + 多任务。
 > - [[Final_WMTS]] — **支撑 WMTS DP generalist 路线**；与 DexReMoE MoE 的张力 = WMTS 的 generalist/专家抉择。
 > - [[Dynamic Non-Prehensile Manipulation]] — in-hand 操作泛化；转笔 generalist 同需好表示。

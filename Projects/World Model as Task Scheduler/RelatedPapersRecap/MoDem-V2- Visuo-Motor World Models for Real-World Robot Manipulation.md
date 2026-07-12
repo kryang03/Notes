@@ -32,6 +32,7 @@ related:
 > - [[ControlTheory]] — 短程 MPC（latent 空间）+ 价值终端；agency transfer 是 MPC 与 BC 的混合调度。
 > - [[Optimization]] — MPPI 式轨迹加权采样（$\Omega=e^{\tau\phi}$ 更新 $\mu,\sigma$）；带不确定性惩罚的目标。
 > - [[EmbodiedAI]] — 真机视觉 MBRL 数据飞轮；10-DOF D'Manus 手内重定向、Franka 推抓。
+> - [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] / [[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）]] — actor-critic ensemble 的 $w_1\mathrm{mean}+w_2\mathrm{std}$（$w_2{<}0$）就是 LCB，把 epistemic 不确定性当规划护栏 + 安全过滤（**认知不确定性三用** 暗线的真机灵巧实证）。
 > - [[Final_WMTS]] — **WMTS reliability head / 抗 model-exploitation 的实现原型**（ensemble + LCB）；安全靠保守探索（补 SafeDreamer）；demo-bootstrap + agency handover 对应 Oracle→generalist。
 >
 > **核心技术**: TD-MPC 无解码 latent WM (Eq 1), Policy Centering, Agency Transfer ($\alpha$ schedule), Actor-Critic Ensembles + LCB ($w_2{<}0$), MPPI 规划, 稀疏奖励 + demo BC
@@ -198,6 +199,9 @@ MPPI 式轨迹加权采样（$\Omega=e^{\tau\phi}$ 更新 $\mu,\sigma$），目�
 
 ### 与 [[EmbodiedAI]] 的联系
 真机视觉 MBRL 数据飞轮；Franka + 10-DOF D'Manus 手内重定向，仅视觉 + 本体 + 稀疏奖励，最小人工干预。
+
+### 与 [[WorldModels]] 的联系
+MoDem-V2 是 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性]] 的 epistemic 不确定性在**真机接触密集**上的落地：$\phi=w_1\mathrm{mean}+w_2\mathrm{std}$（$w_2{<}0$）即 LCB，把 ensemble 分歧当规划护栏——这是 **认知不确定性三用** 暗线（护栏一用）的现成实现，也是 [[WorldModels#6.1 世界模型作安全调度器（Look-ahead Safety Filter）]] 的一条路线（保守探索限范围，与 SafeDreamer 的显式 cost 互补）。相对 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] 的 ensemble-mean，它把抗乐观显式化为 std 惩罚。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS reliability head（ensemble-LCB）与 safety filter（保守探索）的实现原型；与 DiWA/World4RL/RWM 共同论证"WMTS 必须 ensemble + 不确定性"，且 MoDem-V2 是唯一真机灵巧落地者；demo-bootstrap + agency handover 对应 Oracle→generalist 交接。

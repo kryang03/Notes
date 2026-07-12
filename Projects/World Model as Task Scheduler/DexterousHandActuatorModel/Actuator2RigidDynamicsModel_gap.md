@@ -3,6 +3,7 @@ tags: [Dexterous_Manipulation, Actuator_Dynamics, Sim-to-Real, L25_Hand, WMTS]
 aliases: [Actuator2Rigid Gap, L25 硬件分析]
 date: 2026-04-15
 related:
+  - "[[Actuation]]"
   - "[[FOC_Control]]"
   - "[[Final_WMTS]]"
   - "[[Dynamics]]"

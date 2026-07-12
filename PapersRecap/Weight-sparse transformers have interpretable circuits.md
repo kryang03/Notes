@@ -307,3 +307,16 @@ Superposition hypothesis 认为稠密网络将 $N > d$ 个特征叠加到 $d$ �
 1. **策略网络的可解释性**: 在转笔的 RL 策略调试中，稀疏 Transformer 可帮助理解「哪些关节的特征对决策影响最大」——可诊断策略失败模式
 2. **稀疏性与实时推理**: 手上部署时推理延迟至关重要，稀疏权重可显著减少推理时间
 3. **局限**: 本文重心在 NLP，向控制策略的迁移需进一步验证
+
+## 7. 簇内关联与暗线锚点
+
+> [!abstract] 表征簇内定位（本文是该簇的方法论"外来者"，可比维度 = 结构约束 → 更好性质）
+> - **vs [[RodriNet - Rodrigues Network for Learning Robot Actions|RodriNet]]**：两者都用**"缩窄函数类换取更好性质"**——RodriNet 用 kinematic-tree 结构约束换泛化（test MSE 低于所有 baseline 的 train MSE），Weight-sparse 用 $L_0$ 稀疏约束换**可解释回路**（最小回路小 16×）。Delta：RodriNet 注入**领域先验**（运动学模板），本文注入**通用先验**（稀疏拓扑 = Lottery Ticket）；一个提泛化，一个提可解释。
+> - **vs [[空间智能作为机器人的结构化表征|PointWorld]] / [[GeoPT - Scaling Physics Simulation via Lifted Geometric Pre-Training|GeoPT]]**：三者共享"**表征的结构决定下游能力**"的主张——PointWorld/GeoPT 靠 3D/动力学结构提迁移效率，本文靠稀疏结构提可解释性与解耦。
+> - **迁移到本簇的实用点**：稀疏可解释回路可用于**诊断 RL 策略**（如 [[Deep Dynamics Models for Learning Dexterous Manipulation|PDDM]] 或转笔策略）——定位"哪些关节/接触特征通道主导决策"，把黑箱策略的失败模式变成可读回路。
+
+> [!tip] 暗线：信息瓶颈 / 最小描述长度（表征解耦）
+> 稀疏化 = 显式压缩 $I(X;T)$、迫使表征从 superposition 退化为 monosemantic，落在本库的信息论表征暗线。精确锚点：
+> - [[Optimization#2.3 KKT 条件：约束最优的"语法"]] — $\min_\theta\mathcal L$ s.t. $\|\theta\|_0\le k$ 的约束优化语法；Top-K 投影 = $L_0$ ball 的正交投影（PGD 特例）
+> - [[RepresentationLearning#6.4 为什么好表征 = 好泛化]] — sparsity→monosemantic 正是"窄函数类=好泛化"的机制侧
+> - [[InformationTheory#5.2 信息瓶颈：压缩与预测的权衡]] — 稀疏 = 显式压缩率失真权衡

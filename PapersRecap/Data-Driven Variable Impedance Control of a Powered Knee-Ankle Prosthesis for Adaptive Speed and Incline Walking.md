@@ -406,3 +406,12 @@ def identify_impedance_convex(gait_data):
 >
 > **insight——凸优化是"够用结构 + 全局保证"的甜点**：本文在零学习（MCC，无适应）与 RL（VICES/FACET，无全局保证）之间——用凸优化换全局最优 + 连续任务适应，代价是线性阻抗假设。这是"方法复杂度阶梯"的中间最优选择，呼应 [[Minimalist Compliance Control|MCC]] 的"模型 > RL"——**不是所有问题都要 RL，凸优化常是更优中点**。
 > **相位驱动参数调度是接触操作通用结构**：本文 $K(\phi,v,\alpha)$ 用操作相位 $\phi$ 调度阻抗，与 [[Lessons from Learning to Spin Pens\|Spin Pens]] 的 finger gaiting 相位、[[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch\|AnyRotate]] 的 auxiliary goal 相位同构——**"相位 → 参数调度"是 $m(s)$ 的结构化实现**（$\phi$ 作 $s$ 的低维替代），§5.2/§6 提议用于转笔 snap→旋转→收手 的相位阻抗调度。
+
+> [!note] 簇内补链 · Foundation 精确锚点 · 暗线
+> **簇内互链 + Delta**（补 §9 表）：
+> - vs [[Path-Constrained Haptic Motion Guidance via Admittance Control|Path-Constrained Admittance]]：两者都用**相位变量 $\phi$**（非时间）调度控制——本文 $K(\phi,v,\alpha)$ 调阻抗刚度，后者 $x_d(\phi)$ 调路径 setpoint。相位驱动是接触/周期任务的共同结构。
+> - vs [[Minimalist Compliance Control|MCC]]：同为**非 RL** 路线，但 MCC 靠电流零学习估力（运行时读物理），本文靠凸优化离线辨识 $K,B$（训练时解全局最优）——阻抗簇"学习程度谱"的相邻两级。
+>
+> **Foundation 精确锚点**：阻抗控制律 $\tau=-K(\theta-\theta_{eq})-B\dot\theta$ = [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|ControlTheory §3.2]]；参数随相位连续变（LPV）属 [[ControlTheory#3. 柔顺层：从刚性位置控制到顺应交互|ControlTheory §3]] 柔顺谱；固定 $\theta_{eq}$ 才保凸 = [[Optimization#2.1 凸集与凸函数：为什么"凸"是分水岭|Optimization §2.1]] 的凸性分水岭。
+>
+> **暗线 · 电流≠关节力矩（反驱动性）**：支撑相阻抗控制要求执行器可反驱、可精确输出力矩——powered prosthesis 用低减速比准直驱正是为反驱动性（[[Actuation#7.2 Reflected Inertia：为什么减速比是把双刃剑|Actuation §7.2]]）；高减速比会让 $\theta_{eq}$ 附近的柔顺被传动摩擦吃掉（[[Actuation#8.2 三大非理想性——机械侧 gap 的主体|Actuation §8.2]]）。

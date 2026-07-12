@@ -32,6 +32,11 @@ related:
 >
 > **核心技术**: stationary AR-p Gaussian process, temporally coherent exploration, history-dependent Gaussian policy, extended MDP, PPO-compatible log-prob, action-rate robustness
 
+> [!note] 精确锚点与探索子簇定位
+> - [[ReinforcementLearning#5.4.1 时间一致探索：从白噪声到自回归过程]] — 本文正是该节讲述的「时间一致探索」原型：只把 Gaussian policy 的白噪声 $\epsilon_t$ 换成平稳 AR-p 过程 $X_t\sim\mathcal{N}(0,1)$，边缘不变、时间相关 $\mathrm{corr}(X_t,X_{t-k})\ne0$。
+> - [[ReinforcementLearning#7. 探索：稀疏奖励下，如何"撞见"转笔成功]] — ARP 的价值在高 action-rate/稀疏奖励下：白噪声步间抵消→原地抖动，AR 噪声让多步动作朝相近方向累积形成可执行运动。
+> - **簇内 Delta（探索子簇三元组）**：与 [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]] 的 Delta——后者给探索方差 $\sigma^*$ 的 LQ 最优**幅度**（单步边缘），ARP 给探索噪声的**时间结构**（跨步自相关），二者正交可叠加；与 [[Dynamic Reinforcement Learning for Actors|Dynamic RL]] 的 Delta——ARP 是显式外部 AR 噪声，Dynamic RL 是 RNN 内生混沌，都在追求「探索有时间结构」。
+
 ## 0. 阅读定位与范本价值
 
 这篇论文容易被误读成“给动作加平滑滤波”。它真正的区别在于：作者没有把最终动作 $a_t$ 做 moving average，而是只替换 Gaussian policy 里的 **探索噪声分量**。确定性均值 $\mu_\theta(s_t)$ 仍然可以表达任意 Markov deterministic policy；被时间相关化的是 $\epsilon_t$ 这部分随机探索。

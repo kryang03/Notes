@@ -537,6 +537,25 @@ $$
 
 接触几何对控制的价值在于决定何时增大/减小法向力、何时切换手指、何时触发 regrasp。Tacmap 当前缺少切向剪切，因此对 slip-aware impedance control 还不够，但它给了法向接触分布这个关键输入。
 
+### 7.6 簇内定位与暗线锚点（触觉操作簇）
+
+在“触觉表征丰富度谱”上，Tacmap 位于**稠密接触几何**这一档：不复刻光学图像，而对齐 penetration depth map $M$。它与 AnyRotate 同属“物理中间表征优先”同盟。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | 同盟（AnyRotate §7.4 已点名 Tacmap）：AnyRotate 选低维稀疏 $(R_x,R_y,\|F\|)$（可解释），Tacmap 选稠密 penetration map $M$（几何细节）。都在找 gap-invariant observation subspace；且都用 CNN 从触觉图预测中间量（AnyRotate 预测 $(P,F)$，Tacmap 预测 $M$）。 |
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | 反向路径解同一 tactile sim-to-real gap：Touch Dexterity 用 threshold **截断**连续力进 binary，Tacmap 沿法线 ray-cast **恢复**接触几何。二值丢幅值，deform map 丢切向。 |
+| [[Contact-Grounded Policy - Dexterous Visuotactile Policy with Generative Contact Grounding]] | 互补：Tacmap 给 sim/real 对齐的触觉 **observation**，CGP 给 executable contact **target**。Tacmap 供输入，CGP 供输出。 |
+
+**精确 Foundation 锚点（把 §7.1/§7.2 的泛链落实）**：
+
+- [[ContactMechanics#4.2 软指模型：接触斑与扭转摩擦|ContactMechanics §4.2]]：deform map $d(u,v)$ 是 §4.2 软指接触斑的空间化，但缺其中的 torsional/切向摩擦——正是它对转笔/滚动的空缺。
+- [[ComputationalGeometry#4. 有向距离场 (SDF)：连续优化的基石|ComputationalGeometry §4]]：$d(u,v)\sim\max(0,-\phi_O(\mathbf p(u,v)))$ 是截断的负 SDF，与 §4 SDF 表征相邻（论文以 ray-casting 实现该量）。
+
+**暗线挂载（认知不确定性当护栏 + POMDP observation 对齐）**：Tacmap 的本质是把 MDP observation function 的 sim/real 版本对齐到同一 $M$（$o^{\text{sim}}_t,o^{\text{real}}_t\to\tilde o_t=M_t$），使 belief 输入一致，见 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]]。§6.3 建议的 ensemble $\Phi_k(I)$ 用 disagreement 预测触觉 OOD 当 safety signal，即认知不确定性护栏。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | recap 应主动补充 |

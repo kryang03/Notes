@@ -28,10 +28,12 @@ related:
 > Physical Intelligence 的 π*0.6 / RECAP 把 VLA post-training 从单纯 imitation learning 推到一个更像真实技能学习的三段式闭环：**demonstrations 定义任务策略骨架，corrections 覆盖 policy 自己制造的错误状态，autonomous experience + value/advantage 把长时间练习转化为可训练信号**。它的真正 value add 不是“又收集更多数据”，而是把 bad rollout 中哪些动作应该复制、哪些动作应该避免的问题变成 advantage-conditioned policy extraction，从而让真实机器人经验不再只是失败日志，而成为提高 throughput 和可靠性的训练数据。
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — RECAP 的核心是 value function / advantage estimation / policy extraction，而不是传统 supervised fine-tuning。
-> - [[EmbodiedAI]] — 它把 VLA 从静态预测模型推回 closed-loop embodied control，核心瓶颈是 covariate shift 与 compounding error。
-> - [[RepresentationLearning]] — π0.6 的 VLA backbone 接收异构 prompt/conditioning；RECAP 把 desired advantage 也变成 prompt 条件。
-> - [[Final_WMTS]] — 对 WMTS 最有用的是“经验数据如何被评价并回灌到 generalist policy”，不是 espresso/box/laundry 任务本身。
+> - [[ReinforcementLearning#4.3 方差控制：从 baseline 到 Advantage，Actor-Critic 的诞生]] — RECAP 核心是 value function / advantage estimation，把 $A_t=r_t+\gamma V(s_{t+1})-V(s_t)$ 当 credit，而非纯 SFT。
+> - [[ReinforcementLearning#AWAC / 优势加权 BC：§5.0 Boltzmann 取 $\pi_0 =$ 数据分布]] — advantage-conditioned policy extraction 是优势加权 BC / return-conditioned policy 的机器人 VLA 变体：不丢弃坏数据，而是给它标 low-advantage 条件。
+> - [[EmbodiedAI#1.3 三种动作输出范式（横向对比）]] — 把 VLA 从静态预测推回 closed-loop embodied control，核心瓶颈是 covariate shift 与 compounding error。
+> - [[WorldModels#6.3 无知即课程：认知不确定性反向驱动任务生成]] — RECAP 用 $V/\Delta V$ 给经验上正负号、把失败变可训练信号，与 WMTS "把 rollout 标成 Solve/Probe/Reject" 同构，共挂 **认知不确定性三用暗线**。
+> - [[RepresentationLearning]] — advantage 作为 prompt 条件是一种 representation choice：把"行为质量"显式变模型输入，而非指望 transformer 自己分离好坏动作。
+> - [[Final_WMTS]] — 对 WMTS 最有用的是"经验数据如何被评价并回灌到 generalist policy"，不是 espresso/box/laundry 任务本身。
 >
 > **核心技术**: RL with Experience & Corrections via Advantage-conditioned Policies, human correction, autonomous rollout, value function, advantage-conditioned VLA, real-world VLA post-training
 

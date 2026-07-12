@@ -710,6 +710,25 @@ Robot Synesthesia 支持一条很重要的 WMTS 设计线：
 - tactile token 应该来自 FK 和 contact calibration；
 - point/token 表征需要保留任务所需的物理量，不然会把 force/shear/slip 丢掉。
 
+### 7.6 簇内定位与暗线锚点（触觉操作簇）
+
+在“触觉表征丰富度谱”上，Robot Synesthesia 位于**接触几何**这一档：它不追求力语义，而追求“接触发生在哪个 3D 位置”。
+
+| 簇内对照 | Delta（本文相对它） |
+|---|---|
+| [[Touch Dexterity - Rotating without Seeing Towards In-hand Dexterity through Touch]] | 同用 16-FSR binary contact，但 Touch Dexterity 让 16-bit contact vector **直接进 MLP**；本文用 FK 把触发的 sensor 投成 palm-frame **3D tactile point cloud**——从“第几个 sensor 碰了”升级到“碰在哪个 3D 位置”。 |
+| [[AnyRotate - Gravity-Invariant In-Hand Object Rotation with Sim-to-Real Touch]] | AnyRotate 的 dense $(R_x,R_y,\|F\|)$ 给出指尖内接触姿态+力；本文只给接触点几何位置 $r_{\text{contact}}$，无 $f_{\text{contact}}$ 大小/法向——一个力语义强，一个空间布局强。 |
+| [[Proximity Perception-Based Grasping Intelligence (P2GI)]] | 都产 point cloud + 几何推理，但 P2GI 是 **pre-contact** proximity 点云，本文是 **contact-triggered** 点云——接触前 vs 接触时，可拼成同一条 pre-contact→contact 感知链。 |
+
+**精确 Foundation 锚点（把 §7.1/§7.3 的泛链落实）**：
+
+- [[ContactMechanics#3.1 抓取矩阵的严格定义与内力|ContactMechanics §3.1]]：tactile point cloud 只给 $r_{\text{contact}}$，须配 §3.1 的 grasp matrix $G$ 与内力，才能把 $\tau=r\times f$ 算完整——这正是本文缺 $f_{\text{contact}}$ 的落点。
+- [[RepresentationLearning#4.1 集合函数：置换不变性|RepresentationLearning §4.1]]：PointNet 对称 max 聚合 $F(P)=\gamma(\max_i h(p_i))$ 的严格根据，解释为何变长、多来源点集可输入级合并。
+
+**暗线挂载（POMDP → belief → latent）**：teacher 用 privileged object pose/velocity/shape（belief 真值）；student 从 point cloud + 3-history stack 恢复动作，即在部分可观下重建 belief。参见 [[ReinforcementLearning#2.1 MDP 与 POMDP：把"试错"写成数学|ReinforcementLearning §2.1]]。
+
+---
+
 ## 8. 应主动追问的颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

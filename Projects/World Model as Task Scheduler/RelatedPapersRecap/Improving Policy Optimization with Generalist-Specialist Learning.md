@@ -25,8 +25,8 @@ related:
 > **generalist-specialist 框架的奠基作**（[[UniDexGrasp++- Improving Dexterous Grasping Policy Learning via Geometry-aware Curriculum and Iterative Generalist-Specialist Learning|UniDexGrasp++]] 的 GiGSL 之母）。经验观察：**generalist（训所有变体）早期学得快但 plateau 在次优；specialist（少数变体）有限预算下能达高回报**。GSL 三步取两者之长：(1) 在所有变体上训 generalist；(2) **它不再改进时，克隆出一大群 specialists**（权重自 generalist 克隆，各精通一小子集）；(3) **用所有 specialists 的示范作辅助奖励，恢复训练 generalist**。洞见：轨迹"**共享早期阶段 + 上下文特定后期**"——generalist 高效学共享早期，specialists 攻分化后期，再合并；generalist plateau 源于 catastrophic forgetting + "catastrophic ignorance"。Procgen/Meta-World/ManiSkill 验证。**对 WMTS：这是 DP generalist 构建的标准配方（克隆→专精→合并），UniDexGrasp++ 将其迭代+几何化；WMTS 转笔 generalist 应用 GSL/GiGSL。**
 
 > [!tip] 与理论基础的关联
-> - [[ReinforcementLearning]] — generalist/specialist 策略优化；catastrophic forgetting；辅助奖励蒸馏。
-> - [[Optimization]] — 克隆-专精-合并的 population 优化。
+> - [[ReinforcementLearning#Phase 6 — Generalist-Specialist：用蒸馏循环缝合多样性]] — **GSL 就是 RL 自动课程脉络的 Phase 6**（母章 [[ReinforcementLearning#7.3 自动课程与开放式学习：把探索抬到任务空间|RL §7.3]]）：当 [[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]（Phase 5）造出的多样性无法被单一 generalist 吞下时，用"克隆专家→蒸馏合并"缝合。
+> - [[Optimization#4.1 用什么衡量"快"：收敛率与条件数|Optimization §4.1]] — 克隆-专精-合并是 population 优化：generalist plateau = 病态景观卡住，specialists 在低方差子集绕开。
 > - [[EmbodiedAI]] — ManiSkill 操作泛化。
 > - [[Final_WMTS]] — **DP generalist 构建配方（GSL，GiGSL 之母）**；克隆→专精→合并。
 >
@@ -124,7 +124,7 @@ GSL 是知识库里 **generalist-specialist 范式的奠基框架**，[[UniDexGr
 ## 7. 与知识体系的联系
 
 ### 与 [[ReinforcementLearning]] 的联系
-generalist/specialist 策略优化；catastrophic forgetting；示范辅助奖励合并（蒸馏式）。
+generalist/specialist 策略优化；catastrophic forgetting；示范辅助奖励合并（蒸馏式）。精确落点：[[ReinforcementLearning#Phase 6 — Generalist-Specialist：用蒸馏循环缝合多样性|RL §7.3 Phase 6]] 就是本文——它与 [[Prioritized Level Replay|PLR]]（Phase 3 选任务）、[[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]]（Phase 5 造任务）互补：**PLR/POET 管"练哪个任务"，GSL 管"多样性练完后如何缝回一个策略"**（这是 GSL 相对课程方法的精确 Delta——它不选/造任务，而治 plateau）。**暗线 = Continuation**：先学共享早期（平滑子问题）→ 再攻分化后期（真难度），是策略参数空间的续延。
 
 ### 与 [[Optimization]] 的联系
 克隆-专精-合并的 population 优化；plateau 突破。

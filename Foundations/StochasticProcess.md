@@ -18,6 +18,7 @@ related:
   - "[[SignalProcessing]]"
   - "[[InformationTheory]]"
   - "[[Dynamics]]"
+  - "[[WorldModels]]"
 ---
 
 # 灵巧操作中的随机过程：从随机扰动到信念空间控制
@@ -109,6 +110,13 @@ $W_t$ 是维纳过程（布朗运动）。drift 是"期望发生的"（牛顿-�
 > - **摩擦的随机性随速度变**：低速时 Stribeck 效应与 stick-slip 显著、摩擦力剧烈波动，$G$ 很大；进入稳定滑动后摩擦平滑、随机性降低。**冰球忽走忽停那一刻，正是 $G(x_t)$ 飙升的时刻。**
 > - **几何诱导的随机性**：冰球推到桌面边缘或曲率突变处，微小位置误差被放大为巨大法向方向误差→动力学分叉，$G$ 与接触构型高度相关。
 
+> [!note] 补严：为什么 $dW\sim\sqrt{dt}$——维纳过程的二次变差 (quadratic variation)
+> §2.2 的推导反复用到"$dW_t\sim\sqrt{dt}$、$(dW)^2\sim dt$"，这不是记号约定，而是维纳过程 $W_t$ 的**定义性质**，必须讲实，否则 Itō 二阶项就成了空中楼阁。维纳过程由三条公理定义（$W_t$=布朗运动位置 [无量纲或状态量]、$t$=时间 [s]）：① $W_0=0$；② 增量独立；③ 增量高斯 $W_{t+\Delta}-W_t\sim\mathcal N(0,\Delta)$——**方差等于时间间隔 $\Delta$**（这是关键，方差正比于 $\Delta$ 而非 $\Delta^2$）。
+> 由③直接得单个增量的两个矩：$\mathbb E[(W_{t+\Delta}-W_t)^2]=\Delta$（均方 $\sim\Delta$）、$\mathrm{Var}[(W_{t+\Delta}-W_t)^2]=2\Delta^2$（高斯四阶矩公式 $\mathbb E[X^4]=3\sigma^4$ 减 $\sigma^4$ 得 $2\sigma^4=2\Delta^2$）。故增量的标准差 $\sim\sqrt{\Delta}$——**这就是"$dW\sim\sqrt{dt}$"的字面来历**。
+> 把它累加起来就是**二次变差**：把 $[0,t]$ 均分成 $n$ 段（$\Delta=t/n$），平方增量之和的期望 $\sum_{k}\mathbb E[(\Delta W_k)^2]=n\cdot\Delta=t$，而其方差 $\sum_k 2\Delta^2=2t^2/n\to0$。于是当 $n\to\infty$，随机和在均方意义下**收敛到确定值**：
+> $$[W]_t\;:=\;\lim_{n\to\infty}\sum_{k=1}^{n}(W_{t_k}-W_{t_{k-1}})^2\;=\;t\quad(\text{均方收敛}).$$
+> 对比光滑函数 $g(t)$：其平方增量 $\sim(g'\Delta)^2\sim\Delta^2$，求和 $\sim n\Delta^2=t^2/n\to0$，二次变差为**零**。**布朗轨迹二次变差非零（$=t$）正是它处处连续却处处不可微、"无限抖动"的量化刻画**——也是它必须用 Itō 微积分而非牛顿微积分的根本原因：$(dW)^2$ 这个在光滑世界里该被丢掉的二阶量，在这里**均方退化成确定的 $dt$**（即 §2.2 用的 Itō 乘法表 $dW_i\,dW_j=\delta_{ij}dt$），撑起了 §2.2 那个多出来的能量漂移项，也定标了 §6.4 扩散 SDE 里 $g(t)\,dW$ 的噪声量纲 [$\cdot/\sqrt{\mathrm s}$]。这与 [[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|优化中扰动逃离鞍点]]是同一件事的两副面孔：非零二次变差=噪声在弯曲景观上被整流出的确定性效应。
+
 ### 2.2 Itō 引理：噪声不止增加方差，还改变能量的漂移方向
 
 处理 SDE 不能用普通链式法则，须用 **Itō 引理**（随机版链式法则）。对状态的标量函数 $V(x_t)$（Lyapunov/能量/价值函数）：
@@ -116,6 +124,17 @@ $W_t$ 是维纳过程（布朗运动）。drift 是"期望发生的"（牛顿-�
 $$
 dV=\Big(\partial_t V+\nabla V^Tf+\tfrac12\,\mathrm{Tr}(G^T\nabla^2V\,G)\Big)dt+\nabla V^TG\,dW.
 $$
+
+> [!note] 逐步推导：那个二阶项从哪来（普通链式法则为什么不够）
+> 关键只有一句：**维纳增量 $dW$ 不是"高阶小量"**。确定性微积分里 $dx\sim dt$，二阶项 $(dx)^2\sim(dt)^2$ 可丢；但布朗运动的增量 $dW_t\sim\sqrt{dt}$（其标准差随 $\sqrt{dt}$ 缩，见 §2.1），于是 $(dW)^2\sim dt$ **和一阶项同量级、不能丢**。把 $V(x_t)$ 做二阶 Taylor 展开（$V$=能量/价值函数 [代价单位]）：
+> $$dV=\partial_t V\,dt+\nabla V^{T}dx+\tfrac12\,dx^{T}\nabla^2V\,dx+o(dt).$$
+> 代入 $dx=f\,dt+G\,dW$ 并逐项定阶（$dt$=时间步 [s]、$dW$=维纳增量 [$\sim\sqrt{\mathrm s}$]、$f$=漂移 [状态量/s]、$G$=扩散矩阵）：
+> - $\nabla V^{T}dx=\nabla V^{T}f\,dt+\nabla V^{T}G\,dW$ —— 一阶漂移 + 一阶噪声，保留；
+> - $dx^{T}\nabla^2V\,dx$ 里：$(f\,dt)^2\sim(dt)^2\to0$、交叉项 $f\,dt\cdot G\,dW\sim dt^{3/2}\to0$，**只剩** $(G\,dW)^{T}\nabla^2V(G\,dW)$ 这一项 $\sim dt$。
+>
+> 最后用 **Itō 乘法表** $dW_i\,dW_j=\delta_{ij}\,dt$（$\delta_{ij}$=克罗内克符号；直觉：$\mathbb E[(dW)^2]=dt$ 且其方差 $\sim(dt)^2$ 可忽略，故 $(dW)^2$ 在均方意义下**退化成确定量 $dt$**）把随机的 $(dW)^2$ 换成确定的 $dt$：
+> $$(G\,dW)^{T}\nabla^2V(G\,dW)=\sum_{i,j}(\nabla^2V)_{ij}(G\,dW)_i(G\,dW)_j\ \longrightarrow\ \mathrm{Tr}(G^{T}\nabla^2V\,G)\,dt.$$
+> 乘上前面的 $\tfrac12$，正是那个多出来的二阶漂移项。**这一项是随机微积分区别于牛顿微积分的全部秘密**——它不是近似误差，而是噪声在弯曲的 $V$ 上被"整流 (rectify)"出的真实确定性漂移。
 
 > [!important] 那个二阶项 $\tfrac12\mathrm{Tr}(G^T\nabla^2V\,G)$ 的物理意义
 > 它是**随机性引入的额外漂移**：噪声不仅加大方差，还**改变系统能量（代价）的期望演化方向**。确定性系统只需沿 $-\nabla V$ 下降；随机系统里若曲率 $\nabla^2V$ 大，噪声会产生一个额外的"力"推系统偏离确定性轨迹。这正是 MPPI（§6）能用噪声"探索"的数学根：**噪声修正了最优控制的梯度方向**。这条与 [[Optimization#3.2 非凸景观：鞍点、虚假极小与"好景观"的判据|优化的鞍点逃逸]]（扰动帮助逃离鞍点）是同一现象的两种语言。
@@ -159,6 +178,10 @@ $$
 > - **Epistemic（认知）**：我的模型无知（从没推过这片桌面区域）。**多采数据就能消**。
 >
 > 为什么生死攸关：① 安全控制要在 **epistemic 高**处保守/减速（我不懂这里），而非在 aleatoric 高处瞎保守；② 主动探索（§7）应奔向 **epistemic 高**的区域（那里学得到东西），而非 aleatoric 高（那里只有噪声）。**GP（§5）的预测方差能区分二者，这正是它压过普通神经网络的关键**；输出分布的熵只能抓 aleatoric（见 [[ReinforcementLearning#6.1 Model-Based RL：在想象中转笔|RL ensemble 抓 epistemic]]、[[InformationTheory]] 的信息增益）。
+>
+> **把 epistemic 算子化成信息增益（BALD 的桥）**：上面说"奔向 epistemic 高处探索"，但"高多少、该采哪个观测"需要一个可优化的标量。[[InformationTheory#2.2 互信息：观测的"切割能力"|互信息]] 给出算子化答案——BALD (Bayesian Active Learning by Disagreement) 把一次观测能消掉的 epistemic 写成参数 $\theta$ 与观测 $z$ 的互信息（$\theta$=未知动力学参数如 $\mu$、$z$=候选观测如"轻推后的位移"、$\mathcal D$=已有数据）：
+> $$\mathbb I(\theta;z\mid\mathcal D)=\underbrace{\mathbb H[z\mid\mathcal D]}_{\text{总预测熵（含 aleatoric）}}-\underbrace{\mathbb E_{\theta\sim p(\theta\mid\mathcal D)}\,\mathbb H[z\mid\theta,\mathcal D]}_{\text{给定参数后的平均熵（纯 aleatoric）}}.$$
+> **两项相减把 aleatoric 精确抵消，余下的差额恰是 epistemic**：直觉上"总的不确定"里，"就算我完全知道 $\theta$ 也还剩的那部分"（第二项）是世界的随机、消不掉；减掉它，剩的就是"只因我不知 $\theta$ 而多出的不确定"——这正是这次观测能带来的信息增益。于是 §7 的"奔向 epistemic 高处"严格等价于"挑 $\mathbb I(\theta;z)$ 最大的观测"，而 ensemble/GP 成员间的**分歧**正是这个互信息的采样近似（挂在 §1 **认知不确定性三用**暗线：ensemble 分歧 = epistemic = 信息增益）。
 
 ------
 
@@ -168,6 +191,32 @@ $$
 > **直觉**（盲推冰球：看不见它，只能靠手腕受力反推"它在哪、滑了没"）→ **推导**（贝叶斯滤波；EKF 的线性高斯假设为何在接触处崩）→ **对比**（EKF 单峰 vs 粒子滤波多峰）→ **落点**（CPF/MPF：把粒子约束在机器人表面流形上做接触定位）。
 
 **核心问题**：不靠触觉皮肤、只凭本体感知（关节角、关节力矩），如何估计外部接触状态？这是"盲操作"的关键。
+
+### 4.0 贝叶斯滤波的骨架：预测-更新递推（KF→EKF→UKF→PF 一张阶梯）
+
+所有滤波器（KF/EKF/UKF/PF）都是**同一个贝叶斯递推的不同近似**，只在"用什么表示后验、怎么算两个积分"上分家。设状态 $x_t$、控制 $u_t$、观测 $z_t$，目标是维护后验 $p(x_t\mid z_{1:t})$。递推分两拍：
+
+**① 预测（时间更新，用动力学把信念往前推）**——Chapman–Kolmogorov 方程：
+$$p(x_t\mid z_{1:t-1})=\int \underbrace{p(x_t\mid x_{t-1},u_t)}_{\text{运动模型}}\,\underbrace{p(x_{t-1}\mid z_{1:t-1})}_{\text{上一步后验}}\,dx_{t-1}.$$
+物理意义：把"上一刻关于状态的信念"沿动力学正向卷积，信念**变宽**（不确定性因过程噪声增长）。
+
+**② 更新（观测更新，用新测量把信念收窄）**——Bayes 定理：
+$$p(x_t\mid z_{1:t})=\frac{\overbrace{p(z_t\mid x_t)}^{\text{似然}}\,p(x_t\mid z_{1:t-1})}{\int p(z_t\mid x_t)\,p(x_t\mid z_{1:t-1})\,dx_t}\ \propto\ p(z_t\mid x_t)\,p(x_t\mid z_{1:t-1}).$$
+物理意义：先验 × 似然 → 后验，信念**变窄**（观测消去了一部分不确定）。
+
+难点在这两个积分一般**没有解析解**。四个滤波器就是四种"怎么算这两个积分"的妥协，构成一条**从便宜到通用**的阶梯：
+
+| 滤波器 | 后验表示 | 两个积分怎么算 | 何时够用 / 何时崩 |
+|:--|:--|:--|:--|
+| **KF** | 单峰高斯 $(\mu,\Sigma)$ | $f,h$ **线性** + 高斯噪声 → 积分**闭式**、后验严格保持高斯 | 线性系统精确；接触/几何非线性下失效 |
+| **EKF** | 单峰高斯 | 把 $f,h$ 在当前 $\mu$ 处**一阶 Taylor 线性化**（Jacobian $F,H$），再套 KF 公式 | 弱非线性够用；接触处**线性化误差爆炸**（§4.1） |
+| **UKF** | 单峰高斯 | 不求导：撒 $2n{+}1$ 个 **sigma 点**过**真实**非线性 $f/h$，再由样本反推均值/协方差（捕捉到二阶矩） | 强非线性优于 EKF，但**仍假设单峰**，多峰后验照样崩 |
+| **PF** | 一组加权粒子（任意形状） | 蒙特卡洛：预测=粒子过动力学 + 采噪，更新=按似然重赋权 + 重采样 | **多峰/非高斯通吃**（§4.2 的出路）；代价是粒子数随维度爆炸 |
+
+以 KF 为例把"闭式"写实（每个符号标物理意义）——预测拍 $\hat\mu_t^-=F\hat\mu_{t-1}+Bu_t$、$\Sigma_t^-=F\Sigma_{t-1}F^{T}+Q$（$F$=状态转移矩阵、$Q$=过程噪声协方差 [状态量²]，让信念变宽）；更新拍先算**卡尔曼增益** $K_t=\Sigma_t^-H^{T}(H\Sigma_t^-H^{T}+R)^{-1}$（$H$=观测矩阵、$R$=观测噪声协方差 [观测量²]），再 $\hat\mu_t=\hat\mu_t^-+K_t(z_t-H\hat\mu_t^-)$、$\Sigma_t=(I-K_tH)\Sigma_t^-$。$K_t$ 的物理意义是**信任分配**：观测越准（$R$ 小）$K_t$ 越大、越信新测量；先验越准（$\Sigma_t^-$ 小）$K_t$ 越小、越信预测。EKF 只是把这里的常数 $F,H$ 换成在 $\mu$ 处**现算的 Jacobian**——**这也埋下 §4.1 的雷：接触瞬间力从 0 跳到 $F_N$，Jacobian 无定义，整套公式失去依据**。
+
+> [!note] 跨模块联系（POMDP → belief → latent 暗线）
+> 这条 KF→EKF→UKF→PF 阶梯与 [[SignalProcessing#5.2 演进脉络：KF → EKF → UKF → PF → 因子图|信号处理的状态估计演进]] 是**同一条阶梯的两处出口**：信号处理用它从触觉波形估状态、随机过程用它做接触定位。再往上一层，"维护 belief 的这套预测-更新递推"正是 [[WorldModels#2.1 演进脉络：从 Dyna 到 RSSM 到 Transformer 世界模型|RSSM]] 用神经网络学的东西——RSSM 的 recurrent 隐状态就是一个**学出来的、隐空间里的贝叶斯滤波器**，把这里手写的两拍换成可学习的门控更新（承接 §2.3 的 POMDP→belief→latent）。
 
 ### 4.1 EKF 为何在接触处失效
 
@@ -227,6 +276,14 @@ class ContactParticleFilter:
 > [!note] 跨原理联系
 > CPF 的"解 QP 求解释力"与 [[ContactMechanics#3.1 抓取矩阵的严格定义与内力|抓取矩阵]]、[[Optimization#2.3 KKT 条件：约束最优的"语法"|力分配 QP]] 同源；其"多峰后验"正是 [[SignalProcessing|状态估计从 KF 到 PF]] 的演进动机。**同一个贝叶斯滤波框架，信号处理用它融合触觉、随机过程用它做接触定位、RL 用它当 belief 编码器。**
 
+> [!important] 补严：RBPF——用 Rao-Blackwell 定理把粒子数从"指数爆炸"拉回可用
+> §4.0 阶梯的末端说"PF 通吃多峰，代价是粒子数随维度爆炸"。**Rao-Blackwellized Particle Filter (RBPF)** 是这句代价的正面解药，也是把 §4 的粒子滤波真正用上高维接触状态的关键一步。思想只有一句：**能解析积分的维度，就别用采样去糊弄它**。
+> 把状态劈成两块 $x=(x^n,x^l)$：$x^n$=**非线性/离散**子状态（如接触模式"推到了/没推到"、接触点落在哪个面片——正是逼出多峰的那部分），$x^l$=**条件线性高斯**子状态（如给定接触模式后的物体位姿，其动力学/观测对 $x^l$ 是线性高斯的）。后验按链式法则**精确因式分解**（无任何近似，纯概率恒等式）：
+> $$p(x^n_{1:t},x^l_t\mid z_{1:t})=\underbrace{p(x^n_{1:t}\mid z_{1:t})}_{\text{粒子采样（低维、多峰）}}\;\cdot\;\underbrace{p(x^l_t\mid x^n_{1:t},z_{1:t})}_{\text{解析 KF（每个粒子挂一台 KF）}}.$$
+> 第二个因子在给定粒子的模式轨迹 $x^n_{1:t}$ 后**严格是高斯**，于是用一台卡尔曼滤波器闭式求出（每个粒子携带自己的 $(\mu^l,\Sigma^l)$），**只有低维的 $x^n$ 需要撒粒子**。
+> **为什么粒子数骤减（Rao-Blackwell 定理的严格保证）**：定理说"对一个无偏估计量，把它对充分统计量取条件期望（=解析积分掉一部分随机性），所得估计量方差**不增**（一般严格减）"。这里"解析积分掉 $x^l$"正是对 $x^l$ 做了条件期望，故 RBPF 估计量方差严格低于对全 $x$ 盲采的普通 PF——**同样精度所需粒子数按被解析掉的维度指数级下降**，直接缓解 §4.0 表里"粒子数随维度爆炸"的诅咒。
+> 挂 §1 **POMDP → belief → latent** 暗线：RBPF 是"belief 的结构化分解"——把 belief 拆成"必须采样的难部分 + 可闭式的易部分"，与 [[WorldModels#2.1 演进脉络：从 Dyna 到 RSSM 到 Transformer 世界模型|RSSM]] 把 latent 拆成 stochastic + deterministic 两支是**同一记账思想**（该随机的随机、该确定的确定）。信息论侧的同一对象见 [[InformationTheory#4.1 粒子滤波与 RBPF：表达多峰信念|InformationTheory §4.1 的 RBPF]]——那里从信息增益角度用它，这里从状态估计角度用它，是一枚硬币两面。
+
 ------
 
 ## 5. 学习未知动力学：高斯过程与残差学习
@@ -247,6 +304,17 @@ $$f_{real}(x,u)=\underbrace{f_{nominal}(x,u;\theta)}_{\text{刚体主体（强�
 > [!important] GP 的两个决定性优势（在机器人上压过 NN）
 > 1. **样本效率**：真机实验极贵；NN 常需数万条数据，GP 基于贝叶斯推断，几百到几千点就表现优异。
 > 2. **不确定性量化**：GP 输出**均值 $\mu(x)$ + 方差 $\Sigma(x)$**。方差量化 **epistemic 不确定性**（§3.2）——没去过的桌面区域，GP 在那儿输出大方差。控制器据此在不确定区降增益/减速，或主动去探索降不确定（**主动学习**，接 §7）。**这正是 §3.2 "区分 aleatoric/epistemic" 的算法兑现。**
+
+> [!note] 逐步推导：后验均值/方差从哪来（§5.3 代码里的 `mean`/`var` 就是这么来的）
+> GP 的定义：函数在任意有限组输入上的取值**联合高斯**。给定训练输入 $X=\{x_i\}$、带噪观测 $y_i=f(x_i)+\varepsilon_i,\ \varepsilon_i\sim\mathcal N(0,\sigma_n^2)$，和一个查询点 $x_*$，则"训练值 $y$ + 查询值 $f_*$"服从联合高斯（取零均值先验）：
+> $$\begin{bmatrix}y\\ f_*\end{bmatrix}\sim\mathcal N\!\left(0,\ \begin{bmatrix}K+\sigma_n^2 I & k_*\\ k_*^{T} & k_{**}\end{bmatrix}\right),$$
+> 其中 $K_{ij}=k(x_i,x_j)$（训练点两两协方差 [残差量²]）、$k_*=[k(x_i,x_*)]_i$（查询点与各训练点的协方差向量）、$k_{**}=k(x_*,x_*)$（查询点先验方差）、$\sigma_n^2$=观测噪声方差（**aleatoric**）。
+>
+> 对联合高斯用**条件公式**（"已知 $y$ 求 $f_*$"，标准高斯条件化，无需任何额外假设）直接得后验 $p(f_*\mid y)=\mathcal N(\mu_*,\sigma_*^2)$：
+> $$\mu_*=k_*^{T}(K+\sigma_n^2 I)^{-1}y,\qquad \sigma_*^2=\underbrace{k_{**}-k_*^{T}(K+\sigma_n^2 I)^{-1}k_*}_{\text{epistemic：模型无知}}+\underbrace{\sigma_n^2}_{\text{aleatoric：世界噪声}}.$$
+> 对照 §5.3 代码：`alpha`$=(K+\sigma_n^2I)^{-1}y$（Cholesky 解出，数值稳定）、`mean`$=k_*^{T}\alpha$、`var`$=k_{**}-\lVert v\rVert^2+\sigma_n^2$（其中 $v=L^{-1}k_*$，故 $\lVert v\rVert^2=k_*^{T}(K+\sigma_n^2I)^{-1}k_*$）——逐项一一对应。
+>
+> **决定性观察（这才是 §3.2 的严格兑现）**：方差 $\sigma_*^2$ **只依赖输入位置 $X,x_*$，完全不含 $y$ 的取值**。查询点离训练数据近 → $k_*$ 大 → 减掉一大块 → $\sigma_*^2$ 小（我懂这里）；远离数据 → $k_*\to0$ → $\sigma_*^2\to k_{**}$ 回到先验方差（我不懂这里）。**这就是"GP 方差 = epistemic 不确定性"的严格来历**：它度量"数据覆盖到没覆盖到"，而非标签噪声。据此，控制器在 $\sigma_*^2$ 大处减速/降增益、探索器奔 $\sigma_*^2$ 大处采数据（§7）。这与 [[WorldModels#3.2 PETS：用 Bootstrap Ensemble 抓认知不确定性|PETS 用 bootstrap ensemble 分歧抓 epistemic]] 殊途同归（GP 用核方差、PETS 用集成方差，量化的是同一个"认知不确定性"，是 §1 **认知不确定性三用**暗线的两种实现）；两者的方差都可直接当 [[InformationTheory#4.2 信息增益目标与粒子近似|信息增益]] 的代理去驱动主动探索。
 
 **核函数 (kernel) 编码"动力学有多光滑"**：$k(x,x')=\mathrm{Cov}(f(x),f(x'))$。
 
@@ -313,6 +381,16 @@ $$
 
 低代价轨迹 $\xi_i$ 获得极高权重。**温度 $\lambda$**（类比统计力学温度）：$\lambda\to0$ 只认代价最低的单条（贪婪）；$\lambda\to\infty$ 一视同仁（随机游走）；适中则平衡探索-利用。
 
+> [!note] 逐步推导：从"自由能最小"到 $\omega_k=\mathrm{softmax}(-S/\lambda)$（那步权重不是拍脑袋）
+> 上式只给了自由能，还没告诉你该怎么挪控制。补上中间三步：
+> 1. **变分最优分布是 Gibbs 分布**。在所有轨迹分布 $q$ 中，最小化"期望代价 $+\lambda\,\mathrm{KL}(q\,\Vert\,p)$"这个自由能泛函（$p$=无控制的被动动力学轨迹分布），其最优解有闭式（KL 正则变分问题的标准结论，用 $\delta/\delta q$ 加归一化约束一解即得）：
+> $$q^*(\xi)=\frac1Z\,p(\xi)\,\exp\!\big(-S(\xi)/\lambda\big),\quad Z=\int p(\xi)\,e^{-S(\xi)/\lambda}\,d\xi.$$
+> $q^*$=最优轨迹分布、$p(\xi)$=被动（零控制）轨迹先验、$S(\xi)$=轨迹总代价 [代价单位]、$\lambda$=温度、$Z$=配分函数。**代价越低的轨迹，$q^*$ 给的概率指数级越高**——这就是"低代价获高权重"的严格来历。
+> 2. **$q^*$ 采不了（$Z$ 是高维积分），改用重要性采样**。我们能采的是"标称控制 $U$ + 高斯噪声 $\epsilon$"这个**提议分布** $q_U$。任意期望满足 $\mathbb E_{q^*}[\,\cdot\,]=\mathbb E_{q_U}[\tfrac{q^*}{q_U}\cdot]$，重要性权重 $w(\xi)\propto q^*(\xi)/q_U(\xi)$。把高斯提议 $q_U$ 与被动先验 $p$ 的密度比代入（控制仿射 + 同一噪声协方差时，$p/q_U$ 恰好贡献二次型控制代价，可并入 $S$），指数里只剩轨迹代价：$w_k\propto\exp(-S(\xi_k)/\lambda)$，归一化即 $\omega_k=\mathrm{softmax}(-S(\xi_k)/\lambda)$。
+> 3. **最优控制 = 在 $q^*$ 下取期望动作**，用样本近似就是 $u_t\leftarrow\sum_k\omega_k(U_t+\epsilon_t^k)$——§6.3 第⑤步的"加权平均扰动"正是这个期望的蒙特卡洛估计，一步不多、一步不少。
+>
+> **跨模块联系（采样+加权 暗线）**：这套"采一批 → 按代价/回报指数加权 → 把分布挪向好样本"与 [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|CMA-ES]]（在**参数空间**采、按 fitness 加权挪均值/协方差）、[[ReinforcementLearning#4.1 策略梯度定理：log-derivative 技巧|策略梯度]]（在**动作空间**采、按 advantage 加权挪策略）是**同一台机器的三种投影**——MPPI 在**控制序列空间**做它。认出这点，三个算法的"更新公式"其实是一个。
+
 > [!important] 一把旋钮，四处现身
 > MPPI 的 $\lambda$、内点法的 barrier $\mu$（[[Optimization#4.3 内点法：沿"中心路径"把约束问题变成一串 Newton|Optimization §4.3]]）、SAC 的熵温度 $\alpha$（[[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|RL §5.2.3]]）、同伦的 $\lambda$——**都是"从软/探索连续过渡到硬/利用"的同一把温度旋钮**。认出这一点，四个领域的"超参数玄学"就统一了。
 
@@ -358,6 +436,23 @@ void mppi_update(float* U, const float* E, const float* costs) {
 > - **AR 探索噪声**（[[Autoregressive Policies for Continuous Control Deep Reinforcement Learning|ARP]]）：把白噪声 $\epsilon_t$ 换成 AR-p 过程 $\epsilon_t=\sum_i\phi_i\epsilon_{t-i}+\eta_t$，**边缘分布不变但时间相关**——避免高频抖动、生成更合物理的探索路径（与 [[ReinforcementLearning#5.4.1 时间一致探索：从白噪声到自回归过程|RL 时间一致探索]]同源）。
 > - **连续时间熵正则**（[[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]]）：MPPI 的 $\lambda$ 在连续极限下正是随机 HJB 里的熵正则系数——**MPPI 不是经验主义算法，而是熵正则随机控制的蒙特卡洛近似**。这把 MPPI 与 [[ControlTheory#11. 线性二次最优控制 (LQR)|最优控制]]、RL 的最大熵彻底打通。
 
+### 6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑
+
+全篇多处说"扩散策略 = 学出来的 SDE"，这里把它讲实——它就是把 §2 的 SDE **倒着跑**。
+
+**前向 SDE（加噪，把数据揉成高斯）**：对动作/轨迹 $x_0\sim p_{data}$，定义一条随时间 $t:0\to T$ 逐步注入噪声的 SDE
+$$dx=f(x,t)\,dt+g(t)\,dW,$$
+$f(x,t)$=漂移（如 VP-SDE 的 $-\tfrac12\beta(t)x$，把数据往原点收）、$g(t)$=噪声强度 [$\cdot/\sqrt{\mathrm s}$]、$dW$=维纳增量。跑到 $t=T$ 时 $x_T$ 已是**纯高斯噪声**——数据结构被完全抹平。这正是 §1"Continuation/平滑化"暗线里"从平滑近凸的高斯出发"的那一端。
+
+**逆向 SDE（去噪，把高斯长回数据）**：Anderson (1982) 时间反演定理给出——上式对应一条**逆时** SDE（$t:T\to0$）：
+$$dx=\big[f(x,t)-g(t)^2\,\underbrace{\nabla_x\log p_t(x)}_{\text{score 分数}}\big]dt+g(t)\,d\bar W,$$
+$p_t(x)$=时刻 $t$ 的边缘密度、$d\bar W$=逆时维纳增量。唯一新东西是那个多出来的漂移 $-g^2\nabla_x\log p_t(x)$：**score function** $\nabla_x\log p_t(x)$=对数概率密度的梯度，指向"数据更密"的方向，物理上是一把把噪声样本推回数据流形的力。
+
+> [!important] "学出来的 SDE"到底学什么
+> 逆向 SDE 里 $f,g$ 都是已知设计量，**唯一未知的是 score** $\nabla_x\log p_t(x)$。扩散模型用网络 $s_\theta(x,t)\approx\nabla_x\log p_t(x)$（denoising score matching / $\epsilon$-prediction 训练）把它**学出来**——学到 score，逆向 SDE 就完全确定，于是**采样 = 数值积分这条逆向 SDE = 迭代去噪**。这就是"扩散 = 学出来的逆向 SDE"的字面含义。
+>
+> 两个回扣：① 那个 score 漂移项与 §2.2 Itō 引理里"噪声诱导的额外漂移"**是同一类物体**——都是噪声在概率景观上被整流出的确定性方向修正；② 把 score 条件化到观测 $o$（$s_\theta(a,t\mid o)$ 的分数条件在图像/触觉上）、在**动作空间**跑逆向 SDE，就是 [[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器|扩散策略]]——它天生输出**多峰**动作分布，正好解 §4 反复出现的"多峰后验"顽疾。这是 §1"扩散 ↔ 表征学习"暗线的落点。
+
 ------
 
 ## 7. 信念空间规划：为感知而行动
@@ -379,6 +474,14 @@ $\mathrm{Tr}(\Sigma_t)$ 项**逼规划器选信息丰富的路径**，自动产�
 
 > [!note] MLO 假设：把随机规划"确定性化"
 > 规划时刻不知道未来观测 $z_{t+1}$（它是随机变量），对所有 $z$ 积分会爆炸。**最大似然观测 (MLO)** 假设未来观测正好等于预测值 $z_{t+1}^{exp}=h(f(\mu_t,u_t))$，于是可用标准 iLQR/MPPI 在信念空间规划。虽忽略了观测随机性，实践中已证明能产生高效鲁棒的主动感知策略。
+
+> [!important] 从"惩罚方差"到风险敏感控制：$\exp$ 效用把 §6.2 自由能、§2.2 Itō 方差、§7 的 $\mathrm{Tr}(\Sigma)$ 拧成一根
+> §7 的目标用 $\alpha\,\mathrm{Tr}(\Sigma_t)$ **手工**加了个不确定性惩罚项——但"该罚多少方差"其实有一个从最优控制内生长出来的答案：**风险敏感控制**。它不最小化期望代价 $\mathbb E[S]$，而是最小化**指数效用 (exponential utility)**（$S$=轨迹总代价 [代价单位]、$\gamma$=风险敏感系数 [1/代价单位]，使 $\gamma S$ 无量纲）：
+> $$J_\gamma=\frac1\gamma\log\mathbb E\big[\exp(\gamma S)\big].$$
+> **为什么这一个式子就等价于"均值 + 方差惩罚"**：把 $\log\mathbb E[e^{\gamma S}]$ 按 $\gamma$ 做小量展开——它正是 $S$ 的**累积量生成函数**，前两阶累积量就是均值与方差（$\mu_S=\mathbb E[S]$、$\sigma_S^2=\mathrm{Var}[S]$）：
+> $$J_\gamma=\frac1\gamma\Big(\gamma\mu_S+\tfrac{\gamma^2}{2}\sigma_S^2+O(\gamma^3)\Big)=\underbrace{\mathbb E[S]}_{\text{名义代价}}+\underbrace{\tfrac{\gamma}{2}\mathrm{Var}[S]}_{\text{方差惩罚（自动出现）}}+O(\gamma^2).$$
+> 于是 §7 里那个人手加的 $\alpha\,\mathrm{Tr}(\Sigma)$ **不再是拍脑袋的正则**——它是指数效用的二阶展开，系数 $\alpha$ 的物理身份就是风险敏感度 $\gamma/2$。**$\gamma>0$ 风险规避**（怕高代价的坏尾巴，抓玻璃时保守减力、躲 epistemic 高处——接 §3.2）；**$\gamma<0$ 风险偏好**（奖励方差、主动往不确定里钻去探索）；$\gamma\to0$ 退回风险中性 $\mathbb E[S]$。
+> **决定性回扣（一根拧三处）**：① 与 §6.2 **自由能** $F=-\lambda\log\mathbb E[\exp(-S/\lambda)]$ 逐字对照，令 $\gamma=-1/\lambda$ 二者**完全相等**——**MPPI 的温度 $\lambda$ 本质就是一个风险敏感系数**（且 $\gamma=-1/\lambda<0$ 天然风险偏好，这正解释了 §6.3 那个 softmax 为何"乐观地"给低代价样本指数级高权，是内建的探索倾向）；② 展开式里 $\gamma$ 乘的 $\mathrm{Var}[S]$ 与 §2.2 Itō 引理中噪声整流出的二阶项 $\tfrac12\mathrm{Tr}(G^T\nabla^2V\,G)$ 是同一个"方差改变期望代价"的机制——风险敏感 HJB 里这一项正由 $\gamma$ 定标；③ 因此 §1 的**一把温度旋钮**（MPPI $\lambda$ / 内点 barrier / SAC 熵 $\alpha$）与"风险敏感度"是同一把旋钮的两种叫法，也与"采样+加权"暗线相通——[[ReinforcementLearning#5.2.3 SAC：黄金标准与"熵即柔顺"|SAC 的熵温度]]、[[ControlTheory#11. 线性二次最优控制 (LQR)|最优控制的确定性等价]]（$\gamma\to0$ 极限即 LQG 的 certainty-equivalence，方差项消失、规划退化成对均值规划）在这里被同一个 $\gamma$ 收编。
 
 ------
 

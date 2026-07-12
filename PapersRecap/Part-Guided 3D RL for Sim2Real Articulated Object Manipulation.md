@@ -26,6 +26,8 @@ related:
 > - [[ReinforcementLearning]]：任务被建模为 POMDP；part-guided points 与 robot state 作为 observation，SAC 学习 target joint positions 和 gripper finger action。
 > - [[ComputationalGeometry]]：从 RGB-D 像素经相机内外参 lift 到 3D world-frame points，再按 part mask 构成分层点集。
 > - [[RepresentationLearning]]：2D synthetic part segmentation 提供语义先验；PointNet 把每个 part 的采样点压成 geometric feature。
+> - [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"|WorldModels §3]]：FUS 用 predictive entropy $U=-\sum_c P_c\log P_c$ 加权采样，是 **认知不确定性三用** 的一个感知侧实例——用分割不确定性当"该采哪些点"的罗盘（但注意 §2.5.1 的符号陷阱：$\mathrm{softmax}(U_c)$ 是强调高熵点，靠 frame consistency 把 aggressive sampling 变稳）。
+> - [[ReinforcementLearning#9. Sim-to-Real：把转笔策略搬上真机|RL §9]]：synthetic segmentation + DR + FUS 逼近 oracle part mask，实现 zero-shot sim-to-real；瓶颈从 RL 算法移到 perception front-end 的跨帧稳定性。
 >
 > **核心技术**: hand-centric RGB-D, synthetic part segmentation, part-wise point lifting, FUS, PointNet geometric feature, SAC, versatile multi-task articulated manipulation policy
 
@@ -33,7 +35,9 @@ related:
 
 这篇的核心不是“又一个 point cloud RL”，而是回答一个更具体的问题：在真实 articulated object 操作中，机器人到底应该看什么？如果看整幅图像，RL 需要从大量背景、纹理和遮挡里自己发现把手/面板/底座；如果只看关键点，信息太稀疏且对遮挡敏感；如果看无结构点云，小部件会在下采样里被淹没。作者的答案是：看 **part-level 3D representation**，而且每个 part 都要保留固定数量的几何证据。
 
-对当前知识库，这篇应放在“结构化视觉表示 -> RL policy -> Sim-to-Real”的线索中。它和 [[Grounded Action Transformation]] 一样关心 Sim-to-Real，但这里 grounding 的不是动作，而是视觉观测；它和 Dexpoint 类 3D RL 一样使用点云，但核心增量是“点云必须按可操作部件分层”。
+对当前知识库，这篇应放在”结构化视觉表示 -> RL policy -> Sim-to-Real”的线索中。它和 [[Grounded Action Transformation]] 一样关心 Sim-to-Real，但这里 grounding 的不是动作，而是视觉观测；它和 Dexpoint 类 3D RL 一样使用点云，但核心增量是”点云必须按可操作部件分层”。
+
+> **簇内点云 sim-to-real 三家 Delta**：[[TRANSIC - Sim-to-Real Policy Transfer by Learning from Online Correction|TRANSIC]] 和 [[RialTo - Reconciling Reality through Simulation - A Real-to-Sim-to-Real Approach for Robust Manipulation|RialTo]] 都用点云降感知 gap，但攻的层面不同：TRANSIC 用点云 + 人类残差 holistic 补 gap；RialTo 用点云桥接”真实演示无物体状态”并 real→sim→real 重建几何孪生；**Part-Guided 则把点云按 affordance part 分层采样 + FUS 稳定化**——三者共享”点云比 RGB 跨域鲁棒”，但分别落在残差校正 / 几何孪生 / 语义分层三条正交轴上。
 
 | 四支柱 | 本文需要读出的颗粒度 | 在本 recap 的落点 |
 |---|---|---|

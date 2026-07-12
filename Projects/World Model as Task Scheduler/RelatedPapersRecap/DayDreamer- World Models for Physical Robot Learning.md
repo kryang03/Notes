@@ -30,6 +30,7 @@ related:
 > - [[StochasticProcess]] — DreamerV2 的**离散** stochastic latent（codes）+ RSSM 随机转移。
 > - [[SignalProcessing]] — world model "follows the structure of a deep Kalman filter"，encoder=后验/更新步、dynamics=先验/预测步，并做多模态传感器融合。
 > - [[EmbodiedAI]] — 真机 online RL 数据飞轮（collect → replay → learn）。
+> - [[WorldModels#6.4 真机在线适配]] / [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] — DayDreamer = Dreamer 的 Dream-RL 搬到真机在线学习；其"梯度解耦（actor/critic 不回传 WM）"是 [[WorldModels#6.2 Dream RL 的对抗性风险]] 的实践对策。
 > - [[Final_WMTS]] — WMTS 真机微调模块的**直接经验先例**；"1h 学会走 / 10min 抗扰"对应 WMTS 的真机适配与 LAAA 思想。
 >
 > **核心技术**: DreamerV2 (discrete latent), RSSM, λ-return (Eq 2), Reparam/REINFORCE 混合 actor (Eq 3), 异步 actor-learner, 多模态传感融合, gradient 解耦
@@ -208,6 +209,9 @@ world model 显式"follows the structure of a deep Kalman filter"：encoder=带�
 
 ### 与 [[EmbodiedAI]] 的联系
 collect → replay → world model → imagine → policy → collect 的真机数据飞轮，是具身在线学习的代表实现。
+
+### 与 [[WorldModels]] 的联系
+DayDreamer 把 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]] 的 [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] Dream-RL 一支落到 [[WorldModels#6.4 真机在线适配]]：无仿真、无重置、1h 学会走、10min 抗扰。其"**梯度解耦**（actor/critic 梯度不进 world model，否则模型被训成乐观幻觉）"正是 [[WorldModels#6.2 Dream RL 的对抗性风险]] 的直接对策，也是 WMTS"不向动力学模型注入任务/策略信号"默认的出处级证据。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS 真机微调与在线适配的直接经验先例；其"梯度解耦"原则是 WMTS"不向动力学模型注入任务信号"默认的来源；"10min 抗扰适配"对应 LAAA。

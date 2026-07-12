@@ -14,6 +14,9 @@ related:
   - "[[RepresentationLearning]]"
   - "[[StochasticProcess]]"
   - "[[Dynamics]]"
+  - "[[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking]]"
+  - "[[KungfuBot: Physics-Based Humanoid Whole-Body Control for Learning Highly-Dynamic Skills]]"
+  - "[[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation]]"
 ---
 
 # Controllable Long-term Motion Generation with Extended Joint Targets (COMET)
@@ -22,9 +25,15 @@ related:
 > 提出 COMET，一个基于 Transformer 条件 VAE 的自回归运动生成框架，支持实时、任意关节子集的精确控制，并通过基于 GMM 的参考引导反馈机制保证长时域生成的稳定性。
 
 > [!tip] 与理论基础的关联
-> - [[RepresentationLearning]] - 条件 VAE 的隐空间建模与解码
-> - [[StochasticProcess]] - GMM 参考引导反馈的概率建模
+> - [[RepresentationLearning#2.2.3 Classifier-Free Guidance：用观测"引导"多峰采样的贝叶斯推导]] - RGF 用 GMM 把预测姿态往自然运动流形"引导"，与 CFG 用条件引导多峰采样同属 **Continuation/平滑化(guidance) 暗线**：都在生成过程里注入一个把样本拉向可行/期望区域的力
+> - [[RepresentationLearning#2.3 ACT：动作分块处理长时相关]] - 增量 $\delta_i$ 预测与 Action Chunking 的动作表示同源
+> - [[StochasticProcess]] - GMM 参考引导反馈的概率建模与 Mahalanobis 距离
 > - [[Dynamics]] - 角色运动的物理约束与关节控制
+
+> [!tip] 簇内关联（运动生成 / 人形簇）
+> - **vs [[PhyGile - Physics-Prefix Guided Motion Generation for Agile Humanoid Tracking|PhyGile]]**: 两者都在解"长时程运动生成如何不漂移出可行流形"。COMET 用 **GMM Reference-Guided Feedback**（推理时把预测姿态往运动流形纠偏，$\alpha$ 控强度）；PhyGile 用 **physics-prefix**（把去噪初始分布锚定在动力学可行区域）。COMET 的约束是**运动学流形**（无物理，靠数据统计的 GMM），PhyGile 的约束是**动力学可行性**（靠仿真器 rollout 门控）——这正是 COMET §7 自己承认的"未涉及接触力学约束"的差距。
+> - **vs [[KungfuBot: Physics-Based Humanoid Whole-Body Control for Learning Highly-Dynamic Skills|KungfuBot]]**: COMET 是**运动学生成器**（CVAE 直接吐姿态增量），KungfuBot 是**物理跟踪器**（PPO 让真机 G1 追踪参考动作）。COMET 的 RGF 是"生成侧防漂移"，KungfuBot 的自适应 $\sigma$ 是"跟踪侧防松散"，二者可级联：COMET/PhyGile 生成参考轨迹 → KungfuBot 式 physics tracker 执行。
+> - **vs [[GLIDE - Planning-Guided Diffusion Policy Learning for Bimanual Manipulation|GLIDE]]**: 增量/残差表示的共识——COMET 预测姿态增量 $\delta$、GLIDE 预测残差关节位置 $\Delta q$，都为降低生成分布的尺度/偏移方差（见 §8 跨方法对比中 VAE vs Diffusion 的实时性取舍）。
 
 ## 1. 问题设定与动机
 

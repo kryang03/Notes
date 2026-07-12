@@ -27,6 +27,7 @@ related:
 > [!tip] 与理论基础的关联
 > - [[ReinforcementLearning]] — model-based RL；纯 imagination 内训 actor-critic（沿用 DreamerV3 的 λ-return + reinforce + 百分位归一化 + EMA critic）。
 > - [[StochasticProcess]] — categorical VAE（32×32）+ straight-through 梯度；dyn/rep KL 拆分；随机 latent 序列。
+> - [[WorldModels#2.1 演进脉络：从 Dyna 到 RSSM 到 Transformer 世界模型]] — STORM 正是这条演进脉络的**Transformer 世界模型**终点（Dreamer 的 RNN-RSSM → STORM 的 GPT 序列主干）；categorical 随机性抗 autoregressive 误差累积对应 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]]。
 > - [[Final_WMTS]] — **WMTS ensemble world model 的"主干选型"参照**：序列模型用 Transformer 而非 RNN，单随机 token，随机性抗误差累积。
 >
 > **核心技术**: GPT-like Transformer 序列模型, Categorical VAE (32×32, 单 token), Action-Latent 融合 token, symlog two-hot reward, dyn/rep KL 平衡, λ-return imagination, KV cache
@@ -201,6 +202,9 @@ model-based RL 纯 imagination 训 actor-critic：λ-return（Eq 8）+ reinforce
 
 ### 与 [[StochasticProcess]] 的联系
 categorical VAE（32×32）+ straight-through 梯度；dyn/rep KL 拆分（Eq 5）是 ELBO/KL-balancing；想象从 prior 采，随机 latent 序列建模。
+
+### 与 [[WorldModels]] 的联系
+STORM 是 [[WorldModels#2.1 演进脉络：从 Dyna 到 RSSM 到 Transformer 世界模型]] 里 **RSSM→Transformer** 那一跳的代表——把 [[DREAM TO CONTROL: LEARNING BEHAVIORS BY LATENT IMAGINATION|Dreamer]] 的 GRU 换成 GPT 序列主干，注意力显式回看历史。它用 categorical 随机性抑制 autoregressive 误差累积、防"追逐虚拟目标"，是 [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]] 的**随机性正则**一路（区别于 WMTS 要的 ensemble/可量化 uncertainty）；训策略仍在 [[WorldModels#4. 利用层：想象里"练策略"还是"规划动作"]] 的 Dream-RL 一支内。
 
 ### 与 [[Final_WMTS]] 的联系
 WMTS ensemble world model 的"序列主干 + 表征 + 抗误差累积"工程参照：Transformer 回看历史、单随机 token 高效、随机性/ensemble 抑制 autoregressive 误差与 model-exploitation。

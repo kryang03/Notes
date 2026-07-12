@@ -30,6 +30,11 @@ related:
 >
 > **核心技术**: Chaos-based Exploration, Sensitivity (局部 Lyapunov), SAL, SRL (TD-controlled)
 
+> [!note] 精确锚点与「价值即 Lyapunov」暗线
+> - [[ControlTheory#10. 稳定性理论的统一基石]] — 本文 sensitivity = 局部 Lyapunov 指数 $\lambda_{max}$；把「探索↔利用」刻画成 $\lambda_{max}$ 符号（$>0$ 发散=探索、$<0$ 收敛=利用），与 §10 的 Lyapunov 稳定性正是同一数学对象、符号相反。
+> - [[ControlTheory#10.4 被动性与"价值即 Lyapunov"]] — 「价值即 Lyapunov」暗线的探索极：[[Safe Model-based Reinforcement Learning with Stability Guarantees|Berkenkamp]] 用值函数作 Lyapunov 做安全（$\lambda_{max}<0$），本文调网络 Lyapunov 指数做探索（$\lambda_{max}>0$）——[[Stability-Certified Reinforcement Learning: A Control-Theoretic Perspective|Stability-Cert RL]] 是稳定极。
+> - **簇内 Delta**：与 [[Exploration versus Exploitation in Reinforcement Learning - A Stochastic Control Approach|Exploration vs Exploitation]] 的 Delta——后者用**显式随机**（熵正则 Gaussian，有闭式最优）、本文用**内生混沌**（确定性 $\lambda_{max}$，无收敛保证）表达同一探索。
+
 ## 元信息
 - **作者**: Katsunari Shibata
 - **机构**: Independent Researcher, Japan

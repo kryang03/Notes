@@ -590,6 +590,15 @@ $$
 
 这是 robotics dynamics/kinematics 中典型的 Lie group 思维：姿态残差属于群作用，不是普通向量加法。
 
+> [!note] 簇内补链 · Foundation 精确锚点 · 暗线
+> **簇内互链 + Delta**：
+> - vs [[FACET - Force-Adaptive Control via Impedance Reference Tracking|FACET]] / [[Variable Impedance Control in End-Effector Space: An Action Space for Reinforcement Learning in Contact-Rich Tasks|VICES]]：三者同属"**低频 RL 修正 + 稳定底层执行**"，但 residual 作用维度不同——rLfD 加 task-space pose、FACET 加虚拟阻抗参考、VICES 加末端刚度 $K$。可正交组合：让 residual 输出 $(\Delta x,\Delta K)$（§6.3 已提示）。
+> - vs [[Physics-Driven Data Generation for Contact-Rich Manipulation via Trajectory Optimization|PhysicsGen]]：同为"**全局先验 + 局部细化**"范式——rLfD 用 DMP demo 做全局路线、RL residual 做局部接触搜索；PhysicsGen 用人手 demo 做全局接触时序、trajopt 做局部动力学可行。二者都把"从零学接触"降维成"在 demo 邻域修正"。
+>
+> **Foundation 精确锚点**：500 Hz impedance controller 执行 = [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|ControlTheory §3.2]]；姿态残差在 $SO(3)$ 上组合 $Q_f=Q_\Delta\circ Q_b$ = [[Dynamics#2.2 旋转群 SO(3)、李代数 so(3) 与 Rodrigues 公式|Dynamics §2.2]]。
+>
+> **暗线 · 接触的非光滑性**：insertion 卡滞是局部接触模式突变（jam↔slide），$\text{small pose error}\to\text{contact normal/friction changes}\to\text{jam}$——task-space jiggling 本质是在**非光滑接触景观**里搜可行模式（[[ContactMechanics#6.1 不连续性的挑战|ContactMechanics §6.1]]、[[ContactMechanics#5.1 互补条件与 LCP 的构建|ContactMechanics §5.1]]）。这解释了为何 DMP-parameter residual（全局平滑形变）打不过 task-space residual（局部离散搜索）。
+
 ## 8. 应复刻的提问颗粒度
 
 | 用户式追问 | Agent 应主动补充 |

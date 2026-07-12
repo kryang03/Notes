@@ -36,6 +36,18 @@ related:
 >
 > **核心技术**: Semi-structured dynamics (Lagrangian + 黑箱), Ensemble 概率外力估计 $\hat\tau^e$, 自回归多步预测, 学习噪声项, SSRL (Dyna), 3 分钟真机数据, Go1 硬/软地
 
+> [!note] 簇内定位（运动迁移 sim-to-real 簇）与精确锚点
+> **本篇 = "结构（刚体）已知 + 残差（接触力）学习"的 WM 架构蓝图。** 精确 Foundation 锚点：
+> - [[Dynamics#9. 适配层：可微物理与神经动力学]] — semi-structured 正是"已知 Lagrangian 刚体 + 神经残差"的神经动力学落地。
+> - [[WorldModels#5.2 WMTS 的核心结构决策：Actuator + Rigid 解耦]] — 本篇是该"结构+残差"决策的最贴合先例。
+> - [[WorldModels#3. 不确定性层：模型何时在"自信地瞎编"]] — ensemble 估外力残差 → disagreement = **认知不确定性三用**（规划护栏 / 探索罗盘 / 课程"该学处"）；挂该暗线。
+> - [[StochasticProcess#5. 学习未知动力学：高斯过程与残差学习]] — 只学外力残差 $F^e$，是"系统辨识→残差回归"的 ensemble 版（对照 GP 版）。
+>
+> **簇内 Delta：**
+> - vs [[Learning Agile and Dynamic Motor Skills for Legged Robots|Hwangbo actuator net]]：**互补拼图**——Hwangbo 建**执行器侧**（命令→力矩），本篇建**刚体侧 Lagrangian**（力矩→加速度）+ **接触力残差**；串起 = WMTS 完整结构化动力学。
+> - vs [[ASAP- Aligning Simulation and Real-World Physics for Learning Agile Humanoid Whole-Body Skills|ASAP]]：都"物理结构 + 学习残差"，但本篇残差在**接触力通道** $F^e$（显式物理量、永久作 WM 一部分、供 Dyna 想象），ASAP 残差在**动作通道**且**部署去除**——本篇残差长期供规划，ASAP 只为训练期对齐 sim。
+> - vs [[Sim-to-Real: Learning Agile Locomotion For Quadruped Robots|Jie Tan 2018]]：Jie Tan 全 sim 零样本（先验标定 + DR），本篇**3 分钟真机数据**在自学的 semi-structured WM 内 Dyna 训——sim-first 零样本 vs real-data model-based。
+
 ## 0. 阅读定位与范本价值
 
 SSRL 是知识库里 **与 WMTS world model 架构最贴合的一篇**——它把我前面反复论证的"**结构化先验 + 学习残差 + ensemble**"在真机 contact-rich 系统上落地并证明极致样本效率（3 分钟）。它精确收束两条对立路线：

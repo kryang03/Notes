@@ -30,6 +30,8 @@ related:
 > - [[RepresentationLearning]] — learned extrinsics：$z_t$ 不是真实物理量，而是由任务监督塑造出的低维充分统计量。
 > - [[Dynamics]] — hidden object parameters：mass、friction、CoM、scale 通过接触动力学影响 proprioception/action history。
 > - [[ControlTheory]] — adaptive control / system identification：$\phi$ 是摊还式在线辨识器，但没有 classical adaptive control 的可辨识性/稳定性保证。
+> - [[ReinforcementLearning#9.2 三味药：System ID（减偏差）、DR（增覆盖）、在线自适应（动态校正）|RL §9.2]] — HORA 精确落在"三味药"里的**在线自适应**一味：DR（§2.8 增覆盖）供变化、learned extrinsics 组织变化、$\hat z_t$ 动态校正当前变化；SysID baseline 更差正印证"减偏差"不如"动态校正"。
+> - [[Actuation#9. 迁移层 I：执行器 Sim-to-Real gap 的完整解剖|Actuation §9]] — **电流≠关节力矩**暗线：action 是 20 Hz position target，经 300 Hz PD（$K_p=3.0,K_d=0.1$）才变 torque；policy 从不直接给力矩，PD 层吸收部分执行器 gap，$\hat z_t$ 只需读出 mass/friction/CoM 对 input-output 响应的净效应，而非显式 $\tau$。
 >
 > **核心技术**: Rapid Motor Adaptation, learned extrinsics, proprioception-only adaptation, PPO, teacher/adaptation two-stage training
 
@@ -737,6 +739,7 @@ $$
 - Touch Dexterity：binary tactile blind rotation；
 - AnyRotate：dense tactile arbitrary-axis；
 - Spin Pens：无支撑、动态笔。
+- [[DexNDM: Closing the Reality Gap for Dexterous In-Hand Rotation via Joint-wise Neural Dynamics Model|DexNDM]]：同做 in-hand rotation 的 sim-to-real，但把 HORA 的**系统级隐式 extrinsics 适配**下沉到**关节级显式神经动力学**——HORA 让 $\hat z_t$ 隐式吸收物体 gap，DexNDM 用 joint-wise $f_{\psi_i}$ 显式补执行器/载荷响应残差，二者是"系统级 vs 关节级"的同一 $\Delta_T$ 两种粒度。
 
 因此 HORA 是评估新方法的基准线：新方法必须说明它相对 HORA 到底解决了哪个不可观测变量，而不是只说“更强感知”。
 

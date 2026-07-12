@@ -15,6 +15,7 @@ venue: RSS 2023 / IJRR (extended)
 paper-pdf: "[[Diffusion Policy: Visuomotor Policy.pdf]]"
 related:
   - "[[StochasticProcess]]"
+  - "[[RepresentationLearning]]"
   - "[[EmbodiedAI]]"
   - "[[ReinforcementLearning]]"
   - "[[ControlTheory]]"
@@ -27,11 +28,14 @@ related:
 > 把 visuomotor 策略表示为**条件去噪扩散过程**：不直接回归一个动作，而是在「未来动作序列」空间里，从高斯噪声出发、以观测为条件、沿着学到的 action-score 梯度场迭代去噪，采样出一段高概率动作 chunk，再用 receding-horizon 闭环执行。它一举同时拿下三件别的策略表示拿不全的东西——多模态、高维动作序列、稳定训练——并在 15 个任务 / 4 个 benchmark 上平均提升 46.9%。
 
 > [!tip] 与理论基础的关联
-> - [[StochasticProcess]] — DDPM 前向加噪/反向去噪、score function、Langevin dynamics、SDE 生成视角；本文把动作分布建成扩散过程。
-> - [[ReinforcementLearning]] — 与 EBM/IBC 隐式策略的对偶（Eq 6-8），以及 RL refinement（DiWA/World4RL 在此之上做适配）。
+> - [[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]] — DDPM 前向加噪/反向去噪、score function、Langevin dynamics、SDE 生成视角；本文把动作分布建成扩散过程。
+> - [[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器]] — 本文是该节的算法原型；DDPM 前向边缘/反向后验的补严推导见 [[RepresentationLearning#2.2.1 DDPM 前向边缘与反向后验的显式推导（补严）]]，噪声预测↔score matching 等价见 [[RepresentationLearning#2.2.2 噪声预测 $\epsilon_\theta$ ↔ denoising score matching 的等价（补严）]]，条件化对应 [[RepresentationLearning#2.2.3 Classifier-Free Guidance：用观测"引导"多峰采样的贝叶斯推导]]。
+> - [[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）]] — 与 EBM/IBC 隐式策略的对偶（Eq 6-8），以及 RL refinement（DiWA/World4RL 在此之上做适配，见 [[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]]）。
 > - [[ControlTheory]] — §4.5 证明线性系统下 DP 退化为 LQR 反馈 $a=-Ks$（Eq 9），给扩散策略一个控制论 sanity check。
 > - [[EmbodiedAI]] — visuomotor imitation learning 的 action backbone 范式。
 > - [[Final_WMTS]] — DP 是 WMTS 流水线里的低层 action prior / generalist，由 ensemble world model 负责筛选/微调 chunk。
+>
+> **暗线定位**：DP 的 $K$ 步去噪（噪声→数据）是 **Continuation / 同伦 / 平滑化** 暗线在动作生成上的一支——与课程学习的任务分布 $Q_0\to Q_1$、接触优化的 [[Optimization#5.4 阶段四：可微物理与平滑化（让梯度穿过接触）]]、[[ReinforcementLearning#Phase 1 — 手工课程与 continuation：先解平滑子问题]] 同宗：都先解"平滑近凸子问题"再逐步逼近真难度。
 >
 > **核心技术**: Conditional DDPM, Action-Sequence Diffusion, Score Matching, Receding-Horizon Control, FiLM Visual Conditioning, Time-series Diffusion Transformer, DDIM 加速
 
@@ -317,10 +321,13 @@ $$
 ## 7. 与知识体系的联系
 
 ### 与 [[StochasticProcess]] 的联系
-DP 是扩散/score 理论在动作空间的落地：前向 $q(x^k\mid x^0)=\mathcal N(\sqrt{\bar\alpha_k}x^0,(1-\bar\alpha_k)I)$、去噪 = Langevin（Eq 1/2）、$\epsilon_\theta\approx-$score。可与 MPPI/路径积分对照：两者都在"动作/轨迹分布上采样"，但 MPPI 用 reward 加权重要性采样、DP 用学来的 score。
+DP 是扩散/score 理论在动作空间的落地（[[StochasticProcess#6.4 扩散策略 = 学出来的逆向 SDE：把 §2 的 SDE 倒过来跑]]）：前向 $q(x^k\mid x^0)=\mathcal N(\sqrt{\bar\alpha_k}x^0,(1-\bar\alpha_k)I)$、去噪 = Langevin（Eq 1/2）、$\epsilon_\theta\approx-$score。可与 MPPI/路径积分（[[StochasticProcess#6.2 物理根：自由能最小化与重要性采样]]）对照：两者都在"动作/轨迹分布上采样"，但 MPPI 用 reward 加权重要性采样、DP 用学来的 score。
+
+### 与 [[RepresentationLearning]] 的联系
+DP 正是 [[RepresentationLearning#2.2 扩散策略：迭代的轨迹优化器]] 的算法原型：把模仿学习从"均值回归"升级为"分布建模"，用去噪迭代当轨迹优化器解决多峰与协变量漂移。§2.2 的 EBM→score 消 $Z$ 推导（[[RepresentationLearning#2.2.2 噪声预测 $\epsilon_\theta$ ↔ denoising score matching 的等价（补严）]]）与本文 §2.4 是同一件事的两处讲法。
 
 ### 与 [[ReinforcementLearning]] 的联系
-§2.4 给出 EBM/IBC 与扩散的对偶：隐式策略要 $Z$（Eq 6-7，不稳），扩散学 score 消 $Z$（Eq 8，稳）。DP 是 IL，RL refinement（[[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]、[[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]）在其上加回报优化。
+§2.4 给出 EBM/IBC 与扩散的对偶（[[ReinforcementLearning#10.1 扩散策略：多峰分布的终极解（兑现 §5.1.2 的伏笔）]]）：隐式策略要 $Z$（Eq 6-7，不稳），扩散学 score 消 $Z$（Eq 8，稳）。DP 是 IL，RL refinement（[[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]、[[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]）在其上加回报优化，属 [[ReinforcementLearning#10.2 世界模型 RL：隐空间 vs 像素空间]]。
 
 ### 与 [[ControlTheory]] 的联系
 §4.5 / Eq 9：线性系统 + $T_p{=}1$ 下 DP 退化为 LQR 反馈 $a=-Ks$。这给扩散策略一个控制论下界，也说明它不超出"模仿反馈律"的范畴。
@@ -335,4 +342,9 @@ DP 占据 WMTS 流水线的 generalist 槽位：PPO Oracle 探索 → DP 蒸馏�
 - 原始 PDF：[[Diffusion Policy: Visuomotor Policy.pdf]]
 - 关键前作：DDPM (Ho et al. 2020)、iDDPM 噪声调度 (Nichol & Dhariwal 2021)、DDIM (Song et al. 2021)、IBC (Florence et al. 2021)、Diffuser (Janner et al. 2022)、score-based (Song & Ermon 2019)
 - 项目入口：[[Final_WMTS]]
+- 簇内关系（Delta）：
+  - vs [[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]：DP 是纯 BC 动作扩散（只学 $p(A\mid O)$）；DiWA 在其上套 world model，用 PPO 在 dream 里精炼 DP（加回报优化）。
+  - vs [[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]：同为"WM 精炼 DP"，但 World4RL 把 WM 从 RSSM 换成扩散转移模型，且明确压 model-exploitation。
+  - vs [[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training|Diffusion RL for VLA Data]]：DP 从人类示范 BC 训练；后者用 diffusion RL 自动生成低方差数据反过来训 generalist，胜过人类数据。
+  - vs [[World Models for Learning Dexterous Hand-Object Interactions from Human Videos|DexWM]]：DP 直接回归动作；DexWM 把灵巧 WM 当 MPC planner，zero-shot 超 DP 50%+，指出"BC 直接出动作"泛化弱。
 - 相关 recap：[[DiWA- Diffusion Policy Adaptation with World Models|DiWA]]、[[World4RL- Diffusion World Models for Policy Refinement with Reinforcement Learning for Robotic Manipulation|World4RL]]、[[Beyond Human Demonstrations- Diffusion-Based Reinforcement Learning to Generate Data for VLA Training|Diffusion RL for VLA Data]]

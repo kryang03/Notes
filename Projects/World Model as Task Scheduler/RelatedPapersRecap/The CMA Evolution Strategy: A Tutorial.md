@@ -25,9 +25,9 @@ related:
 > Hansen 的权威教程，系统讲 **CMA-ES（Covariance Matrix Adaptation Evolution Strategy）**——最强的**无梯度黑箱优化器**之一。核心：从多元正态 $\mathcal N(m,\sigma^2 C)$ 采样候选 → 选最优 $\mu$ 个、加权重组**移动均值 $m$** → **自适应协方差 $C$**（rank-$\mu$ 从当前种群估 + rank-one 用 evolution path/cumulation 累积成功方向）→ **自适应步长 $\sigma$**（共轭 evolution path）。$C$ 渐近**逼近目标函数 Hessian 的逆**，使其在**病态、非凸、不可分**问题上高效且对旋转/缩放不变。**对 WMTS：CMA-ES 是多处现成的无梯度优化器——(1) WM 内 CEM/MPC 规划（采样动作序列、协方差自适应，胜 random shooting/MPPI）；(2) sim 参数/超参/reward 系数优化；(3) 课程/任务分布优化。无梯度性正合接触不可微。**
 
 > [!tip] 与理论基础的关联
-> - [[Optimization]] — 无梯度黑箱优化；协方差自适应 ≈ 二阶信息（逆 Hessian）。
-> - [[StochasticProcess]] — 多元正态采样；evolution path（累积随机步）。
-> - [[ReinforcementLearning]] — 策略/规划的无梯度优化器（CEM/MPC/ES 基础）。
+> - [[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]] — 本教程正是该节的展开；协方差自适应 ≈ 二阶信息（逆 Hessian），与 [[Optimization#7.3 基于采样：MPPI（用并行换梯度）|§7.3 MPPI]] 同属采样式优化。
+> - [[StochasticProcess#6.2 物理根：自由能最小化与重要性采样|StochasticProcess §6.2]] — 多元正态采样 + evolution path（累积随机步）；"**采样+加权 统一优化**"暗线（CMA-ES/[[Deep Dynamics Models for Learning Dexterous Manipulation|MPPI]]/策略梯度同宗，见 [[StochasticProcess#6.1 为什么 MPPI 适合灵巧操作|§6.1]]）。
+> - [[ReinforcementLearning#4. 策略梯度：在不可微世界中更新策略|RL §4]] — 策略/规划的无梯度优化器（CEM/MPC/ES 基础），与策略梯度同为"采样-加权-挪分布"。
 > - [[Final_WMTS]] — **WM 内规划 + sim 参数/课程优化的无梯度工具**；接触不可微宜无梯度。
 >
 > **核心技术**: 多元正态采样, 加权重组移动均值, rank-$\mu$ + rank-one 协方差自适应, evolution path/cumulation, 步长 $\sigma$ 控制, 不变性, 逆 Hessian 逼近
@@ -137,13 +137,13 @@ random shooting 像"各方向等概率乱撒点"——病态山谷（一陡一�
 ## 7. 与知识体系的联系
 
 ### 与 [[Optimization]] 的联系
-无梯度黑箱优化标杆；协方差自适应 ≈ 逆 Hessian 预条件；不变性。
+无梯度黑箱优化标杆；协方差自适应 ≈ 逆 Hessian 预条件；不变性。精确落点：[[Optimization#4.4 零阶与进化优化：当梯度根本求不出来（CMA-ES）|Optimization §4.4]]（CMA-ES 本体）与 [[Optimization#7.3 基于采样：MPPI（用并行换梯度）|§7.3 MPPI]]（采样式实时优化）。
 
 ### 与 [[StochasticProcess]] 的联系
-多元正态采样分布自适应；evolution path = 累积随机步（cumulation）。
+多元正态采样分布自适应；evolution path = 累积随机步（cumulation）。精确落点：[[StochasticProcess#6.2 物理根：自由能最小化与重要性采样|StochasticProcess §6.2]]——"**采样+加权 统一优化**"暗线把 CMA-ES、[[Deep Dynamics Models for Learning Dexterous Manipulation|MPPI]]、策略梯度统一为"采样→按 fitness/return 加权→挪分布"。
 
 ### 与 [[ReinforcementLearning]] 的联系
-策略/规划的无梯度优化器（CEM/MPC/ES/POET 的算法基础）。
+策略/规划的无梯度优化器（CEM/MPC/ES/POET 的算法基础）；与 [[ReinforcementLearning#4. 策略梯度：在不可微世界中更新策略|RL §4 策略梯度]] 同宗（采样-加权-挪分布），是 [[Paired Open-Ended Trailblazer (POET)- Endlessly Generating Increasingly Complex and Diverse Learning Environments and Their Solutions|POET]] 里每个 agent 的优化器。
 
 ### 与 [[Final_WMTS]] 的联系
 WM 内规划 + sim 参数/课程优化的无梯度工具；接触不可微宜无梯度；配 eigengrasp 降维控成本。
