@@ -8,6 +8,24 @@ status: active
 
 # MergeBuffer 处理索引
 
+## 最新处理记录 (2026-07-12d) — 远端提交（vault backup `0636e15`）融合 + MergeBuffer 清空
+
+**主题**: 把远端一笔 vault-backup 提交新增的知识点按图谱规范融入（rebase 线性叠加到本地成果之上、关联优先），并清空 MergeBuffer
+**状态**: 🟢 已完成（rebase 无冲突 · 关联双向化 · 断链核验通过 · MergeBuffer 已空）
+
+| 远端新增 | 处理 | 结果 |
+|:--|:--|:--|
+| [[ReinforcementLearning]] 两处 `【WHY?】`（用户标记的逻辑跳步，第一优先级） | 就地填透、不留标记 | ✅ §1.3 补"约束流形=余维超曲面 → 切/法空间正交分解 → $\delta\phi=\nabla\phi\cdot\delta q$ = SDF 梯度 = 接触法向 → 各向同性噪声法向分量概率 1 非零 → 必穿透/脱离（落在切空间是零测度）"；§3.3 在过估计定理前补"胜者的诅咒 + Jensen $\mathbb E[\max]\ge V^*$"直觉 |
+| [[LinkerSysId]]（新增：灵巧手电缸系统辨识；原为无 frontmatter 孤儿） | 加 frontmatter + 标题 + 双向链接，点明它是 [[Actuation#7.2 Reflected Inertia：为什么减速比是把双刃剑\|§7.2 reflected inertia]] 的**丝杠直线特例** | ✅ 一句话说透统一律：`armature`$=N_{eq}^2J_{rotor}$ 与 $i^2J_{motor}$ 同构（$i\to N_{eq}=2\pi R/l$）；扣回 Isaac Gym armature 漏项 → [[Actuator2RigidDynamicsModel_gap]] |
+| [[减速器]] 新增自锁/反驱注记（螺旋角<摩擦角、滚珠降 μ、灵心巧手可反驱） | 提炼进 [[Actuation#8.1 核心参数与类型谱系\|§8.1 自锁判据]] | ✅ 能量判据 $\eta<50\%$ 旁补等价几何判据"螺旋角 λ vs 摩擦角 ρ"，双向链接 [[减速器]] / [[LinkerSysId]] |
+| `Books/FOC控制学习笔记.pdf`（新增 24 MB 学习笔记） | 注册为 Books 权威参考源 | ✅ [[Actuation#2. 驱动层：FOC 磁场定向控制——把三相交流当直流控\|§2 FOC]] 加"教科书参考"指针（[[FOC控制学习笔记.pdf]] + [[FOC_Control]]）；FOC 理论此前已在 §2–§5 讲透，PDF 作对照、Books 只读参考不删 |
+| `MergeBuffer/HoverNotes/`（3 个 `.base`） | 判定为 Obsidian Bases 数据库视图配置（word_count/screenshot 过滤的表格/卡片视图），**零领域知识**、目标同名文件夹无内容（孤儿模板） | ✅ **移除以清空 MergeBuffer**（git 历史可恢复；若仍需这些视图可从历史取回并置于对应内容目录旁） |
+
+**产出**: RL.md 两处逻辑跳步填透（第一优先级）；LinkerSysId ↔ Actuation §7.2/§8.1、减速器 ↔ §8.1、FOC PDF ↔ §2 全部双向链接建立；全库断链扫描零断链。
+**MergeBuffer 状态**: 🟢 **已清空**——仅剩 `_MergeIndex.md`（本索引）与 `.DS_Store`（macOS 噪声），无待处理内容。
+
+---
+
 ## 最新处理记录 (2026-07-12c) — SFT/RL/OPD 脉络融入后删除
 
 **主题**: LLM 后训练（SFT vs RL、KL 方向、OPD）脉络整理进对应 Foundation
