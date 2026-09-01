@@ -4,8 +4,8 @@ filters:
     - file.ext == "md"
 formulas:
   content_size: (file.size / 1000).round(1) + "k"
-  has_related: 'if(related, "✅", "❌")'
-  domain_count: 'if(related, related.length, 0)'
+  has_related: if(related, "✅", "❌")
+  domain_count: if(related, related.length, 0)
 properties:
   file.name:
     displayName: 📚 领域
@@ -49,7 +49,7 @@ views:
     order:
       - file.name
       - file.mtime
-    limit: 5
     sort:
       - property: file.mtime
         direction: DESC
+    limit: 5

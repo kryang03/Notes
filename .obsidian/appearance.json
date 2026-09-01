@@ -2,6 +2,6 @@
   "cssTheme": "Solarized",
   "baseFontSizeAction": true,
   "nativeMenus": true,
-  "baseFontSize": 16,
+  "baseFontSize": 22,
   "accentColor": "#b95127"
 }
