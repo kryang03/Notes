@@ -33,7 +33,11 @@ views:
       - paper-pdf
     sort:
       - property: read-date
+        direction: ASC
+      - property: paper-pdf
         direction: DESC
+      - property: file.name
+        direction: ASC
     columnSize:
       file.name: 450
   - type: table

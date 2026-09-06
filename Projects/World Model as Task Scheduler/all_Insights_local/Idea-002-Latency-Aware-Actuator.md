@@ -25,7 +25,7 @@ related:
 ## 1. 问题定义与动机
 
 ### 1.1 大背景引入
-[[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|WMTS Actuator Model]] 与 [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Actuator Network]] 都假设指令到力矩的映射是 deterministic 的延迟函数。但灵巧手的 CAN 1Mbps 总线在 16 路并行写入下，延迟方差极大（[[Actuator2RigidDynamicsModel_gap#4.1 高频感知的总线瓶颈|2.5 ms 指间相位差]] + 仲裁不确定 5–20 ms）。仿真完全忽略此源，是 Actuator sim-to-real gap 的隐藏元凶。
+[[Final_WMTS#4.A Actuator Model：指令 → 关节力矩|WMTS Actuator Model]] 与 [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Actuator Network]] 都假设指令到力矩的映射是 deterministic 的延迟函数。但灵巧手的 CAN 1Mbps 总线在 16 路并行写入下，延迟方差极大（[[Actuator2RigidDynamicsModel_gap#4.1 高频感知的总线瓶颈|2.5 ms 指间相位差]] + 仲裁抖动 0–数 ms；注意阶跃直测的纯传输延迟 $T_d\lesssim10$ ms、反馈延迟 15–20 ms，早先估计的"5–20 ms 仲裁不确定"偏大，见 [[Actuator2RigidDynamicsModel_gap#4.2 延迟预算表：从策略到电机轴|延迟预算表]]）。仿真完全忽略此源，是 Actuator sim-to-real gap 的隐藏元凶。
 
 ### 1.2 现有方法的局限
 - [[ANYmal parkour Learning agile navigation for quadrupedal robots|ANYmal Actuator Network]]：固定 30 ms 历史窗口，假设延迟 stationary。

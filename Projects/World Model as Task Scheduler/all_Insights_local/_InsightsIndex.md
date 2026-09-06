@@ -43,6 +43,7 @@ related:
 | [[Idea-013-Stick-Slip-Mode-Switching\|Idea-013]] | WM-Triggered Stick-Slip Mode Policy Switching | sim2real | A | A | P1 | 增强真机 robustness |
 | [[Idea-014-WM-Gradient-Adaptive-DR\|Idea-014]] | WM-Gradient-Driven Adaptive DR | sim2real | A | A | P1 | 替代 ADR baseline |
 | [[Idea-015-Reset-Free-Autonomy\|Idea-015]] | Reset-Free Real-Robot WMTS via Recovery Policy | autonomy | B | A | **P0** | 基础设施 |
+| [[Idea-016-Gap-Aware-Behavioral-Constraints\|Idea-016]] | Reality-Gap-Aware Behavioral Constraints (Transfer by Avoidance) | sim2real | B+ | B→A- | P1 | RSS 候选；与 013/014 互补 |
 
 ---
 

@@ -109,7 +109,7 @@ $$\underbrace{V = L\frac{dI}{dt} + RI + K_e\omega}_{\text{电气方程 (KVL)}}, 
 | RC 舵机 | 低 (齿轮非线性) | 高 | 有 | 高 | ⭐ |
 
 - **有刷直流**：定子永磁 + 转子绕组 + 电刷换向。控制最简（H 桥切电流方向），但电刷磨损限制寿命。
-- **BLDC / PMSM**：线圈定子 + 永磁转子 + 电子换向。叠层硅钢片抑制涡流。**无框力矩电机**与**空心杯电机**都是 BLDC 的特化。12N14P 是灵巧手/无人机最常见极槽配置（定子齿≠转子极，避免死锁）。
+- **BLDC / PMSM**：线圈定子 + 永磁转子 + 电子换向。叠层硅钢片抑制涡流。**无框力矩电机**与**空心杯电机**都是 BLDC 的特化。12N14P 是灵巧手/无人机最常见极槽配置——分数槽集中绕组带来高绕组系数（≈0.933）与低齿槽转矩（$\mathrm{lcm}(12,14)=84$），并非为了"避免死锁"（旧说法已在 [[电机#2. 无刷直流电机 (BLDC Motor)|电机 §2.1]] 修正）。
 - **空心杯电机**：彻底取消铁芯 → 零齿槽、零铁损、惯量最小、$L$ 极小（微亨级，不受磁饱和影响）。代价：热容极小（$\tau_{th}\approx5$–30 s），功率受限。
 - **无框力矩电机**：省去外壳/轴承/转轴，转子即关节轴——极致紧凑、零传动背隙、高反驱动，是高端灵巧手首选（常配谐波减速器）。
 
@@ -143,6 +143,8 @@ d-q 坐标下动态方程（含交叉耦合）：
 $$\begin{cases} V_d = R_sI_d + L_d\dot I_d - \omega_e L_qI_q \\ V_q = R_sI_q + L_q\dot I_q + \omega_e L_dI_d + \omega_e\psi_m \end{cases}$$
 
 ### 2.2 力矩生成与 MTPA
+
+> [!example] 由功率平衡推出转矩方程、$K_t=\tfrac32K_e$（幅值不变约定）与直流电机 $K_t=K_e$ 的对账、以及 $I_d=0$ 只对表贴式是 MTPA 的证明，见 [[FOC_Control#2.4 转矩方程：$T_e = \frac32 p\,\psi_m I_q$ 与直流电机 $K_t = K_e$ 的对账|FOC §2.4]]。
 
 机械转矩：
 $$T_e = \frac{3}{2}p\left[\psi_mI_q + (L_d-L_q)I_dI_q\right]$$
@@ -183,7 +185,7 @@ $$L\frac{d\hat I}{dt} = V - \hat R\hat I - \hat e + K_p(I-\hat I) + K_i\int(I-\h
 
 ### 3.3 锁相环 (PLL) 提取平滑角度
 
-不直接用 $\theta_e = \arctan(-\hat e_\alpha/\hat e_\beta)$（除法在过零点极敏感）。利用和差化积构造二阶 PLL 误差：
+不直接用 $\theta_e = \arctan(-\hat e_\alpha/\hat e_\beta)$（除法在过零点极敏感）。利用正弦差角公式 $\sin(A-B)=\sin A\cos B-\cos A\sin B$ 构造二阶 PLL 误差（逐步推导与低速崩溃边界见 [[FOC_Control#3.6 低速崩溃边界：为什么灵巧手关节仍然要位置传感器|FOC §3.6]]）：
 $$\epsilon = -\hat e_\alpha\cos\hat\theta_e - \hat e_\beta\sin\hat\theta_e = K_e\omega_e\sin(\theta_e-\hat\theta_e) \approx K_e\omega_e(\theta_e-\hat\theta_e)$$
 
 $\epsilon$ 经 PI 得转速 $\hat\omega_e$，积分得极平滑角度 $\hat\theta_e$。
@@ -194,6 +196,8 @@ $\epsilon$ 经 PI 得转速 $\hat\omega_e$，积分得极平滑角度 $\hat\thet
 ---
 
 ## 4. 串级控制：电流环 → 速度环 → 位置环
+
+> [!example] 三环逐环推导与"内环为何须快 5–10 倍"的相位裕度计算见 [[FOC_Control#2.6 从电流环到串级三环：谁给 $I_q$ 下指令，为什么带宽要分离 5–10 倍|FOC §2.6]] 与 [[Actuator2RigidDynamicsModel_gap#1.5 为什么内环必须比外环快 5–10 倍|Actuator gap §1.5]]。
 
 > [!tip] 本节四拍
 > **直觉**（外环给内环下参考，内环带宽必须远高于外环）→ **推导**（三环级联 + 带宽分离）→ **对比**（仿真单一 PD 弹簧 vs 真机三级级联）→ **联系**（这是 [[ControlTheory#1. 古典控制最小语法：后续一切的前置语言|古典控制]]的多环设计，相位裕度预算见 [[ControlTheory#1.3 频率响应：Bode、相位裕度与带宽|§1.3]]）。
@@ -300,9 +304,13 @@ $$\delta\theta_e \approx \frac{\Delta R_s\cdot I_q}{K_e\omega_e}$$
 | 方案 | 刚度 | 反驱动性 | 控制精度 | Sim-to-Real 友好度 | 典型手 |
 |:--|:--|:--|:--|:--|:--|
 | **连杆** | 最高 | 差 (齿轮自锁) | 中 (累积间隙) | 中 | Barrett, Schunk SDH |
-| **腱绳** | 最低 | 中 (取决预紧) | 最低 (非线性迟滞) | **最差** | Shadow, LEAP |
-| **直驱** | 中 | **最佳** | **最高** ($\tau=K_tI$) | **最佳** | Allegro v4 |
-| **准直驱 QDD** | 中偏高 | 良好 | 高 | 良好 | MIT hands, BRUCE |
+| **腱绳** | 最低 | 中 (取决预紧) | 最低 (非线性迟滞) | **最差** | Shadow (20 主动 DoF / 24 关节), Faive |
+| **直驱** | 中 | **最佳** | **最高** ($\tau=K_tI$) | **最佳** | LEAP Hand (Dynamixel XC330 舵机直驱) |
+| **准直驱 QDD** | 中偏高 | 良好 | 高 | 良好 | MIT Mini Cheetah 腿 (6:1) 及其衍生手 |
+| **直线电缸 + 连杆** | 高 | 取决于丝杠型式 (滚动可反驱 / 滑动或加级自锁) | 中 (换向死区) | 中 (死区可闭式辨识) | **LinkerHand L25**, Inspire, PSYONIC Ability |
+
+> [!warning] 修正（2026-09-02）
+> 旧表把 LEAP 列为腱绳手、Allegro v4 列为直驱、BRUCE 列为 QDD 手，均不成立：LEAP 是 Dynamixel 舵机直驱；Allegro v4 是直流电机 + 齿轮减速（CAN 333 Hz 力矩指令）；BRUCE 是 UCLA 的小型人形机器人而非灵巧手。表已按 [[传动]] 的核实结果更新，并补上灵巧手里最常见的第五条路线"直线电缸 + 连杆"。
 
 - **直驱**：$\tau_{joint}=K_tI-b\omega$，力矩链路最短，gap 仅剩轴承摩擦（<2%）+ 齿槽（空心杯为零）+ 热降额。**对 Sim-to-Real 最友好**。
 - **腱绳**：仿生肌腱，电机远置降低末端惯量，但引入最难建模的一组非线性——Capstan 摩擦 $T_{out}=T_{in}e^{-\mu\sum\theta_i}$、弹性迟滞、预紧衰减、单向性（只能拉不能推，需拮抗对）。
@@ -328,10 +336,10 @@ $$J_{reflected} = i^2J_{motor}$$
 
 直驱 ($i=1$) 最小；QDD ($i\approx6$) 为 $36J_{motor}$；高减速比 ($i=100$) 达 $10^4J_{motor}$。高 reflected inertia **限制机器人对外力的响应带宽**，是 QDD 相比高减速比的核心优势，也直接决定 [[ContactMechanics|接触]]时的碰撞冲量与 [[ControlTheory#3.2 阻抗控制：调节力与运动的动态关系|阻抗控制]]可达的最小表观惯量。
 
-> [!example] 丝杠灵巧手的具体折算：LinkerHand L25（完整 worked example 见 [[LinkerSysId]]）
+> [!example] 丝杠灵巧手的具体折算：LinkerHand L25（完整 worked example 见 [[LinkerSysId#§3 直线→关节折算：等效直线质量变成关节 armature|LinkerSysId §3]]）
 > 旋转→直线电缸把"减速比"换成**导程增益** $2\pi/l$（rad/m，$l$ 为丝杠导程）。转子惯量 $J_{rotor}$ 先折算成推杆的**等效直线质量** $M_{eq}=J_{rotor}(2\pi/l)^2$，再经关节力臂 $R$ 折回关节，得 Isaac Gym 的 `armature`：
 > $$J_{armature}=M_{eq}R^2=J_{rotor}\Big(\tfrac{2\pi R}{l}\Big)^2=N_{eq}^2\,J_{rotor},\qquad N_{eq}=\tfrac{2\pi R}{l}.$$
-> **这正是 $J_{reflected}=i^2J_{motor}$ 的丝杠版本**（$i\to N_{eq}$），"平方"同源于动能里的速度平方。代入 L25NS（$l=0.7$ mm、$R\approx12$ mm、$J_{rotor}=0.1425$ kg·mm²）：$M_{eq}\approx11.48$ kg、$N_{eq}\approx108$、`armature`$\approx2.6\times10^{-3}$ kg·m²。**这个 `armature` 必须写进仿真关节**，否则转子折算惯量被漏掉、Sim 关节过轻，力控增益迁到真机即振荡（[[Actuator2RigidDynamicsModel_gap|执行器↔刚体 gap]]）。而 $N_{eq}\approx108$ 虽高，因滚珠丝杠 $\eta>90\%$（§8.1）故**仍可反驱**——高减速比与可反驱在低损耗传动下并不矛盾。
+> **这正是 $J_{reflected}=i^2J_{motor}$ 的丝杠版本**（$i\to N_{eq}$），"平方"同源于动能里的速度平方。代入 L25NS（$l=0.7$ mm、$R\approx12$ mm、$J_{rotor}=0.1425$ kg·mm²）：$M_{eq}\approx11.48$ kg、$N_{eq}\approx108$、`armature`$=M_{eq}R^2\approx11.48\times0.012^2\approx1.65\times10^{-3}$ kg·m²（旧版误用 $R=15$ mm 得 $2.6\times10^{-3}$，已修正）。**这个 `armature` 必须写进仿真关节**，否则转子折算惯量被漏掉、Sim 关节过轻，力控增益迁到真机即振荡（[[Actuator2RigidDynamicsModel_gap|执行器↔刚体 gap]]）。而 $N_{eq}\approx108$ 虽高，因丝杠为滚动体式（滚珠 / 滚柱，型式待核实）$\eta>90\%$（§8.1）故四指**仍可反驱**（拇指因多一级 17:1 折返减速箱而不可反驱，见 [[Transmission2JointDynamics_gap]]）——高减速比与可反驱在低损耗传动下并不矛盾。
 
 > [!note] 惯量匹配 (Inertia Matching)——工程选型的黄金律
 > 伺服系统要求负载惯量/电机惯量比 $J_L/J_M$ 通常 ≤ 5–10:1。比值过高则动态响应迟钝、易振荡、整定困难。灵巧手高动态操作中，快速换指使等效惯量突变——这既是选型约束（选低惯量空心杯/无框电机），也是 §5 力矩-转速包络之外又一个动态性能瓶颈。（源自机电选型工程实践）
@@ -351,14 +359,14 @@ $m$ 腱驱 $n$ 关节：$\boldsymbol\tau = R(q)\mathbf f$，$R$ 元素是力臂�
 
 | 减速器 | 背隙 | 效率 $\eta$ | 反驱动性 | 扭转刚度 | 灵巧手适用 |
 |:--|:--|:--|:--|:--|:--|
-| 行星齿轮 | 中 (8–15′) | 高 (95–97%) | 良好 | 低 | ⭐⭐⭐⭐ |
+| 行星齿轮 | 精密 ≤3′ / 经济型 8–15′ | 高 (95–97%) | 良好 | 低 | ⭐⭐⭐⭐ |
 | 蜗轮蜗杆 | 低 | 低 (30–90%) | **不可 (自锁)** | 低 | ⭐ |
 | **谐波** | **零** | 中偏高 (65–90%) | 中偏差 | **非线性** | ⭐⭐⭐⭐⭐ |
 | 摆线针轮 | 低 (<1′) | 高 (85–95%) | 中 | 高 | ⭐⭐⭐ |
 | RV | 极低 | 中 | 差 | 极高 | ⭐⭐ |
 | 滚珠/滚柱丝杠 | 低 | 高 (>90%) | 可 | 高 | ⭐⭐⭐ (线性驱动) |
 
-**反驱动性与自锁的判据**：$\eta<50\%$ 时摩擦耗散超过可传递能量 → 自锁（蜗轮蜗杆）。灵巧手力控需 $\eta>50\%$、最好 $>80\%$。**等价的几何判据**（丝杠/螺纹侧）是**螺旋角 $\lambda$ 与摩擦角 $\rho=\arctan\mu$ 的大小关系**：$\lambda<\rho$ 则无论施加多大轴向力都推不动（自锁），$\lambda>\rho$ 则可反驱。滚珠丝杠用**滚动替代滑动**把 $\mu$（进而 $\rho$）压到极低，故高效率、可反驱——这就是为什么 [[减速器|滚珠丝杠]]驱动的灵心巧手上电后无明显自锁（可反驱），而蜗轮蜗杆式传动被自锁钉死、失去被动柔顺。一个高等效减速比的丝杠灵巧手仍可反驱的完整对账见 [[LinkerSysId]]。
+**反驱动性与自锁的判据**：$\eta<50\%$ 时摩擦耗散超过可传递能量 → 自锁（蜗轮蜗杆）。灵巧手力控需 $\eta>50\%$、最好 $>80\%$。**等价的几何判据**（丝杠/螺纹侧）是**螺旋角 $\lambda$ 与摩擦角 $\rho=\arctan\mu$ 的大小关系**：$\lambda<\rho$ 则无论施加多大轴向力都推不动（自锁），$\lambda>\rho$ 则可反驱。滚珠丝杠用**滚动替代滑动**把 $\mu$（进而 $\rho$）压到极低，故高效率、可反驱——这就是为什么 [[减速器|滚珠丝杠]]驱动的灵心巧手上电后无明显自锁（可反驱），而蜗轮蜗杆式传动被自锁钉死、失去被动柔顺。一个高等效减速比的丝杠灵巧手仍可反驱的完整对账见 [[LinkerSysId#§6 反驱对账：高减速比为什么不一定自锁|LinkerSysId §6]]；螺旋升角与正/反向效率的逐步推导见 [[减速器#3.0 螺旋 = 缠在圆柱上的斜面：自锁与效率的完整推导|减速器 §3.0]]。
 
 ### 8.2 三大非理想性——机械侧 gap 的主体
 
@@ -472,6 +480,8 @@ SDK 读回的 $\tau_{measured}=K_t^{nominal}\cdot I_q^{measured}$ 有三重污�
 ---
 
 ## 11. 接口层：嵌入式实现——MCU / STM32 / CAN
+
+> [!example] L25 真机的逐项延迟预算（SDK 队列 / CAN 帧 / MCU 规划平滑 $T_f\approx120$ ms / 反馈）见 [[Actuator2RigidDynamicsModel_gap#4.2 延迟预算表：从策略到电机轴|Actuator gap §4.2]]；整条链路的 gap 总图见 [[sim2real|灵巧手 gap 总图]]。
 
 > [!tip] 本节四拍
 > **直觉**（16 DOF 指令在 API 上看似同步，硬件上按 CAN 帧串行落地）→ **推导**（归一化指令 + 差分抗噪 + 位时序带宽）→ **对比**（软件同步假设 vs 硬件串行相位差）→ **联系**（这些延迟/相位差进入 §4 相位裕度预算、§10 actuator net 的 latency 编码）。详见 [[Actuator2RigidDynamicsModel_gap#三、 L25 灵巧手 CAN 协议与可读取量分析|L25 CAN 分析]]。

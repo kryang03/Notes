@@ -5,7 +5,25 @@
 > 
 > 这确保了跨会话的任务连续性，解决了上下文限制导致的任务中断问题。
 
-**最后更新**: 2026-07-12 (Session #42 — 知识图谱覆盖度审计 + 治理文档上移 loop 启动)
+**最后更新**: 2026-09-02 (Session #43 — 灵巧手硬件 Tutorial 三文件夹重构)
+
+## 📝 Session #44 (2026-09-03) — RSS idea 评审：行为归纳偏置缩小 sim2real gap
+
+用户提出"用行为约束（准静态/stick-only/串行换指/指腹接触/TWS）让策略躲开未建模非线性"的 RSS 提案，要求 novelty/风险/实验/文献分析。产出 `all_Insights_local/Idea-016-Gap-Aware-Behavioral-Constraints.md`（最近邻表、"gap map → 约束"重构建议、本库 stiction 数据给出的"慢反而更糟"反例、E1–E6 实验设计）。**待办**：Khandate 2022/2023、Chen-Lynch 2026 (2607.12105)、SCORE (2606.27475)、DexScrew (2512.02011)、Actuator Reality Shaping (2607.02205) 尚无 Recap，若 idea 推进应优先精读。
+
+## ✅ Session #43 完成 (2026-09-02) — 灵巧手 Tutorial（MechanicalStructure / ActuatorModel / TransmissionModel）纠错 + 补缺 + 重构
+
+**触发**：用户要求把 WMTS 下三个灵巧手 tutorial 文件夹（9 篇）当作"给开发者本人的教程"重构：事实纠错、补齐知识面、统一讲法。
+
+| 产出 | 内容 |
+|------|------|
+| 7 并行 Agent（每 Agent 一文件/一耦合对）| 共享简报 `HAND_TUTORIAL_BRIEF`（17 条已确认错误 + 每文件缺口清单 + 统一骨架：位置→读完能答→编号章节→回扣与承接（L25 一根手指）→开发/科研启示）；9 篇净增 ~+1500 行，入站锚点全部保留 |
+| 事实纠错 | LEAP=Dynamixel 直驱、Allegro v4=DC+齿轮、DLR/HIT II=BLDC+谐波 1:100、Shadow 20 主动 DoF、HATO/BRUCE 删、Ability=电缸+四连杆、Faive=腱+滚动关节；BLDC 起动力矩、DLRK/12N14P 原因、空心杯有刷/无刷结构；RV 减速比公式；丝杠自锁推导；LinkerSysId armature $R$ 不一致（→1.65e-3）；Isaac Gym `friction`=库仑；FOC 丢失 §三 标题、观测器方程重复项、PWM 分辨率；MuJoCo pyramidal 锥各向异性方向（$\mu/\sqrt2$ 偏小）与"pyramidal=LCP"；L25 丝杠型式三处不一 → 统一"待核实" |
+| 新增 | `DexterousHand_Tutorial_Map.md`（阅读地图 + 链路总图 + WMTS 接口）；电机 §0 五条物理规律/§6 微型电缸/§7 反馈；减速器 §3 丝杠家族/§2.7 折返减速箱/§4.2 惯量匹配；传动 §5 直线电缸+连杆第五路线；sim2real §4 固件/通信/量化层 + §8 三条辨识路线；FOC §2.4–2.6/§3.6；Actuator gap §〇 边界/§1.5 相位裕度/§3.5 关节命名/§4.2 延迟预算表；LinkerSysId 七节 worked example |
+| Foundation 同步 | Actuation §1.2（12N14P）/§7.1 表（+第五路线）/§7.2 armature 数值/§8.1 背隙 + 反链；Dynamics §8 四拍、§6.4 反链；ContactMechanics §5.3 反链；Idea-002 延迟数字对齐 |
+| 质量 | 9 篇 + 触及 Foundation 全部零断链（scan_links）；旧 TASK_TRACKER 两处 `[[传动#3. 直驱\|…]]` 锚点修复 |
+
+**遗留 / 待用户核实**：L25 丝杠滚动体型式（滚珠 / 滚柱）；拇指力臂（由 $N_{eq}$ 反推 ≈8/10 mm）；SDK 关节名与论文名对应；L25 关节反馈是电位计还是磁编；MCU 规划平滑 150 ms 出处。建议下一步：E3 驻留时长扫 / E2 变斜率起动实验（Transmission gap §7.3）。
 
 ## 🟡 Session #42 进行中 (2026-07-12) — Foundation 覆盖度审计与缺口填充 loop
 
@@ -1756,7 +1774,7 @@ $$X_+=AX_-+BU_-+W_-$$
 | Foundation 文件 | 更新内容 |
 |-----------------|---------|
 | **Dynamics.md** | §8 Tendon-Driven Dynamics tip callout 新增 [[传动]] [[电机]] [[减速器]] [[sim2real]] 逆链 |
-| **ControlTheory.md** | 阻抗/导纳对比表新增 [[传动#3. 直驱\|直驱]] / [[传动#4. 准直驱\|QDD]] / [[减速器]] 内联链接 |
+| **ControlTheory.md** | 阻抗/导纳对比表新增 [[传动#3. 直驱 (Direct Drive)\|直驱]] / [[传动#4. 准直驱 (Quasi-Direct Drive, QDD)\|QDD]] / [[减速器]] 内联链接 |
 
 #### Canvas 更新
 
